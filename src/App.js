@@ -1,23 +1,20 @@
-import logo from './logo.svg';
 import './App.css';
-
+import Leaderboard from "./components/Leaderboard.tsx"
 function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <h1>Fluke Tournament 2025! 🐟</h1>
+        <p>Whoever catches the biggest fluke of the season wins!</p>
+        <h2>Leaderboard</h2>
       </header>
+      
+      <div className="Leaderboard-wrapper">
+        <Leaderboard/>
+      </div>
+      <h3>Rules</h3>
+      <p>1. Have to take a pic with the fish on the tape measure</p>
+      <p>2. Has to be caught durring NJ open season May 4th - Sept 25th</p>
     </div>
   );
 }
