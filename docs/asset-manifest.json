@@ -1,16 +1,16 @@
 {
   "files": {
-    "main.css": "/static/css/main.b6dafb13.css",
+    "main.css": "/static/css/main.5ef8edf2.css",
     "main.js": "/static/js/main.6f7e6217.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/cartoon-flounder-isolated-on-white-vector-46294379.jpg": "/static/media/cartoon-flounder-isolated-on-white-vector-46294379.a2979b430f263ff4bd93.jpg",
     "index.html": "/index.html",
-    "main.b6dafb13.css.map": "/static/css/main.b6dafb13.css.map",
+    "main.5ef8edf2.css.map": "/static/css/main.5ef8edf2.css.map",
     "main.6f7e6217.js.map": "/static/js/main.6f7e6217.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.b6dafb13.css",
+    "static/css/main.5ef8edf2.css",
     "static/js/main.6f7e6217.js"
   ]
 }
