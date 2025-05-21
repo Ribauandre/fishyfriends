@@ -1,17 +1,15 @@
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
+body{
+  margin-top: 75px;
+  margin-bottom: 75px;
   background-color: #282c34;
-  min-height: 25vh;
+}
+hr {
+  width: 100%;
+}
+.App-header {
+  padding-left: 10vh;
+  padding-right: 10vh;
+  background-color: #282c34;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -21,9 +19,54 @@
 }
 
 .Leaderboard-wrapper{
-  margin: 5vh;
-  background-color: #3a404b;
+  position: relative;
+  background-color: rgb(0, 0, 0);
 }
-body{
-  background-color: #282c34;
+.rules-wrapper{
+  margin: 25px;
+}
+.wave-wrapper{
+  display: grid;
+  grid-template: 1fr / 1fr;
+  place-items: center;
+}
+.wave-wrapper > * {
+  grid-column: 1 / 1;
+  grid-row: 1 / 1;
+}
+.wave {
+  width: 100%;
+  height: 100px;
+  background: url(assets/wave.png);
+  animation: animate 4s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 0.25s);
+}
+.wave#wave1 {
+  z-index: 1000;
+  opacity: 1;
+  background-position-x: 400px;
+}
+.wave#wave2 {
+  z-index: 999;
+  opacity: 0.5;
+  background-position-x: 300px;
+}
+.wave#wave3 {
+  z-index: 998;
+  opacity: 0.2;
+  background-position-x: 200px;
+}
+.wave#wave4 {
+  z-index: 997;
+  opacity: 0.7;
+  background-position-x: 100px;
+}
+@keyframes animate {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(10px);
+  }
 }

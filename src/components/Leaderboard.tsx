@@ -6,7 +6,6 @@ import TableCell, { tableCellClasses } from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
 import flounderPlaceholder from "../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg"
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
