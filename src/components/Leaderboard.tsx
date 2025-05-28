@@ -7,6 +7,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import flounderPlaceholder from "../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg"
+import andresFluke from "../assets/andres/15-and-a-half-05-25.jpeg"
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
   [`&.${tableCellClasses.head}`]: {
@@ -41,7 +42,7 @@ function createData(
 }
 
 const rows = [
-  createData(1, "placeholder", 19, "05/05", <img src={flounderPlaceholder} width={300}></img>),
+  createData(1, "Andres", 15.5, "05/25", <img src={andresFluke} width={300}></img>),
   createData(2, "placeholder", 18, "05/06", <img src={flounderPlaceholder} width={300}></img>),
   createData(3, "placeholder", 17, "05/13", <img src={flounderPlaceholder} width={300}></img>),
 ];
