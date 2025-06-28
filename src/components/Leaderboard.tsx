@@ -1,12 +1,12 @@
 import * as React from 'react';
 import IconButton from '@mui/joy/IconButton';
 import Table from '@mui/joy/Table';
-import Typography from '@mui/joy/Typography';
 import Sheet from '@mui/joy/Sheet';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import placeholderFluke from "../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg"
-import firstPlace from "../assets/andres/15-and-a-half-05-25.jpeg"
+import placeholderFluke from '../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg';
+import firstPlace from '../assets/andres/15-and-a-half-05-25.jpeg';
+import secondPlace from '../assets/andre/14-and-a-half-06-27.jpeg';
 
 
 function createData(
@@ -79,7 +79,7 @@ function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean 
                         <td><img src={firstPlace} width={300}></img></td>
                       }
                       {row.place == 2 &&
-                        <td><img src={placeholderFluke} width={300}></img></td>
+                        <td><img src={secondPlace} width={300}></img></td>
                       }
                       {row.place == 3 &&
                         <td><img src={placeholderFluke} width={300}></img></td>
@@ -98,7 +98,7 @@ function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean 
 
 const rows = [
   createData(1, "Andres", 15.5, "05/25"),
-  createData(2, "placeholder", 15, "05/04"),
+  createData(2, "Andre", 14.5, "06/19"),
   createData(3, "placeholder", 14, "05/05"),
 ];
 
@@ -107,7 +107,7 @@ export default function Leaderboard() {
     <Sheet
       variant="soft"
       sx={{
-                  'textAlign': 'center',
+                  'textAlign': 'left',
                   'background-color': 'black',
                   'color': 'white',
                 }}
@@ -115,7 +115,7 @@ export default function Leaderboard() {
       <Table
         aria-label="leaderboard"
         sx={{
-                  'textAlign': 'center',
+                  'textAlign': 'left',
                   'background-color': 'black',
                   'color': 'white',
                 }}
