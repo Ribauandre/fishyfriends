@@ -1,7 +1,7 @@
 body{
   margin-top: 75px;
   margin-bottom: 75px;
-  background-color: #09253c;
+  background-color: #131c22;
 }
 hr {
   width: 100%;
@@ -9,7 +9,7 @@ hr {
 .App-header {
   padding-left: 10vh;
   padding-right: 10vh;
-  background-color: #09253c;
+  background-color: #131c22;
   display: flex;
   flex-direction: column;
   align-items: center;
