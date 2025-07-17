@@ -1,18 +1,18 @@
 {
   "files": {
-    "main.css": "/static/css/main.cd2b8887.css",
-    "main.js": "/static/js/main.51cab771.js",
+    "main.css": "/static/css/main.9afa2883.css",
+    "main.js": "/static/js/main.b14b1b9c.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
-    "static/media/IMG_0353.jpeg": "/static/media/IMG_0353.46962074a7e130285edf.jpeg",
+    "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
     "static/media/cartoon-flounder-isolated-on-white-vector-46294379.jpg": "/static/media/cartoon-flounder-isolated-on-white-vector-46294379.9509201001c728c983d9.jpg",
     "index.html": "/index.html",
-    "main.cd2b8887.css.map": "/static/css/main.cd2b8887.css.map",
-    "main.51cab771.js.map": "/static/js/main.51cab771.js.map",
+    "main.9afa2883.css.map": "/static/css/main.9afa2883.css.map",
+    "main.b14b1b9c.js.map": "/static/js/main.b14b1b9c.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.cd2b8887.css",
-    "static/js/main.51cab771.js"
+    "static/css/main.9afa2883.css",
+    "static/js/main.b14b1b9c.js"
   ]
 }

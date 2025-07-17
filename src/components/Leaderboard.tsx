@@ -5,8 +5,8 @@ import Sheet from '@mui/joy/Sheet';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import placeholderFluke from '../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg';
-import firstPlace from '../assets/andres/IMG_7920.jpeg';
-import secondPlace from '../assets/andre/IMG_0353.jpeg';
+import firstPlace from '../assets/andre/IMG_7938.jpeg';
+import secondPlace from '../assets/andres/IMG_7920.jpeg';
 
 
 function createData(
@@ -97,8 +97,8 @@ function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean 
 }
 
 const rows = [
-  createData(1, "Andres", 19, "07/09"),
-  createData(2, "Andre", 16, "07/11"),
+  createData(1, "Andre", 20, "07/16"),
+  createData(2, "Andres", 19.5, "07/16"),
   createData(3, "placeholder", 14, "05/05"),
 ];
 
