@@ -99,7 +99,6 @@ function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean 
 const rows = [
   createData(1, "Andre", 20, "07/16"),
   createData(2, "Andres", 19.5, "07/16"),
-  createData(3, "placeholder", 14, "05/05"),
 ];
 
 export default function Leaderboard() {
