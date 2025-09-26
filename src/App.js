@@ -30,10 +30,10 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Fluke Tournament 2025! 🐟</h1>
-        <p>Whoever catches the biggest fluke of the season wins!</p>
+        <h1>Fluke Tournament 🐟</h1>
+        <p>Andre won with a fluke measuring 20 inches. Catch y'all next fluke season!</p>
         <hr/>
-        <h2>Leaderboard</h2>
+        <h2>Last season's leaderboard ~2025~ </h2>
       </header>
       <div className="wave-wrapper">
         <div className="wave" id="wave1" ></div>
@@ -47,8 +47,8 @@ function App() {
       <hr/>
       <div className="rules-wrapper">
         <h3>Rules</h3>
-        <p>1. Have to take a pic with the fish on the tape measure</p>
-        <p>2. Has to be caught durring NJ open season May 4th - Sept 25th</p>
+        <p>1. Have to take a pic with the Fluke on the tape measure</p>
+        <p>2. Has to be caught during NJ open Fluke season May 4th - Sept 25th</p>
       </div>
     </div>
   );
