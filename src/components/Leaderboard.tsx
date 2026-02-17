@@ -28,8 +28,8 @@ function createData(
   };
 }
 
-function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean }) {
-  const { row } = props;
+function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean; showMonths?: boolean }) {
+  const { row, showMonths } = props;
   const [open, setOpen] = React.useState(props.initialOpen || false);
 
   return (
@@ -52,42 +52,42 @@ function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean 
         <td>{row.date}</td>
       </tr>
       <tr>
-        <td style={{ height: 0, padding: 0 }}>
+        <td style={{ height: 0, padding: 0 }} colSpan={5}>
           {open && (
             <Sheet
               variant="soft"
               sx={{
-                  'textAlign': 'center',
-                  'background-color': 'black',
-                  'color': 'white',
-                }}
+                width: '100%',
+                textAlign: 'center',
+                backgroundColor: 'black',
+                color: 'white',
+                padding: 2,
+              }}
             >
-              <Table
-                borderAxis="bothBetween"
-                size="sm"
-                aria-label="photo"
-                sx={{
-                  'textAlign': 'center',
-                  'background-color': 'black',
-                  'color': 'white',
-                }}
-              >
-                <tbody>
-                  {row.photo.map((photoRow) => (
-                    <tr key={row.place} >
-                      {row.place == 1 &&
-                        <td><img src={firstPlace} width={300}></img></td>
-                      }
-                      {row.place == 2 &&
-                        <td><img src={secondPlace} width={300}></img></td>
-                      }
-                      {row.place == 3 &&
-                        <td><img src={placeholderFluke} width={300}></img></td>
-                      }
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <div className="leaderboard-dropdown">
+                {showMonths ? (
+                  <div style={{ padding: 12 }}>
+                    <strong>Months:</strong>
+                    <ul style={{ listStyle: 'none', paddingLeft: 0, marginTop: 8 }}>
+                      {['May','June','July','August','September','October'].map((m) => (
+                        <li key={m} style={{ padding: '4px 0' }}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="leaderboard-photo-grid">
+                    {row.place === 1 && (
+                      <img src={firstPlace} className="leaderboard-photo" alt="first place" />
+                    )}
+                    {row.place === 2 && (
+                      <img src={secondPlace} className="leaderboard-photo" alt="second place" />
+                    )}
+                    {row.place === 3 && (
+                      <img src={placeholderFluke} className="leaderboard-photo" alt="third place" />
+                    )}
+                  </div>
+                )}
+              </div>
             </Sheet>
           )}
         </td>
@@ -101,7 +101,7 @@ const rows = [
   createData(2, "Andres", 19.5, "07/16"),
 ];
 
-export default function Leaderboard() {
+export default function Leaderboard({ showMonths }: { showMonths?: boolean }) {
   return (
     <Sheet
       variant="soft"

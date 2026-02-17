@@ -2,13 +2,14 @@ body{
   margin-top: 75px;
   margin-bottom: 75px;
   background-color: #131c22;
+  overflow-x: hidden;
 }
 hr {
   width: 100%;
 }
 .App-header {
-  padding-left: 10vh;
-  padding-right: 10vh;
+  padding-left: 0;
+  padding-right: 0;
   background-color: #131c22;
   display: flex;
   flex-direction: column;
@@ -18,9 +19,29 @@ hr {
   color: white;
 }
 
+/* Hero/header styles for Home page */
+.site-hero {
+  width: 100%;
+  padding: 36px 20px;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(7,32,41,0.85), rgba(12,41,48,0.8));
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+  max-width: 1100px;
+  margin: 12px auto;
+}
+
+.hero-content { max-width: 900px; margin: 0 auto; }
+.hero-title { font-size: 2.4rem; margin: 0; letter-spacing: 0.6px; }
+.hero-sub { color: #cfeef4; opacity: 0.9; margin-top: 8px; margin-bottom: 12px; font-size: 1.05rem; }
+.header-center { display: flex; justify-content: center; align-items: center; margin-top: 8px; }
+
+.header-fish { width: 120px; height: auto; display: block; margin: 8px auto; filter: drop-shadow(0 6px 18px rgba(0,0,0,0.5)); transition: transform 240ms ease; }
+.header-fish:hover { transform: translateY(-4px) scale(1.03); }
+
 .Leaderboard-wrapper{
-  padding-left: 10%;
-  padding-right: 10%;
+  padding-left: 0;
+  padding-right: 0;
   padding-bottom: 75px;
   position: relative;
   background-color: rgb(0, 0, 0);
@@ -32,37 +53,47 @@ hr {
   display: grid;
   grid-template: 1fr / 1fr;
   place-items: center;
+  /* Make waves span the full viewport width */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 .wave-wrapper > * {
   grid-column: 1 / 1;
   grid-row: 1 / 1;
 }
 .wave {
-  width: 100%;
+  width: 100vw;
   height: 100px;
-  background: url(assets/wave.png);
+  background: url(assets/wave.png) repeat-x;
+  background-size: cover;
   animation: animate 4s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.25s);
 }
 .wave#wave1 {
   z-index: 1000;
   opacity: 1;
-  background-position-x: 400px;
+  background-position-x: 0px;
 }
 .wave#wave2 {
   z-index: 999;
   opacity: 0.5;
-  background-position-x: 300px;
+  background-position-x: 0px;
 }
 .wave#wave3 {
   z-index: 998;
   opacity: 0.2;
-  background-position-x: 200px;
+  background-position-x: 0px;
 }
 .wave#wave4 {
   z-index: 997;
   opacity: 0.7;
-  background-position-x: 100px;
+  background-position-x: 0px;
 }
 @keyframes animate {
   0%,
@@ -73,3 +104,327 @@ hr {
     transform: translateY(10px);
   }
 }
+
+/* Navbar styles */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: linear-gradient(90deg, #072029, #0f2b33);
+  color: #fff;
+  z-index: 2000;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.nav-left {
+  font-weight: 600;
+}
+.nav-links {
+  display: flex;
+  gap: 12px;
+}
+.nav-link {
+  background: transparent;
+  color: #cfeef4;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.nav-link:hover { background: rgba(255,255,255,0.03); }
+.nav-link.active {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.page-wrapper {
+  padding-top: 80px;
+  color: #fff;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  width: 100vw;
+  box-sizing: border-box;
+  padding-left: 0;
+  padding-right: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Center headers and main text on pages */
+.page-wrapper, .App-header {
+  text-align: center;
+}
+.page-wrapper h1, .page-wrapper h2, .page-wrapper h3, .page-wrapper p,
+.App-header h1, .App-header h2 {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Center common wrappers but keep tables handled separately */
+.Leaderboard-wrapper, .rules-wrapper, .fish-year-page {
+  text-align: center;
+}
+.participants-sheet { text-align: center; }
+.participants-sheet .summary-table, .participants-sheet .months-table {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.fish-year-page h1 { margin-bottom: 6px; }
+
+.header-fish {
+  width: 96px;
+  height: auto;
+  margin-top: 8px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  body{
+    margin-top: 64px;
+    margin-bottom: 64px;
+  }
+
+  .App-header {
+    padding-left: 0;
+    padding-right: 0;
+    font-size: calc(8px + 2vmin);
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .site-hero { padding: 20px 12px; border-radius: 10px; }
+  .hero-title { font-size: 1.8rem; }
+  .hero-sub { font-size: 0.98rem; }
+  .header-fish { width: 92px; }
+
+  .navbar {
+    height: 56px;
+    padding: 0 12px;
+  }
+
+  .nav-left {
+    font-size: 16px;
+  }
+
+  .nav-links { gap: 8px; }
+
+  .nav-link { padding: 6px 8px; font-size: 14px; }
+
+  .header-fish { width: 72px; margin-top: 6px; }
+
+  .Leaderboard-wrapper{
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .page-wrapper { padding-top: 72px; padding-left: 0; padding-right: 0; }
+
+  .wave { height: 60px; background-size: cover; }
+
+  /* Make tables horizontally scrollable on small screens */
+  .Leaderboard-wrapper, .page-wrapper {
+    overflow-x: auto;
+  }
+
+  .Leaderboard-wrapper img, .page-wrapper img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .nav-left { font-size: 14px; }
+  .nav-link { padding: 6px 6px; font-size: 13px; }
+  .header-fish { width: 56px; }
+  .App-header { font-size: calc(7px + 2vmin); }
+  .wave { height: 48px; }
+}
+
+/* Participants responsive styling */
+.participants-sheet .month-entry {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+.participants-sheet .entry-name { width: 140px; padding-left: 8px; }
+.participants-sheet .entry-name-title { font-weight: 700; font-size: 16px; color: #fff; }
+.participants-sheet .entry-body { display: flex; gap: 12px; align-items: center; flex: 1; }
+.participants-sheet .entry-photo { max-width: 220px; border-radius: 6px; display: block; }
+.participants-sheet .entry-info { color: #fff; }
+.participants-sheet .entry-info-line { margin-bottom: 6px; }
+
+@media (max-width: 720px) {
+  .participants-sheet .month-entry { flex-direction: column; align-items: stretch; }
+  .participants-sheet .entry-name { width: auto; padding-left: 0; margin-bottom: 6px; }
+  .participants-sheet .entry-body { flex-direction: column; align-items: stretch; }
+  .participants-sheet .entry-photo { max-width: 100%; height: auto; margin: 0 auto; }
+  .participants-sheet .summary-table thead th, .participants-sheet .summary-table tbody td { font-size: 12px; padding: 6px; }
+}
+
+/* Make participants tables full-bleed to viewport edges */
+.participants-sheet .summary-table,
+.participants-sheet .months-table {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  width: 100vw;
+  box-sizing: border-box;
+  padding: 0; /* removed inner padding so table spans fully */
+}
+
+/* Ensure tables remain scrollable on very small screens */
+.participants-sheet .summary-table,
+.participants-sheet .months-table {
+  overflow-x: auto;
+}
+
+.participants-sheet .summary-table thead th, .participants-sheet .months-table thead th {
+  text-align: center;
+  padding: 10px 8px;
+}
+
+.participants-sheet .summary-table td, .participants-sheet .months-table td {
+  padding: 8px 8px;
+}
+
+/* Leaderboard photo styling: responsive and centered on mobile */
+.leaderboard-photo {
+  display: block;
+  margin: 20px auto;
+  max-width: 1400px; /* much larger on very wide screens */
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+}
+
+@media (max-width: 1600px) {
+  .leaderboard-photo { max-width: 1200px; }
+}
+
+@media (max-width: 1400px) {
+  .leaderboard-photo { max-width: 1000px; }
+}
+
+@media (max-width: 1200px) {
+  .leaderboard-photo { max-width: 800px; }
+}
+
+@media (max-width: 900px) {
+  .leaderboard-photo { max-width: 700px; }
+}
+
+@media (max-width: 720px) {
+  .leaderboard-photo { max-width: 90vw; }
+}
+
+@media (max-width: 420px) {
+  .leaderboard-photo { max-width: 94vw; }
+}
+
+/* Ensure leaderboard photo tables don't force page width */
+.leaderboard-photo-table, .leaderboard-photo-table img { max-width: 100%; height: auto; }
+
+/* Grid for leaderboard dropdown photos */
+.leaderboard-photo-grid {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .leaderboard-photo-grid { gap: 16px; }
+}
+
+@media (max-width: 720px) {
+  .leaderboard-photo-grid { flex-direction: column; gap: 12px; }
+}
+
+/* Dropdown container so expanded content can center and have a max width */
+.leaderboard-dropdown {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 6px 12px;
+  box-sizing: border-box;
+}
+
+/* Ensure the photo grid inside dropdown has a max content width */
+.leaderboard-dropdown .leaderboard-photo-grid {
+  max-width: 1100px;
+  width: 100%;
+}
+
+/* On small screens make the dropdown images take full width */
+@media (max-width: 720px) {
+  .leaderboard-dropdown .leaderboard-photo { width: 100%; max-width: 92vw; }
+}
+
+/* Mobile-friendly summary table adjustments */
+.participants-sheet .summary-table {
+  display: block; /* allow horizontal scrolling */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.participants-sheet .summary-table th,
+.participants-sheet .summary-table td {
+  white-space: nowrap; /* keep month columns compact */
+}
+
+.participants-sheet .summary-table th:first-child,
+.participants-sheet .summary-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: black;
+  min-width: 64px;
+  text-align: left;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+@media (max-width: 720px) {
+  .participants-sheet .summary-table thead th,
+  .participants-sheet .summary-table tbody td {
+    font-size: 12px;
+    padding: 6px 3px;
+  }
+  .participants-sheet .summary-table { min-width: 480px; }
+  /* On narrow screens, keep the table centered and allow internal scrolling */
+  .participants-sheet .summary-table,
+  .participants-sheet .months-table {
+    position: relative;
+    left: auto;
+    right: auto;
+    margin-left: 0;
+    margin-right: 0;
+    width: auto;
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .participants-sheet .summary-table thead th,
+  .participants-sheet .summary-table tbody td {
+    font-size: 11px;
+    padding: 4px 3px;
+  }
+  .participants-sheet .summary-table { min-width: 440px; }
+}
+
