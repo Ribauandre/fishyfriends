@@ -1,18 +1,20 @@
 {
   "files": {
-    "main.css": "/static/css/main.9afa2883.css",
-    "main.js": "/static/js/main.93c0dc18.js",
+    "main.css": "/static/css/main.23b2c7e1.css",
+    "main.js": "/static/js/main.c38fc751.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
     "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
+    "static/media/feb.jpeg": "/static/media/feb.dc4168a1ce823501eed7.jpeg",
+    "static/media/jan.jpeg": "/static/media/jan.8e087b469343d6de6cb9.jpeg",
     "static/media/cartoon-flounder-isolated-on-white-vector-46294379.jpg": "/static/media/cartoon-flounder-isolated-on-white-vector-46294379.9509201001c728c983d9.jpg",
     "index.html": "/index.html",
-    "main.9afa2883.css.map": "/static/css/main.9afa2883.css.map",
-    "main.93c0dc18.js.map": "/static/js/main.93c0dc18.js.map",
+    "main.23b2c7e1.css.map": "/static/css/main.23b2c7e1.css.map",
+    "main.c38fc751.js.map": "/static/js/main.c38fc751.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.9afa2883.css",
-    "static/js/main.93c0dc18.js"
+    "static/css/main.23b2c7e1.css",
+    "static/js/main.c38fc751.js"
   ]
 }
