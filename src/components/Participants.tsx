@@ -1,4 +1,7 @@
 import * as React from 'react';
+import kevinJan from '../assets/kevin/jan.jpeg';
+import kevinFeb from '../assets/kevin/feb.jpeg';
+import devinFeb from '../assets/devin/feb.jpeg';
 import andresJan from '../assets/andres/jan.jpeg';
 import paoloFeb from '../assets/paolo/feb.jpeg';
 import paoloJan from '../assets/paolo/jan.jpeg';
@@ -13,11 +16,14 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 const entriesByMonth: Record<string, Array<{name: string; species: string; date: string; photo?: string}>> = {
   'January': [
     { name: 'Andres', species: 'SteelHead', date: '1/16', photo: andresJan },
+    { name: 'Kevin', species: 'SteelHead', date: '1/16', photo: kevinJan },
     { name: 'Paolo', species: 'SteelHead', date: '1/17', photo: paoloJan }
   ],
   'February': [
-    { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb },
+    { name: 'Devin', species: 'Snook', date: '2/13', photo: devinFeb },
     { name: 'Andre', species: 'Atlantic Salmon', date: '2/15', photo: andreFeb },
+    { name: 'Kevin', species: 'Atlantic Salmon', date: '2/15', photo: kevinFeb },
+    { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb },
     { name: 'Andres', species: 'Brown Trout', date: '2/16', photo: andresFeb }
   ]
 };
