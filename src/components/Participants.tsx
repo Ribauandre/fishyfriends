@@ -54,15 +54,15 @@ function MonthRow(props: { month: string }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', marginTop: 8 }}>
                     {entries.map((e) => (
-                      <div key={e.name} style={{ display: 'flex', gap: 16, alignItems: 'center', width: '100%' }}>
-                        <div style={{ width: 140, textAlign: 'left', paddingLeft: 8 }}>
-                          <div style={{ fontWeight: 700, fontSize: 16 }}>{e.name}</div>
+                      <div key={e.name} className="month-entry">
+                        <div className="entry-name">
+                          <div className="entry-name-title">{e.name}</div>
                         </div>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flex: 1 }}>
-                          <img src={e.photo} alt={`${e.name} fish`} style={{ maxWidth: 220, borderRadius: 6 }} />
-                          <div style={{ textAlign: 'left' }}>
-                            <div style={{ fontWeight: 600 }}>Species: <span style={{ fontWeight: 400 }}>{e.species}</span></div>
-                            <div style={{ fontWeight: 600 }}>Date: <span style={{ fontWeight: 400 }}>{e.date}</span></div>
+                        <div className="entry-body">
+                          <img src={e.photo} alt={`${e.name} fish`} className="entry-photo" />
+                          <div className="entry-info">
+                            <div className="entry-info-line"><strong>Species:</strong> <span>{e.species}</span></div>
+                            <div className="entry-info-line"><strong>Date:</strong> <span>{e.date}</span></div>
                           </div>
                         </div>
                       </div>
@@ -84,10 +84,10 @@ const months = [
 
 export default function Participants() {
   return (
-    <Sheet variant="soft" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
+    <Sheet className="participants-sheet" variant="soft" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
         {/* Summary table: participants vs months */}
       <div style={{ height: 24 }} />
-      <Table aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
+      <Table className="summary-table" aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
         <thead>
           <tr>
             <th style={{ color: 'white', backgroundColor: 'black' }}>Name</th>
@@ -108,7 +108,7 @@ export default function Participants() {
                 {months.map((m) => {
                   const has = (entriesByMonth[m] || []).some(e => e.name === name);
                   return (
-                    <td key={m} style={{ color: has ? '#8cffb2' : '#ff7b7b', textAlign: 'center', backgroundColor: 'black' }}>{has ? '𓆟' : '✕'}</td>
+                    <td key={m} style={{ color: has ? '#8cffb2' : '#ff7b7b', textAlign: 'center', backgroundColor: 'black' }}>{has ? '✓' : '✕'}</td>
                   );
                 })}
               </tr>
@@ -116,7 +116,7 @@ export default function Participants() {
           })()}
         </tbody>
       </Table>
-      <Table aria-label="months" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
+      <Table className="months-table" aria-label="months" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
         <thead>
           <tr>
             <th style={{ width: 40, backgroundColor: 'black' }} aria-label="expand" />
