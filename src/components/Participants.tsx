@@ -1,37 +1,18 @@
 import * as React from 'react';
-import kevinJan from '../assets/kevin/jan.jpeg';
-import kevinFeb from '../assets/kevin/feb.jpeg';
-import devinFeb from '../assets/devin/feb.jpeg';
-import andresJan from '../assets/andres/jan.jpeg';
-import paoloFeb from '../assets/paolo/feb.jpeg';
-import paoloJan from '../assets/paolo/jan.jpeg';
-import andreFeb from '../assets/andre/feb.jpeg';
-import andresFeb from '../assets/andres/feb.jpeg';
+import { useEffect, useState } from 'react';
 import IconButton from '@mui/joy/IconButton';
 import Table from '@mui/joy/Table';
 import Sheet from '@mui/joy/Sheet';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import { supabase, setSupabaseJwtFromEnv } from '../utils/supabase';
 
-const entriesByMonth: Record<string, Array<{name: string; species: string; date: string; photo?: string}>> = {
-  'January': [
-    { name: 'Andres', species: 'SteelHead', date: '1/16', photo: andresJan },
-    { name: 'Kevin', species: 'SteelHead', date: '1/16', photo: kevinJan },
-    { name: 'Paolo', species: 'SteelHead', date: '1/17', photo: paoloJan }
-  ],
-  'February': [
-    { name: 'Devin', species: 'Snook', date: '2/13', photo: devinFeb },
-    { name: 'Andre', species: 'Atlantic Salmon', date: '2/15', photo: andreFeb },
-    { name: 'Kevin', species: 'Atlantic Salmon', date: '2/15', photo: kevinFeb },
-    { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb },
-    { name: 'Andres', species: 'Brown Trout', date: '2/16', photo: andresFeb }
-  ]
-};
+type Entry = { id?: number; name: string; species: string; date: string; month: string; photo_url?: string };
 
-function MonthRow(props: { month: string }) {
-  const { month } = props;
+
+function MonthRow(props: { month: string; entries: Entry[] }) {
+  const { month, entries } = props;
   const [open, setOpen] = React.useState(false);
-  const entries = entriesByMonth[month] || [];
 
   return (
     <>
@@ -60,12 +41,14 @@ function MonthRow(props: { month: string }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', marginTop: 8 }}>
                     {entries.map((e) => (
-                      <div key={e.name} className="month-entry">
+                      <div key={e.id || e.name + e.date} className="month-entry">
                         <div className="entry-name">
                           <div className="entry-name-title">{e.name}</div>
                         </div>
                         <div className="entry-body">
-                          <img src={e.photo} alt={`${e.name} fish`} className="entry-photo" />
+                          {e.photo_url ? (
+                            <img src={e.photo_url} alt={`${e.name} fish`} className="entry-photo" />
+                          ) : null}
                           <div className="entry-info">
                             <div className="entry-info-line"><strong>Species:</strong> <span>{e.species}</span></div>
                             <div className="entry-info-line"><strong>Date:</strong> <span>{e.date}</span></div>
@@ -89,10 +72,99 @@ const months = [
 ];
 
 export default function Participants() {
+  const [entriesByMonth, setEntriesByMonth] = useState<Record<string, Entry[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState<{ name: string; species: string; date: string; month: string; file: File | null }>({
+    name: '', species: '', date: '', month: 'January', file: null
+  });
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    async function initAndLoad() {
+      await setSupabaseJwtFromEnv();
+      await fetchEntries();
+    }
+    initAndLoad();
+  }, []);
+
+  async function fetchEntries() {
+    setLoading(true);
+    const { data, error } = await supabase.from('entries').select('*').order('id', { ascending: true });
+    setLoading(false);
+    if (error) {
+      console.error('Error fetching entries', error);
+      return;
+    }
+    const map: Record<string, Entry[]> = {};
+    (data || []).forEach((row: any) => {
+      const m = row.month || 'Unknown';
+      if (!map[m]) map[m] = [];
+      map[m].push({ id: row.id, name: row.name, species: row.species, date: row.date, month: m, photo_url: row.photo_url });
+    });
+    setEntriesByMonth(map);
+  }
+
+  function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
+    const { name, value } = e.target as HTMLInputElement;
+    setForm(prev => ({ ...prev, [name]: value }));
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files && e.target.files[0];
+    setForm(prev => ({ ...prev, file: f || null }));
+    if (f) {
+      const url = URL.createObjectURL(f);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatusMessage(null);
+    if (!form.name || !form.species || !form.date) {
+      setStatusMessage('Please fill name, species and date');
+      return;
+    }
+
+    setUploading(true);
+    let publicURL: string | undefined = undefined;
+    try {
+      if (form.file) {
+        const filePath = `photos/${Date.now()}_${form.file.name}`;
+        const { error: uploadError } = await supabase.storage.from('photos').upload(filePath, form.file as File, { cacheControl: '3600', upsert: false });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from('photos').getPublicUrl(filePath);
+        publicURL = urlData.publicUrl;
+      }
+
+      const { error: insertError } = await supabase.from('entries').insert([{ name: form.name, species: form.species, date: form.date, month: form.month, photo_url: publicURL }]);
+      if (insertError) throw insertError;
+
+      setForm({ name: '', species: '', date: '', month: 'January', file: null });
+      setPreviewUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      await fetchEntries();
+      setStatusMessage('Entry submitted');
+    } catch (err) {
+      console.error(err);
+      setStatusMessage('Failed to submit entry');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // collect unique participant names for summary
+  const namesSet = new Set<string>();
+  Object.values(entriesByMonth).flat().forEach(e => namesSet.add(e.name));
+  const names = Array.from(namesSet);
+
   return (
     <Sheet className="participants-sheet" variant="soft" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
-        {/* Summary table: participants vs months */}
-      <div style={{ height: 24 }} />
       <Table className="summary-table" aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
         <thead>
           <tr>
@@ -103,25 +175,20 @@ export default function Participants() {
           </tr>
         </thead>
         <tbody>
-          {(() => {
-            // collect unique participant names from entriesByMonth
-            const namesSet = new Set<string>();
-            Object.values(entriesByMonth).flat().forEach(e => namesSet.add(e.name));
-            const names = Array.from(namesSet);
-            return names.map((name) => (
-              <tr key={name}>
-                <td style={{ color: 'white', backgroundColor: 'black' }}>{name}</td>
-                {months.map((m) => {
-                  const has = (entriesByMonth[m] || []).some(e => e.name === name);
-                  return (
-                    <td key={m} style={{ color: has ? '#8cffb2' : '#ff7b7b', textAlign: 'center', backgroundColor: 'black' }}>{has ? '✓' : '✕'}</td>
-                  );
-                })}
-              </tr>
-            ));
-          })()}
+          {names.map((name) => (
+            <tr key={name}>
+              <td style={{ color: 'white', backgroundColor: 'black' }}>{name}</td>
+              {months.map((m) => {
+                const has = (entriesByMonth[m] || []).some(e => e.name === name);
+                return (
+                  <td key={m} style={{ color: has ? '#8cffb2' : '#ff7b7b', textAlign: 'center', backgroundColor: 'black' }}>{has ? '✓' : '✕'}</td>
+                );
+              })}
+            </tr>
+          ))}
         </tbody>
       </Table>
+
       <Table className="months-table" aria-label="months" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
         <thead>
           <tr>
@@ -131,10 +198,49 @@ export default function Participants() {
         </thead>
         <tbody>
           {months.map((m) => (
-            <MonthRow key={m} month={m} />
+            <MonthRow key={m} month={m} entries={entriesByMonth[m] || []} />
           ))}
         </tbody>
       </Table>
+
+      <div style={{ padding: 12, marginTop: 20 }}>
+        <h3 style={{ marginBottom: 12 }}>Submit New Entry</h3>
+        <form onSubmit={handleSubmit} className="participants-form">
+          <div className="form-row">
+            <label>Month</label>
+            <select name="month" value={form.month} onChange={handleFormChange} className="participants-input">
+              {months.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="form-row">
+            <label>Name</label>
+            <input name="name" placeholder="Name" value={form.name} onChange={handleFormChange} className="participants-input" />
+          </div>
+          <div className="form-row">
+            <label>Species</label>
+            <input name="species" placeholder="Species" value={form.species} onChange={handleFormChange} className="participants-input" />
+          </div>
+          <div className="form-row">
+            <label>Date</label>
+            <input name="date" placeholder="Date (e.g. 3/12)" value={form.date} onChange={handleFormChange} className="participants-input" />
+          </div>
+          <div className="form-row file-row">
+            <label>Photo</label>
+            <input ref={fileInputRef} type="file" onChange={handleFileChange} accept="image/*" className="participants-input" />
+            {previewUrl && (
+              <div className="file-preview">
+                <img src={previewUrl} alt="preview" />
+              </div>
+            )}
+          </div>
+          <div className="form-row actions">
+            <button type="submit" className="participants-button" disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Submit'}
+            </button>
+            {statusMessage && <div className="status">{statusMessage}</div>}
+          </div>
+        </form>
+      </div>
     </Sheet>
   );
 }
