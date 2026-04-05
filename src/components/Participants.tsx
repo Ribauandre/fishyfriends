@@ -72,10 +72,11 @@ const months = [
 ];
 
 export default function Participants() {
+  const today = new Date().toISOString().split('T')[0];
   const [entriesByMonth, setEntriesByMonth] = useState<Record<string, Entry[]>>({});
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<{ name: string; species: string; date: string; month: string; file: File | null }>({
-    name: '', species: '', date: '', month: 'January', file: null
+    name: '', species: '', date: today, month: months[new Date().getMonth()], file: null
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -109,6 +110,28 @@ export default function Participants() {
 
   function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target as HTMLInputElement;
+
+    if (name === 'name') {
+      setForm(prev => ({ ...prev, name: value.replace(/\s+/g, '') }));
+      return;
+    }
+
+    if (name === 'month') {
+      const monthIndex = months.indexOf(value) + 1;
+      const paddedMonth = String(monthIndex).padStart(2, '0');
+      const [year = new Date().getFullYear().toString(), , day = '01'] = form.date.split('-');
+      const updatedDate = `${year}-${paddedMonth}-${day.padStart(2, '0')}`;
+      setForm(prev => ({ ...prev, month: value, date: updatedDate }));
+      return;
+    }
+
+    if (name === 'date') {
+      const dateParts = value.split('-');
+      const monthName = dateParts[1] ? months[Number(dateParts[1]) - 1] : form.month;
+      setForm(prev => ({ ...prev, date: value, month: monthName }));
+      return;
+    }
+
     setForm(prev => ({ ...prev, [name]: value }));
   }
 
@@ -134,6 +157,19 @@ export default function Participants() {
     setUploading(true);
     let publicURL: string | undefined = undefined;
     try {
+      const { data: existingData, error: duplicateError } = await supabase
+        .from('entries')
+        .select('id')
+        .eq('name', form.name)
+        .eq('month', form.month)
+        .limit(1);
+      if (duplicateError) throw duplicateError;
+      if (existingData && existingData.length > 0) {
+        setStatusMessage('A submission was already submitted for this name and month');
+        setUploading(false);
+        return;
+      }
+
       if (form.file) {
         const filePath = `photos/${Date.now()}_${form.file.name}`;
         const { error: uploadError } = await supabase.storage.from('photos').upload(filePath, form.file as File, { cacheControl: '3600', upsert: false });
@@ -145,7 +181,7 @@ export default function Participants() {
       const { error: insertError } = await supabase.from('entries').insert([{ name: form.name, species: form.species, date: form.date, month: form.month, photo_url: publicURL }]);
       if (insertError) throw insertError;
 
-      setForm({ name: '', species: '', date: '', month: 'January', file: null });
+      setForm({ name: '', species: '', date: today, month: months[new Date().getMonth()], file: null });
       setPreviewUrl(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await fetchEntries();
@@ -214,7 +250,19 @@ export default function Participants() {
           </div>
           <div className="form-row">
             <label>Name</label>
-            <input name="name" placeholder="Name" value={form.name} onChange={handleFormChange} className="participants-input" />
+            <input
+              name="name"
+              placeholder="Name"
+              value={form.name}
+              onChange={handleFormChange}
+              className="participants-input"
+              list="existing-names"
+            />
+            <datalist id="existing-names">
+              {names.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
           </div>
           <div className="form-row">
             <label>Species</label>
@@ -222,7 +270,13 @@ export default function Participants() {
           </div>
           <div className="form-row">
             <label>Date</label>
-            <input name="date" placeholder="Date (e.g. 3/12)" value={form.date} onChange={handleFormChange} className="participants-input" />
+            <input
+              type="date"
+              name="date"
+              value={form.date}
+              onChange={handleFormChange}
+              className="participants-input"
+            />
           </div>
           <div className="form-row file-row">
             <label>Photo</label>
