@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // This script handles routing for GitHub Pages
+      // It redirects 404s to the app's index.html with the original URL preserved
+      var pathSegments = window.location.pathname.split('/').filter(Boolean);
+      sessionStorage.redirect = '/' + pathSegments.join('/');
+      
+      // Handle custom domain (no repo name in path)
+      if (pathSegments.length === 0 || pathSegments[0] !== 'fishyfriends') {
+        // Redirect to home
+        window.location.replace('/index.html');
+      }
+    </script>
+    <meta http-equiv="refresh" content="0;url=/index.html" />
+  </head>
+  <body>
+  </body>
+</html>
