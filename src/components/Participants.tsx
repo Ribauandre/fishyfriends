@@ -9,6 +9,15 @@ import { supabase, setSupabaseJwtFromEnv } from '../utils/supabase';
 
 type Entry = { id?: number; name: string; species: string; date: string; month: string; photo_url?: string };
 
+function sanitizeName(name: string) {
+  if (!name) return '';
+  // trim, remove characters except letters/numbers/spaces/' and -, collapse multiple spaces
+  return name
+    .trim()
+    .replace(/[^A-Za-z0-9\s'-]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
 
 function MonthRow(props: { month: string; entries: Entry[] }) {
   const { month, entries } = props;
@@ -103,7 +112,7 @@ export default function Participants() {
     (data || []).forEach((row: any) => {
       const m = row.month || 'Unknown';
       if (!map[m]) map[m] = [];
-      map[m].push({ id: row.id, name: row.name, species: row.species, date: row.date, month: m, photo_url: row.photo_url });
+      map[m].push({ id: row.id, name: sanitizeName(row.name), species: row.species, date: row.date, month: m, photo_url: row.photo_url });
     });
     setEntriesByMonth(map);
   }
@@ -112,7 +121,7 @@ export default function Participants() {
     const { name, value } = e.target as HTMLInputElement;
 
     if (name === 'name') {
-      setForm(prev => ({ ...prev, name: value.replace(/\s+/g, '') }));
+      setForm(prev => ({ ...prev, name: sanitizeName(value) }));
       return;
     }
 
@@ -156,15 +165,14 @@ export default function Participants() {
 
     setUploading(true);
     let publicURL: string | undefined = undefined;
+    const cleanedName = sanitizeName(form.name);
     try {
       const { data: existingData, error: duplicateError } = await supabase
         .from('entries')
-        .select('id')
-        .eq('name', form.name)
-        .eq('month', form.month)
-        .limit(1);
+        .select('id,name')
+        .eq('month', form.month);
       if (duplicateError) throw duplicateError;
-      if (existingData && existingData.length > 0) {
+      if (existingData && existingData.some((r: any) => sanitizeName(r.name) === cleanedName)) {
         setStatusMessage('A submission was already submitted for this name and month');
         setUploading(false);
         return;
@@ -178,7 +186,7 @@ export default function Participants() {
         publicURL = urlData.publicUrl;
       }
 
-      const { error: insertError } = await supabase.from('entries').insert([{ name: form.name, species: form.species, date: form.date, month: form.month, photo_url: publicURL }]);
+      const { error: insertError } = await supabase.from('entries').insert([{ name: cleanedName, species: form.species, date: form.date, month: form.month, photo_url: publicURL }]);
       if (insertError) throw insertError;
 
       setForm({ name: '', species: '', date: today, month: months[new Date().getMonth()], file: null });
@@ -196,12 +204,12 @@ export default function Participants() {
 
   // collect unique participant names for summary
   const namesSet = new Set<string>();
-  Object.values(entriesByMonth).flat().forEach(e => namesSet.add(e.name));
-  const names = Array.from(namesSet);
+  Object.values(entriesByMonth).flat().forEach(e => namesSet.add(sanitizeName(e.name)));
+  const names = Array.from(namesSet).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
   return (
     <Sheet className="participants-sheet" variant="soft" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
-      <Table className="summary-table" aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
+      <Table className="summary-table" aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white', ml: 2 }}>
         <thead>
           <tr>
             <th style={{ color: 'white', backgroundColor: 'black' }}>Name</th>
