@@ -137,6 +137,8 @@ button { cursor: pointer; }
 .auth-switch { color: var(--muted); font-size: 12px; margin-top: 22px; text-align: center; }
 .auth-switch button { background: none; border: 0; color: var(--teal); font-weight: 800; }
 .form-error { color: var(--coral); font-size: 12px; margin: 14px 0 0; }
+.config-error { background: #fff1eb; border-left: 3px solid var(--coral); color: #9c4939; font-size: 12px; line-height: 1.5; margin: 24px 0 -10px; padding: 12px; }
+.button:disabled { cursor: not-allowed; opacity: .48; }
 .catch-modal-backdrop { align-items: center; background: rgba(16, 47, 50, .7); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 80; }
 .catch-modal { background: var(--cream); box-shadow: 0 24px 70px rgba(16, 47, 50, .3); max-width: 500px; padding: 28px; width: 100%; }
 .catch-modal .section-heading { margin-bottom: 8px; }
@@ -205,22 +207,30 @@ button { cursor: pointer; }
 .month-catch .like-button { margin-top: 7px; }
 .month-catch .like-button span { font-size: 15px; }
 @media (max-width: 800px) {
-  .page-wrapper { padding: 96px 18px 52px; }
-  .navbar { height: 68px; padding: 0 18px; }
-  .nav-brand small, .profile-pill-name, .nav-link span { display: none; }
-  .nav-links { gap: 0; margin: 0 8px 0 auto; }
-  .nav-link { font-size: 11px; padding: 10px 6px; }
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  .page-wrapper { padding: 28px 16px 92px; }
+  .navbar { align-items: center; bottom: 0; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 12px env(safe-area-inset-bottom); top: auto; }
+  .nav-brand { display: none; }
+  .nav-links { display: grid; flex: 1; grid-template-columns: repeat(3, 1fr); margin: 0; }
+  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 54px; padding: 7px 2px; }
+  .nav-link span { display: block; font-size: 9px; margin: 0; }
+  .profile-pill { border-left: 1px solid var(--line); flex-direction: column; font-size: 9px; gap: 2px; margin-left: 5px; padding-left: 10px; }
+  .profile-pill-name { display: block; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-pill > span:last-child { display: none; }
   .welcome-banner { min-height: 390px; padding: 35px 26px; }
   .watermark-fish { bottom: 10px; font-size: 180px; position: absolute; right: 10px; }
   .dashboard-grid, .profile-layout { grid-template-columns: 1fr; }
   .activity-item { grid-template-columns: 35px 1fr; }
   .activity-item a { grid-column: 2; }
-  .auth-page { display: block; margin: -96px -18px -52px; }
-  .auth-story { min-height: 48vh; padding: 110px 28px 45px; }
-  .auth-story h1 { font-size: 58px; }
+  .auth-page { display: block; margin: -28px -16px -92px; }
+  .auth-story { min-height: auto; padding: 58px 24px 36px; }
+  .auth-story h1 { font-size: clamp(46px, 14vw, 64px); margin: 20px 0; }
+  .auth-story p { font-size: 14px; }
   .auth-stat-row { margin-top: 45px; }
-  .auth-panel { padding: 48px 28px 60px; }
-  .auth-heading { margin-top: 65px; }
+  .auth-panel { padding: 34px 24px 52px; }
+  .auth-heading { margin-top: 46px; }
+  .auth-heading h2 { font-size: 30px; }
+  .auth-form input, .auth-form .button { min-height: 48px; }
   .leaderboard-labels { grid-template-columns: 1fr 80px 28px; padding-left: 57px; }
   .leaderboard-labels span:nth-child(2) { grid-column: 2; }
   .leaderboard-labels span:nth-child(3) { display: none; }
@@ -253,4 +263,8 @@ button { cursor: pointer; }
   .month-card { border-right: 0; }
   .month-catch { grid-template-columns: 23px 68px 1fr; }
   .month-catch img { height: 68px; width: 68px; }
+}
+
+@media (min-width: 801px) {
+  .navbar { top: 0; }
 }

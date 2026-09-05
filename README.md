@@ -8,7 +8,7 @@ Create a `.env.local` file in the project root with:
 
 ```bash
 REACT_APP_SUPABASE_URL=your-project-url
-REACT_APP_SUPABASE_ANON_KEY=your-anon-key
+REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
 ```
 
 Then run this SQL in the Supabase SQL editor:
@@ -29,7 +29,7 @@ create policy "Members can insert their profile" on public.profiles for insert w
 create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
 ```
 
-Without these variables, the site runs in preview mode so the account and profile flow can still be explored locally. Preview accounts are stored in browser storage, not in Supabase.
+Both variables are required for sign-in and sign-up. The app intentionally fails closed when they are missing; it never creates a fake local account.
 
 ## Scripts
 

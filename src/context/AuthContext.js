@@ -2,8 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
-const LOCAL_PROFILE_KEY = 'fishyfriends-profile';
-const LOCAL_USER_KEY = 'fishyfriends-user';
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '' };
 
 function profileFromUser(user) {
@@ -24,10 +22,6 @@ export function AuthProvider({ children }) {
     }
     async function loadSession() {
       if (!isSupabaseConfigured) {
-        const savedProfile = window.localStorage.getItem(LOCAL_PROFILE_KEY);
-        const savedUser = window.localStorage.getItem(LOCAL_USER_KEY);
-        if (mounted && savedUser) setUser(JSON.parse(savedUser));
-        if (mounted && savedProfile) setProfile({ ...defaultProfile, ...JSON.parse(savedProfile) });
         if (mounted) setLoading(false);
         return;
       }
@@ -51,10 +45,9 @@ export function AuthProvider({ children }) {
 
   async function signIn(email, password) {
     if (!isSupabaseConfigured) {
-      const localUser = { id: 'local-user', email, user_metadata: { display_name: email.split('@')[0] } };
-      setUser(localUser); setProfile({ ...profileFromUser(localUser), ...profile }); window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(localUser));
-      setNotice('Preview account active. Add Supabase keys to enable real sign-in.');
-      return { error: null };
+      const error = new Error('Authentication is not configured for this deployment.');
+      setNotice(error.message);
+      return { error };
     }
     const result = await supabase.auth.signInWithPassword({ email, password });
     if (result.error) setNotice(result.error.message);
@@ -63,22 +56,20 @@ export function AuthProvider({ children }) {
 
   async function signUp(email, password, displayName) {
     if (!isSupabaseConfigured) {
-      const localUser = { id: 'local-user', email, user_metadata: { display_name: displayName } };
-      const nextProfile = { ...defaultProfile, display_name: displayName };
-      setUser(localUser); setProfile(nextProfile); window.localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(nextProfile)); window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(localUser));
-      setNotice('Preview account created. Add Supabase keys to enable real sign-up.');
-      return { error: null };
+      const error = new Error('Authentication is not configured for this deployment.');
+      setNotice(error.message);
+      return { error };
     }
     const result = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
     if (result.error) setNotice(result.error.message); else setNotice('Check your inbox to confirm your email, then sign in.');
     return result;
   }
 
-  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); window.localStorage.removeItem(LOCAL_USER_KEY); }
+  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); }
 
   async function updateProfile(nextProfile) {
-    setProfile(nextProfile); window.localStorage.setItem(LOCAL_PROFILE_KEY, JSON.stringify(nextProfile));
-    if (!isSupabaseConfigured || !user) return { error: null };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Authentication is not configured for this deployment.') };
+    setProfile(nextProfile);
     const { error } = await supabase.from('profiles').upsert({ id: user.id, ...nextProfile, updated_at: new Date().toISOString() });
     if (error) setNotice(error.message);
     return { error };
