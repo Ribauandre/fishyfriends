@@ -1,5 +1,5 @@
 import React from 'react';
-import Leaderboard from "./components/leaderboard.tsx";
+import Leaderboard from "./components/Leaderboard.tsx";
 import { Link } from 'react-router-dom';
 
 export default function FlukeTournament() {
