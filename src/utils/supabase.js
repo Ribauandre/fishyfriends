@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || process.env.FISHY_SUPABASE_URL || '';
-const supabaseKey = process.env.REACT_APP_SUPABASE_KEY || process.env.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || process.env.FISHY_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
+const supabaseKey = process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY || process.env.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || process.env.FISHY_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase URL and key are required. Add REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_KEY (or REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY) to .env.local and restart the dev server.');
+  throw new Error('Supabase URL and publishable key are required. Add REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY to .env.local and restart the dev server.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {

@@ -25,7 +25,7 @@ To enable this feature, you need to add your Supabase credentials to your GitHub
 3. Click **New repository secret**
 4. Add two secrets:
    - **Name**: `REACT_APP_SUPABASE_URL` | **Value**: Your Project URL (e.g., `https://xxxxx.supabase.co`)
-   - **Name**: `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY` | **Value**: Your Project API Key
+  - **Name**: `REACT_APP_SUPABASE_ANON_KEY` | **Value**: Your Supabase publishable/anon key. Do not use a secret or service-role key.
 
 ### Step 3: Verify the Workflow
 
@@ -60,6 +60,6 @@ You can manually trigger the workflow from the GitHub **Actions** tab to verify 
 
 If the workflow fails:
 1. Check that your `REACT_APP_SUPABASE_URL` includes the full URL with `https://`
-2. Verify your `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY` is the correct API key
+2. Verify your `REACT_APP_SUPABASE_ANON_KEY` is the publishable/anon key, not a secret or service-role key
 3. Check the workflow logs in the **Actions** tab for error details
-4. Ensure the secrets are named exactly `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+4. Ensure the values are named exactly `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY`

@@ -8,7 +8,7 @@ Create a `.env.local` file in the project root with:
 
 ```bash
 REACT_APP_SUPABASE_URL=your-project-url
-REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
+REACT_APP_SUPABASE_ANON_KEY=your-anon-or-publishable-key
 ```
 
 Then run this SQL in the Supabase SQL editor:
@@ -29,7 +29,7 @@ create policy "Members can insert their profile" on public.profiles for insert w
 create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
 ```
 
-Both variables are required for sign-in and sign-up. The app intentionally fails closed when they are missing; it never creates a fake local account.
+Both variables are required for sign-in and sign-up. Use the Supabase publishable key (formerly called the anon key), never a secret or service-role key. The browser bundle intentionally cannot use a secret key.
 
 ## Scripts
 
