@@ -1,7 +1,6 @@
 {
   "name": "fishyfriends",
   "version": "0.1.0",
-  "homepage": "https://www.fishyfriends.club",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -9,7 +8,7 @@
     "@mui/icons-material": "^7.1.0",
     "@mui/joy": "^5.0.0-beta.52",
     "@mui/material": "^7.0.2",
-    "@supabase/supabase-js": "^2.100.1",
+    "@supabase/supabase-js": "^2.115.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

@@ -1,49 +1,7 @@
 import React from 'react';
-import Leaderboard from "./components/Leaderboard.tsx";
+import Leaderboard from "./components/leaderboard.tsx";
+import { Link } from 'react-router-dom';
 
 export default function FlukeTournament() {
-  React.useEffect(() => {
-    const handleScroll = () => {
-      let wave1 = document.getElementById("wave1");
-      let wave2 = document.getElementById("wave2");
-      let wave3 = document.getElementById("wave3");
-      let wave4 = document.getElementById("wave4");
-      let value = window.scrollY;
-      if (wave1) wave1.style.backgroundPositionX = 500 + value * 4 + "px";
-      if (wave2) wave2.style.backgroundPositionX = 400 + value * -4 + "px";
-      if (wave3) wave3.style.backgroundPositionX = 300 + value * 2 + "px";
-      if (wave4) wave4.style.backgroundPositionX = 200 + value * -2 + "px";
-    };
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-
-  return (
-    <>
-      <header className="App-header">
-        <h1>Fluke Tournament 🐟</h1>
-        <p>Andre won with a fluke measuring 20 inches. Catch y'all next fluke season!</p>
-        <hr/>
-        <h2>Last season's leaderboard ~2025~ </h2>
-      </header>
-      <div className="wave-wrapper">
-        <div className="wave" id="wave1" ></div>
-        <div className="wave" id="wave2" ></div>
-        <div className="wave" id="wave3" ></div>
-        <div className="wave" id="wave4" ></div>
-      </div>
-      <div className="Leaderboard-wrapper">
-        <Leaderboard/>
-      </div>
-      <hr/>
-      <div className="rules-wrapper">
-        <h3>Rules</h3>
-        <p>1. Have to take a pic with the Fluke on the tape measure</p>
-        <p>2. Has to be caught during NJ open Fluke season May 4th - Sept 25th</p>
-      </div>
-    </>
-  );
+  return <main className="content-shell challenge-page"><div className="page-intro tournament-intro"><div><span className="eyebrow">ARCHIVE · 2025 SEASON</span><h1>Fluke Tournament</h1><p>Big fish, friendly rivalry, and one very good tape measure photo.</p></div><div className="winner-stamp"><span>WINNER</span><strong>20<span>in</span></strong><small>Andre · 07/16</small></div></div><section className="table-card tournament-board"><div className="section-heading"><div><span className="eyebrow">FINAL RESULTS</span><h2>Last season's leaderboard</h2></div><Link className="text-link" to="/fish-year">See current challenge ↗</Link></div><Leaderboard /></section><section className="rules-strip rules-grid"><div><span className="rule-index">RULES / 01</span><p>Photo must show the fluke and tape measure.</p></div><div><span className="rule-index">RULES / 02</span><p>Catch it during NJ open fluke season, May 4–Sept 25.</p></div></section></main>;
 }
