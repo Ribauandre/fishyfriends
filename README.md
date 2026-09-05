@@ -1,4 +1,39 @@
-# Getting Started with Create React App
+# Fishy Friends
+
+Fishy Friends is a small fishing challenge clubhouse with Supabase authentication, member profiles, seasonal leaderboards, and a monthly Fish Year challenge.
+
+## Supabase setup
+
+Create a `.env.local` file in the project root with:
+
+```bash
+REACT_APP_SUPABASE_URL=your-project-url
+REACT_APP_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Then run this SQL in the Supabase SQL editor:
+
+```sql
+create table public.profiles (
+	id uuid primary key references auth.users(id) on delete cascade,
+	display_name text not null default 'New angler',
+	home_water text default '',
+	favorite_species text default '',
+	bio text default '',
+	updated_at timestamptz default now()
+);
+
+alter table public.profiles enable row level security;
+create policy "Members can view profiles" on public.profiles for select using (true);
+create policy "Members can insert their profile" on public.profiles for insert with check (auth.uid() = id);
+create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
+```
+
+Without these variables, the site runs in preview mode so the account and profile flow can still be explored locally. Preview accounts are stored in browser storage, not in Supabase.
+
+## Scripts
+
+`npm start` runs the development server. `npm run build` creates a production build. `npm test -- --watchAll=false --runInBand` runs the test suite.
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

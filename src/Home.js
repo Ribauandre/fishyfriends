@@ -1,19 +1,9 @@
 import React from 'react';
-import FishIcon from './components/FishIcon';
+import { Link } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 
 export default function Home() {
-  return (
-    <div className="home-page">
-      <header className="App-header site-hero">
-        <div className="hero-content">
-          <h1 className="hero-title">Fishy Friends</h1>
-          <p className="hero-sub">Your community for fishing challenges, leaderboards, and season highlights.</p>
-          <div className="header-center">
-            <FishIcon className="header-fish" />
-          </div>
-        </div>
-        <hr />
-      </header>
-    </div>
-  );
+  const { profile } = useAuth();
+  const name = profile.display_name?.split(' ')[0] || 'angler';
+  return <main className="content-shell home-page"><section className="welcome-banner"><div><span className="eyebrow">SATURDAY, SEPTEMBER 05 · YOUR CLUBHOUSE</span><h1>Good to see you, {name}.</h1><p>Your next great catch is probably closer than you think.</p><div className="hero-actions"><Link className="button button-primary" to="/fish-year">Log this month <span>→</span></Link><Link className="text-link" to="/profile">Complete your profile ↗</Link></div></div><div className="watermark-fish">◒</div></section><section className="dashboard-grid"><article className="feature-card feature-card-dark"><div className="card-topline"><span className="eyebrow">LIVE SEASON</span><span className="status-badge">OPEN</span></div><h2>Fish Year<br /><em>2026</em></h2><p>One fish a month. Twelve chances to make the year memorable.</p><div className="progress-track"><span style={{ width: '17%' }} /></div><div className="card-footer"><span>2 / 12 months logged</span><Link to="/fish-year">View challenge →</Link></div></article><article className="feature-card feature-card-light"><div className="card-topline"><span className="eyebrow">LAST SEASON</span><span className="card-icon">↗</span></div><h2>Fluke<br /><em>Tournament</em></h2><p>Andre took the 2025 crown with a 20-inch fluke.</p><div className="card-footer"><span>20 in · 1st place</span><Link to="/fluke-tournament">See leaderboard →</Link></div></article></section><section className="activity-section"><div className="section-heading"><div><span className="eyebrow">YOUR DOCK</span><h2>Keep the momentum</h2></div><span className="muted-label">Updated just now</span></div><div className="activity-list"><div className="activity-item"><span className="activity-number">01</span><div><strong>Set up your fishing profile</strong><p>Tell the crew where you fish and what you chase.</p></div><Link to="/profile">Edit profile →</Link></div><div className="activity-item"><span className="activity-number">02</span><div><strong>Explore the season board</strong><p>See who is leading the monthly challenge.</p></div><Link to="/fish-year">Open board →</Link></div></div></section></main>;
 }

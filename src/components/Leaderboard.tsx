@@ -1,139 +1,35 @@
 import * as React from 'react';
-import IconButton from '@mui/joy/IconButton';
-import Table from '@mui/joy/Table';
-import Sheet from '@mui/joy/Sheet';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import placeholderFluke from '../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg';
 import firstPlace from '../assets/andre/IMG_7938.jpeg';
 import secondPlace from '../assets/andres/IMG_7920.jpeg';
 
+type LeaderboardRow = { place: number; name: string; size: number; date: string; photo: string };
 
-function createData(
-  place: number,
-  name: string,
-  size: number,
-  date: string,
-) {
-  return {
-    place,
-    name,
-    size,
-    date,
-    photo: [
-      {
-        photo: [placeholderFluke]
-      },
-    ],
-  };
-}
-
-function Row(props: { row: ReturnType<typeof createData>; initialOpen?: boolean; showMonths?: boolean }) {
-  const { row, showMonths } = props;
-  const [open, setOpen] = React.useState(props.initialOpen || false);
-
-  return (
-    <React.Fragment>
-      <tr>
-        <td>
-          <IconButton
-            aria-label="expand row"
-            variant="plain"
-            color="primary"
-            size="sm"
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </td>
-        <th scope="row" style={{color: "white", backgroundColor: "black"}}>{row.place}</th>
-        <td>{row.name}</td>
-        <td>{row.size}</td>
-        <td>{row.date}</td>
-      </tr>
-      <tr>
-        <td style={{ height: 0, padding: 0 }} colSpan={5}>
-          {open && (
-            <Sheet
-              variant="soft"
-              sx={{
-                width: '100%',
-                textAlign: 'center',
-                backgroundColor: 'black',
-                color: 'white',
-                padding: 2,
-              }}
-            >
-              <div className="leaderboard-dropdown">
-                {showMonths ? (
-                  <div style={{ padding: 12 }}>
-                    <strong>Months:</strong>
-                    <ul style={{ listStyle: 'none', paddingLeft: 0, marginTop: 8 }}>
-                      {['May','June','July','August','September','October'].map((m) => (
-                        <li key={m} style={{ padding: '4px 0' }}>{m}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="leaderboard-photo-grid">
-                    {row.place === 1 && (
-                      <img src={firstPlace} className="leaderboard-photo" alt="first place" />
-                    )}
-                    {row.place === 2 && (
-                      <img src={secondPlace} className="leaderboard-photo" alt="second place" />
-                    )}
-                    {row.place === 3 && (
-                      <img src={placeholderFluke} className="leaderboard-photo" alt="third place" />
-                    )}
-                  </div>
-                )}
-              </div>
-            </Sheet>
-          )}
-        </td>
-      </tr>
-    </React.Fragment>
-  );
-}
-
-const rows = [
-  createData(1, "Andre", 20, "07/16"),
-  createData(2, "Andres", 19.5, "07/16"),
+const rows: LeaderboardRow[] = [
+  { place: 1, name: 'Andre', size: 20, date: '07/16', photo: firstPlace },
+  { place: 2, name: 'Andres', size: 19.5, date: '07/16', photo: secondPlace },
+  { place: 3, name: 'Kevin', size: 18.25, date: '08/02', photo: placeholderFluke },
 ];
 
-export default function Leaderboard({ showMonths }: { showMonths?: boolean }) {
+function LeaderboardRowItem({ row }: { row: LeaderboardRow }) {
+  const [open, setOpen] = React.useState(row.place === 1);
+  const [liked, setLiked] = React.useState(false);
+  const [imageOpen, setImageOpen] = React.useState(false);
   return (
-    <Sheet
-      variant="soft"
-      sx={{
-                  'textAlign': 'left',
-                  'background-color': 'black',
-                  'color': 'white',
-                }}
-    >
-      <Table
-        aria-label="leaderboard"
-        sx={{
-                  'textAlign': 'left',
-                  'background-color': 'black',
-                  'color': 'white',
-                }}
-      >
-        <thead style={{  }}>
-          <tr>
-            <th style={{width: 40, backgroundColor: "black"}} aria-label="empty" />
-            <th style={{width: 15, color: "white", backgroundColor: "black"}}>#</th>
-            <th style={{color: "white", backgroundColor: "black"}}>Name</th>
-            <th style={{color: "white", backgroundColor: "black"}}>Size</th>
-            <th style={{color: "white", backgroundColor: "black"}}>Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <Row key={row.name} row={row} />
-          ))}
-        </tbody>
-      </Table>
-    </Sheet>
+    <div className={`leaderboard-entry ${open ? 'is-open' : ''}`}>
+      <button className="leaderboard-row" type="button" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span className={`place place-${row.place}`}>{row.place === 1 ? '01' : row.place === 2 ? '02' : '03'}</span>
+        <span className="rank-name"><strong>{row.name}</strong><small>{row.place === 1 ? 'Champion' : 'Finalist'}</small></span>
+        <span className="rank-size"><strong>{row.size}</strong><small>inches</small></span>
+        <span className="rank-date">{row.date}</span>
+        <span className="expand-icon">{open ? '−' : '+'}</span>
+      </button>
+      {open && <div className="leaderboard-detail"><button className="catch-image-button" type="button" onClick={() => setImageOpen(true)} aria-label={`Expand ${row.name}'s catch photo`}><img src={row.photo} alt={`${row.name}'s ${row.size}-inch fluke`} /></button><div><span className="eyebrow">CATCH PROOF</span><h3>{row.name}'s tournament catch</h3><p>{row.size}-inch fluke recorded on {row.date}, during the 2025 NJ season.</p><button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like catch'} <small>{liked ? 1 : 0}</small></button></div></div>}
+      {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${row.name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={row.photo} alt={`${row.name}'s expanded ${row.size}-inch fluke`} onClick={(event) => event.stopPropagation()} /></div>}
+    </div>
   );
+}
+
+export default function Leaderboard() {
+  return <div className="leaderboard-panel"><div className="leaderboard-labels"><span>RANK / ANGLER</span><span>LENGTH</span><span>DATE</span></div>{rows.map((row) => <LeaderboardRowItem key={row.name} row={row} />)}</div>;
 }

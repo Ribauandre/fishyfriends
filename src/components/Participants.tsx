@@ -7,134 +7,35 @@ import paoloFeb from '../assets/paolo/feb.jpeg';
 import paoloJan from '../assets/paolo/jan.jpeg';
 import andreFeb from '../assets/andre/feb.jpeg';
 import andresFeb from '../assets/andres/feb.jpeg';
-import IconButton from '@mui/joy/IconButton';
-import Table from '@mui/joy/Table';
-import Sheet from '@mui/joy/Sheet';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
-const entriesByMonth: Record<string, Array<{name: string; species: string; date: string; photo?: string}>> = {
-  'January': [
-    { name: 'Andres', species: 'SteelHead', date: '1/16', photo: andresJan },
-    { name: 'Kevin', species: 'SteelHead', date: '1/16', photo: kevinJan },
-    { name: 'Paolo', species: 'SteelHead', date: '1/17', photo: paoloJan }
-  ],
-  'February': [
-    { name: 'Devin', species: 'Snook', date: '2/13', photo: devinFeb },
-    { name: 'Andre', species: 'Atlantic Salmon', date: '2/15', photo: andreFeb },
-    { name: 'Kevin', species: 'Atlantic Salmon', date: '2/15', photo: kevinFeb },
-    { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb },
-    { name: 'Andres', species: 'Brown Trout', date: '2/16', photo: andresFeb }
-  ]
+type Entry = { name: string; species: string; date: string; month?: string; photo?: string };
+const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const entriesByMonth: Record<string, Entry[]> = {
+  January: [{ name: 'Andres', species: 'Steelhead', date: '1/16', photo: andresJan }, { name: 'Kevin', species: 'Steelhead', date: '1/16', photo: kevinJan }, { name: 'Paolo', species: 'Steelhead', date: '1/17', photo: paoloJan }],
+  February: [{ name: 'Devin', species: 'Snook', date: '2/13', photo: devinFeb }, { name: 'Andre', species: 'Atlantic Salmon', date: '2/15', photo: andreFeb }, { name: 'Kevin', species: 'Atlantic Salmon', date: '2/15', photo: kevinFeb }, { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb }, { name: 'Andres', species: 'Brown Trout', date: '2/16', photo: andresFeb }],
 };
 
-function MonthRow(props: { month: string }) {
-  const { month } = props;
-  const [open, setOpen] = React.useState(false);
-  const entries = entriesByMonth[month] || [];
-
-  return (
-    <>
-      <tr>
-        <td>
-          <IconButton
-            aria-label="expand month"
-            variant="plain"
-            color="primary"
-            size="sm"
-            onClick={() => setOpen(!open)}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </td>
-        <th scope="row" style={{ color: 'white', backgroundColor: 'black' }}>{month}</th>
-      </tr>
-      <tr>
-        <td style={{ height: 0, padding: 0 }} colSpan={2}>
-          {open && (
-            <Sheet variant="soft" sx={{ textAlign: 'center', backgroundColor: 'black', color: 'white', padding: 2 }}>
-              <div style={{ padding: 8 }}>
-                <strong>{month}</strong>
-                {entries.length === 0 ? (
-                  <p style={{ margin: '8px 0 0 0' }}>No entries for this month yet.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', marginTop: 8 }}>
-                    {entries.map((e) => (
-                      <div key={e.name} className="month-entry">
-                        <div className="entry-name">
-                          <div className="entry-name-title">{e.name}</div>
-                        </div>
-                        <div className="entry-body">
-                          <img src={e.photo} alt={`${e.name} fish`} className="entry-photo" />
-                          <div className="entry-info">
-                            <div className="entry-info-line"><strong>Species:</strong> <span>{e.species}</span></div>
-                            <div className="entry-info-line"><strong>Date:</strong> <span>{e.date}</span></div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </Sheet>
-          )}
-        </td>
-      </tr>
-    </>
-  );
+function MonthDetail({ entries }: { entries: Entry[] }) {
+  if (!entries.length) return <p className="month-empty">No catches logged yet. Be the first to add one.</p>;
+  return <div className="month-catches">{entries.map((entry) => <MonthCatch key={`${entry.date}-${entry.name}-${entry.species}`} entry={entry} />)}</div>;
 }
 
-const months = [
-  'January','February','March','April','May','June','July','August','September','October','November','December'
-];
+function MonthCatch({ entry }: { entry: Entry }) {
+  const [liked, setLiked] = React.useState(false);
+  const [imageOpen, setImageOpen] = React.useState(false);
+  return <div className="month-catch"><div className="mini-avatar">{entry.name.slice(0, 1)}</div>{entry.photo && <button className="catch-image-button" type="button" onClick={() => setImageOpen(true)} aria-label={`Expand ${entry.name}'s catch photo`}><img src={entry.photo} alt={`${entry.name}'s ${entry.species}`} /></button>}<div><strong>{entry.name}</strong><span>{entry.species} · {entry.date}</span><button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like'} <small>{liked ? 1 : 0}</small></button></div>{imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo} alt={`${entry.name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}</div>;
+}
 
-export default function Participants() {
-  return (
-    <Sheet className="participants-sheet" variant="soft" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
-        {/* Summary table: participants vs months */}
-      <div style={{ height: 24 }} />
-      <Table className="summary-table" aria-label="summary" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
-        <thead>
-          <tr>
-            <th style={{ color: 'white', backgroundColor: 'black' }}>Name</th>
-            {months.map((m) => (
-              <th key={m} style={{ color: 'white', backgroundColor: 'black', textAlign: 'center' }}>{m.slice(0,3)}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(() => {
-            // collect unique participant names from entriesByMonth
-            const namesSet = new Set<string>();
-            Object.values(entriesByMonth).flat().forEach(e => namesSet.add(e.name));
-            const names = Array.from(namesSet);
-            return names.map((name) => (
-              <tr key={name}>
-                <td style={{ color: 'white', backgroundColor: 'black' }}>{name}</td>
-                {months.map((m) => {
-                  const has = (entriesByMonth[m] || []).some(e => e.name === name);
-                  return (
-                    <td key={m} style={{ color: has ? '#8cffb2' : '#ff7b7b', textAlign: 'center', backgroundColor: 'black' }}>{has ? '✓' : '✕'}</td>
-                  );
-                })}
-              </tr>
-            ));
-          })()}
-        </tbody>
-      </Table>
-      <Table className="months-table" aria-label="months" sx={{ textAlign: 'left', backgroundColor: 'black', color: 'white' }}>
-        <thead>
-          <tr>
-            <th style={{ width: 40, backgroundColor: 'black' }} aria-label="expand" />
-            <th style={{ color: 'white', backgroundColor: 'black' }}>Month</th>
-          </tr>
-        </thead>
-        <tbody>
-          {months.map((m) => (
-            <MonthRow key={m} month={m} />
-          ))}
-        </tbody>
-      </Table>
-    </Sheet>
-  );
+function MonthCard({ month, index, entries }: { month: string; index: number; entries: Entry[] }) {
+  const [open, setOpen] = React.useState(index < 2);
+  return <div className={`month-card ${entries.length ? 'has-catches' : ''} ${open ? 'is-open' : ''}`}><button className="month-card-header" type="button" onClick={() => setOpen(!open)} aria-expanded={open}><span className="month-number">{String(index + 1).padStart(2, '0')}</span><span className="month-name"><strong>{month}</strong><small>{entries.length ? `${entries.length} catches logged` : 'Waiting for a catch'}</small></span><span className={`month-state ${entries.length ? 'complete' : ''}`}>{entries.length ? '✓' : '—'}</span><span className="expand-icon">{open ? '−' : '+'}</span></button>{open && <div className="month-card-detail"><MonthDetail entries={entries} /></div>}</div>;
+}
+
+export default function Participants({ newEntry }: { newEntry?: Entry }) {
+  const [entries, setEntries] = React.useState(entriesByMonth);
+  React.useEffect(() => {
+    if (newEntry) setEntries((previous) => ({ ...previous, [newEntry.month || 'January']: [...(previous[newEntry.month || 'January'] || []), newEntry] }));
+  }, [newEntry]);
+  const currentParticipants = Array.from(new Set(Object.values(entries).flat().map((entry) => entry.name)));
+  return <div className="participants-panel"><div className="participant-summary"><div><strong>{currentParticipants.length}</strong><span>active anglers</span></div><div><strong>{Object.values(entries).filter((monthEntries) => monthEntries.length).length.toString().padStart(2, '0')}</strong><span>months complete</span></div><div><strong>{12 - Object.values(entries).filter((monthEntries) => monthEntries.length).length}</strong><span>months ahead</span></div></div><div className="progress-board"><div className="progress-board-heading"><span className="eyebrow">MONTH-BY-MONTH</span><span className="muted-label">Tap a month to inspect catches</span></div><div className="months-grid">{months.map((month, index) => <MonthCard key={month} month={month} index={index} entries={entries[month] || []} />)}</div></div></div>;
 }
