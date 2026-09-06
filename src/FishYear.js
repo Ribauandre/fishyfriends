@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import exifr from 'exifr';
+import { parse as parseExif } from 'exifr';
 import Participants from './components/Participants.tsx';
 import { Link } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -42,13 +42,15 @@ export default function FishYear() {
     if (!file) return;
     setForm((previous) => ({ ...previous, photoFile: file }));
     try {
-      const tags = await exifr.parse(file, ['DateTimeOriginal', 'CreateDate']);
-      const takenAt = tags?.DateTimeOriginal || tags?.CreateDate;
+      const tags = await parseExif(file, ['DateTimeOriginal', 'CreateDate', 'ModifyDate']);
+      const takenAt = tags?.DateTimeOriginal || tags?.CreateDate || tags?.ModifyDate;
       if (takenAt instanceof Date && !isNaN(takenAt)) {
         setForm((previous) => ({ ...previous, date: formatLocalDate(takenAt) }));
       }
-    } catch {
-      // No EXIF date on this photo (or an unsupported format) — leave the date field as is.
+    } catch (exifError) {
+      // No EXIF date on this photo (common for screenshots or photos that passed through
+      // messaging apps, which strip metadata) — leave the date field as is either way.
+      console.warn('Could not read photo date metadata:', exifError);
     }
   }
 
