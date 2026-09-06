@@ -5,9 +5,16 @@ import PersonalBestComments from './components/PersonalBestComments';
 import iconFor from './utils/speciesOptions';
 
 export default function Anglers() {
-  const { user, listAnglers } = useAuth();
+  const { user, listAnglers, deletePersonalBest } = useAuth();
   const [roster, setRoster] = useState(null);
   const [query, setQuery] = useState('');
+
+  async function handleDeleteBest(id) {
+    const result = await deletePersonalBest(id);
+    if (!result.error) setRoster((previous) => previous.map((entry) => entry.profile.id === user.id
+      ? { ...entry, personalBests: entry.personalBests.filter((best) => best.id !== id) }
+      : entry));
+  }
 
   useEffect(() => {
     let active = true;
@@ -44,6 +51,7 @@ export default function Anglers() {
         <div className="angler-bests">
           {personalBests.length === 0 && <p className="month-empty">No personal bests logged yet.</p>}
           {personalBests.map((best) => <div className="angler-best" key={best.id}>
+            {profile.id === user?.id && <button type="button" className="angler-best-remove" onClick={() => handleDeleteBest(best.id)} aria-label={`Remove ${best.species} personal best`}>×</button>}
             {best.photo_url ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} /> : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
             <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><PersonalBestComments personalBestId={best.id} /></div>
           </div>)}

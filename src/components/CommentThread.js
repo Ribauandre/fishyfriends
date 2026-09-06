@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function CommentThread({ comments, loading, onAdd }) {
+export default function CommentThread({ comments, loading, onAdd, onDelete, currentUserId }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
@@ -20,7 +20,10 @@ export default function CommentThread({ comments, loading, onAdd }) {
       <div className="comment-list">
         {loading && <p className="month-empty">Loading comments...</p>}
         {!loading && comments?.length === 0 && <p className="month-empty">No comments yet. Say something.</p>}
-        {!loading && comments?.map((comment) => <div className="comment-row" key={comment.id}><strong>{comment.author_name}</strong><span>{comment.body}</span></div>)}
+        {!loading && comments?.map((comment) => <div className="comment-row" key={comment.id}>
+          <strong>{comment.author_name}</strong><span>{comment.body}</span>
+          {onDelete && currentUserId && comment.user_id === currentUserId && <button type="button" className="comment-remove" onClick={() => onDelete(comment.id)} aria-label="Delete comment">×</button>}
+        </div>)}
       </div>
       <form className="comment-form" onSubmit={submit}>
         <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a comment..." />

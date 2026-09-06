@@ -194,6 +194,13 @@ export function AuthProvider({ children }) {
     return { error: null, comment: data };
   }
 
+  async function deleteComment(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a comment.') };
+    const { error } = await supabase.from('personal_best_comments').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
   async function listFishYearCatches(year) {
     if (!isSupabaseConfigured) return [];
     const { data } = await supabase.from('fish_year_catches').select('*').eq('year', year).order('created_at', { ascending: true });
@@ -225,7 +232,14 @@ export function AuthProvider({ children }) {
     return { error: null, catchEntry: data };
   }
 
-  return <AuthContext.Provider value={{ user, profile, personalBests, customSpecies, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, listFishYearCatches, logFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  async function deleteFishYearCatch(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a catch.') };
+    const { error } = await supabase.from('fish_year_catches').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
+  return <AuthContext.Provider value={{ user, profile, personalBests, customSpecies, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, deleteComment, listFishYearCatches, logFishYearCatch, deleteFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

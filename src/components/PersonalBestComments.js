@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import CommentThread from './CommentThread';
 
 export default function PersonalBestComments({ personalBestId }) {
-  const { listComments, addComment } = useAuth();
+  const { user, listComments, addComment, deleteComment } = useAuth();
   const [comments, setComments] = useState(null);
 
   useEffect(() => {
@@ -19,5 +19,10 @@ export default function PersonalBestComments({ personalBestId }) {
     return result;
   }
 
-  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} />;
+  async function handleDelete(id) {
+    const result = await deleteComment(id);
+    if (!result.error) setComments((previous) => (previous || []).filter((comment) => comment.id !== id));
+  }
+
+  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} onDelete={handleDelete} currentUserId={user?.id} />;
 }

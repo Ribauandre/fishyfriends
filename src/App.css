@@ -303,7 +303,9 @@ button { cursor: pointer; }
 .month-card-detail { background: #eef3e9; border-top: 1px solid var(--line); padding: 16px; }
 .month-empty { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
 .month-catches { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
-.catch-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); overflow: hidden; }
+.catch-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); overflow: hidden; position: relative; }
+.catch-card-remove { background: rgba(3,8,11,.55); border: 0; border-radius: 50%; color: var(--ink); font-size: 16px; height: 22px; line-height: 1; padding: 0; position: absolute; right: 8px; top: 8px; width: 22px; z-index: 2; }
+.catch-card-remove:hover { color: var(--coral); }
 .catch-card-media { background: var(--deep); border: 0; cursor: zoom-in; display: block; padding: 0; position: relative; width: 100%; }
 .catch-card-media img { aspect-ratio: 4 / 5; display: block; height: auto; object-fit: cover; width: 100%; }
 .catch-card-placeholder { align-items: center; aspect-ratio: 4 / 5; display: flex; justify-content: center; width: 100%; }
@@ -460,7 +462,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-card-head .status-badge { position: absolute; right: 0; top: -4px; }
 .angler-favorite { color: var(--mint); display: inline-block; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 14px; }
 .angler-bests { border-top: 1px solid var(--line); display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; }
-.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; }
+.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; position: relative; }
+.angler-best-remove { background: transparent; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 0; position: absolute; right: 0; top: 0; }
+.angler-best-remove:hover { color: var(--coral); }
 .angler-best-fish { height: 44px; width: 76px; }
 .angler-best-photo { height: 58px; object-fit: cover; width: 76px; }
 .angler-best strong { display: block; font-size: 13px; }
@@ -471,9 +475,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .comment-toggle:hover { color: var(--mint); }
 .comment-body { margin-top: 10px; }
 .comment-list { display: grid; gap: 8px; }
-.comment-row { background: rgba(3,8,11,.28); border-left: 2px solid var(--line); font-size: 11px; padding: 6px 10px; }
+.comment-row { background: rgba(3,8,11,.28); border-left: 2px solid var(--line); font-size: 11px; padding: 6px 28px 6px 10px; position: relative; }
 .comment-row strong { color: var(--ink); display: block; font-size: 10px; }
 .comment-row span { color: var(--muted); }
+.comment-remove { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; position: absolute; right: 8px; top: 7px; }
+.comment-remove:hover { color: var(--coral); }
 .comment-form { display: flex; gap: 8px; margin-top: 10px; }
 .comment-form input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); flex: 1; font-size: 11px; outline: none; padding: 8px 10px; }
 .comment-form input:focus { border-color: var(--coral); }
