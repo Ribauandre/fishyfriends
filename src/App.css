@@ -50,6 +50,36 @@ button { cursor: pointer; }
 .chase-fish-front { animation: chase-front 5s ease-in-out infinite; right: 96px; top: 86px; transform: rotate(7deg); }
 @keyframes chase-front { 0%, 100% { right: 96px; } 50% { right: 145px; } }
 @keyframes chase-back { 0%, 100% { right: 18px; } 50% { right: 75px; } }
+.species-fish { display: block; height: 38px; position: absolute; width: 92px; }
+.species-fish i { background: currentColor; border-radius: 58% 46% 46% 58%; display: block; height: 28px; left: 22px; position: absolute; top: 7px; width: 63px; }
+.species-fish i:before { border-bottom: 11px solid currentColor; border-left: 16px solid transparent; border-right: 16px solid transparent; content: ''; left: 19px; position: absolute; top: -9px; transform: rotate(-10deg); }
+.species-fish i:after { color: var(--coral); content: '••'; font-size: 9px; letter-spacing: 5px; position: absolute; right: 8px; top: 8px; }
+.species-fish b { color: var(--muted); font-size: 8px; font-weight: 900; letter-spacing: .16em; position: absolute; right: 0; top: 43px; }
+.species-pike { color: var(--mint); height: 31px; width: 123px; }
+.species-pike i { border-radius: 65% 40% 40% 65%; height: 17px; top: 10px; width: 94px; }
+.species-pike i:before { border-bottom-width: 8px; border-left-width: 19px; border-right-width: 19px; left: 43px; top: -7px; }
+.species-pike i:after { content: '••'; right: 9px; top: 3px; }
+.species-bass { color: #6ec3a4; height: 48px; width: 104px; }
+.species-bass i { border-radius: 52% 48% 52% 48%; height: 37px; left: 20px; top: 4px; width: 68px; }
+.species-bass i:before { border-bottom-width: 15px; border-left-width: 18px; border-right-width: 18px; left: 18px; top: -12px; }
+.species-bass i:after { color: #ffca59; content: '••'; right: 7px; top: 12px; }
+.species-salmon { color: #ff8062; height: 43px; width: 110px; }
+.species-salmon i { background: repeating-linear-gradient(105deg, currentColor 0 9px, #ffb15f 10px 13px); border-radius: 55% 45% 42% 58%; height: 31px; left: 20px; top: 6px; width: 72px; }
+.species-salmon i:before { border-bottom-color: #ffb15f; left: 31px; }
+.species-salmon i:after { color: var(--deep); content: '••'; right: 7px; top: 9px; }
+.species-shark { color: #8ea9b5; height: 54px; width: 120px; }
+.species-shark i { background: #8ea9b5; border-radius: 56% 48% 42% 60%; height: 30px; left: 15px; top: 14px; width: 87px; }
+.species-shark i:before { border-bottom: 23px solid #8ea9b5; border-left: 8px solid transparent; border-right: 8px solid transparent; left: 43px; top: -22px; transform: rotate(7deg); }
+.species-shark i:after { color: #f5f8ea; content: '⋀⋀⋀'; font-size: 11px; letter-spacing: 2px; right: 3px; top: 20px; }
+.species-shark b { color: #8ea9b5; }
+.species-pike { animation: pike-chase 5s ease-in-out infinite; right: 26px; top: 78px; transform: rotate(4deg); }
+.species-bass { animation: bass-chase 5s ease-in-out infinite; right: 115px; top: 124px; transform: rotate(7deg); }
+.species-salmon { animation: salmon-swim 6s ease-in-out infinite; right: 210px; top: 35px; transform: scale(.7) rotate(-5deg); }
+.species-shark { animation: shark-cruise 8s ease-in-out infinite; right: -3px; top: 157px; transform: scale(.55) rotate(5deg); }
+@keyframes pike-chase { 0%, 100% { right: 26px; } 50% { right: 72px; } }
+@keyframes bass-chase { 0%, 100% { right: 115px; } 50% { right: 150px; } }
+@keyframes salmon-swim { 0%, 100% { right: 210px; } 50% { right: 180px; } }
+@keyframes shark-cruise { 0%, 100% { right: -3px; } 50% { right: 40px; } }
 .dashboard-grid { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; margin-top: 18px; }
 .feature-card { min-height: 280px; padding: 30px; position: relative; }
 .feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
@@ -139,6 +169,8 @@ button { cursor: pointer; }
 .auth-fish { animation: auth-chase 4.4s ease-in-out infinite; color: var(--mint); font-size: 62px; font-weight: 900; left: 72px; letter-spacing: -15px; position: absolute; top: 52px; }
 .auth-fish span { color: var(--coral); font-size: 9px; letter-spacing: 1px; margin-left: 2px; vertical-align: 20px; }
 @keyframes auth-chase { 0%, 100% { left: 72px; } 50% { left: 125px; } }
+.auth-shark { animation: auth-shark-chase 4.4s ease-in-out infinite; left: 62px; top: 63px; transform: scale(.9); }
+@keyframes auth-shark-chase { 0%, 100% { left: 62px; } 50% { left: 120px; } }
 .auth-story .eyebrow { color: #f5ad95; }
 .auth-story h1 { font-size: clamp(54px, 7vw, 96px); letter-spacing: -.09em; line-height: .88; margin: 28px 0; max-width: 650px; }
 .auth-story p { color: #c3d5ce; font-size: 16px; max-width: 330px; }
