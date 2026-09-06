@@ -31,6 +31,15 @@ create policy "Members can update their profile" on public.profiles for update u
 
 Both variables are required for sign-in and sign-up. Use the Supabase publishable key (formerly called the anon key), never a secret or service-role key. The browser bundle intentionally cannot use a secret key.
 
+### Email confirmation
+
+In Supabase, open **Authentication → URL Configuration** and set:
+
+- Site URL: `https://www.fishyfriends.club`
+- Redirect URL: `https://www.fishyfriends.club/`
+
+Then open **Authentication → Email Templates → Confirm signup** and paste the HTML from [supabase/confirmation-email.html](supabase/confirmation-email.html). The template uses Supabase's `{{ .ConfirmationURL }}` variable.
+
 ## Scripts
 
 `npm start` runs the development server. `npm run build` creates a production build. `npm test -- --watchAll=false --runInBand` runs the test suite.

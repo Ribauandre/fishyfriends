@@ -60,8 +60,16 @@ export function AuthProvider({ children }) {
       setNotice(error.message);
       return { error };
     }
-    const result = await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName } } });
-    if (result.error) setNotice(result.error.message); else setNotice('Check your inbox to confirm your email, then sign in.');
+    const result = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: displayName },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
+    });
+    if (result.error) setNotice(result.error.message);
+    else if (!result.data.session) setNotice('Confirmation email sent. Open it on this device, then return here to sign in.');
     return result;
   }
 

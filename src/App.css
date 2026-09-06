@@ -138,6 +138,12 @@ button { cursor: pointer; }
 .auth-switch button { background: none; border: 0; color: var(--teal); font-weight: 800; }
 .form-error { color: var(--coral); font-size: 12px; margin: 14px 0 0; }
 .config-error { background: #fff1eb; border-left: 3px solid var(--coral); color: #9c4939; font-size: 12px; line-height: 1.5; margin: 24px 0 -10px; padding: 12px; }
+.confirmation-panel { margin-top: 90px; }
+.confirmation-icon { align-items: center; background: var(--mint); border-radius: 50%; color: var(--teal); display: flex; font-size: 28px; height: 58px; justify-content: center; margin-bottom: 28px; width: 58px; }
+.confirmation-panel h2 { font-size: 38px; letter-spacing: -.07em; line-height: 1; margin: 14px 0; }
+.confirmation-panel p { color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 340px; }
+.confirmation-panel p strong { color: var(--ink); overflow-wrap: anywhere; }
+.confirmation-panel .button { margin-top: 20px; }
 .button:disabled { cursor: not-allowed; opacity: .48; }
 .catch-modal-backdrop { align-items: center; background: rgba(16, 47, 50, .7); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 80; }
 .catch-modal { background: var(--cream); box-shadow: 0 24px 70px rgba(16, 47, 50, .3); max-width: 500px; padding: 28px; width: 100%; }
@@ -230,6 +236,7 @@ button { cursor: pointer; }
   .auth-panel { padding: 34px 24px 52px; }
   .auth-heading { margin-top: 46px; }
   .auth-heading h2 { font-size: 30px; }
+  .confirmation-panel { margin-top: 58px; }
   .auth-form input, .auth-form .button { min-height: 48px; }
   .leaderboard-labels { grid-template-columns: 1fr 80px 28px; padding-left: 57px; }
   .leaderboard-labels span:nth-child(2) { grid-column: 2; }
