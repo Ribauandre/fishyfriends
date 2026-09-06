@@ -440,8 +440,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .personal-bests-panel { margin-top: 22px; }
 .best-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 20px; }
 .best-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); padding: 16px; position: relative; }
-.best-card-remove { background: transparent; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 0; position: absolute; right: 10px; top: 10px; }
-.best-card-remove:hover { color: var(--coral); }
+.best-card .post-menu { right: 10px; top: 10px; }
 .best-card-fish { height: 68px; width: 148px; }
 .best-card-photo { height: 110px; object-fit: cover; width: 100%; }
 .best-card-info { margin-top: 12px; }
@@ -490,9 +489,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .comment-remove { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 0; position: absolute; right: 8px; top: 7px; }
 .comment-remove:hover { color: var(--coral); }
 .comment-form { display: flex; gap: 8px; margin-top: 10px; }
-.comment-form input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); flex: 1; font-size: 11px; outline: none; padding: 8px 10px; }
+.comment-form input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); flex: 1; font-size: 11px; min-width: 0; outline: none; padding: 8px 10px; }
 .comment-form input:focus { border-color: var(--coral); }
-.comment-form .button { padding: 8px 12px; }
+.comment-form .button { flex-shrink: 0; padding: 8px 12px; }
 
 @media (max-width: 800px) {
   .navbar { background: rgba(6,14,18,.98); box-shadow: 0 -12px 30px rgba(0,0,0,.25); }
