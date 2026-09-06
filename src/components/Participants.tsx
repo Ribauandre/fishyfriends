@@ -1,12 +1,4 @@
 import * as React from 'react';
-import kevinJan from '../assets/kevin/jan.jpeg';
-import kevinFeb from '../assets/kevin/feb.jpeg';
-import devinFeb from '../assets/devin/feb.jpeg';
-import andresJan from '../assets/andres/jan.jpeg';
-import paoloFeb from '../assets/paolo/feb.jpeg';
-import paoloJan from '../assets/paolo/jan.jpeg';
-import andreFeb from '../assets/andre/feb.jpeg';
-import andresFeb from '../assets/andres/feb.jpeg';
 import CommentThread from './CommentThread';
 import FishIllustration from './FishIllustration';
 import speciesIcon from '../utils/speciesOptions';
@@ -14,10 +6,7 @@ import speciesIcon from '../utils/speciesOptions';
 type Entry = { name: string; species: string; date: string; month?: string; photo?: string };
 type Comment = { id: string; author_name: string; body: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const entriesByMonth: Record<string, Entry[]> = {
-  January: [{ name: 'Andres', species: 'Steelhead', date: '1/16', photo: andresJan }, { name: 'Kevin', species: 'Steelhead', date: '1/16', photo: kevinJan }, { name: 'Paolo', species: 'Steelhead', date: '1/17', photo: paoloJan }],
-  February: [{ name: 'Devin', species: 'Snook', date: '2/13', photo: devinFeb }, { name: 'Andre', species: 'Atlantic Salmon', date: '2/15', photo: andreFeb }, { name: 'Kevin', species: 'Atlantic Salmon', date: '2/15', photo: kevinFeb }, { name: 'Paolo', species: 'Atlantic Salmon', date: '2/15', photo: paoloFeb }, { name: 'Andres', species: 'Brown Trout', date: '2/16', photo: andresFeb }],
-};
+const entriesByMonth: Record<string, Entry[]> = {};
 
 function MonthDetail({ entries }: { entries: Entry[] }) {
   if (!entries.length) return <p className="month-empty">No catches yet. Somebody's gotta break the ice.</p>;
