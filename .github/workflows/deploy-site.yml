@@ -39,14 +39,14 @@ jobs:
           esac
 
       - name: Run pending DB migrations
-        if: ${{ secrets.SUPABASE_DB_URL != '' }}
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: node supabase/run-migrations.mjs
-
-      - name: Warn if DB migrations were skipped
-        if: ${{ secrets.SUPABASE_DB_URL == '' }}
-        run: echo "::warning::SUPABASE_DB_URL secret not set — skipping automatic DB migrations. Add it in repo Settings > Secrets to enable them."
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL secret not set — skipping automatic DB migrations. Add it in repo Settings > Secrets to enable them."
+          else
+            node supabase/run-migrations.mjs
+          fi
 
       - name: Build site with Supabase configuration
         env:
