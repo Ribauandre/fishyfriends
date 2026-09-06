@@ -51,7 +51,7 @@ button { cursor: pointer; }
 .chase-fish-front { animation: chase-front 5s ease-in-out infinite; right: 96px; top: 86px; transform: rotate(7deg); }
 @keyframes chase-front { 0%, 100% { right: 96px; } 50% { right: 145px; } }
 @keyframes chase-back { 0%, 100% { right: 18px; } 50% { right: 75px; } }
-.species-fish { display: block; height: 38px; position: absolute; width: 92px; }
+.species-fish { display: none; height: 38px; position: absolute; width: 92px; }
 .species-fish i { background: currentColor; border-radius: 58% 46% 46% 58%; display: block; height: 28px; left: 22px; position: absolute; top: 7px; width: 63px; }
 .species-fish i:before { border-bottom: 11px solid currentColor; border-left: 16px solid transparent; border-right: 16px solid transparent; content: ''; left: 19px; position: absolute; top: -9px; transform: rotate(-10deg); }
 .species-fish i:after { color: var(--coral); content: '••'; font-size: 9px; letter-spacing: 5px; position: absolute; right: 8px; top: 8px; }
@@ -73,6 +73,26 @@ button { cursor: pointer; }
 .species-shark i:before { border-bottom: 23px solid #8ea9b5; border-left: 8px solid transparent; border-right: 8px solid transparent; left: 43px; top: -22px; transform: rotate(7deg); }
 .species-shark i:after { color: #f5f8ea; content: '⋀⋀⋀'; font-size: 11px; letter-spacing: 2px; right: 3px; top: 20px; }
 .species-shark b { color: #8ea9b5; }
+.species-deck { bottom: 84px; display: flex; gap: 12px; opacity: .18; pointer-events: none; position: fixed; right: 18px; transform: rotate(-7deg); z-index: 4; }
+.species-deck .fish-illustration { height: 62px; overflow: visible; width: 132px; }
+.fish-illustration { fill: none; height: 110px; overflow: visible; stroke: var(--mint); stroke-linecap: round; stroke-linejoin: round; stroke-width: 5; width: 240px; }
+.fish-illustration text { display: none; }
+.fish-outline { fill: rgba(185,232,108,.07); }
+.fish-fin, .fish-tail, .fish-mouth, .fish-teeth { fill: rgba(185,232,108,.12); }
+.fish-detail { stroke: var(--coral); stroke-width: 4; }
+.fish-eye { fill: var(--coral); stroke: none; }
+.drawn-bass { stroke: #8aa95d; }
+.drawn-bass .fish-detail { stroke: #d0af58; }
+.drawn-salmon { stroke: #d88772; }
+.drawn-salmon .fish-detail { stroke: #e9c17a; }
+.drawn-shark { stroke: #9aadb5; }
+.drawn-shark .fish-detail { stroke: #e7f4ef; }
+.drawn-trout { stroke: #8baaa0; }
+.drawn-trout .fish-detail { stroke: #c87968; }
+.drawn-perch { stroke: #d0af58; }
+.drawn-perch .fish-detail { stroke: #668b60; }
+.drawn-tuna { stroke: #5b9fa8; }
+.drawn-tuna .fish-detail { stroke: #d0d9c9; }
 .water-ripple { border: 1px solid rgba(185,232,108,.28); border-radius: 50%; height: 46px; position: absolute; right: 130px; top: 154px; width: 120px; }
 .ripple-one { animation: ripple-pulse 4s ease-out infinite; }
 .ripple-two { animation: ripple-pulse 4s 1.7s ease-out infinite; opacity: .45; }
@@ -391,4 +411,5 @@ h1, h2, h3, strong { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-s
 .navbar .profile-pill { color: var(--ink); }
 @media (max-width: 800px) {
   .navbar { background: rgba(6,14,18,.98); box-shadow: 0 -12px 30px rgba(0,0,0,.25); }
+  .species-deck { bottom: 75px; gap: 0; opacity: .12; right: -28px; transform: scale(.72) rotate(-8deg); transform-origin: right bottom; }
 }

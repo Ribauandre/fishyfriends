@@ -7,6 +7,7 @@ import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import FishIllustration from './components/FishIllustration';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 function ProtectedRoute({ children }) {
@@ -15,9 +16,13 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/account" replace />;
 }
 
+function SpeciesDeck() {
+  return <div className="species-deck" aria-hidden="true"><FishIllustration species="trout" /><FishIllustration species="perch" /><FishIllustration species="tuna" /><FishIllustration species="pike" /></div>;
+}
+
 function App() {
   return (
-    <AuthProvider><Router><div className="App"><Navbar /><div className="page-wrapper"><Routes>
+    <AuthProvider><Router><div className="App"><Navbar /><SpeciesDeck /><div className="page-wrapper"><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/account" element={<AuthPage />} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
