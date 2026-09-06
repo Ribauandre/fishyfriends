@@ -55,7 +55,9 @@ src/
   assets/                   Challenge photos and historical fishing media
 
 supabase/
-  schema.sql                Profiles table, RLS policies, avatar bucket/policies
+  schema.sql                Full bootstrap schema for a brand-new Supabase project
+  migrations/               Ordered, idempotent SQL files applied automatically on deploy
+  run-migrations.mjs        Applies pending files in migrations/ to DATABASE_URL
   confirmation-email.html   Branded Supabase signup confirmation template
 
 scripts/
@@ -154,7 +156,7 @@ The workflow rejects `sb_secret_` values before building the site. A browser bun
 
 ### Profiles and Storage
 
-Run `supabase/schema.sql` in the Supabase SQL editor. It creates:
+For a brand-new Supabase project, run `supabase/schema.sql` once in the Supabase SQL editor. It creates:
 
 - `public.profiles`
 - `avatar_url` on each profile
@@ -162,12 +164,7 @@ Run `supabase/schema.sql` in the Supabase SQL editor. It creates:
 - The public `avatars` Storage bucket
 - Storage policies allowing public reads and user-owned writes
 
-If the profiles table already exists, apply this migration before using avatars:
-
-```sql
-alter table public.profiles
-add column if not exists avatar_url text default '';
-```
+(This is the same schema the automated migrations below apply piece by piece to an existing project — see that section for how schema changes reach a project that's already deployed.)
 
 Avatar upload behavior:
 
@@ -176,6 +173,22 @@ Avatar upload behavior:
 - Upload path is `{auth user id}/avatar.{extension}`.
 - Upload uses `upsert: true`, so each user has one current avatar path per extension.
 - The public URL is saved to `profiles.avatar_url` with a cache-busting query string.
+
+### Automated database migrations
+
+Schema changes are tracked as ordered SQL files in `supabase/migrations/` (e.g. `0007_add_something.sql`). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
+
+This requires a repository secret named `SUPABASE_DB_URL`: a **direct** Postgres connection string (not the publishable/anon key the app uses in the browser, and not a pooler/PgBouncer connection — DDL should run against the direct connection). Get it from the Supabase dashboard: Project Settings -> Database -> Connection string -> URI, on port 5432, with the database password filled in. Add it in the GitHub repo under Settings -> Secrets and variables -> Actions -> New repository secret.
+
+If `SUPABASE_DB_URL` isn't set, the workflow logs a warning and skips the migration step rather than failing the deploy — useful for the first deploy after adding this feature, before the secret exists yet, but any schema change added afterward won't reach the database until the secret is added.
+
+To make a future schema change:
+
+1. Add a new file to `supabase/migrations/`, numbered one higher than the last (e.g. `0007_...sql`), containing the SQL to run.
+2. Write it idempotently, following the existing files' style (`create table if not exists`, `drop policy if exists` before `create policy`, `alter table ... add column if not exists`, `on conflict do update/nothing`) — the migration should be safe to re-run even though the tracking table normally prevents that.
+3. Push to `deploy`. The next build applies it automatically; no manual SQL editor step is needed.
+
+`supabase/schema.sql` is not part of this automated path — it stays as the full bootstrap reference for setting up a brand-new project from scratch, and is not re-run against already-deployed projects.
 
 ### Auth URL configuration
 
@@ -286,6 +299,7 @@ push to deploy
   -> GitHub Actions deploy-site.yml
   -> npm ci
   -> verify Supabase URL/key
+  -> run pending DB migrations (supabase/run-migrations.mjs, needs SUPABASE_DB_URL secret)
   -> npm run build:github
   -> replace docs/ from build/
   -> commit generated docs

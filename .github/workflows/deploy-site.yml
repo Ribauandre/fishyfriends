@@ -38,6 +38,16 @@ jobs:
             *) echo "The selected Supabase key is not a recognized publishable/anon key format."; exit 1 ;;
           esac
 
+      - name: Run pending DB migrations
+        if: ${{ secrets.SUPABASE_DB_URL != '' }}
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node supabase/run-migrations.mjs
+
+      - name: Warn if DB migrations were skipped
+        if: ${{ secrets.SUPABASE_DB_URL == '' }}
+        run: echo "::warning::SUPABASE_DB_URL secret not set — skipping automatic DB migrations. Add it in repo Settings > Secrets to enable them."
+
       - name: Build site with Supabase configuration
         env:
           REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL || vars.REACT_APP_SUPABASE_URL }}
