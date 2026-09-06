@@ -14,8 +14,8 @@ jobs:
         run: |
           curl -X GET \
             "${{ secrets.REACT_APP_SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_ANON_KEY }}"
+            -H "apikey: ${{ secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY }}"
         continue-on-error: true
       
       - name: Log success

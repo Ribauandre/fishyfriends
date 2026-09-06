@@ -8,7 +8,7 @@ Create a `.env.local` file in the project root with:
 
 ```bash
 REACT_APP_SUPABASE_URL=your-project-url
-REACT_APP_SUPABASE_ANON_KEY=your-anon-or-publishable-key
+REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
 ```
 
 Then run this SQL in the Supabase SQL editor:
