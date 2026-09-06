@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '' };
+const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
 
 function profileFromUser(user) {
   return { ...defaultProfile, display_name: user?.user_metadata?.display_name || user?.email?.split('@')[0] || defaultProfile.display_name };
@@ -12,12 +14,33 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(defaultProfile);
   const [personalBests, setPersonalBests] = useState([]);
+  const [customSpecies, setCustomSpecies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
 
   async function loadPersonalBests(userId) {
     const { data } = await supabase.from('personal_bests').select('*').eq('user_id', userId).order('created_at', { ascending: true });
     setPersonalBests(data || []);
+  }
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    let active = true;
+    supabase.from('custom_species').select('name').order('name').then(({ data }) => {
+      if (active) setCustomSpecies((data || []).map((row) => row.name));
+    });
+    return () => { active = false; };
+  }, []);
+
+  // Adds a newly typed species to the shared list so it shows up as a suggestion for
+  // everyone else too, instead of staying a one-off value only this catch/best used.
+  async function registerSpecies(name) {
+    const trimmed = name?.trim();
+    if (!trimmed || !isSupabaseConfigured) return;
+    if (KNOWN_SPECIES.has(trimmed.toLowerCase())) return;
+    if (customSpecies.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) return;
+    const { error } = await supabase.from('custom_species').upsert({ name: trimmed }, { onConflict: 'name', ignoreDuplicates: true });
+    if (!error) setCustomSpecies((previous) => [...previous, trimmed].sort((a, b) => a.localeCompare(b)));
   }
 
   useEffect(() => {
@@ -87,6 +110,7 @@ export function AuthProvider({ children }) {
     setProfile(nextProfile);
     const { error } = await supabase.from('profiles').upsert({ id: user.id, ...nextProfile, updated_at: new Date().toISOString() });
     if (error) setNotice(error.message);
+    else if (nextProfile.favorite_species) registerSpecies(nextProfile.favorite_species);
     return { error };
   }
 
@@ -130,6 +154,7 @@ export function AuthProvider({ children }) {
     if (error) { setNotice(error.message); return { error }; }
     setPersonalBests((previous) => existing ? previous.map((best) => (best.id === existing.id ? data : best)) : [...previous, data]);
     setNotice('Personal best saved.');
+    registerSpecies(species);
     return { error: null };
   }
 
@@ -196,10 +221,11 @@ export function AuthProvider({ children }) {
     const row = { user_id: user.id, angler_name: authorName, year, month, species: species.trim(), caught_at: caughtAt || null, photo_url: photoUrl };
     const { data, error } = await supabase.from('fish_year_catches').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    registerSpecies(species);
     return { error: null, catchEntry: data };
   }
 
-  return <AuthContext.Provider value={{ user, profile, personalBests, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, listFishYearCatches, logFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, profile, personalBests, customSpecies, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, listFishYearCatches, logFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

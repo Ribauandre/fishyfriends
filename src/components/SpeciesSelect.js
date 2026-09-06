@@ -1,27 +1,19 @@
-import React, { useState } from 'react';
+import React, { useId, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 
 export default function SpeciesSelect({ value, onChange, required = true }) {
-  const matched = SPECIES_OPTIONS.find((option) => option.label.toLowerCase() === (value || '').toLowerCase());
-  const [showCustom, setShowCustom] = useState(Boolean(value) && !matched);
+  const { customSpecies } = useAuth();
+  const listId = useId();
 
-  function handleSelect(event) {
-    const next = event.target.value;
-    if (next === 'other') {
-      setShowCustom(true);
-      onChange('');
-    } else {
-      setShowCustom(false);
-      onChange(next);
-    }
-  }
+  const allSpecies = useMemo(() => {
+    const names = new Set(SPECIES_OPTIONS.map((option) => option.label));
+    for (const name of customSpecies || []) names.add(name);
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [customSpecies]);
 
   return <>
-    <select required={required} value={showCustom ? 'other' : (matched ? matched.label : value)} onChange={handleSelect}>
-      <option value="" disabled>Choose a species...</option>
-      {SPECIES_OPTIONS.map((option) => <option key={option.label} value={option.label}>{option.label}</option>)}
-      <option value="other">Something else...</option>
-    </select>
-    {showCustom && <input required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Name the species" />}
+    <input list={listId} required={required} value={value} onChange={(event) => onChange(event.target.value)} placeholder="Start typing a species..." autoComplete="off" />
+    <datalist id={listId}>{allSpecies.map((name) => <option key={name} value={name} />)}</datalist>
   </>;
 }
