@@ -251,6 +251,7 @@ button { cursor: pointer; }
 .catch-modal label { color: var(--muted); display: block; font-size: 11px; font-weight: 800; margin-top: 20px; }
 .catch-modal input, .catch-modal select { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; outline: none; padding: 11px 0; width: 100%; }
 .catch-modal input:focus, .catch-modal select:focus { border-color: var(--coral); }
+.field-hint { color: var(--mint); display: block; font-size: 10px; font-weight: 700; margin-top: 6px; text-transform: none; }
 .modal-close { background: transparent; border: 0; color: var(--muted); font-size: 27px; line-height: 1; padding: 0; }
 .catch-modal .form-actions { justify-content: flex-end; margin-top: 12px; }
 .leaderboard-panel { border-top: 1px solid var(--line); }
