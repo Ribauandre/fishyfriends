@@ -4,9 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import SpeciesSelect from './components/SpeciesSelect';
 import extractPhotoDate from './utils/photoDate';
+import { FISH_YEAR } from './constants';
 
 const yearMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const FISH_YEAR = 2026;
 
 function monthFromDate(dateStr) {
   return yearMonths[Number(dateStr.slice(5, 7)) - 1] || yearMonths[0];
