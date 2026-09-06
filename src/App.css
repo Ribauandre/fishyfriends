@@ -324,8 +324,8 @@ button { cursor: pointer; }
   .profile-pill { border-left: 1px solid var(--line); flex-direction: column; font-size: 9px; gap: 2px; margin-left: 5px; padding-left: 10px; }
   .profile-pill-name { display: block; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .profile-pill > span:last-child { display: none; }
-  .welcome-banner { min-height: 390px; padding: 35px 26px; }
-  .fishing-scene { opacity: .72; right: -92px; top: 150px; transform: scale(.78); transform-origin: right top; }
+  .welcome-banner { flex-direction: column; min-height: 0; padding: 35px 26px; }
+  .fishing-scene { height: 150px; margin: 16px auto 0; opacity: .72; position: relative; right: auto; top: auto; transform: scale(.62); transform-origin: center top; width: 260px; }
   .dashboard-grid, .profile-layout { grid-template-columns: 1fr; }
   .notes-board { grid-template-columns: 1fr; }
   .auth-page { display: block; margin: -28px -16px -92px; }

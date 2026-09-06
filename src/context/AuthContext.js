@@ -169,7 +169,37 @@ export function AuthProvider({ children }) {
     return { error: null, comment: data };
   }
 
-  return <AuthContext.Provider value={{ user, profile, personalBests, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  async function listFishYearCatches(year) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('fish_year_catches').select('*').eq('year', year).order('created_at', { ascending: true });
+    return data || [];
+  }
+
+  async function logFishYearCatch({ year, month, species, caughtAt, file }) {
+    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+    if (file && !file.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
+
+    let photoUrl = '';
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('fish-year-catches').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      const { data } = supabase.storage.from('fish-year-catches').getPublicUrl(path);
+      photoUrl = `${data.publicUrl}?v=${Date.now()}`;
+    }
+
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { user_id: user.id, angler_name: authorName, year, month, species: species.trim(), caught_at: caughtAt || null, photo_url: photoUrl };
+    const { data, error } = await supabase.from('fish_year_catches').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, catchEntry: data };
+  }
+
+  return <AuthContext.Provider value={{ user, profile, personalBests, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, listFishYearCatches, logFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }
