@@ -27,18 +27,21 @@ jobs:
       - name: Verify Supabase configuration
         env:
           SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL || vars.REACT_APP_SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_ANON_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_KEY: ${{ vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_ANON_KEY || secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           test -n "$SUPABASE_URL" || (echo "Missing REACT_APP_SUPABASE_URL" && exit 1)
           test -n "$SUPABASE_KEY" || (echo "Missing REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY" && exit 1)
           case "$SUPABASE_KEY" in
-            sb_secret_*) echo "A Supabase secret key cannot be used in a browser build. Add the publishable/anon key instead."; exit 1 ;;
+            sb_publishable_*) ;;
+            eyJ*) ;;
+            sb_secret_*) echo "The selected value is a Supabase secret key. Check that the publishable key is saved in the GitHub Variable REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY."; exit 1 ;;
+            *) echo "The selected Supabase key is not a recognized publishable/anon key format."; exit 1 ;;
           esac
 
       - name: Build site with Supabase configuration
         env:
           REACT_APP_SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL || vars.REACT_APP_SUPABASE_URL }}
-          REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_ANON_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
+          REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${{ vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_ANON_KEY || secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build:github
 
       - name: Commit generated docs
