@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
-const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '' };
+const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '' };
 
 function profileFromUser(user) {
   return { ...defaultProfile, display_name: user?.user_metadata?.display_name || user?.email?.split('@')[0] || defaultProfile.display_name };
@@ -83,7 +83,22 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
-  return <AuthContext.Provider value={{ user, profile, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  async function uploadAvatar(file) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before uploading a profile photo.') };
+    if (!file?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    if (file.size > 5 * 1024 * 1024) return { error: new Error('Profile photos must be smaller than 5 MB.') };
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `${user.id}/avatar.${extension}`;
+    const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+    if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+    const result = await updateProfile({ ...profile, avatar_url: avatarUrl });
+    if (!result.error) setNotice('Profile photo updated.');
+    return { ...result, avatarUrl };
+  }
+
+  return <AuthContext.Provider value={{ user, profile, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

@@ -26,6 +26,7 @@ button { cursor: pointer; }
 .nav-link.active { border-bottom: 2px solid var(--mint); }
 .profile-pill { align-items: center; display: flex; font-size: 12px; font-weight: 700; gap: 8px; }
 .avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--deep); display: inline-flex; font-size: 11px; font-weight: 900; height: 29px; justify-content: center; width: 29px; }
+.avatar img { border-radius: inherit; height: 100%; object-fit: cover; width: 100%; }
 .profile-pill > span:last-child { color: var(--coral); font-size: 15px; }
 .button { border: 0; display: inline-flex; align-items: center; gap: 22px; font-size: 12px; font-weight: 800; padding: 14px 17px; }
 .button span { font-size: 16px; }
@@ -150,6 +151,8 @@ button { cursor: pointer; }
 .profile-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; }
 .profile-card { align-items: flex-start; display: flex; flex-direction: column; }
 .avatar-large { font-size: 38px; height: 92px; margin-bottom: 28px; width: 92px; }
+.avatar-upload { color: var(--mint); cursor: pointer; font-size: 11px; font-weight: 800; margin: -14px 0 24px; }
+.avatar-upload input { display: none; }
 .profile-card h2 { font-size: 24px; letter-spacing: -.04em; margin: 0 0 7px; }
 .profile-card p { color: var(--muted); font-size: 12px; margin: 0; overflow-wrap: anywhere; }
 .profile-tag { background: #203b32; color: var(--mint); font-size: 10px; font-weight: 800; margin-top: 28px; padding: 7px 9px; }

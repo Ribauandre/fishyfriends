@@ -19,7 +19,7 @@ export default function Navbar() {
           <span>03</span> Fish Year
         </NavLink>
       </div>
-      <NavLink to="/profile" className="profile-pill"><span className="avatar">{(profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
+      <NavLink to="/profile" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
     </nav>
   );
 }

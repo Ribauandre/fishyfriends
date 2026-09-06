@@ -29,6 +29,8 @@ create policy "Members can insert their profile" on public.profiles for insert w
 create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
 ```
 
+The same schema adds the public `avatars` Storage bucket and policies used by profile photo uploads. If the profiles table already exists, run `alter table public.profiles add column if not exists avatar_url text default '';` before using the upload control.
+
 Both variables are required for sign-in and sign-up. Use the Supabase publishable key (formerly called the anon key), never a secret or service-role key. The browser bundle intentionally cannot use a secret key.
 
 ### Email confirmation
