@@ -4,10 +4,13 @@
 // before CREATE POLICY, etc.) as defense in depth, but the tracking table means a normal
 // deploy only actually executes whatever is new.
 //
-// Requires a direct Postgres connection string (not the publishable/anon key the app
-// uses) in DATABASE_URL — from the Supabase dashboard: Project Settings -> Database ->
-// Connection string -> URI (the direct connection on port 5432, not a pooler variant;
-// DDL should run against the direct connection).
+// Requires a Postgres connection string (not the publishable/anon key the app uses) in
+// DATABASE_URL — from the Supabase dashboard: Project Settings -> Database -> Connection
+// string -> URI, using the "Session pooler" mode. GitHub Actions runners have no IPv6
+// egress, and Supabase's direct connection (port 5432 on db.<project>.supabase.co) is
+// IPv6-only, so it times out from CI; the session pooler is IPv4-reachable and, unlike
+// the transaction pooler, keeps one session per connection, so this script's per-file
+// BEGIN/COMMIT transactions work correctly.
 //
 // Usage: DATABASE_URL=postgresql://... node supabase/run-migrations.mjs
 
