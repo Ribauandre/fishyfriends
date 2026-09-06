@@ -1,14 +1,32 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import PersonalBestComments from './components/PersonalBestComments';
 import PostMenu from './components/PostMenu';
 import iconFor from './utils/speciesOptions';
 
+function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (highlighted) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlighted]);
+  return <div className={`angler-best ${highlighted ? 'is-shared-highlight' : ''}`} ref={ref}>
+    <PostMenu
+      shareData={{ title: `${anglerName}'s ${best.species}`, text: `${anglerName}'s ${best.species}${best.size_label ? ` — ${best.size_label}` : ''} on Fishy Friends.`, url: `${window.location.origin}/anglers?best=${best.id}` }}
+      onDelete={isOwner ? () => onDelete(best.id) : undefined}
+    />
+    {best.photo_url ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} /> : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
+    <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><PersonalBestComments personalBestId={best.id} /></div>
+  </div>;
+}
+
 export default function Anglers() {
   const { user, listAnglers, deletePersonalBest } = useAuth();
   const [roster, setRoster] = useState(null);
   const [query, setQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  const highlightBestId = searchParams.get('best');
 
   async function handleDeleteBest(id) {
     const result = await deletePersonalBest(id);
@@ -51,14 +69,15 @@ export default function Anglers() {
         {profile.favorite_species && <span className="angler-favorite">Chases {profile.favorite_species}</span>}
         <div className="angler-bests">
           {personalBests.length === 0 && <p className="month-empty">No personal bests logged yet.</p>}
-          {personalBests.map((best) => { const anglerName = profile.display_name || 'An angler'; return <div className="angler-best" key={best.id}>
-            <PostMenu
-              shareData={{ title: `${anglerName}'s ${best.species}`, text: `${anglerName}'s ${best.species}${best.size_label ? ` — ${best.size_label}` : ''} on Fishy Friends.`, url: best.photo_url || window.location.href }}
-              onDelete={profile.id === user?.id ? () => handleDeleteBest(best.id) : undefined}
-            />
-            {best.photo_url ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} /> : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
-            <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><PersonalBestComments personalBestId={best.id} /></div>
-          </div>; })}
+          {personalBests.map((best) => <AnglerBestItem
+            key={best.id}
+            best={best}
+            profile={profile}
+            anglerName={profile.display_name || 'An angler'}
+            isOwner={profile.id === user?.id}
+            onDelete={handleDeleteBest}
+            highlighted={best.id === highlightBestId}
+          />)}
         </div>
       </article>)}
       {filtered.length === 0 && <p className="month-empty">Nobody matches that. Try a different name or water.</p>}
