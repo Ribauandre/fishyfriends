@@ -379,7 +379,12 @@ button { cursor: pointer; }
   .participant-summary span { font-size: 9px; }
   .months-grid { display: block; }
   .month-card { border-right: 0; }
-  .month-catches { gap: 10px; grid-template-columns: repeat(2, 1fr); }
+  .month-catches { gap: 10px; grid-template-columns: 1fr; }
+  .catch-card { display: grid; gap: 0 12px; grid-template-areas: "media caption" "media actions"; grid-template-columns: 96px minmax(0, 1fr); grid-template-rows: auto 1fr; }
+  .catch-card-media { grid-area: media; }
+  .catch-card-media img, .catch-card-placeholder { aspect-ratio: 1 / 1; }
+  .catch-card-caption { align-self: end; grid-area: caption; min-width: 0; padding: 10px 10px 2px 0; }
+  .catch-card-actions { grid-area: actions; min-width: 0; padding: 4px 10px 12px 0; }
   .month-card-detail { padding: 12px; }
 }
 
@@ -464,7 +469,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-card-head .status-badge { position: absolute; right: 0; top: -4px; }
 .angler-favorite { color: var(--mint); display: inline-block; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 14px; }
 .angler-bests { border-top: 1px solid var(--line); display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; }
-.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; position: relative; }
+.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding-right: 6px; position: relative; }
 .post-menu { position: absolute; right: 0; top: 0; }
 .post-menu-trigger { background: transparent; border: 0; color: var(--muted); font-size: 16px; letter-spacing: 1px; line-height: 1; padding: 4px; }
 .post-menu-trigger:hover, .post-menu-trigger[aria-expanded='true'] { color: var(--ink); }
@@ -491,7 +496,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .comment-form { display: flex; gap: 8px; margin-top: 10px; }
 .comment-form input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); flex: 1; font-size: 11px; min-width: 0; outline: none; padding: 8px 10px; }
 .comment-form input:focus { border-color: var(--coral); }
-.comment-form .button { flex-shrink: 0; padding: 8px 12px; }
+.comment-form .button { flex-shrink: 0; padding: 8px 12px; width: auto; }
 
 @media (max-width: 800px) {
   .navbar { background: rgba(6,14,18,.98); box-shadow: 0 -12px 30px rgba(0,0,0,.25); }

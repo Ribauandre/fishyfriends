@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
-import PersonalBestComments from './components/PersonalBestComments';
 import PostMenu from './components/PostMenu';
 import SpeciesSelect from './components/SpeciesSelect';
 import iconFor from './utils/speciesOptions';
@@ -15,7 +14,6 @@ function PersonalBestCard({ best, anglerName, onRemove }) {
     />
     {best.photo_url ? <img className="best-card-photo" src={best.photo_url} alt={`${best.species} personal best`} /> : <FishIllustration species={iconFor(best.species)} className="best-card-fish" />}
     <div className="best-card-info"><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span></div>
-    <PersonalBestComments personalBestId={best.id} />
   </div>;
 }
 
