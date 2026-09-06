@@ -41,6 +41,15 @@ button { cursor: pointer; }
 .hero-actions { align-items: center; display: flex; gap: 26px; margin-top: 32px; }
 .hero-actions .text-link { color: #d8e7dd; }
 .watermark-fish { color: #2b5559; font-size: 260px; line-height: .7; transform: rotate(-35deg); }
+.fishing-scene { height: 210px; position: absolute; right: 20px; top: 28px; width: 390px; }
+.lure-line { border-left: 1px solid rgba(185,232,108,.65); height: 150px; left: 250px; position: absolute; top: -28px; transform: rotate(26deg); transform-origin: top; }
+.lure-hook { color: var(--coral); font-size: 19px; left: 286px; position: absolute; top: 111px; transform: rotate(25deg); }
+.chase-fish { color: var(--mint); display: block; font-size: 74px; font-weight: 900; letter-spacing: -18px; line-height: 1; position: absolute; text-shadow: 0 0 22px rgba(185,232,108,.24); }
+.chase-fish span { color: var(--coral); font-size: 10px; letter-spacing: 1px; margin-left: 3px; vertical-align: 24px; }
+.chase-fish-back { animation: chase-back 5s ease-in-out infinite; opacity: .35; right: 18px; top: 113px; transform: scale(.55) rotate(8deg); }
+.chase-fish-front { animation: chase-front 5s ease-in-out infinite; right: 96px; top: 86px; transform: rotate(7deg); }
+@keyframes chase-front { 0%, 100% { right: 96px; } 50% { right: 145px; } }
+@keyframes chase-back { 0%, 100% { right: 18px; } 50% { right: 75px; } }
 .dashboard-grid { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; margin-top: 18px; }
 .feature-card { min-height: 280px; padding: 30px; position: relative; }
 .feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
@@ -124,6 +133,12 @@ button { cursor: pointer; }
 .loading-screen { align-items: center; color: var(--muted); display: flex; height: 100vh; justify-content: center; }
 .auth-page { display: grid; grid-template-columns: 1fr 480px; margin: -112px -32px -72px; min-height: calc(100vh + 184px); }
 .auth-story { background: var(--navy); color: white; padding: 18vh 11vw; }
+.auth-fishing-scene { height: 130px; margin-bottom: 30px; position: relative; width: 280px; }
+.auth-lure-line { border-left: 1px solid rgba(185,232,108,.65); height: 115px; left: 178px; position: absolute; top: -55px; transform: rotate(28deg); }
+.auth-lure { color: var(--coral); font-size: 18px; left: 204px; position: absolute; top: 52px; }
+.auth-fish { animation: auth-chase 4.4s ease-in-out infinite; color: var(--mint); font-size: 62px; font-weight: 900; left: 72px; letter-spacing: -15px; position: absolute; top: 52px; }
+.auth-fish span { color: var(--coral); font-size: 9px; letter-spacing: 1px; margin-left: 2px; vertical-align: 20px; }
+@keyframes auth-chase { 0%, 100% { left: 72px; } 50% { left: 125px; } }
 .auth-story .eyebrow { color: #f5ad95; }
 .auth-story h1 { font-size: clamp(54px, 7vw, 96px); letter-spacing: -.09em; line-height: .88; margin: 28px 0; max-width: 650px; }
 .auth-story p { color: #c3d5ce; font-size: 16px; max-width: 330px; }
@@ -227,11 +242,13 @@ button { cursor: pointer; }
   .profile-pill > span:last-child { display: none; }
   .welcome-banner { min-height: 390px; padding: 35px 26px; }
   .watermark-fish { bottom: 10px; font-size: 180px; position: absolute; right: 10px; }
+  .fishing-scene { opacity: .72; right: -92px; top: 150px; transform: scale(.78); transform-origin: right top; }
   .dashboard-grid, .profile-layout { grid-template-columns: 1fr; }
   .activity-item { grid-template-columns: 35px 1fr; }
   .activity-item a { grid-column: 2; }
   .auth-page { display: block; margin: -28px -16px -92px; }
   .auth-story { min-height: auto; padding: 58px 24px 36px; }
+  .auth-fishing-scene { height: 90px; margin-bottom: 6px; transform: scale(.72); transform-origin: left top; }
   .auth-story h1 { font-size: clamp(46px, 14vw, 64px); margin: 20px 0; }
   .auth-story p { font-size: 14px; }
   .auth-stat-row { margin-top: 45px; }
@@ -276,6 +293,10 @@ button { cursor: pointer; }
 
 @media (min-width: 801px) {
   .navbar { top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 
 /* Night tide theme details */
