@@ -1,8 +1,43 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import PersonalBestComments from './components/PersonalBestComments';
 import iconFor from './utils/speciesOptions';
+
+function AnglerBestMenu({ best, anglerName, isOwner, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) { if (ref.current && !ref.current.contains(event.target)) setOpen(false); }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  async function handleShare() {
+    const text = `${anglerName}'s ${best.species}${best.size_label ? ` — ${best.size_label}` : ''} on Fishy Friends.`;
+    const url = best.photo_url || window.location.href;
+    if (navigator.share) {
+      setOpen(false);
+      try { await navigator.share({ title: `${anglerName}'s ${best.species}`, text, url }); } catch { /* share sheet cancelled */ }
+      return;
+    }
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setCopied(true);
+      setTimeout(() => { setCopied(false); setOpen(false); }, 1400);
+    }
+  }
+
+  return <div className="post-menu" ref={ref}>
+    <button type="button" className="post-menu-trigger" onClick={() => setOpen((value) => !value)} aria-haspopup="true" aria-expanded={open} aria-label="More options">⋯</button>
+    {open && <div className="post-menu-dropdown" role="menu">
+      <button type="button" role="menuitem" onClick={handleShare}>{copied ? 'Copied!' : 'Share'}</button>
+      {isOwner && <button type="button" role="menuitem" className="post-menu-danger" onClick={() => { setOpen(false); onDelete(best.id); }}>Delete</button>}
+    </div>}
+  </div>;
+}
 
 export default function Anglers() {
   const { user, listAnglers, deletePersonalBest } = useAuth();
@@ -51,7 +86,7 @@ export default function Anglers() {
         <div className="angler-bests">
           {personalBests.length === 0 && <p className="month-empty">No personal bests logged yet.</p>}
           {personalBests.map((best) => <div className="angler-best" key={best.id}>
-            {profile.id === user?.id && <button type="button" className="angler-best-remove" onClick={() => handleDeleteBest(best.id)} aria-label={`Remove ${best.species} personal best`}>×</button>}
+            <AnglerBestMenu best={best} anglerName={profile.display_name || 'An angler'} isOwner={profile.id === user?.id} onDelete={handleDeleteBest} />
             {best.photo_url ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} /> : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
             <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><PersonalBestComments personalBestId={best.id} /></div>
           </div>)}

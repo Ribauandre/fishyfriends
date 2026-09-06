@@ -463,8 +463,14 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-favorite { color: var(--mint); display: inline-block; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 14px; }
 .angler-bests { border-top: 1px solid var(--line); display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; }
 .angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; position: relative; }
-.angler-best-remove { background: transparent; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 0; position: absolute; right: 0; top: 0; }
-.angler-best-remove:hover { color: var(--coral); }
+.post-menu { position: absolute; right: 0; top: 0; }
+.post-menu-trigger { background: transparent; border: 0; color: var(--muted); font-size: 16px; letter-spacing: 1px; line-height: 1; padding: 4px; }
+.post-menu-trigger:hover, .post-menu-trigger[aria-expanded='true'] { color: var(--ink); }
+.post-menu-dropdown { background: var(--cream); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(3,8,11,.4); display: grid; margin-top: 2px; min-width: 120px; position: absolute; right: 0; top: 100%; z-index: 20; }
+.post-menu-dropdown button { background: transparent; border: 0; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: 700; padding: 10px 14px; text-align: left; }
+.post-menu-dropdown button:hover { background: var(--teal); color: white; }
+.post-menu-dropdown .post-menu-danger { color: var(--coral); }
+.post-menu-dropdown .post-menu-danger:hover { background: var(--coral); color: white; }
 .angler-best-fish { height: 44px; width: 76px; }
 .angler-best-photo { height: 58px; object-fit: cover; width: 76px; }
 .angler-best strong { display: block; font-size: 13px; }
