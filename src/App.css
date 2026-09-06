@@ -73,6 +73,18 @@ button { cursor: pointer; }
 .species-shark i:before { border-bottom: 23px solid #8ea9b5; border-left: 8px solid transparent; border-right: 8px solid transparent; left: 43px; top: -22px; transform: rotate(7deg); }
 .species-shark i:after { color: #f5f8ea; content: '⋀⋀⋀'; font-size: 11px; letter-spacing: 2px; right: 3px; top: 20px; }
 .species-shark b { color: #8ea9b5; }
+.water-ripple { border: 1px solid rgba(185,232,108,.28); border-radius: 50%; height: 46px; position: absolute; right: 130px; top: 154px; width: 120px; }
+.ripple-one { animation: ripple-pulse 4s ease-out infinite; }
+.ripple-two { animation: ripple-pulse 4s 1.7s ease-out infinite; opacity: .45; }
+@keyframes ripple-pulse { 0% { opacity: .65; transform: scale(.5); } 100% { opacity: 0; transform: scale(1.8); } }
+.species-pike i { background: radial-gradient(circle at 18% 42%, #f1d98a 0 3px, transparent 4px), radial-gradient(circle at 38% 66%, #d8c56f 0 2px, transparent 3px), radial-gradient(circle at 62% 32%, #f1d98a 0 2px, transparent 3px), #6f853d; }
+.species-pike i:after { color: #f1d98a; content: '••'; }
+.species-bass i { background: linear-gradient(180deg, #859851 0%, #64783f 50%, #d4bc75 51%, #87954b 56%, #526435 100%); }
+.species-bass i:after { color: #18251d; content: '••'; }
+.species-salmon i { background: repeating-linear-gradient(105deg, #a8c1bd 0 11px, #d6e3d7 12px 15px, #a8c1bd 16px 21px); box-shadow: inset 0 -7px 0 #bd6e59; }
+.species-salmon i:after { color: #273b3d; content: '••'; }
+.species-shark i { background: linear-gradient(180deg, #687c89 0 54%, #d1d4c7 55% 100%); }
+.species-shark i:after { color: #f5f8ea; content: '⋀⋀⋀⋀'; }
 .species-pike { animation: pike-chase 5s ease-in-out infinite; right: 26px; top: 78px; transform: rotate(4deg); }
 .species-bass { animation: bass-chase 5s ease-in-out infinite; right: 115px; top: 124px; transform: rotate(7deg); }
 .species-salmon { animation: salmon-swim 6s ease-in-out infinite; right: 210px; top: 35px; transform: scale(.7) rotate(-5deg); }
@@ -85,6 +97,8 @@ button { cursor: pointer; }
 .feature-card { min-height: 280px; padding: 30px; position: relative; }
 .feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
 .feature-card-light { background: #18262a; border: 1px solid #385057; color: var(--ink); }
+.feature-card-dark { background-image: linear-gradient(135deg, rgba(111,133,61,.22), transparent 42%), repeating-linear-gradient(168deg, transparent 0 26px, rgba(185,232,108,.06) 27px 28px); }
+.feature-card-light { background-image: linear-gradient(145deg, rgba(189,110,89,.15), transparent 52%), repeating-linear-gradient(0deg, transparent 0 21px, rgba(168,193,189,.04) 22px 23px); }
 .card-topline, .card-footer, .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .feature-card .eyebrow { color: inherit; opacity: .7; }
 .status-badge { background: var(--mint); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; }
