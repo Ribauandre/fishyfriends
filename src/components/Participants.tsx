@@ -3,7 +3,7 @@ import CommentThread from './CommentThread';
 import FishIllustration from './FishIllustration';
 import speciesIcon from '../utils/speciesOptions';
 
-type Catch = { id: string; user_id: string; angler_name: string; month: string; species: string; caught_at: string | null; photo_url: string };
+type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_url?: string; month: string; species: string; caught_at: string | null; photo_url: string };
 type Comment = { id: string; author_name: string; body: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -26,7 +26,7 @@ function MonthCatch({ entry }: { entry: Catch }) {
       <span className="catch-card-species">{entry.species}</span>
     </button>
     <div className="catch-card-caption">
-      <span className="mini-avatar">{entry.angler_name.slice(0, 1)}</span>
+      <span className="mini-avatar">{entry.angler_avatar_url ? <img src={entry.angler_avatar_url} alt="" /> : entry.angler_name.slice(0, 1)}</span>
       <div><strong>{entry.angler_name}</strong><span>{entry.caught_at || ''}</span></div>
     </div>
     <div className="catch-card-actions">

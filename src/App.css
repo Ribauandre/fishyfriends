@@ -56,14 +56,14 @@ button { cursor: pointer; }
 .hook-icon { color: var(--coral); filter: drop-shadow(1px 2px 0 var(--deep)); }
 .fishing-scene { height: 230px; position: absolute; right: 8px; top: 14px; width: 400px; }
 .lure-line { border-left: 2px dashed rgba(185,232,108,.55); height: 150px; left: 250px; position: absolute; top: -28px; transform: rotate(26deg); transform-origin: top; }
-.fishing-scene .lure-hook { height: 26px; left: 302px; position: absolute; top: 96px; transform: rotate(25deg); width: 26px; }
+.fishing-scene .lure-hook { height: 26px; left: 303px; position: absolute; top: 94px; transform: rotate(25deg); width: 26px; }
 .scene-fish { position: absolute; }
 .scene-fish .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
 .scene-fish-tag { background: var(--deep); border: 1px solid var(--coral); color: var(--coral); font-size: 8px; font-weight: 900; letter-spacing: .14em; padding: 2px 6px; position: absolute; text-transform: uppercase; }
-.scene-fish-back { animation: chase-back 5.5s ease-in-out infinite; right: 4px; top: 6px; }
+.scene-fish-back { animation: chase-back 5.5s ease-in-out infinite; left: 32px; top: 2px; }
 .scene-fish-back .fish-illustration { opacity: .55; }
 .scene-fish-back .scene-fish-tag { bottom: -30px; left: 20px; }
-.scene-fish-front { animation: chase-front 5.5s ease-in-out infinite; right: 96px; top: 92px; }
+.scene-fish-front { animation: chase-front 5.5s ease-in-out infinite; left: 91px; top: 44px; }
 .scene-fish-front .scene-fish-tag { bottom: -16px; left: 40px; }
 @keyframes chase-front {
   0%, 100% { transform: translate(0, 0) rotate(-4deg) scale(.72); }
@@ -313,7 +313,8 @@ button { cursor: pointer; }
 .catch-card-caption strong { display: block; font-size: 12px; }
 .catch-card-caption span { color: var(--muted); display: block; font-size: 10px; margin-top: 2px; }
 .catch-card-actions { padding: 4px 10px 12px; }
-.mini-avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--teal); display: flex; flex-shrink: 0; font-size: 10px; font-weight: 900; height: 23px; justify-content: center; width: 23px; }
+.mini-avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--teal); display: flex; flex-shrink: 0; font-size: 10px; font-weight: 900; height: 23px; justify-content: center; overflow: hidden; width: 23px; }
+.mini-avatar img { height: 100%; object-fit: cover; width: 100%; }
 .catch-card .like-button { margin-top: 6px; }
 .catch-card .like-button span { font-size: 15px; }
 @media (max-width: 800px) {

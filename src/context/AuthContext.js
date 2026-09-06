@@ -218,7 +218,7 @@ export function AuthProvider({ children }) {
     }
 
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const row = { user_id: user.id, angler_name: authorName, year, month, species: species.trim(), caught_at: caughtAt || null, photo_url: photoUrl };
+    const row = { user_id: user.id, angler_name: authorName, angler_avatar_url: profile.avatar_url || '', year, month, species: species.trim(), caught_at: caughtAt || null, photo_url: photoUrl };
     const { data, error } = await supabase.from('fish_year_catches').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     registerSpecies(species);

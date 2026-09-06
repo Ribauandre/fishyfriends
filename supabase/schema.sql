@@ -99,6 +99,7 @@ create table if not exists public.fish_year_catches (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   angler_name text not null default 'Angler',
+  angler_avatar_url text default '',
   year int not null,
   month text not null,
   species text not null,
@@ -106,6 +107,7 @@ create table if not exists public.fish_year_catches (
   photo_url text default '',
   created_at timestamptz default now()
 );
+alter table public.fish_year_catches add column if not exists angler_avatar_url text default '';
 
 alter table public.fish_year_catches enable row level security;
 drop policy if exists "Members can view fish year catches" on public.fish_year_catches;
