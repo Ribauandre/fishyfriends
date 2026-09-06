@@ -33,6 +33,22 @@ test('loads the signed-in user and their profile on mount', async () => {
   expect(result.current.profile.home_water).toBe('Raritan Bay');
 });
 
+test('creates a profiles row automatically for a signed-in user who never saved Settings, so they still show up in the Anglers directory', async () => {
+  __mock.setResponse('profiles', { data: null, error: null });
+  __mock.setResponse('personal_bests', { data: [], error: null });
+  __mock.setResponse('custom_species', { data: [], error: null });
+  __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+  const { result } = renderHook(() => useAuth(), { wrapper });
+  await waitFor(() => expect(result.current.loading).toBe(false));
+
+  // Local state falls back to a derived profile immediately...
+  expect(result.current.profile.display_name).toBe('andre');
+  // ...and that fallback gets persisted (an upsert, not just a read) rather than only
+  // ever living in memory, so a fresh session later (or the Anglers directory, which
+  // reads straight from public.profiles) will actually find this angler.
+  await waitFor(() => expect(__mock.current.fromCalls.filter((table) => table === 'profiles').length).toBeGreaterThanOrEqual(2));
+});
+
 describe('signIn / signUp / signOut', () => {
   test('signIn calls Supabase with the given credentials', async () => {
     __mock.setResponse('profiles', { data: null, error: null });

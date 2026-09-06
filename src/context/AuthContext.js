@@ -47,7 +47,17 @@ export function AuthProvider({ children }) {
     let mounted = true;
     async function loadProfile(currentUser) {
       const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-      if (mounted) setProfile(data ? { ...defaultProfile, ...data } : profileFromUser(currentUser));
+      if (data) {
+        if (mounted) setProfile({ ...defaultProfile, ...data });
+      } else {
+        // No profiles row yet (never saved Settings) — anyone in this state can still post
+        // catches and personal bests since those only need the auth user id, but the
+        // Anglers directory is built from public.profiles, so they'd otherwise be invisible
+        // there forever. Persist a row now so every signed-in user shows up.
+        const fallback = profileFromUser(currentUser);
+        if (mounted) setProfile(fallback);
+        await supabase.from('profiles').upsert({ id: currentUser.id, ...fallback, updated_at: new Date().toISOString() });
+      }
       if (mounted) await loadPersonalBests(currentUser.id);
     }
     async function loadSession() {
