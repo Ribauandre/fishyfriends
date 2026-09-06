@@ -17,7 +17,7 @@ function ProtectedRoute({ children }) {
 }
 
 function SpeciesDeck() {
-  return <div className="species-deck" aria-hidden="true"><FishIllustration species="trout" /><FishIllustration species="perch" /><FishIllustration species="tuna" /><FishIllustration species="pike" /></div>;
+  return <div className="species-deck" aria-hidden="true"><span className="deck-spark">✦</span><FishIllustration species="trout" className="deck-fish deck-fish-one" /><FishIllustration species="perch" className="deck-fish deck-fish-two" /><FishIllustration species="tuna" className="deck-fish deck-fish-three" /><FishIllustration species="pike" className="deck-fish deck-fish-four" /><span className="deck-hook">◆</span></div>;
 }
 
 function App() {
