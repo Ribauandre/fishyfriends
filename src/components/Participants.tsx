@@ -1,6 +1,7 @@
 import * as React from 'react';
 import CommentThread from './CommentThread';
 import FishIllustration from './FishIllustration';
+import PostMenu from './PostMenu';
 import speciesIcon from '../utils/speciesOptions';
 
 type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_url?: string; month: string; species: string; caught_at: string | null; photo_url: string };
@@ -21,7 +22,10 @@ function MonthCatch({ entry, currentUserId, onDelete }: { entry: Catch; currentU
     return { error: null };
   }
   return <div className="catch-card">
-    {currentUserId && entry.user_id === currentUserId && <button type="button" className="catch-card-remove" onClick={() => onDelete(entry.id)} aria-label="Delete this catch">×</button>}
+    <PostMenu
+      shareData={{ title: `${entry.angler_name}'s ${entry.species}`, text: `${entry.angler_name} caught a ${entry.species}${entry.caught_at ? ` on ${entry.caught_at}` : ''} — Fish Year 2026.`, url: entry.photo_url || window.location.href }}
+      onDelete={currentUserId && entry.user_id === currentUserId ? () => onDelete(entry.id) : undefined}
+    />
     <button className="catch-card-media" type="button" onClick={() => entry.photo_url && setImageOpen(true)} aria-label={entry.photo_url ? `Expand ${entry.angler_name}'s catch photo` : `${entry.angler_name} caught a ${entry.species}, no photo yet`}>
       {entry.photo_url ? <img src={entry.photo_url} alt={`${entry.angler_name}'s ${entry.species}`} /> : <span className="catch-card-placeholder"><FishIllustration species={speciesIcon(entry.species)} /></span>}
       <span className="catch-card-species">{entry.species}</span>
