@@ -375,20 +375,31 @@ npm run build:github
 
 ## Testing and Known Warnings
 
-The current test suite is intentionally small. `src/App.test.js` verifies the unauthenticated account entry point and primary sign-in control.
+The suite covers the app's actual business logic and user-facing behavior, not just a single smoke test. Run it before every deploy:
 
-Expected test output includes React Router v7 future-flag warnings. They are warnings from the installed Router version, not test failures.
+```bash
+npm test -- --watchAll=false --runInBand
+```
+
+### Test infrastructure
+
+- `src/test-utils/supabaseMock.js` — a chainable fake for the Supabase query builder (`select/eq/order/insert/update/delete/upsert/maybeSingle`, all awaitable), plus fakes for `auth` and `storage`. Configure what a table resolves to with `setResponse(table, response)`.
+- `src/lib/__mocks__/supabase.js` — the manual Jest mock for `src/lib/supabase.js`. Any test file that needs `isSupabaseConfigured` to be `true` and a controllable client calls `jest.mock('../lib/supabase')` (adjust the relative path to the importing file), then imports `{ supabase, isSupabaseConfigured, __mock }` — call `__mock.reset()` in `beforeEach` and `__mock.setResponse(...)` to script responses. Test files that do *not* call `jest.mock` get the real module, which reads (unset) env vars and behaves like a deployment missing its Supabase config — that's what covers every "fails closed" guard clause.
+- `src/test-utils/renderWithProviders.js` — renders a component inside `MemoryRouter` + `AuthProvider`, for components that call `useAuth()`/router hooks directly.
+- `setupTests.js` polyfills `Element.prototype.scrollIntoView`, which jsdom doesn't implement at all and which the deep-link highlight effects (Participants.tsx, Anglers.js) call on mount.
+
+### What's covered
+
+- **Utilities**: `speciesOptions` (icon matching, case-insensitivity, canonical list integrity) and `photoDate` (EXIF tag fallback order, graceful `null` on unsupported/missing metadata).
+- **AuthContext**: every "fails closed when unconfigured" guard clause, plus (with the mock) the full happy paths — session/profile loading, sign in/up/out, profile updates, avatar upload, personal-best insert-vs-update-by-species matching, species registration and its dedupe logic, Fish Year catch logging, and every delete path.
+- **Components**: `SpeciesSelect` (autocomplete filtering, keyboard nav, free text, merging in shared custom species), `PostMenu` (Share via the native share sheet or clipboard fallback, Delete only when an owner handler is passed, click-outside-to-close), `CommentThread` (delete only visible on the viewer's own comment), `FishIllustration` (species fallback, unique SVG filter ids).
+- **Pages**: `FishYear` (month derived from date, EXIF autofill, form validation/error display, `?catch=` deep-link highlighting), `Anglers` (search filtering by name/water/species, ownership-gated delete, `?best=` deep-link highlighting), `App` (protected-route redirects for every authenticated route, root redirect chain).
+
+Expected test output includes React Router v7 future-flag warnings and React "not wrapped in act(...)" warnings from a few fire-and-forget state updates (e.g. `registerSpecies` isn't awaited by its caller). Both are pre-existing noise, not failures — the tests that matter assert on flushed state via `waitFor`, not on immediate synchronous reads.
 
 Build output may include the Browserslist database age warning. It does not currently block builds. Updating Browserslist should be a separate dependency-maintenance change.
 
-When adding behavior, prioritize tests for:
-
-- Protected route redirects.
-- Supabase sign-in/sign-up error handling.
-- Email confirmation state.
-- Profile/avatar persistence.
-- Fish Year catch persistence once that feature is moved to Supabase.
-- Mobile interaction states.
+When adding new behavior, add coverage for it using the existing mocks above rather than starting a new pattern — in particular, prioritize tests for anything touching delete/ownership checks, species registration, or EXIF date extraction, since those have been the source of real regressions in the past.
 
 ## Maintenance Guidance for Future Agents
 
