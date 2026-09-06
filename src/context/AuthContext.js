@@ -11,14 +11,21 @@ function profileFromUser(user) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(defaultProfile);
+  const [personalBests, setPersonalBests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+
+  async function loadPersonalBests(userId) {
+    const { data } = await supabase.from('personal_bests').select('*').eq('user_id', userId).order('created_at', { ascending: true });
+    setPersonalBests(data || []);
+  }
 
   useEffect(() => {
     let mounted = true;
     async function loadProfile(currentUser) {
       const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
       if (mounted) setProfile(data ? { ...defaultProfile, ...data } : profileFromUser(currentUser));
+      if (mounted) await loadPersonalBests(currentUser.id);
     }
     async function loadSession() {
       if (!isSupabaseConfigured) {
@@ -38,7 +45,7 @@ export function AuthProvider({ children }) {
       if (!mounted) return;
       setUser(session?.user || null);
       if (session?.user) await loadProfile(session.user);
-      else setProfile(defaultProfile);
+      else { setProfile(defaultProfile); setPersonalBests([]); }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -84,9 +91,9 @@ export function AuthProvider({ children }) {
   }
 
   async function uploadAvatar(file) {
-    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before uploading a profile photo.') };
     if (!file?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
     if (file.size > 5 * 1024 * 1024) return { error: new Error('Profile photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before uploading a profile photo.') };
     const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = `${user.id}/avatar.${extension}`;
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
@@ -98,7 +105,71 @@ export function AuthProvider({ children }) {
     return { ...result, avatarUrl };
   }
 
-  return <AuthContext.Provider value={{ user, profile, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  async function uploadPersonalBest({ species, sizeLabel, caughtAt, file }) {
+    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+    if (file && !file.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a personal best.') };
+
+    let photoUrl;
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('personal-bests').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      const { data } = supabase.storage.from('personal-bests').getPublicUrl(path);
+      photoUrl = `${data.publicUrl}?v=${Date.now()}`;
+    }
+
+    const existing = personalBests.find((best) => best.species.toLowerCase() === species.trim().toLowerCase());
+    const row = { user_id: user.id, species: species.trim(), size_label: sizeLabel || '', caught_at: caughtAt || null, ...(photoUrl ? { photo_url: photoUrl } : {}) };
+    const { data, error } = existing
+      ? await supabase.from('personal_bests').update(row).eq('id', existing.id).select().maybeSingle()
+      : await supabase.from('personal_bests').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    setPersonalBests((previous) => existing ? previous.map((best) => (best.id === existing.id ? data : best)) : [...previous, data]);
+    setNotice('Personal best saved.');
+    return { error: null };
+  }
+
+  async function deletePersonalBest(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a personal best.') };
+    const { error } = await supabase.from('personal_bests').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    setPersonalBests((previous) => previous.filter((best) => best.id !== id));
+    return { error: null };
+  }
+
+  async function listAnglers() {
+    if (!isSupabaseConfigured) return [];
+    const [{ data: profiles }, { data: bests }] = await Promise.all([
+      supabase.from('profiles').select('*'),
+      supabase.from('personal_bests').select('*'),
+    ]);
+    return (profiles || []).map((anglerProfile) => ({
+      profile: anglerProfile,
+      personalBests: (bests || []).filter((best) => best.user_id === anglerProfile.id),
+    }));
+  }
+
+  async function listComments(personalBestId) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('personal_best_comments').select('*').eq('personal_best_id', personalBestId).order('created_at', { ascending: true });
+    return data || [];
+  }
+
+  async function addComment(personalBestId, body) {
+    if (!body?.trim()) return { error: new Error('Say something first.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before commenting.') };
+    const authorName = profile.display_name || user?.email?.split('@')[0] || 'Angler';
+    const row = { personal_best_id: personalBestId, user_id: user.id, author_name: authorName, body: body.trim() };
+    const { data, error } = await supabase.from('personal_best_comments').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, comment: data };
+  }
+
+  return <AuthContext.Provider value={{ user, profile, personalBests, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

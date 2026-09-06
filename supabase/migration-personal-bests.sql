@@ -1,39 +1,10 @@
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  display_name text not null default 'New angler',
-  home_water text default '',
-  favorite_species text default '',
-  bio text default '',
-  avatar_url text default '',
-  updated_at timestamptz default now()
-);
-
-alter table public.profiles enable row level security;
-drop policy if exists "Members can view profiles" on public.profiles;
-create policy "Members can view profiles" on public.profiles for select using (true);
-drop policy if exists "Members can insert their profile" on public.profiles;
-create policy "Members can insert their profile" on public.profiles for insert with check (auth.uid() = id);
-drop policy if exists "Members can update their profile" on public.profiles;
-create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
-
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do update set public = true;
-
-drop policy if exists "Anyone can view avatars" on storage.objects;
-create policy "Anyone can view avatars" on storage.objects for select
-using (bucket_id = 'avatars');
-drop policy if exists "Members can upload their avatar" on storage.objects;
-create policy "Members can upload their avatar" on storage.objects for insert
-with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
-drop policy if exists "Members can update their avatar" on storage.objects;
-create policy "Members can update their avatar" on storage.objects for update
-using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+-- Adds personal bests + comments to a project that already has public.profiles and the
+-- avatars bucket deployed (running the full schema.sql there fails with "relation
+-- public.profiles already exists" on its first line). This file is safe to run more
+-- than once — tables use IF NOT EXISTS and policies are dropped before being recreated.
 
 -- Personal bests: one angler can log a best fish per species, visible to the whole crew
 -- (powers the angler lookup directory and the profile page's personal-best grid).
--- Already deployed profiles/avatars above and just need this part? Run
--- migration-personal-bests.sql instead — same statements, standalone.
 create table if not exists public.personal_bests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

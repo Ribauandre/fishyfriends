@@ -2,8 +2,10 @@ import * as React from 'react';
 import placeholderFluke from '../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg';
 import firstPlace from '../assets/andre/IMG_7938.jpeg';
 import secondPlace from '../assets/andres/IMG_7920.jpeg';
+import CommentThread from './CommentThread';
 
 type LeaderboardRow = { place: number; name: string; size: number; date: string; photo: string };
+type Comment = { id: string; author_name: string; body: string };
 
 const rows: LeaderboardRow[] = [
   { place: 1, name: 'Andre', size: 20, date: '07/16', photo: firstPlace },
@@ -15,6 +17,11 @@ function LeaderboardRowItem({ row }: { row: LeaderboardRow }) {
   const [open, setOpen] = React.useState(row.place === 1);
   const [liked, setLiked] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
+  const [comments, setComments] = React.useState<Comment[]>([]);
+  async function handleAddComment(body: string) {
+    setComments((previous) => [...previous, { id: `c-${Date.now()}`, author_name: 'You', body }]);
+    return { error: null };
+  }
   return (
     <div className={`leaderboard-entry ${open ? 'is-open' : ''}`}>
       <button className="leaderboard-row" type="button" onClick={() => setOpen(!open)} aria-expanded={open}>
@@ -24,7 +31,7 @@ function LeaderboardRowItem({ row }: { row: LeaderboardRow }) {
         <span className="rank-date">{row.date}</span>
         <span className="expand-icon">{open ? '−' : '+'}</span>
       </button>
-      {open && <div className="leaderboard-detail"><button className="catch-image-button" type="button" onClick={() => setImageOpen(true)} aria-label={`Expand ${row.name}'s catch photo`}><img src={row.photo} alt={`${row.name}'s ${row.size}-inch fluke`} /></button><div><span className="eyebrow">CATCH PROOF</span><h3>{row.name}'s tournament catch</h3><p>{row.size}-inch fluke recorded on {row.date}, during the 2025 NJ season.</p><button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like catch'} <small>{liked ? 1 : 0}</small></button></div></div>}
+      {open && <div className="leaderboard-detail"><button className="catch-image-button" type="button" onClick={() => setImageOpen(true)} aria-label={`Expand ${row.name}'s catch photo`}><img src={row.photo} alt={`${row.name}'s ${row.size}-inch fluke`} /></button><div><span className="eyebrow">CATCH PROOF</span><h3>{row.name}'s tournament catch</h3><p>{row.size} inches of pure bragging rights, logged {row.date} during the 2025 NJ season.</p><button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like catch'} <small>{liked ? 1 : 0}</small></button><CommentThread comments={comments} loading={false} onAdd={handleAddComment} /></div></div>}
       {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${row.name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={row.photo} alt={`${row.name}'s expanded ${row.size}-inch fluke`} onClick={(event) => event.stopPropagation()} /></div>}
     </div>
   );

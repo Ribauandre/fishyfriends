@@ -1,116 +1,421 @@
 # Fishy Friends
 
-Fishy Friends is a small fishing challenge clubhouse with Supabase authentication, member profiles, seasonal leaderboards, and a monthly Fish Year challenge.
+Fishy Friends is a mobile-first fishing challenge clubhouse. It combines member authentication, profiles, avatar uploads, a Fish Year monthly challenge, a Fluke Tournament archive, leaderboards, catch photos, likes, and a dark tattoo-inspired fishing visual system.
 
-## Supabase setup
+This README is an implementation handoff for future developers and coding agents. It describes the current architecture, what is persisted, what is still static/local, deployment rules, and the main maintenance risks.
 
-Create a `.env.local` file in the project root with:
+## Product Surface
+
+The current product has four authenticated surfaces and one public entry surface:
+
+| Route | Access | Purpose |
+| --- | --- | --- |
+| `/account` | Public | Sign in and account creation with Supabase Auth. |
+| `/home` | Authenticated | Personalized clubhouse dashboard and links into challenges. |
+| `/profile` | Authenticated | Edit profile details, upload avatar, and sign out. |
+| `/fish-year` | Authenticated | Fish Year status board, catch logging form, monthly participant board. |
+| `/fluke-tournament` | Authenticated | 2025 Fluke Tournament leaderboard and catch proof. |
+
+`/` redirects to `/home`. Unauthenticated visits to protected routes redirect to `/account`.
+
+The app is intentionally account-oriented: the navbar is hidden until a session exists, and all challenge activity is reached from the authenticated shell.
+
+## Technology
+
+- React 19
+- Create React App / `react-scripts` 5
+- React Router DOM 6
+- Supabase JavaScript client
+- Supabase Auth, Postgres, and Storage
+- TypeScript only for the existing `.tsx` leaderboard/participant components
+- CSS-first visual system in `src/App.css`
+- MUI Joy and MUI icons remain installed for historical component compatibility, but the current redesigned leaderboard panels are mostly custom markup/CSS
+
+The project has no custom backend server. Browser code talks directly to Supabase using the public publishable/anon key.
+
+## Source Structure
+
+```text
+src/
+  App.js                    Router, auth provider, protected routes, species deck
+  App.css                   Global dark theme, responsive layout, fish illustration styling
+  AuthPage.js               Sign-in, sign-up, disabled configuration state, confirmation state
+  FishYear.js               Fish Year page and local catch logging interaction
+  FlukeTournament.js        Tournament page wrapper
+  Home.js                   Authenticated dashboard
+  Profile.js                Profile form and avatar upload UI
+  context/AuthContext.js    Supabase session/profile/auth state
+  lib/supabase.js           Supabase client and environment-key resolution
+  utils/supabase.js         Legacy helper; currently not imported by the active app
+  components/
+    FishIllustration.js     Reusable thick-line SVG fish illustration
+    Leaderboard.tsx         Fluke leaderboard rows, image lightbox, local likes
+    Navbar.js               Responsive desktop/mobile authenticated navigation
+    Participants.tsx        Fish Year participant/month board and local likes
+  assets/                   Challenge photos and historical fishing media
+
+supabase/
+  schema.sql                Profiles table, RLS policies, avatar bucket/policies
+  confirmation-email.html   Branded Supabase signup confirmation template
+
+scripts/
+  moveBuildToDocs.js         Replaces docs/ with the current build/ output
+
+.github/workflows/
+  deploy-site.yml            Builds docs with Supabase config on deploy pushes
+  keep-db-active.yml         Scheduled Supabase REST request
+```
+
+## Application Architecture
+
+### Provider and routing
+
+`src/index.js` renders `App` inside `React.StrictMode`.
+
+`App.js` composes the application in this order:
+
+```text
+AuthProvider
+  Router
+    Navbar
+    SpeciesDeck
+    page wrapper
+      Routes
+```
+
+`ProtectedRoute` reads `user` and `loading` from `useAuth()`:
+
+- While loading, it renders `Loading your dock...`.
+- With a session, it renders the requested page.
+- Without a session, it redirects to `/account`.
+
+The `SpeciesDeck` is decorative and globally visible. It renders original SVG line-art fish, not external image assets. It is `aria-hidden` because it is visual atmosphere rather than content.
+
+### Auth state
+
+`AuthContext.js` owns:
+
+- `user`: Supabase Auth user or `null`
+- `profile`: profile row merged with safe defaults
+- `loading`: initial session/profile loading state
+- `notice`: latest auth/profile message
+- `signIn(email, password)`
+- `signUp(email, password, displayName)`
+- `signOut()`
+- `updateProfile(profile)`
+- `uploadAvatar(file)`
+- `isSupabaseConfigured`
+
+On startup, the provider calls `supabase.auth.getSession()`. It then loads the matching row from `public.profiles`. It also subscribes to `onAuthStateChange` so sign-in, confirmation, refresh, and sign-out update the UI.
+
+The provider deliberately fails closed when Supabase is not configured. It does not create fake local users. This is important because CRA environment variables are compiled into the public bundle and a preview-only login would hide deployment configuration problems.
+
+### Session persistence
+
+`src/lib/supabase.js` creates the client with:
+
+```js
+auth: {
+  persistSession: true,
+  autoRefreshToken: true,
+  detectSessionInUrl: true,
+}
+```
+
+This means Supabase stores a browser session, refreshes access tokens, and can consume the auth callback in the URL after email confirmation. Users should remain signed in when returning on the same device until the Supabase session expires or they explicitly sign out.
+
+## Supabase Configuration
+
+### Browser environment variables
+
+Create `.env.local` for local development:
 
 ```bash
-REACT_APP_SUPABASE_URL=your-project-url
-REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-key
+REACT_APP_SUPABASE_URL=https://your-project.supabase.co
+REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY=your-publishable-or-anon-key
 ```
 
-Then run this SQL in the Supabase SQL editor:
+Accepted key fallbacks in `src/lib/supabase.js` are:
+
+1. `REACT_APP_SUPABASE_ANON_KEY`
+2. `REACT_APP_SUPABASE_PUBLISHABLE_KEY`
+3. `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+4. `FISHY_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
+
+The deploy workflow prioritizes the exact production name `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY`, then supports the anon/publishable alternatives.
+
+Never use any of these in the browser:
+
+- `sb_secret_...`
+- a Supabase service-role key
+- any server-only private key
+
+The workflow rejects `sb_secret_` values before building the site. A browser bundle is public by definition.
+
+### Profiles and Storage
+
+Run `supabase/schema.sql` in the Supabase SQL editor. It creates:
+
+- `public.profiles`
+- `avatar_url` on each profile
+- Row Level Security on profiles
+- The public `avatars` Storage bucket
+- Storage policies allowing public reads and user-owned writes
+
+If the profiles table already exists, apply this migration before using avatars:
 
 ```sql
-create table public.profiles (
-	id uuid primary key references auth.users(id) on delete cascade,
-	display_name text not null default 'New angler',
-	home_water text default '',
-	favorite_species text default '',
-	bio text default '',
-	updated_at timestamptz default now()
-);
-
-alter table public.profiles enable row level security;
-create policy "Members can view profiles" on public.profiles for select using (true);
-create policy "Members can insert their profile" on public.profiles for insert with check (auth.uid() = id);
-create policy "Members can update their profile" on public.profiles for update using (auth.uid() = id);
+alter table public.profiles
+add column if not exists avatar_url text default '';
 ```
 
-The same schema adds the public `avatars` Storage bucket and policies used by profile photo uploads. If the profiles table already exists, run `alter table public.profiles add column if not exists avatar_url text default '';` before using the upload control.
+Avatar upload behavior:
 
-Both variables are required for sign-in and sign-up. Use the Supabase publishable key (formerly called the anon key), never a secret or service-role key. The browser bundle intentionally cannot use a secret key.
+- Accepts image files only.
+- Maximum size is 5 MB.
+- Upload path is `{auth user id}/avatar.{extension}`.
+- Upload uses `upsert: true`, so each user has one current avatar path per extension.
+- The public URL is saved to `profiles.avatar_url` with a cache-busting query string.
 
-### Email confirmation
+### Auth URL configuration
 
-In Supabase, open **Authentication → URL Configuration** and set:
+In Supabase Authentication URL Configuration:
 
 - Site URL: `https://www.fishyfriends.club`
 - Redirect URL: `https://www.fishyfriends.club/`
 
-Then open **Authentication → Email Templates → Confirm signup** and paste the HTML from [supabase/confirmation-email.html](supabase/confirmation-email.html). The template uses Supabase's `{{ .ConfirmationURL }}` variable.
+Signup passes `emailRedirectTo: window.location.origin + '/'`. The root route then redirects into the application. The root is used instead of `/account` because this site is deployed as static GitHub Pages content and direct deep-link behavior can vary.
 
-## Scripts
+### Confirmation email
 
-`npm start` runs the development server. `npm run build` creates a production build. `npm test -- --watchAll=false --runInBand` runs the test suite.
+Paste `supabase/confirmation-email.html` into Authentication -> Email Templates -> Confirm signup.
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The template uses Supabase's `{{ .ConfirmationURL }}` placeholder and matches the site's dark, inked fishing aesthetic. Updating the file does not automatically update Supabase; the HTML must be pasted into the Supabase dashboard or managed separately through Supabase tooling.
 
-## Available Scripts
+## Data Ownership and Current Limitations
 
-In the project directory, you can run:
+This distinction matters when extending the app:
 
-### `npm start`
+### Supabase-backed
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Auth users and sessions
+- Profile fields
+- Avatar files and avatar URLs
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Static or local-only today
 
-### `npm test`
+- Fish Year historical participant data in `Participants.tsx`
+- Fluke Tournament rows in `Leaderboard.tsx`
+- Newly logged Fish Year catches
+- Fish Year caught-month status
+- Catch likes
+- Catch image lightbox state
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+The Fish Year `Log a catch` form currently creates an in-memory entry and passes it into the participant board. It does not write to Supabase or survive a page reload. Likes are component-local React state and do not persist.
 
-### `npm run build`
+A future persistent catch system should introduce a table such as:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```sql
+create table public.catches (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  challenge text not null,
+  month text,
+  species text not null,
+  caught_at date not null,
+  photo_url text default '',
+  created_at timestamptz default now()
+);
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+That work should also add RLS policies, photo storage rules, a query hook/provider, optimistic updates, and a separate likes table or RPC. Do not imply persistence in the UI until those pieces exist.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Visual System
 
-### `npm run eject`
+The product is dark-mode-only and intentionally avoids a generic light SaaS look.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Core visual decisions:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- Near-black deep-water base with grid/ripple texture.
+- Green/chartreuse ink accent for active states and primary actions.
+- Orange/coral accent for hooks, warnings, likes, and energetic states.
+- Heavy border, offset shadow, and double-line treatments inspired by tattoo flash sheets.
+- Responsive bottom navigation on mobile.
+- High-contrast large touch targets for phone use.
+- Original SVG fish illustrations with thick outlines and species-specific details.
+- Reduced-motion support through `@media (prefers-reduced-motion: reduce)`.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Fish illustration intent:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- Pike: long ambush profile and pale spot marks.
+- Bass: deep body and lateral stripe.
+- Salmon: silver body, warm belly/gill accents, run-like movement.
+- Shark: countershading, dorsal fin, and teeth.
+- Trout, perch, and tuna: additional variety in the global deck.
 
-## Learn More
+The fish illustrations are original CSS/SVG constructions, not copied artwork. If replacing them with photographs or external art, verify licensing and keep asset sizes appropriate for mobile.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Responsive Behavior
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Desktop:
 
-### Code Splitting
+- Fixed top navigation.
+- Two-column dashboard feature cards.
+- Two-column month board.
+- Profile page uses a profile card plus settings panel.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Mobile:
 
-### Analyzing the Bundle Size
+- Fixed bottom navigation with safe-area padding.
+- Hidden desktop brand wordmark in the nav.
+- Single-column dashboard and profile layout.
+- Three-column personal Fish Year month board.
+- Full-width touch-friendly buttons and auth fields.
+- Decorative fish deck is moved lower and reduced in opacity/scale.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Do not add wide tables or hover-only actions without a mobile equivalent. Catch photos, likes, modal controls, and profile uploads should remain usable with touch.
 
-### Making a Progressive Web App
+## Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+The repository deploys the committed `docs/` directory. Do not manually commit a locally generated `docs/` build with empty Supabase variables when the deploy workflow is available.
 
-### Advanced Configuration
+The normal flow is:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+```text
+push to deploy
+  -> GitHub Actions deploy-site.yml
+  -> npm ci
+  -> verify Supabase URL/key
+  -> npm run build:github
+  -> replace docs/ from build/
+  -> commit generated docs
+  -> push generated commit
+```
 
-### Deployment
+The workflow requires these GitHub Actions values:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+- `REACT_APP_SUPABASE_URL`
+- `REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
 
-### `npm run build` fails to minify
+They may be configured as GitHub Variables or Secrets. The workflow prioritizes Variables for the publishable key so an outdated Secret with the same name does not override it.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+The workflow rejects a value beginning with `sb_secret_`. If Push Protection blocks a generated bundle, do not bypass it. Replace the value with the public publishable/anon key and rotate any exposed secret key.
+
+The scheduled `keep-db-active.yml` workflow uses the same publishable key naming to make a REST request. It is separate from site deployment.
+
+### Git workflow
+
+The active deployment branch is `deploy`.
+
+Recommended update flow:
+
+```bash
+git switch deploy
+git pull --rebase origin deploy
+# make focused changes
+npm test -- --watchAll=false --runInBand
+npm run build
+git add <files>
+git commit -m "Describe the change"
+git push origin deploy
+```
+
+The deploy workflow may create a follow-up `Build deploy site` commit. If a local push is rejected as non-fast-forward:
+
+```bash
+git fetch origin deploy
+git rebase origin/deploy
+git push origin deploy
+```
+
+Do not use `git push --force` for this branch.
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm ci
+```
+
+Start the development server:
+
+```bash
+npm start
+```
+
+Open `http://localhost:3000`.
+
+If CRA reports a missing `node_modules/.cache/default-development/0.pack`, stop any running React process first, then reset the generated cache:
+
+```bash
+rm -rf node_modules/.cache
+npm start
+```
+
+Do not delete `node_modules/.cache` while `npm start` is running. The active webpack watcher can crash when its pack file disappears.
+
+Run tests:
+
+```bash
+npm test -- --watchAll=false --runInBand
+```
+
+Run a production build:
+
+```bash
+npm run build
+```
+
+Build the GitHub Pages directory locally only when Supabase environment variables are available:
+
+```bash
+npm run build:github
+```
+
+## Testing and Known Warnings
+
+The current test suite is intentionally small. `src/App.test.js` verifies the unauthenticated account entry point and primary sign-in control.
+
+Expected test output includes React Router v7 future-flag warnings. They are warnings from the installed Router version, not test failures.
+
+Build output may include the Browserslist database age warning. It does not currently block builds. Updating Browserslist should be a separate dependency-maintenance change.
+
+When adding behavior, prioritize tests for:
+
+- Protected route redirects.
+- Supabase sign-in/sign-up error handling.
+- Email confirmation state.
+- Profile/avatar persistence.
+- Fish Year catch persistence once that feature is moved to Supabase.
+- Mobile interaction states.
+
+## Maintenance Guidance for Future Agents
+
+1. Read this README before changing auth or deployment.
+2. Check `git status` before editing; user or workflow-generated changes may be present.
+3. Keep Supabase browser configuration limited to public URL and publishable/anon key.
+4. Treat `docs/` as generated output; source changes belong in `src/` and are rebuilt by Actions.
+5. Preserve exact filename casing. Linux CI is case-sensitive even if macOS local development is not.
+6. Keep the public route at `/` compatible with static hosting.
+7. Do not claim challenge catches or likes are persisted until a Supabase data model exists.
+8. Preserve the mobile bottom navigation and large touch targets.
+9. Keep fish illustrations original and readable; avoid emoji or ambiguous abstract glyphs as the primary fish visual.
+10. Run both the production build and the test suite after shared CSS, auth, routing, or deployment changes.
+
+## Primary Files by Concern
+
+| Concern | Files |
+| --- | --- |
+| Routing/protection | `src/App.js` |
+| Auth/session/profile state | `src/context/AuthContext.js`, `src/lib/supabase.js` |
+| Auth UI | `src/AuthPage.js` |
+| Profile/avatar UI | `src/Profile.js`, `supabase/schema.sql` |
+| Dashboard | `src/Home.js` |
+| Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
+| Fluke Tournament | `src/FlukeTournament.js`, `src/components/Leaderboard.tsx` |
+| Navigation | `src/components/Navbar.js` |
+| Fish illustrations | `src/components/FishIllustration.js`, `src/App.css`, `src/App.js` |
+| Global responsive theme | `src/App.css`, `src/index.css` |
+| Email template | `supabase/confirmation-email.html` |
+| Deployment | `.github/workflows/deploy-site.yml`, `scripts/moveBuildToDocs.js` |

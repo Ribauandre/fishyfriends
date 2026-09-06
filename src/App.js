@@ -6,8 +6,8 @@ import FlukeTournament from './FlukeTournament';
 import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
+import Anglers from './Anglers';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import FishIllustration from './components/FishIllustration';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 function ProtectedRoute({ children }) {
@@ -16,19 +16,16 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/account" replace />;
 }
 
-function SpeciesDeck() {
-  return <div className="species-deck" aria-hidden="true"><span className="deck-spark">✦</span><FishIllustration species="trout" className="deck-fish deck-fish-one" /><FishIllustration species="perch" className="deck-fish deck-fish-two" /><FishIllustration species="tuna" className="deck-fish deck-fish-three" /><FishIllustration species="pike" className="deck-fish deck-fish-four" /><span className="deck-hook">◆</span></div>;
-}
-
 function App() {
   return (
-    <AuthProvider><Router><div className="App"><Navbar /><SpeciesDeck /><div className="page-wrapper"><Routes>
+    <AuthProvider><Router><div className="App"><Navbar /><div className="page-wrapper"><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/account" element={<AuthPage />} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/fluke-tournament" element={<ProtectedRoute><FlukeTournament /></ProtectedRoute>} />
       <Route path="/fish-year" element={<ProtectedRoute><FishYear /></ProtectedRoute>} />
+      <Route path="/anglers" element={<ProtectedRoute><Anglers /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>
   );
 }

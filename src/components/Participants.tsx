@@ -7,8 +7,12 @@ import paoloFeb from '../assets/paolo/feb.jpeg';
 import paoloJan from '../assets/paolo/jan.jpeg';
 import andreFeb from '../assets/andre/feb.jpeg';
 import andresFeb from '../assets/andres/feb.jpeg';
+import CommentThread from './CommentThread';
+import FishIllustration from './FishIllustration';
+import speciesIcon from '../utils/speciesOptions';
 
 type Entry = { name: string; species: string; date: string; month?: string; photo?: string };
+type Comment = { id: string; author_name: string; body: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const entriesByMonth: Record<string, Entry[]> = {
   January: [{ name: 'Andres', species: 'Steelhead', date: '1/16', photo: andresJan }, { name: 'Kevin', species: 'Steelhead', date: '1/16', photo: kevinJan }, { name: 'Paolo', species: 'Steelhead', date: '1/17', photo: paoloJan }],
@@ -16,14 +20,33 @@ const entriesByMonth: Record<string, Entry[]> = {
 };
 
 function MonthDetail({ entries }: { entries: Entry[] }) {
-  if (!entries.length) return <p className="month-empty">No catches logged yet. Be the first to add one.</p>;
+  if (!entries.length) return <p className="month-empty">No catches yet. Somebody's gotta break the ice.</p>;
   return <div className="month-catches">{entries.map((entry) => <MonthCatch key={`${entry.date}-${entry.name}-${entry.species}`} entry={entry} />)}</div>;
 }
 
 function MonthCatch({ entry }: { entry: Entry }) {
   const [liked, setLiked] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
-  return <div className="month-catch"><div className="mini-avatar">{entry.name.slice(0, 1)}</div>{entry.photo && <button className="catch-image-button" type="button" onClick={() => setImageOpen(true)} aria-label={`Expand ${entry.name}'s catch photo`}><img src={entry.photo} alt={`${entry.name}'s ${entry.species}`} /></button>}<div><strong>{entry.name}</strong><span>{entry.species} · {entry.date}</span><button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like'} <small>{liked ? 1 : 0}</small></button></div>{imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo} alt={`${entry.name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}</div>;
+  const [comments, setComments] = React.useState<Comment[]>([]);
+  async function handleAddComment(body: string) {
+    setComments((previous) => [...previous, { id: `c-${Date.now()}`, author_name: 'You', body }]);
+    return { error: null };
+  }
+  return <div className="catch-card">
+    <button className="catch-card-media" type="button" onClick={() => entry.photo && setImageOpen(true)} aria-label={entry.photo ? `Expand ${entry.name}'s catch photo` : `${entry.name} caught a ${entry.species}, no photo yet`}>
+      {entry.photo ? <img src={entry.photo} alt={`${entry.name}'s ${entry.species}`} /> : <span className="catch-card-placeholder"><FishIllustration species={speciesIcon(entry.species)} /></span>}
+      <span className="catch-card-species">{entry.species}</span>
+    </button>
+    <div className="catch-card-caption">
+      <span className="mini-avatar">{entry.name.slice(0, 1)}</span>
+      <div><strong>{entry.name}</strong><span>{entry.date}</span></div>
+    </div>
+    <div className="catch-card-actions">
+      <button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like'} <small>{liked ? 1 : 0}</small></button>
+      <CommentThread comments={comments} loading={false} onAdd={handleAddComment} />
+    </div>
+    {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo} alt={`${entry.name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}
+  </div>;
 }
 
 function MonthCard({ month, index, entries }: { month: string; index: number; entries: Entry[] }) {
