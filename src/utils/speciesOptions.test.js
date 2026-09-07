@@ -7,7 +7,7 @@ describe('SPECIES_OPTIONS', () => {
       'snakehead', 'chainpickerel', 'walleye', 'perch', 'whiteperch', 'catfish', 'carp',
       'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
       'falsealbacore', 'bluefish', 'mahimahi', 'mackerel', 'shark', 'flounder', 'tautog',
-      'weakfish', 'speckledtrout', 'cobia', 'redfish', 'blackseabass',
+      'weakfish', 'speckledtrout', 'cobia', 'redfish', 'blackseabass', 'tuna',
     ]);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
@@ -54,7 +54,7 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Mahi Mahi')).toBe('mahimahi');
     expect(speciesIcon('Atlantic Mackerel')).toBe('mackerel');
     expect(speciesIcon('False Albacore')).toBe('falsealbacore');
-    expect(speciesIcon('Tuna')).toBe('falsealbacore');
+    expect(speciesIcon('Tuna')).toBe('tuna');
     expect(speciesIcon('Snook')).toBe('largemouth');
     expect(speciesIcon('Black Sea Bass')).toBe('blackseabass');
   });
@@ -66,7 +66,7 @@ describe('speciesIcon', () => {
   });
 
   test('falls back to a fuzzy substring match for an unlisted species containing a known icon word', () => {
-    expect(speciesIcon('Giant Tuna')).toBe('falsealbacore');
+    expect(speciesIcon('Giant Tuna')).toBe('tuna');
     expect(speciesIcon('Some Random Shark')).toBe('shark');
     expect(speciesIcon('Trophy Largemouth')).toBe('largemouth');
     expect(speciesIcon('Peacock Bass')).toBe('largemouth');

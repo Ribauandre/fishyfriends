@@ -30,6 +30,7 @@ import mahimahi from '../assets/fish/mahimahi.png';
 import mackerel from '../assets/fish/mackerel.png';
 import salmon from '../assets/fish/salmon.png';
 import blackseabass from '../assets/fish/blackseabass.png';
+import tuna from '../assets/fish/tuna.png';
 
 // Bold neon-outline sticker art the user generated directly, matching the reference photos
 // they shared. Every species below has its own art; anything else falls back to trout — no
@@ -66,6 +67,7 @@ const fishDetails = {
   mackerel: { label: 'Atlantic mackerel', src: mackerel },
   salmon: { label: 'Atlantic salmon', src: salmon },
   blackseabass: { label: 'Black sea bass', src: blackseabass },
+  tuna: { label: 'Tuna', src: tuna },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails).filter((key) => key !== 'pike' && key !== 'trout');
