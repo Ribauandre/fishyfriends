@@ -89,8 +89,18 @@ button { cursor: pointer; }
    keeps every fish inside that room, and as a side effect stops forcing the art past its
    native resolution (it was being stretched 2-3x to fill the width), which was the source
    of the blur. */
-.fish-illustration.hero-sticker { filter: drop-shadow(0 0 18px rgba(227,251,20,.32)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); height: auto; max-height: 150px; max-width: 100%; transform: rotate(-7deg); transition: transform .2s ease-out, filter .2s ease-out; width: auto; }
+.fish-illustration.hero-sticker { animation: sticker-slap .6s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 18px rgba(227,251,20,.32)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); height: auto; max-height: 150px; max-width: 100%; transform: rotate(-7deg); transition: transform .2s ease-out, filter .2s ease-out; width: auto; }
 .welcome-banner:hover .fish-illustration.hero-sticker { filter: drop-shadow(0 0 26px rgba(227,251,20,.46)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); transform: rotate(-4deg) scale(1.02); }
+/* Lands like a sticker actually slapped onto the banner: thrown in from off-angle, flattens
+   on impact, then wobbles down to its resting tilt instead of just fading or sliding in. */
+@keyframes sticker-slap {
+  0% { opacity: 0; transform: translate(70px, -90px) rotate(22deg) scale(.4); }
+  45% { opacity: 1; transform: translate(0, 0) rotate(-15deg) scale(1.18); }
+  62% { transform: rotate(-3deg) scale(.9); }
+  78% { transform: rotate(-10deg) scale(1.05); }
+  92% { transform: rotate(-6deg) scale(.99); }
+  100% { transform: rotate(-7deg) scale(1); }
+}
 .welcome-banner > div { max-width: 54%; position: relative; z-index: 1; }
 .fish-illustration { height: 130px; object-fit: contain; overflow: visible; width: 240px; }
 /* Supporting sticker accents: present on interior pages and empty states, but deliberately
