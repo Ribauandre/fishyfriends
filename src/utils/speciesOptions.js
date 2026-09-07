@@ -22,7 +22,7 @@ export const SPECIES_OPTIONS = [
   { label: 'Steelhead', icon: 'trout' },
   { label: 'Atlantic Salmon', icon: 'salmon' },
   { label: 'Coho Salmon', icon: 'salmon' },
-  { label: 'Tuna', icon: 'falsealbacore' },
+  { label: 'Tuna', icon: 'tuna' },
   { label: 'False Albacore', icon: 'falsealbacore' },
   { label: 'Bluefish', icon: 'bluefish' },
   { label: 'Mahi Mahi', icon: 'mahimahi' },
@@ -96,7 +96,7 @@ const ICON_ALIASES = [
   ['sea bass', 'blackseabass'],
   ['snook', 'largemouth'],
   ['pike', 'pike'],
-  ['tuna', 'falsealbacore'],
+  ['tuna', 'tuna'],
   ['bass', 'largemouth'],
 ];
 
