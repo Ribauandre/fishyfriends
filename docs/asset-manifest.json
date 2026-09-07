@@ -1,24 +1,26 @@
 {
   "files": {
     "main.css": "/static/css/main.8085b37e.css",
-    "main.js": "/static/js/main.cb20b969.js",
+    "main.js": "/static/js/main.20abc51e.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
     "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
+    "static/media/flounder.png": "/static/media/flounder.f195b192379d6230aa1c.png",
     "static/media/tautog.png": "/static/media/tautog.222baa8ee0e0f8a16ba9.png",
+    "static/media/blackseabass.png": "/static/media/blackseabass.c63054e74f977bc115db.png",
     "static/media/smallmouth.png": "/static/media/smallmouth.b6d5141a3127505085e9.png",
     "static/media/carp.png": "/static/media/carp.103e19ec9da600e7c1e2.png",
+    "static/media/laketrout.png": "/static/media/laketrout.128d54e5158026f34588.png",
     "static/media/rainbowtrout.png": "/static/media/rainbowtrout.60c4b02d6cf26fc18a2d.png",
+    "static/media/salmon.png": "/static/media/salmon.b62153970530e31e535c.png",
     "static/media/stripedbass.png": "/static/media/stripedbass.38624bde52753be409d6.png",
     "static/media/largemouth.png": "/static/media/largemouth.2ed8ca3a3fee82925e1b.png",
+    "static/media/pike.png": "/static/media/pike.fec7a5b2f35d14406730.png",
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
-    "static/media/pike.png": "/static/media/pike.fc065eedc876b63ea912.png",
     "static/media/walleye.png": "/static/media/walleye.dd83d45caa67a177e350.png",
-    "static/media/laketrout.png": "/static/media/laketrout.b1f11253f9231a19690c.png",
-    "static/media/flounder.png": "/static/media/flounder.65361c4a559ce7e94151.png",
     "static/media/redfish.png": "/static/media/redfish.9748b2bc0168e4755214.png",
     "static/media/musky.png": "/static/media/musky.d7aab9bd399734640611.png",
     "static/media/mahimahi.png": "/static/media/mahimahi.47d0b3cb1da71374c0e2.png",
@@ -36,11 +38,11 @@
     "static/media/cobia.png": "/static/media/cobia.51f77c95b6fb203ae199.png",
     "index.html": "/index.html",
     "main.8085b37e.css.map": "/static/css/main.8085b37e.css.map",
-    "main.cb20b969.js.map": "/static/js/main.cb20b969.js.map",
+    "main.20abc51e.js.map": "/static/js/main.20abc51e.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.8085b37e.css",
-    "static/js/main.cb20b969.js"
+    "static/js/main.20abc51e.js"
   ]
 }
