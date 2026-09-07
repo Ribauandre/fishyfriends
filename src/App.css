@@ -1,7 +1,7 @@
 :root {
   --ink: #e7f4ef; --muted: #819b98; --line: #203f45; --paper: #060e12; --cream: #0e1b1f;
-  --coral: #ff6b4a; --mint: #b9e86c; --teal: #08767a; --navy: #071419; --rust: #c9622f;
-  --deep: #03080b; --glow: rgba(185, 232, 108, .16);
+  --coral: #ff5a1f; --mint: #e3fb14; --teal: #08767a; --navy: #071419; --rust: #c9622f;
+  --deep: #03080b; --glow: rgba(227, 251, 20, .18);
   --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --font-head: 'Oswald', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
   /* Game-fish skin patterns, used as subtle background textures instead of flat SaaS gradients. */
@@ -454,12 +454,19 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .anglers-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 .angler-card { background-color: var(--cream); background-image: var(--tex-scales); background-size: 26px 22px; border: 2px solid var(--line); box-shadow: 6px 6px 0 rgba(3,8,11,.85); padding: 22px; position: relative; }
 .angler-card.is-you { border-color: var(--mint); }
-.angler-card-head { align-items: center; display: flex; gap: 14px; position: relative; }
+.angler-card-head { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: flex; font: inherit; gap: 14px; padding: 0; position: relative; text-align: left; width: 100%; }
 .angler-card-head strong { display: block; font-size: 16px; }
-.angler-card-head .status-badge { position: absolute; right: 0; top: -4px; }
-.angler-favorite { color: var(--mint); display: inline-block; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 14px; }
-.angler-bests { border-top: 1px solid var(--line); display: grid; gap: 14px; margin-top: 16px; padding-top: 16px; }
+.angler-card-head > div { flex: 1; min-width: 0; }
+.angler-card-head .status-badge { position: absolute; right: 22px; top: -4px; }
+.angler-best-count { color: var(--muted); flex-shrink: 0; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.angler-card-head .expand-icon { flex-shrink: 0; }
+.angler-favorite { color: var(--mint); display: block; font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin-top: 4px; }
+.angler-card-bests { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
+.section-heading-mini { margin-bottom: 10px; }
+.angler-card-bests .angler-best + .angler-best { margin-top: 14px; }
 .angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding-right: 6px; position: relative; }
+.angler-best-media { background: transparent; border: 0; cursor: zoom-in; display: block; padding: 0; }
+.personal-best-tag { color: var(--mint); display: block; font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; margin-bottom: 2px; text-transform: uppercase; }
 .post-menu { position: absolute; right: 0; top: 0; }
 .post-menu-trigger { background: transparent; border: 0; color: var(--muted); font-size: 16px; letter-spacing: 1px; line-height: 1; padding: 4px; }
 .post-menu-trigger:hover, .post-menu-trigger[aria-expanded='true'] { color: var(--ink); }

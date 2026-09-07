@@ -244,13 +244,11 @@ Core visual decisions:
 
 ### Fish illustrations
 
-`src/components/FishIllustration.js` renders one of seven raster PNGs (`src/assets/fish/`) as a fallback wherever a personal best or Fish Year catch has no uploaded photo. Earlier versions of this component were a hand-drawn SVG shape recolored per species; that read as a generic cartoon blob rather than a real fish, so it was replaced with color-graded (boosted saturation/contrast, dilated black outline) adaptations of real 19th-century natural history illustrations:
+`src/components/FishIllustration.js` renders a raster PNG (`src/assets/fish/`) as a fallback wherever a personal best or Fish Year catch has no uploaded photo. The current art is bold neon-outline sticker illustrations the user generated directly and provided as finished PNGs (not sourced/adapted by an agent), replacing two earlier approaches that didn't land: a hand-drawn SVG shape recolored per species (read as a generic cartoon), and, briefly, color-graded adaptations of real 19th-century natural history engravings (closer, but still not the specific style wanted).
 
-- Pike, Largemouth Bass, Atlantic Salmon, Brown Trout, and Walleye (used for the "perch" icon) are adapted from Sherman Foote Denton's watercolors in the 1896 *Annual Report of the Commissioners of Fish, Game, and Forests of the State of New York*, via Wikimedia Commons — all public domain (US, pre-1931 publication).
-- Tuna is adapted from a public-domain 19th-century engraving ("FMIB 37332 Thon"), via the University of Washington Freshwater and Marine Image Bank on Wikimedia Commons.
-- Shark is adapted from a hand-colored engraving of *Carcharhinus melanopterus* in Georges Cuvier's *Le Règne Animal* (plate 114), via Wikimedia Commons user Rvalette's scan, licensed **CC BY-SA 3.0** — this is the one asset here that is not public domain and requires attribution: **Georges Cuvier, digitized by Rvalette, via Wikimedia Commons, CC BY-SA 3.0**.
+Coverage as of this writing: `pike` (also used for Muskie) and `trout` have their own art; every other species — including bass, until a proper standalone crop replaces the current cropped-from-a-composite version — falls back to `trout`. `FishIllustration`'s fallback is `fishDetails[species] || fishDetails.trout`, so adding a new species is just adding an entry there plus the matching PNG in `src/assets/fish/`; do not reintroduce the SVG or engraving-adaptation approaches.
 
-If replacing any of these with different art, verify licensing before committing the file, and keep the source image reasonably sized (`src/assets/fish/*.png` are resized to ~700px wide) so mobile page weight stays low.
+The site's accent colors (`--mint`, `--coral`, `--glow` in `src/App.css`) were retuned to match this art's palette (neon yellow-green outline, vivid orange) — keep new fish art and the site's accent palette in sync if either changes. Keep source images reasonably sized (current PNGs are ~114–140KB after palette-PNG compression) so mobile page weight stays low.
 
 ## Responsive Behavior
 

@@ -81,9 +81,32 @@ test('shows a friendly message when nothing matches the search', async () => {
   expect(screen.getByText(/nobody matches that/i)).toBeInTheDocument();
 });
 
+async function expandCard(name) {
+  await userEvent.click(screen.getByText(name).closest('.angler-card-head'));
+}
+
+test('personal bests are collapsed by default, with a count on the card header', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  const andreCard = screen.getByText('Andre').closest('.angler-card');
+  expect(andreCard.querySelector('.personal-best-tag')).not.toBeInTheDocument();
+  expect(andreCard).toHaveTextContent('1 PB');
+  expect(andreCard.querySelector('.angler-card-head')).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('tapping a card expands it to show personal bests', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  await expandCard('Andre');
+  expect(screen.getByText('Striped Bass')).toBeInTheDocument();
+  expect(screen.getAllByText(/personal best/i).length).toBeGreaterThan(0);
+});
+
 test('only the owner\'s personal best gets a Delete option', async () => {
   renderAnglers();
   await screen.findByText('Andre');
+  await expandCard('Andre');
+  await expandCard('Kevin');
   const menus = await screen.findAllByRole('button', { name: /more options/i });
   await userEvent.click(menus[0]); // Andre's own card — user-1 is viewing
   expect(screen.getByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
@@ -97,6 +120,7 @@ test('deleting a personal best removes it from the current user\'s card only', a
   useAuth.mockReturnValue(makeBaseAuth({ deletePersonalBest }));
   renderAnglers();
   await screen.findByText('Andre');
+  await expandCard('Andre');
   const menus = await screen.findAllByRole('button', { name: /more options/i });
   await userEvent.click(menus[0]);
   await userEvent.click(screen.getByRole('menuitem', { name: /delete/i }));
@@ -104,10 +128,25 @@ test('deleting a personal best removes it from the current user\'s card only', a
   await waitFor(() => expect(screen.getByText('Andre').closest('.angler-card')).toHaveTextContent(/no personal bests logged yet/i));
 });
 
-test('a ?best= query param highlights the matching card', async () => {
+test('tapping a personal best photo opens a lightbox, and closing it works', async () => {
+  const rosterWithPhoto = [
+    { profile: { id: 'user-1', display_name: 'Andre', home_water: 'Raritan Bay' }, personalBests: [{ id: 'pb-1', species: 'Striped Bass', size_label: '38 in', caught_at: '2026-06-12', photo_url: 'https://example.com/bass.jpg' }] },
+  ];
+  useAuth.mockReturnValue(makeBaseAuth({ listAnglers: jest.fn().mockResolvedValue(rosterWithPhoto) }));
+  renderAnglers();
+  await screen.findByText('Andre');
+  await expandCard('Andre');
+  await userEvent.click(screen.getByRole('button', { name: /expand andre's striped bass photo/i }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /close expanded image/i }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('a ?best= query param auto-expands and highlights the matching card', async () => {
   renderAnglers('/anglers?best=pb-2');
   await screen.findByText('Andre');
   await waitFor(() => expect(document.querySelector('.angler-best.is-shared-highlight')).toBeInTheDocument());
   const kevinCard = screen.getByText('Kevin').closest('.angler-card');
+  expect(kevinCard.querySelector('.angler-card-head')).toHaveAttribute('aria-expanded', 'true');
   expect(kevinCard.querySelector('.angler-best')).toHaveClass('is-shared-highlight');
 });
