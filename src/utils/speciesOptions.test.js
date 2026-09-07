@@ -7,7 +7,7 @@ describe('SPECIES_OPTIONS', () => {
       'snakehead', 'chainpickerel', 'walleye', 'perch', 'whiteperch', 'catfish', 'carp',
       'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
       'falsealbacore', 'bluefish', 'mahimahi', 'mackerel', 'shark', 'flounder', 'tautog',
-      'weakfish', 'speckledtrout', 'cobia', 'redfish',
+      'weakfish', 'speckledtrout', 'cobia', 'redfish', 'blackseabass',
     ]);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
@@ -56,6 +56,7 @@ describe('speciesIcon', () => {
     expect(speciesIcon('False Albacore')).toBe('falsealbacore');
     expect(speciesIcon('Tuna')).toBe('falsealbacore');
     expect(speciesIcon('Snook')).toBe('largemouth');
+    expect(speciesIcon('Black Sea Bass')).toBe('blackseabass');
   });
 
   test('matches canonical labels case-insensitively', () => {
@@ -68,7 +69,10 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Giant Tuna')).toBe('falsealbacore');
     expect(speciesIcon('Some Random Shark')).toBe('shark');
     expect(speciesIcon('Trophy Largemouth')).toBe('largemouth');
-    expect(speciesIcon('Sea Bass')).toBe('largemouth');
+    expect(speciesIcon('Peacock Bass')).toBe('largemouth');
+    // "Sea Bass" alone commonly means black sea bass in this app's NJ context, so it
+    // resolves there rather than to the generic bass fallback.
+    expect(speciesIcon('Sea Bass')).toBe('blackseabass');
     expect(speciesIcon('Giant Snakehead')).toBe('snakehead');
     expect(speciesIcon('Trophy Lake Trout')).toBe('laketrout');
     expect(speciesIcon('Trophy Brown Trout')).toBe('browntrout');

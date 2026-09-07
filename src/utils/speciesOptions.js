@@ -34,6 +34,7 @@ export const SPECIES_OPTIONS = [
   { label: 'Speckled Trout', icon: 'speckledtrout' },
   { label: 'Cobia', icon: 'cobia' },
   { label: 'Redfish', icon: 'redfish' },
+  { label: 'Black Sea Bass', icon: 'blackseabass' },
   { label: 'Snook', icon: 'largemouth' },
 ];
 
@@ -90,6 +91,9 @@ const ICON_ALIASES = [
   ['cobia', 'cobia'],
   ['redfish', 'redfish'],
   ['red drum', 'redfish'],
+  ['black sea bass', 'blackseabass'],
+  ['blackseabass', 'blackseabass'],
+  ['sea bass', 'blackseabass'],
   ['snook', 'largemouth'],
   ['pike', 'pike'],
   ['tuna', 'falsealbacore'],
