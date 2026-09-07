@@ -9,6 +9,25 @@ import stripedbass from '../assets/fish/stripedbass.png';
 import bluefish from '../assets/fish/bluefish.png';
 import snakehead from '../assets/fish/snakehead.png';
 import laketrout from '../assets/fish/laketrout.png';
+import musky from '../assets/fish/musky.png';
+import crappie from '../assets/fish/crappie.png';
+import perch from '../assets/fish/perch.png';
+import walleye from '../assets/fish/walleye.png';
+import chainpickerel from '../assets/fish/chainpickerel.png';
+import whiteperch from '../assets/fish/whiteperch.png';
+import catfish from '../assets/fish/catfish.png';
+import carp from '../assets/fish/carp.png';
+import rainbowtrout from '../assets/fish/rainbowtrout.png';
+import browntrout from '../assets/fish/browntrout.png';
+import brooktrout from '../assets/fish/brooktrout.png';
+import tautog from '../assets/fish/tautog.png';
+import redfish from '../assets/fish/redfish.png';
+import speckledtrout from '../assets/fish/speckledtrout.png';
+import weakfish from '../assets/fish/weakfish.png';
+import cobia from '../assets/fish/cobia.png';
+import falsealbacore from '../assets/fish/falsealbacore.png';
+import mahimahi from '../assets/fish/mahimahi.png';
+import mackerel from '../assets/fish/mackerel.png';
 
 // Bold neon-outline sticker art the user generated directly, matching the reference photos
 // they shared. Every species below has its own art; anything else falls back to trout — no
@@ -24,9 +43,28 @@ const fishDetails = {
   bluefish: { label: 'Bluefish', src: bluefish },
   snakehead: { label: 'Northern snakehead', src: snakehead },
   laketrout: { label: 'Lake trout', src: laketrout },
+  musky: { label: 'Musky', src: musky },
+  crappie: { label: 'Crappie', src: crappie },
+  perch: { label: 'Yellow perch', src: perch },
+  walleye: { label: 'Walleye', src: walleye },
+  chainpickerel: { label: 'Chain pickerel', src: chainpickerel },
+  whiteperch: { label: 'White perch', src: whiteperch },
+  catfish: { label: 'Catfish', src: catfish },
+  carp: { label: 'Carp', src: carp },
+  rainbowtrout: { label: 'Rainbow trout', src: rainbowtrout },
+  browntrout: { label: 'Brown trout', src: browntrout },
+  brooktrout: { label: 'Brook trout', src: brooktrout },
+  tautog: { label: 'Tautog', src: tautog },
+  redfish: { label: 'Redfish', src: redfish },
+  speckledtrout: { label: 'Speckled trout', src: speckledtrout },
+  weakfish: { label: 'Weakfish', src: weakfish },
+  cobia: { label: 'Cobia', src: cobia },
+  falsealbacore: { label: 'False albacore', src: falsealbacore },
+  mahimahi: { label: 'Mahi mahi', src: mahimahi },
+  mackerel: { label: 'Atlantic mackerel', src: mackerel },
 };
 
-export const HERO_SPECIES = ['largemouth', 'smallmouth', 'bluegill', 'flounder', 'stripedbass', 'bluefish', 'snakehead', 'laketrout'];
+export const HERO_SPECIES = Object.keys(fishDetails).filter((key) => key !== 'pike' && key !== 'trout');
 
 export default function FishIllustration({ species, className = '' }) {
   const fish = fishDetails[species] || fishDetails.trout;
