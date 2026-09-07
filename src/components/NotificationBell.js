@@ -65,7 +65,7 @@ export default function NotificationBell() {
     await markAllNotificationsRead();
   }
 
-  return <div className="notification-bell" ref={containerRef}>
+  return <div className="notification-bell" data-tour="notification-bell" ref={containerRef}>
     <button type="button" className="notification-bell-trigger" onClick={handleToggle} aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`} aria-expanded={open}>
       <BellIcon />
       {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}

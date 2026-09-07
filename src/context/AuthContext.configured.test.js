@@ -366,3 +366,33 @@ describe('notifications', () => {
     await expect(result.current.markAllNotificationsRead()).resolves.toEqual({ error: null });
   });
 });
+
+describe('feature tour', () => {
+  beforeEach(() => { window.localStorage.clear(); });
+
+  test('flags the tour for an angler whose profile has never completed it', async () => {
+    const result = await setupSignedIn();
+    expect(result.current.shouldShowTour).toBe(true);
+  });
+
+  test('does not flag the tour once the profile records a completion', async () => {
+    __mock.setResponse('profiles', { data: { ...fakeProfileRow, tour_completed_at: '2026-01-02T00:00:00Z' }, error: null });
+    __mock.setResponse('personal_bests', { data: [], error: null });
+    __mock.setResponse('custom_species', { data: [], error: null });
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.shouldShowTour).toBe(false);
+  });
+
+  test('completeTour persists to the profile so a second device does not replay it', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { error: null });
+
+    await result.current.completeTour();
+
+    expect(__mock.current.from).toHaveBeenCalledWith('profiles');
+    await waitFor(() => expect(result.current.shouldShowTour).toBe(false));
+  });
+});

@@ -4,7 +4,12 @@ import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 
 const AuthContext = createContext(null);
-const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '' };
+const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
+const TOUR_STORAGE_KEY = 'fishyfriends:tour-done';
+
+function tourSeenLocally() {
+  try { return window.localStorage.getItem(TOUR_STORAGE_KEY) === '1'; } catch (storageError) { return false; }
+}
 const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
 
 const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes' };
@@ -126,6 +131,17 @@ export function AuthProvider({ children }) {
     if (error) setNotice(error.message);
     else if (nextProfile.favorite_species) registerSpecies(nextProfile.favorite_species);
     return { error };
+  }
+
+  // The feature tour runs once per person. The profile row is the source of truth so it
+  // doesn't replay on a second device, but the timestamp is mirrored into localStorage so a
+  // returning user never gets a flash of the tour in the moment before their profile loads.
+  async function completeTour() {
+    try { window.localStorage.setItem(TOUR_STORAGE_KEY, '1'); } catch (storageError) { /* private mode */ }
+    setProfile((previous) => ({ ...previous, tour_completed_at: new Date().toISOString() }));
+    if (!isSupabaseConfigured || !user) return { error: null };
+    const { error } = await supabase.from('profiles').update({ tour_completed_at: new Date().toISOString() }).eq('id', user.id);
+    return { error: error || null };
   }
 
   async function uploadAvatar(rawFile) {
@@ -342,8 +358,11 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
+  const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
+
   return <AuthContext.Provider value={{
     user, profile, personalBests, customSpecies, loading, notice, setNotice,
+    shouldShowTour, completeTour,
     signIn, signUp, signOut, updateProfile, uploadAvatar,
     uploadPersonalBest, deletePersonalBest, listAnglers,
     listComments, addComment, deleteComment,

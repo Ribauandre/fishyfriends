@@ -256,6 +256,14 @@ Coverage as of this writing: `pike` (also used for Muskie) and `trout` have thei
 
 The site's accent colors (`--mint`, `--coral`, `--glow` in `src/App.css`) were retuned to match this art's palette (neon yellow-green outline, vivid orange) — keep new fish art and the site's accent palette in sync if either changes. Keep source images reasonably sized (current PNGs are ~114–140KB after palette-PNG compression) so mobile page weight stays low.
 
+### First-run feature tour
+
+`src/components/AppTour.js` walks a new angler through the app once: the Fish Year card, logging a catch, the Anglers directory, tournaments, notifications, and their profile. It mounts in `App.js` beside the navbar so it can point at nav items from any route.
+
+Steps target real elements by `data-tour="..."` attribute rather than by position, so moving an element around doesn't silently break the tour; a step whose target is missing (not on the current route, or hidden at that breakpoint) still shows, just centred with no spotlight. The spotlight itself is a transparent box with a 9999px spread shadow, which dims everything except the target without cloning or clipping any DOM.
+
+"Once" means once per **person**, not per browser: `profiles.tour_completed_at` (migration `0011`) is the source of truth so signing in on a phone after seeing it on a laptop doesn't replay it. `localStorage` mirrors it purely to avoid a flash of the tour in the moment before the profile loads — don't make localStorage the source of truth.
+
 ## Responsive Behavior
 
 Desktop:

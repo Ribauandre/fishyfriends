@@ -1,6 +1,7 @@
 import './App.css';
 import React from 'react';
 import Navbar from "./components/Navbar";
+import AppTour from './components/AppTour';
 import FishYear from "./FishYear";
 import FlukeTournament from './FlukeTournament';
 import Home from './Home';
@@ -18,7 +19,7 @@ function ProtectedRoute({ children }) {
 
 function App() {
   return (
-    <AuthProvider><Router><div className="App"><Navbar /><div className="page-wrapper"><Routes>
+    <AuthProvider><Router><div className="App"><Navbar /><AppTour /><div className="page-wrapper"><Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/account" element={<AuthPage />} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />

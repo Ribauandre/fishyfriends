@@ -375,7 +375,25 @@ button { cursor: pointer; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  .tour-spotlight, .tour-card { transition: none !important; }
 }
+
+/* First-run feature tour. The spotlight is a transparent box with an enormous spread shadow,
+   which dims the whole page except the element being pointed at without needing to clip or
+   clone anything. Sits above the lightbox layer so it is never covered. */
+.tour-layer { inset: 0; position: fixed; z-index: 200; }
+.tour-scrim { background: rgba(3,8,11,.86); inset: 0; position: absolute; }
+.tour-spotlight { border: 2px solid var(--mint); border-radius: 3px; box-shadow: 0 0 0 9999px rgba(3,8,11,.86), 0 0 26px var(--glow); pointer-events: none; position: fixed; transition: all .22s ease-out; }
+.tour-card { background: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--mint); box-shadow: var(--sticker-shadow-lg); max-width: 340px; padding: 20px; position: fixed; transition: all .22s ease-out; width: min(340px, calc(100vw - 24px)); }
+.tour-card.is-centered { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.tour-card h2 { font-size: 26px; margin: 10px 0 8px; }
+.tour-card p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
+.tour-actions { align-items: center; display: flex; justify-content: space-between; margin-top: 18px; }
+.tour-progress { color: var(--muted); font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+.tour-buttons { align-items: center; display: flex; gap: 14px; }
+.tour-skip { background: transparent; border: 0; color: var(--muted); font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 0; text-transform: uppercase; }
+.tour-skip:hover { color: var(--coral); }
+.button.tour-next { gap: 12px; margin: 0; padding: 11px 15px; width: auto; }
 
 /* Night tide theme details */
 h1, h2, h3, strong { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; }

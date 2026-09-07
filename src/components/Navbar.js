@@ -13,19 +13,19 @@ export default function Navbar() {
         <NavLink to="/home" end className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>01</span> Home
         </NavLink>
-        <NavLink to="/fluke-tournament" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+        <NavLink to="/fluke-tournament" data-tour="nav-tournaments" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>02</span> Tournaments
         </NavLink>
-        <NavLink to="/fish-year" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+        <NavLink to="/fish-year" data-tour="nav-fish-year" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>03</span> Fish Year
         </NavLink>
-        <NavLink to="/anglers" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+        <NavLink to="/anglers" data-tour="nav-anglers" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>04</span> Anglers
         </NavLink>
       </div>
       <div className="navbar-right">
         <NotificationBell />
-        <NavLink to="/profile" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
+        <NavLink to="/profile" data-tour="profile-pill" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
       </div>
     </nav>
   );
