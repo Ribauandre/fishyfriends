@@ -83,7 +83,13 @@ button { cursor: pointer; }
 /* One big sticker slapped across the banner corner, bleeding off the edge — not fish
    swimming through water, so it sits at a fixed angle and only reacts to hover. */
 .fishing-scene { align-items: center; display: flex; inset: 0 -30px 0 auto; justify-content: flex-end; pointer-events: none; position: absolute; width: min(50%, 600px); }
-.fish-illustration.hero-sticker { filter: drop-shadow(0 0 18px rgba(227,251,20,.32)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); height: auto; transform: rotate(-7deg); transition: transform .2s ease-out, filter .2s ease-out; width: 100%; }
+/* Sized by height, not width: the banner only ever offers ~200px of vertical room, and at
+   width:100% nearly every fish (regardless of aspect ratio) rendered taller than that and
+   got clipped — glow included — by the banner's overflow:hidden. Capping height instead
+   keeps every fish inside that room, and as a side effect stops forcing the art past its
+   native resolution (it was being stretched 2-3x to fill the width), which was the source
+   of the blur. */
+.fish-illustration.hero-sticker { filter: drop-shadow(0 0 18px rgba(227,251,20,.32)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); height: auto; max-height: 150px; max-width: 100%; transform: rotate(-7deg); transition: transform .2s ease-out, filter .2s ease-out; width: auto; }
 .welcome-banner:hover .fish-illustration.hero-sticker { filter: drop-shadow(0 0 26px rgba(227,251,20,.46)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); transform: rotate(-4deg) scale(1.02); }
 .welcome-banner > div { max-width: 54%; position: relative; z-index: 1; }
 .fish-illustration { height: 130px; object-fit: contain; overflow: visible; width: 240px; }
