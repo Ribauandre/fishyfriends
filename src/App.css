@@ -75,10 +75,7 @@ button { cursor: pointer; }
 .welcome-banner p { color: #bdd0c9; margin: 0; }
 .hero-actions { align-items: center; display: flex; gap: 26px; margin-top: 32px; }
 .hero-actions .text-link { color: #d8e7dd; }
-.hook-icon { color: var(--coral); filter: drop-shadow(1px 2px 0 var(--deep)); }
 .fishing-scene { height: 230px; position: absolute; right: 8px; top: 14px; width: 400px; }
-.lure-line { border-left: 2px dashed rgba(185,232,108,.55); height: 150px; left: 250px; position: absolute; top: -28px; transform: rotate(26deg); transform-origin: top; }
-.fishing-scene .lure-hook { height: 26px; left: 303px; position: absolute; top: 94px; transform: rotate(25deg); width: 26px; }
 .scene-fish { position: absolute; }
 .scene-fish .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
 .scene-fish-tag { background: var(--deep); border: 1px solid var(--coral); box-shadow: 2px 2px 0 rgba(3,8,11,.85); color: var(--coral); font-size: 8px; font-weight: 900; letter-spacing: .14em; padding: 2px 6px; position: absolute; text-transform: uppercase; }
@@ -99,37 +96,7 @@ button { cursor: pointer; }
   50% { transform: translate(42px, 3px) rotate(2deg) scale(.49); }
   75% { transform: translate(18px, 8px) rotate(10deg) scale(.51); }
 }
-.fish-illustration { fill: var(--ink); height: 130px; overflow: visible; stroke: var(--deep); stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; width: 240px; }
-.fish-illustration text { display: none; }
-.fish-outline { fill: var(--ink); stroke-width: 7; }
-.fish-fin { fill: var(--coral); stroke-width: 6; }
-.fish-tail { fill: var(--ink); stroke-width: 7; }
-.fish-detail { fill: none; stroke: var(--deep); stroke-width: 4; opacity: .8; }
-.fish-teeth { fill: #f7f2e2; stroke: var(--deep); stroke-width: 1.6; }
-.fish-eye { fill: var(--deep); stroke: none; }
-.fish-spot { fill: var(--deep); stroke: none; }
-.fish-eye-glint { fill: #f7f2e2; stroke: none; }
-.drawn-pike { stroke: #14210f; }
-.drawn-pike .fish-outline { fill: #4f7a2e; }
-.drawn-pike .fish-fin, .drawn-pike .fish-tail { fill: #c8281f; }
-.drawn-bass { stroke: #16210f; }
-.drawn-bass .fish-outline { fill: #3f7a3a; }
-.drawn-bass .fish-fin, .drawn-bass .fish-tail { fill: #e0a422; }
-.drawn-salmon { stroke: #241012; }
-.drawn-salmon .fish-outline { fill: #d97a92; }
-.drawn-salmon .fish-fin, .drawn-salmon .fish-tail { fill: #c8281f; }
-.drawn-shark { stroke: #0f1b22; }
-.drawn-shark .fish-outline { fill: #5c7a8a; }
-.drawn-shark .fish-fin, .drawn-shark .fish-tail { fill: #c8281f; }
-.drawn-trout { stroke: #10200f; }
-.drawn-trout .fish-outline { fill: #3d7050; }
-.drawn-trout .fish-fin, .drawn-trout .fish-tail { fill: #c8281f; }
-.drawn-perch { stroke: #241c08; }
-.drawn-perch .fish-outline { fill: #e0a422; }
-.drawn-perch .fish-fin, .drawn-perch .fish-tail { fill: #14210f; }
-.drawn-tuna { stroke: #0c1c24; }
-.drawn-tuna .fish-outline { fill: #1f6e8c; }
-.drawn-tuna .fish-fin, .drawn-tuna .fish-tail { fill: #e0a422; }
+.fish-illustration { height: 130px; object-fit: contain; overflow: visible; width: 240px; }
 .water-ripple { border: 1px solid rgba(185,232,108,.28); border-radius: 50%; height: 46px; position: absolute; right: 130px; top: 154px; width: 120px; }
 .ripple-one { animation: ripple-pulse 4s ease-out infinite; }
 .ripple-two { animation: ripple-pulse 4s 1.7s ease-out infinite; opacity: .45; }
@@ -230,8 +197,6 @@ button { cursor: pointer; }
 .auth-page { display: grid; grid-template-columns: 1fr 480px; margin: -112px -32px -72px; min-height: calc(100vh + 184px); }
 .auth-story { background: var(--navy); color: white; padding: 18vh 11vw; }
 .auth-fishing-scene { height: 130px; margin-bottom: 30px; position: relative; width: 280px; }
-.auth-lure-line { border-left: 2px dashed rgba(185,232,108,.55); height: 115px; left: 178px; position: absolute; top: -55px; transform: rotate(28deg); }
-.auth-fishing-scene .auth-lure { color: var(--coral); height: 22px; left: 198px; position: absolute; top: 50px; width: 22px; }
 .auth-shark { animation: auth-shark-chase 4.4s ease-in-out infinite; left: 40px; position: absolute; top: 30px; }
 .auth-shark .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
 @keyframes auth-shark-chase {

@@ -239,18 +239,18 @@ Core visual decisions:
 - Heavy border, offset shadow, and double-line treatments inspired by tattoo flash sheets.
 - Responsive bottom navigation on mobile.
 - High-contrast large touch targets for phone use.
-- Original SVG fish illustrations with thick outlines and species-specific details.
+- Bold black outline and saturated, color-graded fish illustrations (see below).
 - Reduced-motion support through `@media (prefers-reduced-motion: reduce)`.
 
-Fish illustration intent:
+### Fish illustrations
 
-- Pike: long ambush profile and pale spot marks.
-- Bass: deep body and lateral stripe.
-- Salmon: silver body, warm belly/gill accents, run-like movement.
-- Shark: countershading, dorsal fin, and teeth.
-- Trout, perch, and tuna: additional variety in the global deck.
+`src/components/FishIllustration.js` renders one of seven raster PNGs (`src/assets/fish/`) as a fallback wherever a personal best or Fish Year catch has no uploaded photo. Earlier versions of this component were a hand-drawn SVG shape recolored per species; that read as a generic cartoon blob rather than a real fish, so it was replaced with color-graded (boosted saturation/contrast, dilated black outline) adaptations of real 19th-century natural history illustrations:
 
-The fish illustrations are original CSS/SVG constructions, not copied artwork. If replacing them with photographs or external art, verify licensing and keep asset sizes appropriate for mobile.
+- Pike, Largemouth Bass, Atlantic Salmon, Brown Trout, and Walleye (used for the "perch" icon) are adapted from Sherman Foote Denton's watercolors in the 1896 *Annual Report of the Commissioners of Fish, Game, and Forests of the State of New York*, via Wikimedia Commons — all public domain (US, pre-1931 publication).
+- Tuna is adapted from a public-domain 19th-century engraving ("FMIB 37332 Thon"), via the University of Washington Freshwater and Marine Image Bank on Wikimedia Commons.
+- Shark is adapted from a hand-colored engraving of *Carcharhinus melanopterus* in Georges Cuvier's *Le Règne Animal* (plate 114), via Wikimedia Commons user Rvalette's scan, licensed **CC BY-SA 3.0** — this is the one asset here that is not public domain and requires attribution: **Georges Cuvier, digitized by Rvalette, via Wikimedia Commons, CC BY-SA 3.0**.
+
+If replacing any of these with different art, verify licensing before committing the file, and keep the source image reasonably sized (`src/assets/fish/*.png` are resized to ~700px wide) so mobile page weight stays low.
 
 ## Responsive Behavior
 
