@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
+import compressImage from '../utils/compressImage';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '' };
@@ -127,8 +128,9 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
-  async function uploadAvatar(file) {
-    if (!file?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+  async function uploadAvatar(rawFile) {
+    if (!rawFile?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = await compressImage(rawFile);
     if (file.size > 5 * 1024 * 1024) return { error: new Error('Profile photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before uploading a profile photo.') };
     const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -142,9 +144,10 @@ export function AuthProvider({ children }) {
     return { ...result, avatarUrl };
   }
 
-  async function uploadPersonalBest({ species, sizeLabel, caughtAt, file }) {
+  async function uploadPersonalBest({ species, sizeLabel, caughtAt, file: rawFile }) {
     if (!species?.trim()) return { error: new Error('Name the species you caught.') };
-    if (file && !file.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = rawFile && await compressImage(rawFile);
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a personal best.') };
 
@@ -306,9 +309,10 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  async function logFishYearCatch({ year, month, species, caughtAt, file }) {
+  async function logFishYearCatch({ year, month, species, caughtAt, file: rawFile }) {
     if (!species?.trim()) return { error: new Error('Name the species you caught.') };
-    if (file && !file.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = rawFile && await compressImage(rawFile);
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
 
