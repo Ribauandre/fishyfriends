@@ -28,6 +28,8 @@ import cobia from '../assets/fish/cobia.png';
 import falsealbacore from '../assets/fish/falsealbacore.png';
 import mahimahi from '../assets/fish/mahimahi.png';
 import mackerel from '../assets/fish/mackerel.png';
+import salmon from '../assets/fish/salmon.png';
+import blackseabass from '../assets/fish/blackseabass.png';
 
 // Bold neon-outline sticker art the user generated directly, matching the reference photos
 // they shared. Every species below has its own art; anything else falls back to trout — no
@@ -62,6 +64,8 @@ const fishDetails = {
   falsealbacore: { label: 'False albacore', src: falsealbacore },
   mahimahi: { label: 'Mahi mahi', src: mahimahi },
   mackerel: { label: 'Atlantic mackerel', src: mackerel },
+  salmon: { label: 'Atlantic salmon', src: salmon },
+  blackseabass: { label: 'Black sea bass', src: blackseabass },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails).filter((key) => key !== 'pike' && key !== 'trout');
