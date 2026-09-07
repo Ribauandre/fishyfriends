@@ -3,11 +3,9 @@ import speciesIcon, { SPECIES_OPTIONS } from './speciesOptions';
 describe('SPECIES_OPTIONS', () => {
   test('every option has a non-empty label and a recognized icon key', () => {
     const validIcons = new Set([
-      'pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'crappie', 'musky',
-      'snakehead', 'chainpickerel', 'walleye', 'perch', 'whiteperch', 'catfish', 'carp',
-      'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
-      'falsealbacore', 'bluefish', 'mahimahi', 'mackerel', 'shark', 'flounder', 'tautog',
-      'weakfish', 'speckledtrout', 'cobia', 'redfish', 'blackseabass', 'tuna',
+      'pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'snakehead', 'catfish',
+      'carp', 'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
+      'bluefish', 'mahimahi', 'shark', 'flounder', 'tautog', 'blackseabass', 'tuna',
     ]);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
@@ -38,22 +36,10 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Rainbow Trout')).toBe('rainbowtrout');
     expect(speciesIcon('Brook Trout')).toBe('brooktrout');
     expect(speciesIcon('Steelhead')).toBe('trout');
-    expect(speciesIcon('Crappie')).toBe('crappie');
-    expect(speciesIcon('Muskie')).toBe('musky');
-    expect(speciesIcon('Chain Pickerel')).toBe('chainpickerel');
-    expect(speciesIcon('Walleye')).toBe('walleye');
-    expect(speciesIcon('Yellow Perch')).toBe('perch');
-    expect(speciesIcon('White Perch')).toBe('whiteperch');
     expect(speciesIcon('Catfish')).toBe('catfish');
     expect(speciesIcon('Carp')).toBe('carp');
     expect(speciesIcon('Tautog')).toBe('tautog');
-    expect(speciesIcon('Weakfish')).toBe('weakfish');
-    expect(speciesIcon('Speckled Trout')).toBe('speckledtrout');
-    expect(speciesIcon('Cobia')).toBe('cobia');
-    expect(speciesIcon('Redfish')).toBe('redfish');
     expect(speciesIcon('Mahi Mahi')).toBe('mahimahi');
-    expect(speciesIcon('Atlantic Mackerel')).toBe('mackerel');
-    expect(speciesIcon('False Albacore')).toBe('falsealbacore');
     expect(speciesIcon('Tuna')).toBe('tuna');
     expect(speciesIcon('Snook')).toBe('largemouth');
     expect(speciesIcon('Black Sea Bass')).toBe('blackseabass');
@@ -76,13 +62,20 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Giant Snakehead')).toBe('snakehead');
     expect(speciesIcon('Trophy Lake Trout')).toBe('laketrout');
     expect(speciesIcon('Trophy Brown Trout')).toBe('browntrout');
-    expect(speciesIcon('A Big White Perch')).toBe('whiteperch');
     expect(speciesIcon('Some Blackfish')).toBe('tautog');
-    expect(speciesIcon('A Speckled beauty')).toBe('speckledtrout');
   });
 
   test('falls back to largemouth for a completely unrecognized species', () => {
     expect(speciesIcon('Mystery Fish')).toBe('largemouth');
+  });
+
+  test('a species removed from the canonical list still resolves to a sensible icon instead of throwing', () => {
+    // Regression guard: species that used to have their own SPECIES_OPTIONS entry and icon
+    // (pulled from a shared reference sheet) were retired, but any catch someone already
+    // logged with that name must still render something reasonable, not crash.
+    expect(speciesIcon('Walleye')).toBe('largemouth');
+    expect(speciesIcon('Yellow Perch')).toBe('largemouth');
+    expect(speciesIcon('Crappie')).toBe('largemouth');
   });
 
   test('handles empty, null, and undefined input without throwing', () => {
