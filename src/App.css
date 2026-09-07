@@ -4,11 +4,16 @@
   --deep: #03080b; --glow: rgba(227, 251, 20, .18);
   --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --font-head: 'Oswald', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
-  /* Game-fish skin patterns, used as subtle background textures instead of flat SaaS gradients. */
-  --tex-scales: radial-gradient(circle at 50% -30%, transparent 54%, rgba(255,255,255,.05) 56%, rgba(255,255,255,.05) 59%, transparent 61%);
-  --tex-vermiculation: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='v' filterUnits='userSpaceOnUse' x='0' y='0' width='240' height='240'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.012 0.09' numOctaves='2' seed='7' stitchTiles='stitch' x='0' y='0' width='240' height='240' result='n'/%3E%3CfeColorMatrix in='n' type='matrix' values='0 0 0 0 0.55  0 0 0 0 0.62  0 0 0 0 0.32  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23v)'/%3E%3C/svg%3E");
-  --tex-camo: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='c' filterUnits='userSpaceOnUse' x='0' y='0' width='260' height='260'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.035' numOctaves='3' seed='4' stitchTiles='stitch' x='0' y='0' width='260' height='260' result='n'/%3E%3CfeColorMatrix in='n' type='matrix' values='0 0 0 0 0.62  0 0 0 0 0.5  0 0 0 0 0.34  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23c)'/%3E%3C/svg%3E");
+  /* Screenprint/sticker-sheet textures: halftone dots and hard diagonal rule stripes, to
+     match the crisp vector sticker art rather than the painterly turbulence noise the
+     hand-drawn SVG fish used to sit on. */
+  --tex-halftone: radial-gradient(circle at center, rgba(227,251,20,.10) 1.1px, transparent 1.4px);
+  --tex-halftone-warm: radial-gradient(circle at center, rgba(255,90,31,.11) 1.1px, transparent 1.4px);
+  --tex-halftone-faint: radial-gradient(circle at center, rgba(255,255,255,.055) 1px, transparent 1.3px);
   --tex-barring: repeating-linear-gradient(78deg, rgba(3,8,11,.4) 0 3px, transparent 3px 18px);
+  /* Die-cut sticker edge: heavy black keyline plus a hard, blur-free drop shadow. */
+  --sticker-shadow: 5px 6px 0 var(--deep);
+  --sticker-shadow-lg: 7px 8px 0 var(--deep);
 }
 * { box-sizing: border-box; }
 body { background: var(--paper); background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px), radial-gradient(circle at 80% 0%, rgba(8,118,122,.2), transparent 34rem); background-size: 32px 32px, 32px 32px, auto; color: var(--ink); margin: 0; position: relative; }
@@ -51,8 +56,8 @@ button { cursor: pointer; }
 .notification-list { display: grid; }
 .notification-row { align-items: flex-start; background: transparent; border: 0; border-bottom: 1px solid var(--line); display: flex; gap: 10px; padding: 12px 14px; text-align: left; width: 100%; }
 .notification-row:last-child { border-bottom: 0; }
-.notification-row:hover { background: rgba(185,232,108,.08); }
-.notification-row.is-unread { background: rgba(185,232,108,.06); }
+.notification-row:hover { background: rgba(227,251,20,.08); }
+.notification-row.is-unread { background: rgba(227,251,20,.07); }
 .notification-row.is-unread:before { align-self: center; background: var(--mint); border-radius: 50%; content: ''; flex-shrink: 0; height: 6px; margin-right: 2px; width: 6px; }
 .notification-icon { color: var(--coral); flex-shrink: 0; font-size: 15px; margin-top: 1px; }
 .chat-icon { display: block; height: 15px; width: 15px; }
@@ -62,51 +67,37 @@ button { cursor: pointer; }
 .button { border: 0; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); display: inline-flex; align-items: center; gap: 22px; font-size: 12px; font-weight: 800; padding: 14px 17px; }
 .button span { font-size: 16px; }
 .button-primary { background: var(--mint); color: var(--deep); }
-.button-primary:hover { background: #d5ff86; box-shadow: 0 0 24px var(--glow); }
+.button-primary:hover { background: #f2ff5c; box-shadow: 0 0 24px var(--glow); }
 .button-quiet { background: transparent; border: 1px solid var(--line); color: var(--ink); justify-content: center; margin-top: 22px; width: 100%; }
 .status-badge, .status-badge-muted { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
 .brand-mark > span { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
 .navbar:before { background: repeating-linear-gradient(-45deg, var(--mint) 0 8px, var(--rust) 8px 16px); bottom: -3px; content: ''; height: 3px; left: 0; opacity: .8; position: absolute; right: 0; }
 .text-link { color: var(--mint); font-size: 12px; font-weight: 800; }
 .welcome-banner { background: var(--navy); border: 1px solid #23464d; color: white; display: flex; justify-content: space-between; min-height: 310px; overflow: hidden; padding: 56px 64px; position: relative; }
-.welcome-banner:after { border: 1px solid rgba(185,232,108,.18); content: ''; height: 180px; position: absolute; right: -60px; top: -70px; transform: rotate(25deg); width: 280px; }
+.welcome-banner:after { border: 1px solid rgba(227,251,20,.18); content: ''; height: 180px; position: absolute; right: -60px; top: -70px; transform: rotate(25deg); width: 280px; }
 .welcome-banner .eyebrow { color: var(--mint); }
 .welcome-banner h1 { font-size: clamp(38px, 5vw, 64px); letter-spacing: -.01em; line-height: 1.05; margin: 17px 0 16px; max-width: 650px; }
 .welcome-banner p { color: #bdd0c9; margin: 0; }
 .hero-actions { align-items: center; display: flex; gap: 26px; margin-top: 32px; }
 .hero-actions .text-link { color: #d8e7dd; }
-.fishing-scene { height: 230px; position: absolute; right: 8px; top: 14px; width: 400px; }
-.scene-fish { position: absolute; }
-.scene-fish .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
-.scene-fish-tag { background: var(--deep); border: 1px solid var(--coral); box-shadow: 2px 2px 0 rgba(3,8,11,.85); color: var(--coral); font-size: 8px; font-weight: 900; letter-spacing: .14em; padding: 2px 6px; position: absolute; text-transform: uppercase; }
-.scene-fish-back { animation: chase-back 5.5s ease-in-out infinite; left: 32px; top: 2px; }
-.scene-fish-back .fish-illustration { opacity: .55; }
-.scene-fish-back .scene-fish-tag { bottom: -30px; left: 20px; }
-.scene-fish-front { animation: chase-front 5.5s ease-in-out infinite; left: 91px; top: 44px; }
-.scene-fish-front .scene-fish-tag { bottom: -16px; left: 40px; }
-@keyframes chase-front {
-  0%, 100% { transform: translate(0, 0) rotate(-4deg) scale(.72); }
-  25% { transform: translate(30px, -10px) rotate(-11deg) scale(.73); }
-  50% { transform: translate(56px, 2px) rotate(-1deg) scale(.71); }
-  75% { transform: translate(26px, 10px) rotate(-8deg) scale(.73); }
-}
-@keyframes chase-back {
-  0%, 100% { transform: translate(0, 0) rotate(6deg) scale(.5); }
-  25% { transform: translate(20px, -7px) rotate(13deg) scale(.51); }
-  50% { transform: translate(42px, 3px) rotate(2deg) scale(.49); }
-  75% { transform: translate(18px, 8px) rotate(10deg) scale(.51); }
-}
+/* One big sticker slapped across the banner corner, bleeding off the edge — not fish
+   swimming through water, so it sits at a fixed angle and only reacts to hover. */
+.fishing-scene { align-items: center; display: flex; inset: 0 -30px 0 auto; justify-content: flex-end; pointer-events: none; position: absolute; width: min(50%, 600px); }
+.fish-illustration.hero-sticker { height: auto; transform: rotate(-7deg); transition: transform .2s ease-out; width: 100%; }
+.welcome-banner:hover .fish-illustration.hero-sticker { transform: rotate(-4deg) scale(1.02); }
+.welcome-banner > div { max-width: 54%; position: relative; z-index: 1; }
 .fish-illustration { height: 130px; object-fit: contain; overflow: visible; width: 240px; }
-.water-ripple { border: 1px solid rgba(185,232,108,.28); border-radius: 50%; height: 46px; position: absolute; right: 130px; top: 154px; width: 120px; }
-.ripple-one { animation: ripple-pulse 4s ease-out infinite; }
-.ripple-two { animation: ripple-pulse 4s 1.7s ease-out infinite; opacity: .45; }
-@keyframes ripple-pulse { 0% { opacity: .65; transform: scale(.5); } 100% { opacity: 0; transform: scale(1.8); } }
+/* Supporting sticker accents: present on interior pages and empty states, but deliberately
+   small/faded so they read as trim rather than competing with the page's actual content. */
+.fish-illustration.intro-sticker { flex-shrink: 0; height: auto; opacity: .9; transform: rotate(-6deg); width: min(240px, 30vw); }
+.empty-state { align-items: center; display: flex; flex-direction: column; gap: 6px; padding: 14px 0; text-align: center; }
+.fish-illustration.empty-state-sticker { height: auto; opacity: .3; transform: rotate(-5deg); width: min(150px, 60%); }
 .dashboard-grid { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; margin-top: 18px; }
 .feature-card { min-height: 280px; padding: 30px; position: relative; }
 .feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
 .feature-card-light { background: #18262a; border: 1px solid #385057; color: var(--ink); }
-.feature-card-dark { background-image: var(--tex-vermiculation), linear-gradient(135deg, rgba(111,133,61,.22), transparent 42%); background-size: 200px 200px, auto; }
-.feature-card-light { background-image: var(--tex-camo), linear-gradient(145deg, rgba(189,110,89,.15), transparent 52%); background-size: 220px 220px, auto; }
+.feature-card-dark { background-image: var(--tex-halftone), linear-gradient(135deg, rgba(227,251,20,.13), transparent 46%); background-size: 7px 7px, auto; }
+.feature-card-light { background-image: var(--tex-halftone-warm), linear-gradient(145deg, rgba(255,90,31,.14), transparent 52%); background-size: 7px 7px, auto; }
 .card-topline, .card-footer, .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .feature-card .eyebrow { color: inherit; opacity: .7; }
 .status-badge { background: var(--mint); border: 1px solid var(--deep); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
@@ -163,7 +154,7 @@ button { cursor: pointer; }
 .year-board-footer { align-items: center; border-top: 1px solid #386167; display: flex; justify-content: space-between; margin-top: 20px; padding-top: 18px; }
 .year-board-footer strong { color: #f5ad95; font-size: 12px; }
 .year-board-footer span { color: #9bb6b1; font-size: 11px; }
-.table-card, .settings-card, .profile-card { background-color: var(--cream); background-image: var(--tex-scales); background-size: 26px 22px; border: 2px solid var(--line); box-shadow: 6px 6px 0 rgba(3,8,11,.85); padding: 28px; position: relative; }
+.table-card, .settings-card, .profile-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); padding: 28px; position: relative; }
 .table-card:before, .settings-card:before, .profile-card:before { border: 1px solid rgba(255,107,74,.25); content: ''; inset: 7px; pointer-events: none; position: absolute; }
 .table-card > *, .settings-card > *, .profile-card > * { position: relative; z-index: 1; }
 .table-card .section-heading { margin-bottom: 18px; }
@@ -197,14 +188,8 @@ button { cursor: pointer; }
 .auth-page { display: grid; grid-template-columns: 1fr 480px; margin: -112px -32px -72px; min-height: calc(100vh + 184px); }
 .auth-story { background: var(--navy); color: white; padding: 18vh 11vw; }
 .auth-fishing-scene { height: 130px; margin-bottom: 30px; position: relative; width: 280px; }
-.auth-shark { animation: auth-shark-chase 4.4s ease-in-out infinite; left: 40px; position: absolute; top: 30px; }
-.auth-shark .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
-@keyframes auth-shark-chase {
-  0%, 100% { transform: translate(0, 0) rotate(-3deg) scale(.9); }
-  30% { transform: translate(26px, -9px) rotate(4deg) scale(.91); }
-  55% { transform: translate(44px, 3px) rotate(-2deg) scale(.89); }
-  80% { transform: translate(20px, 10px) rotate(5deg) scale(.91); }
-}
+.auth-shark { left: 40px; position: absolute; top: 24px; transform: rotate(-5deg) scale(.95); transition: transform .18s ease-out; }
+.auth-shark:hover { transform: rotate(-1deg) scale(.98); }
 .auth-story .eyebrow { color: #f5ad95; }
 .auth-story h1 { font-size: clamp(54px, 7vw, 96px); letter-spacing: -.01em; line-height: 1.02; margin: 28px 0; max-width: 650px; }
 .auth-story p { color: #c3d5ce; font-size: 16px; max-width: 330px; }
@@ -293,8 +278,12 @@ button { cursor: pointer; }
 .month-empty { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
 .month-catches { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
 .catch-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); overflow: hidden; position: relative; }
-.is-shared-highlight { animation: shared-flash 2.4s ease-out; }
-@keyframes shared-flash { 0% { outline: 2px solid var(--mint); outline-offset: 2px; } 80% { outline: 2px solid var(--mint); outline-offset: 2px; } 100% { outline: 2px solid transparent; outline-offset: 2px; } }
+/* Reads like the neon keyline around the sticker art rather than a thin UI outline. */
+.is-shared-highlight { animation: shared-flash 2.6s ease-out; }
+@keyframes shared-flash {
+  0%, 80% { outline: 3px solid var(--mint); outline-offset: 3px; box-shadow: 0 0 22px var(--glow); }
+  100% { outline: 3px solid transparent; outline-offset: 3px; box-shadow: 0 0 0 transparent; }
+}
 .catch-card .post-menu { right: 8px; top: 8px; z-index: 2; }
 .catch-card .post-menu-trigger { align-items: center; background: rgba(3,8,11,.55); border-radius: 50%; display: flex; height: 22px; justify-content: center; padding: 0; width: 22px; }
 .catch-card-media { background: var(--deep); border: 0; cursor: zoom-in; display: block; padding: 0; position: relative; width: 100%; }
@@ -325,7 +314,8 @@ button { cursor: pointer; }
   .profile-pill > span:last-child { display: none; }
   .notification-panel { bottom: calc(100% + 10px); max-width: calc(100vw - 24px); top: auto; width: 300px; }
   .welcome-banner { flex-direction: column; min-height: 0; padding: 35px 26px; }
-  .fishing-scene { height: 150px; margin: 16px auto 0; opacity: .72; position: relative; right: auto; top: auto; transform: scale(.62); transform-origin: center top; width: 260px; }
+  .welcome-banner > div { max-width: 100%; }
+  .fishing-scene { inset: auto; margin: 22px -16px -18px auto; position: relative; width: 108%; }
   .dashboard-grid, .profile-layout { grid-template-columns: 1fr; }
   .notes-board { grid-template-columns: 1fr; }
   .auth-page { display: block; margin: -28px -16px -92px; }
@@ -350,6 +340,7 @@ button { cursor: pointer; }
   .nav-link { font-size: 10px; }
   .page-intro, .tournament-intro { align-items: flex-start; flex-direction: column; gap: 26px; }
   .page-intro h1 { font-size: 53px; }
+  .fish-illustration.intro-sticker { display: none; }
   .challenge-actions { align-items: stretch; flex-direction: column; width: 100%; }
   .challenge-actions .button { justify-content: space-between; width: 100%; }
   .personal-year-board { padding: 22px 16px 18px; }
@@ -393,7 +384,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .button, .nav-link, .brand-mark strong { text-transform: uppercase; }
 .winner-stamp strong, .challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
 .page-wrapper { background-image: radial-gradient(circle at 10% 30%, rgba(255,107,74,.05), transparent 24rem); }
-.welcome-banner { background-image: var(--tex-scales), linear-gradient(115deg, rgba(7,20,25,.98), rgba(8,61,67,.94)); background-size: 26px 22px, auto; }
+.welcome-banner { background-image: var(--tex-halftone-faint), linear-gradient(115deg, rgba(7,20,25,.98), rgba(8,61,67,.94)); background-size: 7px 7px, auto; }
 .feature-card-light { color: var(--ink); }
 .feature-card-light .card-icon { color: var(--mint); }
 .button-quiet { border-color: var(--line); color: var(--ink); }
@@ -412,7 +403,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .settings-card input::placeholder, .settings-card textarea::placeholder, .auth-form input::placeholder { color: #58716f; }
 .preview-note { background: #182d2b; color: #a9c2bd; }
 .config-error { background: #321d1b; color: #ffab96; }
-.auth-story { background-image: var(--tex-vermiculation), linear-gradient(145deg, #03080b, #0a3d43); background-size: 240px 240px, auto; }
+.auth-story { background-image: var(--tex-halftone), linear-gradient(145deg, #03080b, #0a3d43); background-size: 7px 7px, auto; }
 .auth-panel { background: var(--cream); }
 .confirmation-icon { background: var(--mint); color: var(--deep); }
 .leaderboard-row { color: var(--ink); }
@@ -452,7 +443,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-search input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); font-size: 14px; outline: none; padding: 14px 16px; width: 100%; }
 .angler-search input:focus { border-color: var(--coral); }
 .anglers-grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
-.angler-card { background-color: var(--cream); background-image: var(--tex-scales); background-size: 26px 22px; border: 2px solid var(--line); box-shadow: 6px 6px 0 rgba(3,8,11,.85); padding: 22px; position: relative; }
+.angler-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); padding: 22px; position: relative; }
 .angler-card.is-you { border-color: var(--mint); }
 .angler-card-head { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: flex; font: inherit; gap: 14px; padding: 0; position: relative; text-align: left; width: 100%; }
 .angler-card-head strong { display: block; font-size: 16px; }

@@ -233,14 +233,20 @@ The product is dark-mode-only and intentionally avoids a generic light SaaS look
 
 Core visual decisions:
 
-- Near-black deep-water base with grid/ripple texture.
-- Green/chartreuse ink accent for active states and primary actions.
-- Orange/coral accent for hooks, warnings, likes, and energetic states.
+- Near-black deep-water base with a grid texture.
+- Neon yellow-green (`--mint`) ink accent for active states and primary actions, sampled from the sticker art's keyline.
+- Vivid orange (`--coral`) accent for warnings, likes, and energetic states, sampled from the art's fin/spot colors.
 - Heavy border, offset shadow, and double-line treatments inspired by tattoo flash sheets.
 - Responsive bottom navigation on mobile.
 - High-contrast large touch targets for phone use.
-- Bold black outline and saturated, color-graded fish illustrations (see below).
+- Bold black outline and saturated fish sticker illustrations (see below).
 - Reduced-motion support through `@media (prefers-reduced-motion: reduce)`.
+
+### Textures and motion
+
+Backgrounds use **halftone dot** textures (`--tex-halftone`, `--tex-halftone-warm`, `--tex-halftone-faint`) — a screenprint/sticker-sheet cue that matches the crisp vector art. These replaced earlier `feTurbulence` noise textures (`--tex-vermiculation`, `--tex-camo`, `--tex-scales`), which read as painterly/organic and clashed with the sticker style; don't reintroduce them. Cards use `--sticker-shadow` / `--sticker-shadow-lg`: hard, blur-free offsets that read as a die-cut sticker sitting on the page.
+
+Motion is deliberately sparse. The fish are stickers, not swimming animals, so the old perpetual `chase-front`/`chase-back`/`auth-shark-chase` drift loops and the `ripple-pulse` water rings were removed — the art now sits at fixed jaunty angles and only responds to hover. The one remaining ambient animation is `shared-flash`, the neon outline pulse that marks a post you arrived at from a share link. If you add motion, prefer interaction-driven transitions over infinite loops.
 
 ### Fish illustrations
 
