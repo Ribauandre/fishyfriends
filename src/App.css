@@ -83,15 +83,15 @@ button { cursor: pointer; }
 /* One big sticker slapped across the banner corner, bleeding off the edge — not fish
    swimming through water, so it sits at a fixed angle and only reacts to hover. */
 .fishing-scene { align-items: center; display: flex; inset: 0 -30px 0 auto; justify-content: flex-end; pointer-events: none; position: absolute; width: min(50%, 600px); }
-.fish-illustration.hero-sticker { height: auto; transform: rotate(-7deg); transition: transform .2s ease-out; width: 100%; }
-.welcome-banner:hover .fish-illustration.hero-sticker { transform: rotate(-4deg) scale(1.02); }
+.fish-illustration.hero-sticker { filter: drop-shadow(0 0 18px rgba(227,251,20,.32)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); height: auto; transform: rotate(-7deg); transition: transform .2s ease-out, filter .2s ease-out; width: 100%; }
+.welcome-banner:hover .fish-illustration.hero-sticker { filter: drop-shadow(0 0 26px rgba(227,251,20,.46)) drop-shadow(4px 6px 0 rgba(3,8,11,.55)); transform: rotate(-4deg) scale(1.02); }
 .welcome-banner > div { max-width: 54%; position: relative; z-index: 1; }
 .fish-illustration { height: 130px; object-fit: contain; overflow: visible; width: 240px; }
 /* Supporting sticker accents: present on interior pages and empty states, but deliberately
    small/faded so they read as trim rather than competing with the page's actual content. */
-.fish-illustration.intro-sticker { flex-shrink: 0; height: auto; opacity: .9; transform: rotate(-6deg); width: min(240px, 30vw); }
+.fish-illustration.intro-sticker { filter: drop-shadow(0 0 14px rgba(227,251,20,.3)); flex-shrink: 0; height: auto; transform: rotate(-6deg); width: min(240px, 30vw); }
 .empty-state { align-items: center; display: flex; flex-direction: column; gap: 6px; padding: 14px 0; text-align: center; }
-.fish-illustration.empty-state-sticker { height: auto; opacity: .3; transform: rotate(-5deg); width: min(150px, 60%); }
+.fish-illustration.empty-state-sticker { filter: drop-shadow(0 0 12px rgba(227,251,20,.26)); height: auto; opacity: .72; transform: rotate(-5deg); width: min(150px, 60%); }
 .dashboard-grid { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; margin-top: 18px; }
 .feature-card { min-height: 280px; padding: 30px; position: relative; }
 .feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
@@ -109,10 +109,10 @@ button { cursor: pointer; }
 .tally-row { display: flex; gap: 4px; margin: 34px 0 14px; }
 .tally-row span { border: 1px solid rgba(255,255,255,.25); flex: 1; height: 15px; }
 .tally-empty { background: rgba(255,255,255,.08); }
-.tally-filled { background: #f5b29b; border-color: #f5b29b; }
+.tally-filled { background: var(--mint); border-color: var(--mint); box-shadow: 0 0 10px var(--glow); }
 .card-footer { bottom: 27px; font-size: 11px; left: 30px; position: absolute; right: 30px; }
 .card-footer a { color: inherit; font-weight: 800; }
-.card-icon { color: var(--teal); font-size: 25px; }
+.card-icon { color: var(--mint); font-size: 25px; }
 .dock-notes { margin-top: 62px; }
 .section-heading { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 .section-heading h2 { font-size: 23px; letter-spacing: 0; margin: 8px 0 0; }
@@ -142,20 +142,20 @@ button { cursor: pointer; }
 .year-legend { display: flex; gap: 17px; }
 .year-legend span { align-items: center; color: #b3cbc4; display: flex; font-size: 10px; gap: 6px; }
 .year-legend i { display: inline-block; height: 8px; width: 8px; }
-.legend-caught { background: #9fd5ab; }
+.legend-caught { background: var(--mint); }
 .legend-missing { background: #607b7d; }
 .year-month-grid { display: grid; gap: 8px; grid-template-columns: repeat(6, 1fr); margin-top: 22px; }
 .year-month { border: 1px solid #386167; min-height: 86px; padding: 12px; }
-.year-month.is-caught { background: var(--teal); border-color: #6aaba0; }
+.year-month.is-caught { background: rgba(227,251,20,.14); border-color: var(--mint); }
 .year-month-number { color: #8ca9a5; display: block; font-size: 9px; font-weight: 800; }
 .year-month strong { display: block; font-size: 16px; margin: 12px 0 8px; }
 .year-month-status { color: #8ca9a5; display: block; font-size: 9px; }
-.year-month.is-caught .year-month-status { color: #b6e4b5; }
+.year-month.is-caught .year-month-status { color: var(--mint); }
 .year-board-footer { align-items: center; border-top: 1px solid #386167; display: flex; justify-content: space-between; margin-top: 20px; padding-top: 18px; }
-.year-board-footer strong { color: #f5ad95; font-size: 12px; }
+.year-board-footer strong { color: var(--mint); font-size: 12px; }
 .year-board-footer span { color: #9bb6b1; font-size: 11px; }
 .table-card, .settings-card, .profile-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); padding: 28px; position: relative; }
-.table-card:before, .settings-card:before, .profile-card:before { border: 1px solid rgba(255,107,74,.25); content: ''; inset: 7px; pointer-events: none; position: absolute; }
+.table-card:before, .settings-card:before, .profile-card:before { border: 1px solid rgba(255,90,31,.28); content: ''; inset: 7px; pointer-events: none; position: absolute; }
 .table-card > *, .settings-card > *, .profile-card > * { position: relative; z-index: 1; }
 .table-card .section-heading { margin-bottom: 18px; }
 .rules-strip { align-items: center; background-image: var(--tex-barring), var(--tex-barring); background-position: top, bottom; background-repeat: repeat-x, repeat-x; background-size: 100% 4px, 100% 4px; border-bottom: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; gap: 30px; grid-template-columns: 150px 1fr; margin-top: 38px; padding: 25px 0; position: relative; }
@@ -190,11 +190,11 @@ button { cursor: pointer; }
 .auth-fishing-scene { height: 130px; margin-bottom: 30px; position: relative; width: 280px; }
 .auth-shark { left: 40px; position: absolute; top: 24px; transform: rotate(-5deg) scale(.95); transition: transform .18s ease-out; }
 .auth-shark:hover { transform: rotate(-1deg) scale(.98); }
-.auth-story .eyebrow { color: #f5ad95; }
+.auth-story .eyebrow { color: var(--mint); }
 .auth-story h1 { font-size: clamp(54px, 7vw, 96px); letter-spacing: -.01em; line-height: 1.02; margin: 28px 0; max-width: 650px; }
 .auth-story p { color: #c3d5ce; font-size: 16px; max-width: 330px; }
 .auth-stat-row { align-items: center; border-top: 1px solid #386167; display: flex; gap: 11px; margin-top: 100px; padding-top: 17px; }
-.auth-stat-row strong { color: #f5ad95; font-size: 21px; margin-left: 18px; }
+.auth-stat-row strong { color: var(--mint); font-size: 21px; margin-left: 18px; }
 .auth-stat-row strong:first-child { margin-left: 0; }
 .auth-stat-row span { color: #a6bfba; font-size: 10px; }
 .auth-panel { background: var(--cream); padding: 13vh 58px; }
@@ -273,7 +273,7 @@ button { cursor: pointer; }
 .month-name strong { font-size: 13px; }
 .month-name small { color: var(--muted); font-size: 10px; margin-top: 4px; }
 .month-state { color: #b4beb3; font-size: 18px; }
-.month-state.complete { color: var(--teal); }
+.month-state.complete { color: var(--mint); }
 .month-card-detail { background: #eef3e9; border-top: 1px solid var(--line); padding: 16px; }
 .month-empty { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
 .month-catches { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
