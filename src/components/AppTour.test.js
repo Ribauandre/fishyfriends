@@ -105,6 +105,20 @@ test('still shows a step whose target is missing, just without a spotlight', asy
   expect(document.querySelector('.tour-scrim')).toBeInTheDocument();
 });
 
+test('does not restart the tour if shouldShowTour flickers back to true after it finished', async () => {
+  const completeTour = jest.fn().mockResolvedValue({ error: null });
+  useAuth.mockReturnValue(makeAuth({ completeTour }));
+  const { rerender } = renderTour();
+  await userEvent.click(screen.getByRole('button', { name: /skip/i }));
+  expect(screen.queryByRole('dialog', { name: /feature tour/i })).not.toBeInTheDocument();
+
+  // A background profile refetch (e.g. after a token refresh) can race the completeTour()
+  // write and briefly report shouldShowTour as true again — the tour must not replay.
+  useAuth.mockReturnValue(makeAuth({ completeTour, shouldShowTour: true }));
+  rerender(<MemoryRouter initialEntries={['/home']}><AppTour /></MemoryRouter>);
+  expect(screen.queryByRole('dialog', { name: /feature tour/i })).not.toBeInTheDocument();
+});
+
 test('Escape dismisses the tour', async () => {
   const completeTour = jest.fn().mockResolvedValue({ error: null });
   useAuth.mockReturnValue(makeAuth({ completeTour }));

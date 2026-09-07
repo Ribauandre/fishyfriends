@@ -57,7 +57,11 @@ export function AuthProvider({ children }) {
     async function loadProfile(currentUser) {
       const { data } = await supabase.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
       if (data) {
-        if (mounted) setProfile({ ...defaultProfile, ...data });
+        // A later refetch (e.g. after a token refresh) can race the completeTour() write and
+        // read the row before it lands, coming back with tour_completed_at still null. Once
+        // this client has seen it set, keep treating the tour as done rather than letting a
+        // stale read revive it.
+        if (mounted) setProfile((previous) => ({ ...defaultProfile, ...data, tour_completed_at: data.tour_completed_at || previous.tour_completed_at || null }));
       } else {
         // No profiles row yet (never saved Settings) — anyone in this state can still post
         // catches and personal bests since those only need the auth user id, but the
