@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import BellIcon from './BellIcon';
+import ChatIcon from './ChatIcon';
 
 const POLL_INTERVAL_MS = 30000;
 
@@ -65,7 +67,7 @@ export default function NotificationBell() {
 
   return <div className="notification-bell" ref={containerRef}>
     <button type="button" className="notification-bell-trigger" onClick={handleToggle} aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`} aria-expanded={open}>
-      <span aria-hidden="true">🔔</span>
+      <BellIcon />
       {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
     </button>
     {open && <div className="notification-panel">
@@ -76,7 +78,7 @@ export default function NotificationBell() {
       {notifications.length === 0 && <p className="month-empty">Nothing yet. Get out there and catch something.</p>}
       <div className="notification-list">
         {notifications.map((notification) => <button type="button" key={notification.id} className={`notification-row ${notification.read ? '' : 'is-unread'}`} onClick={() => handleSelect(notification)}>
-          <span className="notification-icon" aria-hidden="true">{notification.type === 'like' ? '♥' : '💬'}</span>
+          <span className="notification-icon">{notification.type === 'like' ? <span aria-hidden="true">♥</span> : <ChatIcon />}</span>
           <span className="notification-text"><strong>{describe(notification)}</strong>{notification.preview && <em>"{notification.preview}"</em>}</span>
         </button>)}
       </div>

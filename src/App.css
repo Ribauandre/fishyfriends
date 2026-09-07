@@ -39,7 +39,9 @@ button { cursor: pointer; }
 .profile-pill > span:last-child { color: var(--coral); font-size: 15px; }
 .navbar-right { align-items: center; display: flex; gap: 18px; }
 .notification-bell { position: relative; }
-.notification-bell-trigger { background: transparent; border: 0; color: var(--ink); font-size: 18px; padding: 4px; position: relative; }
+.notification-bell-trigger { background: transparent; border: 0; color: var(--muted); padding: 4px; position: relative; }
+.notification-bell-trigger:hover, .notification-bell-trigger[aria-expanded='true'] { color: var(--mint); }
+.bell-icon { display: block; height: 21px; width: 21px; }
 .notification-badge { align-items: center; background: var(--coral); border-radius: 50%; color: var(--deep); display: flex; font-family: var(--font-head); font-size: 9px; font-weight: 900; height: 16px; justify-content: center; position: absolute; right: -4px; top: -4px; width: 16px; }
 .notification-panel { background: var(--cream); border: 1px solid var(--line); box-shadow: 0 12px 30px rgba(3,8,11,.5); max-height: 360px; overflow-y: auto; position: absolute; right: 0; top: calc(100% + 14px); width: 300px; z-index: 30; }
 .notification-panel-head { align-items: center; border-bottom: 1px solid var(--line); display: flex; font-size: 12px; justify-content: space-between; padding: 12px 14px; }
@@ -52,7 +54,8 @@ button { cursor: pointer; }
 .notification-row:hover { background: rgba(185,232,108,.08); }
 .notification-row.is-unread { background: rgba(185,232,108,.06); }
 .notification-row.is-unread:before { align-self: center; background: var(--mint); border-radius: 50%; content: ''; flex-shrink: 0; height: 6px; margin-right: 2px; width: 6px; }
-.notification-icon { flex-shrink: 0; font-size: 15px; }
+.notification-icon { color: var(--coral); flex-shrink: 0; font-size: 15px; margin-top: 1px; }
+.chat-icon { display: block; height: 15px; width: 15px; }
 .notification-text { color: var(--muted); display: block; font-size: 11px; }
 .notification-text strong { color: var(--ink); display: block; font-size: 11px; font-weight: 700; }
 .notification-text em { display: block; font-style: normal; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
