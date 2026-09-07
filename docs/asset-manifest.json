@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.8085b37e.css",
-    "main.js": "/static/js/main.0c137dfd.js",
+    "main.js": "/static/js/main.e6c4f81b.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
     "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
@@ -24,26 +24,14 @@
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
-    "static/media/walleye.png": "/static/media/walleye.dd83d45caa67a177e350.png",
-    "static/media/redfish.png": "/static/media/redfish.9748b2bc0168e4755214.png",
-    "static/media/musky.png": "/static/media/musky.d7aab9bd399734640611.png",
-    "static/media/crappie.png": "/static/media/crappie.2a24ebed265ab1a56015.png",
-    "static/media/speckledtrout.png": "/static/media/speckledtrout.683b2229be92b0535804.png",
-    "static/media/weakfish.png": "/static/media/weakfish.a6b6d325771277444152.png",
-    "static/media/perch.png": "/static/media/perch.4f91c4cba7e7aba511c8.png",
-    "static/media/whiteperch.png": "/static/media/whiteperch.33ad28a75f088aacdc3c.png",
-    "static/media/chainpickerel.png": "/static/media/chainpickerel.ac51177efcb52e3c5dac.png",
-    "static/media/falsealbacore.png": "/static/media/falsealbacore.eb586f983535a8bc16b3.png",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
-    "static/media/mackerel.png": "/static/media/mackerel.c16cae0886619897efa7.png",
-    "static/media/cobia.png": "/static/media/cobia.51f77c95b6fb203ae199.png",
     "index.html": "/index.html",
     "main.8085b37e.css.map": "/static/css/main.8085b37e.css.map",
-    "main.0c137dfd.js.map": "/static/js/main.0c137dfd.js.map",
+    "main.e6c4f81b.js.map": "/static/js/main.e6c4f81b.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.8085b37e.css",
-    "static/js/main.0c137dfd.js"
+    "static/js/main.e6c4f81b.js"
   ]
 }
