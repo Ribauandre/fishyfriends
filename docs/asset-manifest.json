@@ -1,18 +1,25 @@
 {
   "files": {
-    "main.css": "/static/css/main.7d516728.css",
-    "main.js": "/static/js/main.16e12a5d.js",
+    "main.css": "/static/css/main.c4c83617.css",
+    "main.js": "/static/js/main.6a51e18f.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
     "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
+    "static/media/bass.png": "/static/media/bass.0dd1d83e1b425cad68f3.png",
+    "static/media/perch.png": "/static/media/perch.1a58c82e75f66d6db4ed.png",
     "static/media/cartoon-flounder-isolated-on-white-vector-46294379.jpg": "/static/media/cartoon-flounder-isolated-on-white-vector-46294379.9509201001c728c983d9.jpg",
+    "static/media/trout.png": "/static/media/trout.4f1cacdd4a03b544db39.png",
+    "static/media/salmon.png": "/static/media/salmon.d8cd597ca5002338a36e.png",
+    "static/media/pike.png": "/static/media/pike.15cc5b17928e81f8113e.png",
+    "static/media/shark.png": "/static/media/shark.39a7a52d44d9d18a649d.png",
+    "static/media/tuna.png": "/static/media/tuna.ca9eec805a41c21cdcd6.png",
     "index.html": "/index.html",
-    "main.7d516728.css.map": "/static/css/main.7d516728.css.map",
-    "main.16e12a5d.js.map": "/static/js/main.16e12a5d.js.map",
+    "main.c4c83617.css.map": "/static/css/main.c4c83617.css.map",
+    "main.6a51e18f.js.map": "/static/js/main.6a51e18f.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.7d516728.css",
-    "static/js/main.16e12a5d.js"
+    "static/css/main.c4c83617.css",
+    "static/js/main.6a51e18f.js"
   ]
 }
