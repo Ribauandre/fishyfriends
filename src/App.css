@@ -81,7 +81,7 @@ button { cursor: pointer; }
 .fishing-scene .lure-hook { height: 26px; left: 303px; position: absolute; top: 94px; transform: rotate(25deg); width: 26px; }
 .scene-fish { position: absolute; }
 .scene-fish .fish-illustration { filter: drop-shadow(3px 4px 0 rgba(3,8,11,.85)); }
-.scene-fish-tag { background: var(--deep); border: 1px solid var(--coral); color: var(--coral); font-size: 8px; font-weight: 900; letter-spacing: .14em; padding: 2px 6px; position: absolute; text-transform: uppercase; }
+.scene-fish-tag { background: var(--deep); border: 1px solid var(--coral); box-shadow: 2px 2px 0 rgba(3,8,11,.85); color: var(--coral); font-size: 8px; font-weight: 900; letter-spacing: .14em; padding: 2px 6px; position: absolute; text-transform: uppercase; }
 .scene-fish-back { animation: chase-back 5.5s ease-in-out infinite; left: 32px; top: 2px; }
 .scene-fish-back .fish-illustration { opacity: .55; }
 .scene-fish-back .scene-fish-tag { bottom: -30px; left: 20px; }
@@ -107,6 +107,7 @@ button { cursor: pointer; }
 .fish-detail { fill: none; stroke: var(--deep); stroke-width: 4; opacity: .8; }
 .fish-teeth { fill: #f7f2e2; stroke: var(--deep); stroke-width: 1.6; }
 .fish-eye { fill: var(--deep); stroke: none; }
+.fish-spot { fill: var(--deep); stroke: none; }
 .fish-eye-glint { fill: #f7f2e2; stroke: none; }
 .drawn-pike { stroke: #14210f; }
 .drawn-pike .fish-outline { fill: #4f7a2e; }
@@ -141,8 +142,8 @@ button { cursor: pointer; }
 .feature-card-light { background-image: var(--tex-camo), linear-gradient(145deg, rgba(189,110,89,.15), transparent 52%); background-size: 220px 220px, auto; }
 .card-topline, .card-footer, .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .feature-card .eyebrow { color: inherit; opacity: .7; }
-.status-badge { background: var(--mint); border: 1px solid var(--deep); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
-.status-badge-muted { background: #172a2e; border: 1px solid var(--mint); color: var(--mint); transform: rotate(-3deg); }
+.status-badge { background: var(--mint); border: 1px solid var(--deep); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
+.status-badge-muted { background: #172a2e; border: 1px solid var(--mint); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--mint); transform: rotate(-3deg); }
 .feature-card h2 { font-size: 37px; letter-spacing: -.01em; line-height: 1.08; margin: 48px 0 12px; }
 .feature-card h2 em { color: var(--mint); font-style: normal; }
 .feature-card-light h2 em { color: var(--coral); }
