@@ -60,7 +60,7 @@ test('opens the log-a-catch modal with fields in Photo, Date, Species order', as
 });
 
 test('submitting logs the catch with the month derived from the date, and adds it to the board', async () => {
-  const logFishYearCatch = jest.fn().mockResolvedValue({ error: null, catchEntry: { id: 'fy-new', user_id: 'user-1', month: 'March', species: 'Redfish', angler_name: 'Me', caught_at: '2026-03-15', photo_url: '' } });
+  const logFishYearCatch = jest.fn().mockResolvedValue({ error: null, catchEntry: { id: 'fy-new', user_id: 'user-1', month: 'March', species: 'Carp', angler_name: 'Me', caught_at: '2026-03-15', photo_url: '' } });
   useAuth.mockReturnValue({ ...makeBaseAuth(), logFishYearCatch });
   renderFishYear();
   await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
@@ -69,14 +69,14 @@ test('submitting logs the catch with the month derived from the date, and adds i
   const dateInput = document.querySelector('.catch-modal input[type="date"]');
   await userEvent.clear(dateInput);
   await userEvent.type(dateInput, '2026-03-15');
-  await userEvent.type(screen.getByRole('combobox'), 'Redfish');
-  await userEvent.click(screen.getByRole('option', { name: 'Redfish' }));
+  await userEvent.type(screen.getByRole('combobox'), 'Carp');
+  await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
   await userEvent.click(screen.getByRole('button', { name: /make it official/i }));
 
   await waitFor(() => expect(logFishYearCatch).toHaveBeenCalledWith(expect.objectContaining({
     year: 2026,
     month: 'March',
-    species: 'Redfish',
+    species: 'Carp',
     caughtAt: '2026-03-15',
   })));
   await waitFor(() => expect(screen.queryByRole('button', { name: /make it official/i })).not.toBeInTheDocument());
@@ -88,7 +88,7 @@ test('shows the server error message and keeps the modal open when logging fails
   renderFishYear();
   await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: /log a catch/i }));
-  await userEvent.type(screen.getByRole('combobox'), 'Redfish');
+  await userEvent.type(screen.getByRole('combobox'), 'Carp');
   await userEvent.click(screen.getByRole('button', { name: /make it official/i }));
   expect(await screen.findByText(/smaller than 5 mb/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /make it official/i })).toBeInTheDocument();
