@@ -18,6 +18,12 @@ function makeBaseAuth() {
     listFishYearCatches: jest.fn().mockResolvedValue([]),
     logFishYearCatch: jest.fn(),
     deleteFishYearCatch: jest.fn(),
+    listLikes: jest.fn().mockResolvedValue([]),
+    likeTarget: jest.fn().mockResolvedValue({ error: null }),
+    unlikeTarget: jest.fn().mockResolvedValue({ error: null }),
+    listFishYearComments: jest.fn().mockResolvedValue([]),
+    addFishYearComment: jest.fn(),
+    deleteFishYearComment: jest.fn(),
   };
 }
 beforeEach(() => {

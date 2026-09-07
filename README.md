@@ -49,9 +49,11 @@ src/
   utils/supabase.js         Legacy helper; currently not imported by the active app
   components/
     FishIllustration.js     Reusable thick-line SVG fish illustration
-    Leaderboard.tsx         Fluke leaderboard rows, image lightbox, local likes
+    Leaderboard.tsx         Fluke leaderboard rows, image lightbox, local (unpersisted) likes/comments
+    LikeButton.js           Persisted like toggle, used on personal bests and Fish Year catches
     Navbar.js               Responsive desktop/mobile authenticated navigation
-    Participants.tsx        Fish Year participant/month board and local likes
+    NotificationBell.js     Unread-count bell + dropdown for like/comment notifications
+    Participants.tsx        Fish Year participant/month board with real likes and comments
   assets/                   Challenge photos and historical fishing media
 
 supabase/
@@ -214,36 +216,16 @@ This distinction matters when extending the app:
 ### Supabase-backed
 
 - Auth users and sessions
-- Profile fields
-- Avatar files and avatar URLs
+- Profile fields, avatar files and avatar URLs
+- Personal bests, their comments, and their likes (`personal_bests`, `personal_best_comments`, `personal_best_likes`)
+- Fish Year catches, their comments, and their likes (`fish_year_catches`, `fish_year_catch_comments`, `fish_year_catch_likes`)
+- Custom species suggestions
+- Notifications for likes/comments on your own personal bests and Fish Year catches (`notifications`)
 
 ### Static or local-only today
 
-- Fish Year historical participant data in `Participants.tsx`
-- Fluke Tournament rows in `Leaderboard.tsx`
-- Newly logged Fish Year catches
-- Fish Year caught-month status
-- Catch likes
-- Catch image lightbox state
-
-The Fish Year `Log a catch` form currently creates an in-memory entry and passes it into the participant board. It does not write to Supabase or survive a page reload. Likes are component-local React state and do not persist.
-
-A future persistent catch system should introduce a table such as:
-
-```sql
-create table public.catches (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  challenge text not null,
-  month text,
-  species text not null,
-  caught_at date not null,
-  photo_url text default '',
-  created_at timestamptz default now()
-);
-```
-
-That work should also add RLS policies, photo storage rules, a query hook/provider, optimistic updates, and a separate likes table or RPC. Do not imply persistence in the UI until those pieces exist.
+- Fluke Tournament rows, likes, and comments in `Leaderboard.tsx` — this board has no backing table at all yet; every like and comment there resets on reload.
+- Catch image lightbox open/closed state (ephemeral UI state, not data worth persisting).
 
 ## Visual System
 
@@ -425,7 +407,7 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 4. Treat `docs/` as generated output; source changes belong in `src/` and are rebuilt by Actions.
 5. Preserve exact filename casing. Linux CI is case-sensitive even if macOS local development is not.
 6. Keep the public route at `/` compatible with static hosting.
-7. Do not claim challenge catches or likes are persisted until a Supabase data model exists.
+7. Fluke Tournament rows, likes, and comments in `Leaderboard.tsx` have no backing table — do not claim they persist. Personal bests and Fish Year catches (including their likes and comments) are real and persisted.
 8. Preserve the mobile bottom navigation and large touch targets.
 9. Keep fish illustrations original and readable; avoid emoji or ambiguous abstract glyphs as the primary fish visual.
 10. Run both the production build and the test suite after shared CSS, auth, routing, or deployment changes.
@@ -442,6 +424,8 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 | Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
 | Fluke Tournament | `src/FlukeTournament.js`, `src/components/Leaderboard.tsx` |
 | Navigation | `src/components/Navbar.js` |
+| Likes | `src/components/LikeButton.js`, `supabase/migrations/0007_personal_best_likes.sql`, `supabase/migrations/0008_fish_year_catch_likes.sql` |
+| Notifications | `src/components/NotificationBell.js`, `supabase/migrations/0010_notifications.sql` |
 | Fish illustrations | `src/components/FishIllustration.js`, `src/App.css`, `src/App.js` |
 | Global responsive theme | `src/App.css`, `src/index.css` |
 | Email template | `supabase/confirmation-email.html` |

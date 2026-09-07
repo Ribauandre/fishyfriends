@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
+import LikeButton from './components/LikeButton';
 import PersonalBestComments from './components/PersonalBestComments';
 import PostMenu from './components/PostMenu';
 import iconFor from './utils/speciesOptions';
@@ -17,7 +18,7 @@ function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highligh
       onDelete={isOwner ? () => onDelete(best.id) : undefined}
     />
     {best.photo_url ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} /> : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
-    <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><PersonalBestComments personalBestId={best.id} /></div>
+    <div><strong>{best.species}</strong><span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span><LikeButton targetType="personal_best" targetId={best.id} ownerId={profile.id} /><PersonalBestComments personalBestId={best.id} ownerId={profile.id} /></div>
   </div>;
 }
 

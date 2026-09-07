@@ -1,11 +1,11 @@
 import * as React from 'react';
-import CommentThread from './CommentThread';
+import FishYearCatchComments from './FishYearCatchComments';
 import FishIllustration from './FishIllustration';
+import LikeButton from './LikeButton';
 import PostMenu from './PostMenu';
 import speciesIcon from '../utils/speciesOptions';
 
 type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_url?: string; month: string; species: string; caught_at: string | null; photo_url: string };
-type Comment = { id: string; author_name: string; body: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function MonthDetail({ entries, currentUserId, onDelete, highlightId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null }) {
@@ -14,17 +14,11 @@ function MonthDetail({ entries, currentUserId, onDelete, highlightId }: { entrie
 }
 
 function MonthCatch({ entry, currentUserId, onDelete, highlighted }: { entry: Catch; currentUserId?: string; onDelete: (id: string) => void; highlighted?: boolean }) {
-  const [liked, setLiked] = React.useState(false);
   const [imageOpen, setImageOpen] = React.useState(false);
-  const [comments, setComments] = React.useState<Comment[]>([]);
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (highlighted) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [highlighted]);
-  async function handleAddComment(body: string) {
-    setComments((previous) => [...previous, { id: `c-${Date.now()}`, author_name: 'You', body }]);
-    return { error: null };
-  }
   return <div className={`catch-card ${highlighted ? 'is-shared-highlight' : ''}`} ref={ref}>
     <PostMenu
       shareData={{ title: `${entry.angler_name}'s ${entry.species}`, text: `${entry.angler_name} caught a ${entry.species}${entry.caught_at ? ` on ${entry.caught_at}` : ''} — Fish Year 2026.`, url: `${window.location.origin}/fish-year?catch=${entry.id}` }}
@@ -39,8 +33,8 @@ function MonthCatch({ entry, currentUserId, onDelete, highlighted }: { entry: Ca
       <div><strong>{entry.angler_name}</strong><span>{entry.caught_at || ''}</span></div>
     </div>
     <div className="catch-card-actions">
-      <button className={`like-button ${liked ? 'is-liked' : ''}`} type="button" onClick={() => setLiked(!liked)} aria-pressed={liked}><span>{liked ? '♥' : '♡'}</span>{liked ? 'Liked' : 'Like'} <small>{liked ? 1 : 0}</small></button>
-      <CommentThread comments={comments} loading={false} onAdd={handleAddComment} />
+      <LikeButton targetType="fish_year_catch" targetId={entry.id} ownerId={entry.user_id} />
+      <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} />
     </div>
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}
   </div>;

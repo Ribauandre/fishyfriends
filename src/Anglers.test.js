@@ -24,6 +24,9 @@ function makeBaseAuth(overrides = {}) {
     listComments: jest.fn().mockResolvedValue([]),
     addComment: jest.fn(),
     deleteComment: jest.fn(),
+    listLikes: jest.fn().mockResolvedValue([]),
+    likeTarget: jest.fn().mockResolvedValue({ error: null }),
+    unlikeTarget: jest.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }

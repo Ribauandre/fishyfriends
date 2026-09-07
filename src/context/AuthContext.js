@@ -6,6 +6,9 @@ const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '' };
 const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
 
+const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes' };
+const LIKE_COLUMNS = { personal_best: 'personal_best_id', fish_year_catch: 'catch_id' };
+
 function profileFromUser(user) {
   return { ...defaultProfile, display_name: user?.user_metadata?.display_name || user?.email?.split('@')[0] || defaultProfile.display_name };
 }
@@ -194,13 +197,15 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  async function addComment(personalBestId, body) {
+  async function addComment(personalBestId, body, ownerId) {
     if (!body?.trim()) return { error: new Error('Say something first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before commenting.') };
     const authorName = profile.display_name || user?.email?.split('@')[0] || 'Angler';
-    const row = { personal_best_id: personalBestId, user_id: user.id, author_name: authorName, body: body.trim() };
+    const trimmedBody = body.trim();
+    const row = { personal_best_id: personalBestId, user_id: user.id, author_name: authorName, body: trimmedBody };
     const { data, error } = await supabase.from('personal_best_comments').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'personal_best', targetId: personalBestId, preview: trimmedBody });
     return { error: null, comment: data };
   }
 
@@ -209,6 +214,90 @@ export function AuthProvider({ children }) {
     const { error } = await supabase.from('personal_best_comments').delete().eq('id', id);
     if (error) { setNotice(error.message); return { error }; }
     return { error: null };
+  }
+
+  async function listFishYearComments(catchId) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('fish_year_catch_comments').select('*').eq('catch_id', catchId).order('created_at', { ascending: true });
+    return data || [];
+  }
+
+  async function addFishYearComment(catchId, body, ownerId) {
+    if (!body?.trim()) return { error: new Error('Say something first.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before commenting.') };
+    const authorName = profile.display_name || user?.email?.split('@')[0] || 'Angler';
+    const trimmedBody = body.trim();
+    const row = { catch_id: catchId, user_id: user.id, author_name: authorName, body: trimmedBody };
+    const { data, error } = await supabase.from('fish_year_catch_comments').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'fish_year_catch', targetId: catchId, preview: trimmedBody });
+    return { error: null, comment: data };
+  }
+
+  async function deleteFishYearComment(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a comment.') };
+    const { error } = await supabase.from('fish_year_catch_comments').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
+  async function listLikes(targetType, targetId) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from(LIKE_TABLES[targetType]).select('user_id').eq(LIKE_COLUMNS[targetType], targetId);
+    return data || [];
+  }
+
+  async function likeTarget(targetType, targetId, ownerId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before liking a post.') };
+    const row = { [LIKE_COLUMNS[targetType]]: targetId, user_id: user.id };
+    const { error } = await supabase.from(LIKE_TABLES[targetType]).insert(row);
+    if (error) { setNotice(error.message); return { error }; }
+    notifyIfNeeded({ recipientId: ownerId, type: 'like', targetType, targetId, preview: '' });
+    return { error: null };
+  }
+
+  async function unlikeTarget(targetType, targetId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before unliking a post.') };
+    const { error } = await supabase.from(LIKE_TABLES[targetType]).delete().eq(LIKE_COLUMNS[targetType], targetId).eq('user_id', user.id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
+  // Fires right after a like/comment succeeds so the recipient sees it in their bell —
+  // fire-and-forget (not awaited by callers) since a failed notification insert shouldn't
+  // block or error out the like/comment action that triggered it. Never notifies yourself:
+  // the DB's own insert policy (actor_id <> recipient_id) would reject it anyway, but
+  // checking here avoids a pointless round trip when you like or comment on your own post.
+  async function notifyIfNeeded({ recipientId, type, targetType, targetId, preview }) {
+    if (!isSupabaseConfigured || !user || !recipientId || recipientId === user.id) return;
+    const actorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    await supabase.from('notifications').insert({
+      recipient_id: recipientId,
+      actor_id: user.id,
+      actor_name: actorName,
+      type,
+      target_type: targetType,
+      target_id: targetId,
+      preview: preview || '',
+    });
+  }
+
+  async function listNotifications() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data } = await supabase.from('notifications').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false }).limit(50);
+    return data || [];
+  }
+
+  async function markNotificationRead(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('id', id);
+    return { error: error || null };
+  }
+
+  async function markAllNotificationsRead() {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('notifications').update({ read: true }).eq('recipient_id', user.id).eq('read', false);
+    return { error: error || null };
   }
 
   async function listFishYearCatches(year) {
@@ -249,7 +338,17 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  return <AuthContext.Provider value={{ user, profile, personalBests, customSpecies, loading, notice, setNotice, signIn, signUp, signOut, updateProfile, uploadAvatar, uploadPersonalBest, deletePersonalBest, listAnglers, listComments, addComment, deleteComment, listFishYearCatches, logFishYearCatch, deleteFishYearCatch, isSupabaseConfigured }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{
+    user, profile, personalBests, customSpecies, loading, notice, setNotice,
+    signIn, signUp, signOut, updateProfile, uploadAvatar,
+    uploadPersonalBest, deletePersonalBest, listAnglers,
+    listComments, addComment, deleteComment,
+    listFishYearCatches, logFishYearCatch, deleteFishYearCatch,
+    listFishYearComments, addFishYearComment, deleteFishYearComment,
+    listLikes, likeTarget, unlikeTarget,
+    listNotifications, markNotificationRead, markAllNotificationsRead,
+    isSupabaseConfigured,
+  }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() { return useContext(AuthContext); }

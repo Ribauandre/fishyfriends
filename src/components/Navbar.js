@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, profile } = useAuth();
@@ -22,7 +23,10 @@ export default function Navbar() {
           <span>04</span> Anglers
         </NavLink>
       </div>
-      <NavLink to="/profile" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
+      <div className="navbar-right">
+        <NotificationBell />
+        <NavLink to="/profile" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
+      </div>
     </nav>
   );
 }

@@ -240,8 +240,9 @@ describe('addComment / deleteComment', () => {
   test('addComment stamps the current display name as the author', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('personal_best_comments', { data: { id: 'c-1', author_name: 'Andre', body: 'Nice!' }, error: null });
+    __mock.setResponse('notifications', { error: null });
 
-    const response = await result.current.addComment('pb-1', 'Nice!');
+    const response = await result.current.addComment('pb-1', 'Nice!', 'user-2');
     expect(response.comment.author_name).toBe('Andre');
   });
 
@@ -249,5 +250,119 @@ describe('addComment / deleteComment', () => {
     const result = await setupSignedIn();
     __mock.setResponse('personal_best_comments', { error: null });
     await expect(result.current.deleteComment('c-1')).resolves.toEqual({ error: null });
+  });
+
+  test('notifies the personal best owner, snapshotting the comment body as a preview', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_best_comments', { data: { id: 'c-1', author_name: 'Andre', body: 'Nice!' }, error: null });
+    __mock.setResponse('notifications', { error: null });
+
+    await result.current.addComment('pb-1', 'Nice!', 'user-2');
+
+    expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+    const notificationCallIndex = __mock.current.fromCalls.indexOf('notifications');
+    const builder = __mock.current.from.mock.results[notificationCallIndex].value;
+    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({
+      recipient_id: 'user-2', actor_id: 'user-1', actor_name: 'Andre', type: 'comment', target_type: 'personal_best', target_id: 'pb-1', preview: 'Nice!',
+    }));
+  });
+
+  test('does not notify when commenting on your own personal best', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_best_comments', { data: { id: 'c-1', author_name: 'Andre', body: 'Nice!' }, error: null });
+    const notificationCallsBefore = __mock.current.fromCalls.filter((table) => table === 'notifications').length;
+
+    await result.current.addComment('pb-1', 'Nice!', 'user-1');
+
+    const notificationCallsAfter = __mock.current.fromCalls.filter((table) => table === 'notifications').length;
+    expect(notificationCallsAfter).toBe(notificationCallsBefore);
+  });
+});
+
+describe('Fish Year catch comments', () => {
+  test('addFishYearComment stamps the author and notifies the catch owner', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catch_comments', { data: { id: 'fc-1', author_name: 'Andre', body: 'Great fish!' }, error: null });
+    __mock.setResponse('notifications', { error: null });
+
+    const response = await result.current.addFishYearComment('fy-1', 'Great fish!', 'user-2');
+
+    expect(response.comment.author_name).toBe('Andre');
+    expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+  });
+
+  test('deleteFishYearComment reports success', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catch_comments', { error: null });
+    await expect(result.current.deleteFishYearComment('fc-1')).resolves.toEqual({ error: null });
+  });
+});
+
+describe('likes', () => {
+  test('listLikes reads from the table matching the target type', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_best_likes', { data: [{ user_id: 'user-2' }], error: null });
+
+    const likes = await result.current.listLikes('personal_best', 'pb-1');
+
+    expect(__mock.current.from).toHaveBeenCalledWith('personal_best_likes');
+    expect(likes).toEqual([{ user_id: 'user-2' }]);
+  });
+
+  test('likeTarget inserts a like and notifies the owner', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catch_likes', { error: null });
+    __mock.setResponse('notifications', { error: null });
+
+    const response = await result.current.likeTarget('fish_year_catch', 'fy-1', 'user-2');
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.from).toHaveBeenCalledWith('fish_year_catch_likes');
+    expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+  });
+
+  test('likeTarget does not notify when you like your own post', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_best_likes', { error: null });
+    const notificationCallsBefore = __mock.current.fromCalls.filter((table) => table === 'notifications').length;
+
+    await result.current.likeTarget('personal_best', 'pb-1', 'user-1');
+
+    const notificationCallsAfter = __mock.current.fromCalls.filter((table) => table === 'notifications').length;
+    expect(notificationCallsAfter).toBe(notificationCallsBefore);
+  });
+
+  test('unlikeTarget deletes from the matching likes table', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_best_likes', { error: null });
+
+    const response = await result.current.unlikeTarget('personal_best', 'pb-1');
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.from).toHaveBeenCalledWith('personal_best_likes');
+  });
+});
+
+describe('notifications', () => {
+  test('listNotifications reads the current user\'s notifications', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('notifications', { data: [{ id: 'n-1', recipient_id: 'user-1' }], error: null });
+
+    const list = await result.current.listNotifications();
+
+    expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+    expect(list).toEqual([{ id: 'n-1', recipient_id: 'user-1' }]);
+  });
+
+  test('markNotificationRead reports success', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('notifications', { error: null });
+    await expect(result.current.markNotificationRead('n-1')).resolves.toEqual({ error: null });
+  });
+
+  test('markAllNotificationsRead reports success', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('notifications', { error: null });
+    await expect(result.current.markAllNotificationsRead()).resolves.toEqual({ error: null });
   });
 });

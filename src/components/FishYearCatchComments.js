@@ -2,25 +2,25 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import CommentThread from './CommentThread';
 
-export default function PersonalBestComments({ personalBestId, ownerId }) {
-  const { user, listComments, addComment, deleteComment } = useAuth();
+export default function FishYearCatchComments({ catchId, ownerId }) {
+  const { user, listFishYearComments, addFishYearComment, deleteFishYearComment } = useAuth();
   const [comments, setComments] = useState(null);
 
   useEffect(() => {
     let active = true;
-    listComments(personalBestId).then((data) => { if (active) setComments(data); });
+    listFishYearComments(catchId).then((data) => { if (active) setComments(data); });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personalBestId]);
+  }, [catchId]);
 
   async function handleAdd(body) {
-    const result = await addComment(personalBestId, body, ownerId);
+    const result = await addFishYearComment(catchId, body, ownerId);
     if (!result.error) setComments((previous) => [...(previous || []), result.comment]);
     return result;
   }
 
   async function handleDelete(id) {
-    const result = await deleteComment(id);
+    const result = await deleteFishYearComment(id);
     if (!result.error) setComments((previous) => (previous || []).filter((comment) => comment.id !== id));
   }
 
