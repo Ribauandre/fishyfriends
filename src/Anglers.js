@@ -66,7 +66,7 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId }
     </button>
     {open && <div className="angler-card-bests">
       <div className="section-heading-mini"><span className="eyebrow">Personal bests</span></div>
-      {personalBests.length === 0 && <div className="empty-state"><FishIllustration species="pike" className="empty-state-sticker" /><p className="month-empty">No personal bests logged yet.</p></div>}
+      {personalBests.length === 0 && <div className="empty-state"><FishIllustration species="flounder" className="empty-state-sticker" /><p className="month-empty">No personal bests logged yet.</p></div>}
       {personalBests.map((best) => <AnglerBestItem
         key={best.id}
         best={best}
@@ -115,7 +115,7 @@ export default function Anglers() {
   return <main className="content-shell anglers-page">
     <div className="page-intro" data-tour="anglers-intro">
       <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species. Tap an angler to see their personal bests, and beat them.</p></div>
-      <FishIllustration species="trout" className="intro-sticker" />
+      <FishIllustration species="bluegill" className="intro-sticker" />
     </div>
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
     {!roster && <p className="month-empty">Rounding up the crew...</p>}

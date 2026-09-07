@@ -1,5 +1,5 @@
 import * as React from 'react';
-import placeholderFluke from '../assets/cartoon-flounder-isolated-on-white-vector-46294379.jpg';
+import placeholderFluke from '../assets/fish/flounder.png';
 import firstPlace from '../assets/andre/IMG_7938.jpeg';
 import secondPlace from '../assets/andres/IMG_7920.jpeg';
 import CommentThread from './CommentThread';

@@ -15,6 +15,19 @@ test('falls back to trout for a species without its own art yet', () => {
   expect(img).toHaveAttribute('data-species', 'bass');
 });
 
+test.each([
+  ['largemouth', /largemouth bass/i],
+  ['smallmouth', /smallmouth bass/i],
+  ['bluegill', /bluegill/i],
+  ['flounder', /flounder/i],
+  ['stripedbass', /striped bass/i],
+])('renders its own art for %s', (species, nameMatcher) => {
+  render(<FishIllustration species={species} />);
+  const img = screen.getByRole('img', { name: nameMatcher });
+  expect(img).toHaveAttribute('data-species', species);
+  expect(img.getAttribute('src')).toBeTruthy();
+});
+
 test('falls back to trout for an unrecognized species instead of rendering blank', () => {
   render(<FishIllustration species="not-a-real-species" />);
   const img = screen.getByRole('img', { name: /^trout$/i });

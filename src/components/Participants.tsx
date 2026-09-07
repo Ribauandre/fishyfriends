@@ -9,7 +9,7 @@ type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_u
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 function MonthDetail({ entries, currentUserId, onDelete, highlightId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null }) {
-  if (!entries.length) return <div className="empty-state"><FishIllustration species="trout" className="empty-state-sticker" /><p className="month-empty">No catches yet. Somebody's gotta break the ice.</p></div>;
+  if (!entries.length) return <div className="empty-state"><FishIllustration species="smallmouth" className="empty-state-sticker" /><p className="month-empty">No catches yet. Somebody's gotta break the ice.</p></div>;
   return <div className="month-catches">{entries.map((entry) => <MonthCatch key={entry.id} entry={entry} currentUserId={currentUserId} onDelete={onDelete} highlighted={entry.id === highlightId} />)}</div>;
 }
 

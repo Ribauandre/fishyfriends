@@ -2,7 +2,7 @@ import speciesIcon, { SPECIES_OPTIONS } from './speciesOptions';
 
 describe('SPECIES_OPTIONS', () => {
   test('every option has a non-empty label and a recognized icon key', () => {
-    const validIcons = new Set(['pike', 'bass', 'salmon', 'shark', 'trout', 'perch', 'tuna']);
+    const validIcons = new Set(['pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'flounder', 'salmon', 'shark', 'trout', 'perch', 'tuna']);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
       expect(option.label.length).toBeGreaterThan(0);
@@ -20,26 +20,33 @@ describe('speciesIcon', () => {
   test('matches a canonical label exactly', () => {
     expect(speciesIcon('Northern Pike')).toBe('pike');
     expect(speciesIcon('Atlantic Salmon')).toBe('salmon');
+    expect(speciesIcon('Largemouth Bass')).toBe('largemouth');
+    expect(speciesIcon('Smallmouth Bass')).toBe('smallmouth');
+    expect(speciesIcon('Striped Bass')).toBe('stripedbass');
+    expect(speciesIcon('Bluegill')).toBe('bluegill');
+    expect(speciesIcon('Fluke / Flounder')).toBe('flounder');
   });
 
   test('matches canonical labels case-insensitively', () => {
-    expect(speciesIcon('striped bass')).toBe('bass');
-    expect(speciesIcon('STRIPED BASS')).toBe('bass');
-    expect(speciesIcon('Striped Bass')).toBe('bass');
+    expect(speciesIcon('striped bass')).toBe('stripedbass');
+    expect(speciesIcon('STRIPED BASS')).toBe('stripedbass');
+    expect(speciesIcon('Striped Bass')).toBe('stripedbass');
   });
 
   test('falls back to a fuzzy substring match for an unlisted species containing a known icon word', () => {
     expect(speciesIcon('Giant Tuna')).toBe('tuna');
     expect(speciesIcon('Some Random Shark')).toBe('shark');
+    expect(speciesIcon('Trophy Largemouth')).toBe('largemouth');
+    expect(speciesIcon('Sea Bass')).toBe('largemouth');
   });
 
-  test('falls back to bass for a completely unrecognized species', () => {
-    expect(speciesIcon('Mystery Fish')).toBe('bass');
+  test('falls back to largemouth for a completely unrecognized species', () => {
+    expect(speciesIcon('Mystery Fish')).toBe('largemouth');
   });
 
   test('handles empty, null, and undefined input without throwing', () => {
-    expect(speciesIcon('')).toBe('bass');
-    expect(speciesIcon(null)).toBe('bass');
-    expect(speciesIcon(undefined)).toBe('bass');
+    expect(speciesIcon('')).toBe('largemouth');
+    expect(speciesIcon(null)).toBe('largemouth');
+    expect(speciesIcon(undefined)).toBe('largemouth');
   });
 });
