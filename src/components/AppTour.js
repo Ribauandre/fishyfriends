@@ -70,9 +70,16 @@ export default function AppTour() {
   const [running, setRunning] = useState(false);
   const cardRef = useRef(null);
   const [cardStyle, setCardStyle] = useState({});
+  // Once the tour has started this session, never restart it — shouldShowTour can flicker
+  // back to true later (e.g. a background profile refetch racing the completeTour() write),
+  // and without this guard that flicker would replay the whole tour mid-session.
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    if (shouldShowTour) setRunning(true);
+    if (shouldShowTour && !startedRef.current) {
+      startedRef.current = true;
+      setRunning(true);
+    }
   }, [shouldShowTour]);
 
   const step = STEPS[index];

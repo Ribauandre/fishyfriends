@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 
@@ -394,5 +394,20 @@ describe('feature tour', () => {
 
     expect(__mock.current.from).toHaveBeenCalledWith('profiles');
     await waitFor(() => expect(result.current.shouldShowTour).toBe(false));
+  });
+
+  test('a later profile refetch racing the completeTour() write does not revive the tour', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { error: null });
+    await result.current.completeTour();
+    await waitFor(() => expect(result.current.shouldShowTour).toBe(false));
+
+    // A background auth event (e.g. a token refresh) triggers another profile fetch, which
+    // reads the row before the completeTour() write above has actually landed — still null.
+    __mock.setResponse('profiles', { data: { ...fakeProfileRow, tour_completed_at: null }, error: null });
+    const authCallback = __mock.current.auth.onAuthStateChange.mock.calls[0][0];
+    await act(async () => { await authCallback('TOKEN_REFRESHED', { user: fakeUser }); });
+
+    expect(result.current.shouldShowTour).toBe(false);
   });
 });
