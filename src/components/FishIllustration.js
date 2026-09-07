@@ -6,6 +6,9 @@ import smallmouth from '../assets/fish/smallmouth.png';
 import bluegill from '../assets/fish/bluegill.png';
 import flounder from '../assets/fish/flounder.png';
 import stripedbass from '../assets/fish/stripedbass.png';
+import bluefish from '../assets/fish/bluefish.png';
+import snakehead from '../assets/fish/snakehead.png';
+import laketrout from '../assets/fish/laketrout.png';
 
 // Bold neon-outline sticker art the user generated directly, matching the reference photos
 // they shared. Every species below has its own art; anything else falls back to trout — no
@@ -18,9 +21,12 @@ const fishDetails = {
   bluegill: { label: 'Bluegill', src: bluegill },
   flounder: { label: 'Flounder', src: flounder },
   stripedbass: { label: 'Striped bass', src: stripedbass },
+  bluefish: { label: 'Bluefish', src: bluefish },
+  snakehead: { label: 'Northern snakehead', src: snakehead },
+  laketrout: { label: 'Lake trout', src: laketrout },
 };
 
-export const HERO_SPECIES = ['largemouth', 'smallmouth', 'bluegill', 'flounder', 'stripedbass'];
+export const HERO_SPECIES = ['largemouth', 'smallmouth', 'bluegill', 'flounder', 'stripedbass', 'bluefish', 'snakehead', 'laketrout'];
 
 export default function FishIllustration({ species, className = '' }) {
   const fish = fishDetails[species] || fishDetails.trout;

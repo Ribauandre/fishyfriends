@@ -22,7 +22,7 @@ test('typing narrows the list to matching species', async () => {
   renderWithProviders(<ControlledSpeciesSelect />);
   await userEvent.type(screen.getByRole('combobox'), 'tro');
   const options = screen.getAllByRole('option').map((option) => option.textContent);
-  expect(options).toEqual(['Brook Trout', 'Brown Trout', 'Rainbow Trout']);
+  expect(options).toEqual(['Brook Trout', 'Brown Trout', 'Lake Trout', 'Rainbow Trout']);
 });
 
 test('the list is case-insensitive', async () => {

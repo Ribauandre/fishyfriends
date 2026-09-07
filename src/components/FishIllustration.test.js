@@ -21,6 +21,9 @@ test.each([
   ['bluegill', /bluegill/i],
   ['flounder', /flounder/i],
   ['stripedbass', /striped bass/i],
+  ['bluefish', /bluefish/i],
+  ['snakehead', /northern snakehead/i],
+  ['laketrout', /lake trout/i],
 ])('renders its own art for %s', (species, nameMatcher) => {
   render(<FishIllustration species={species} />);
   const img = screen.getByRole('img', { name: nameMatcher });

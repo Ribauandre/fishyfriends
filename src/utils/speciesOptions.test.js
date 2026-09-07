@@ -2,7 +2,7 @@ import speciesIcon, { SPECIES_OPTIONS } from './speciesOptions';
 
 describe('SPECIES_OPTIONS', () => {
   test('every option has a non-empty label and a recognized icon key', () => {
-    const validIcons = new Set(['pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'flounder', 'salmon', 'shark', 'trout', 'perch', 'tuna']);
+    const validIcons = new Set(['pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'flounder', 'salmon', 'shark', 'trout', 'laketrout', 'perch', 'tuna', 'bluefish', 'snakehead']);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
       expect(option.label.length).toBeGreaterThan(0);
@@ -25,6 +25,10 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Striped Bass')).toBe('stripedbass');
     expect(speciesIcon('Bluegill')).toBe('bluegill');
     expect(speciesIcon('Fluke / Flounder')).toBe('flounder');
+    expect(speciesIcon('Bluefish')).toBe('bluefish');
+    expect(speciesIcon('Northern Snakehead')).toBe('snakehead');
+    expect(speciesIcon('Lake Trout')).toBe('laketrout');
+    expect(speciesIcon('Brown Trout')).toBe('trout');
   });
 
   test('matches canonical labels case-insensitively', () => {
@@ -38,6 +42,8 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Some Random Shark')).toBe('shark');
     expect(speciesIcon('Trophy Largemouth')).toBe('largemouth');
     expect(speciesIcon('Sea Bass')).toBe('largemouth');
+    expect(speciesIcon('Giant Snakehead')).toBe('snakehead');
+    expect(speciesIcon('Trophy Lake Trout')).toBe('laketrout');
   });
 
   test('falls back to largemouth for a completely unrecognized species', () => {
