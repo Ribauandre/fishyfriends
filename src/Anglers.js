@@ -113,7 +113,7 @@ export default function Anglers() {
   }, [roster, query]);
 
   return <main className="content-shell anglers-page">
-    <div className="page-intro">
+    <div className="page-intro" data-tour="anglers-intro">
       <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species. Tap an angler to see their personal bests, and beat them.</p></div>
       <FishIllustration species="trout" className="intro-sticker" />
     </div>
