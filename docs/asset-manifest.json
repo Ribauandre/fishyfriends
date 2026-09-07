@@ -1,17 +1,17 @@
 {
   "files": {
     "main.css": "/static/css/main.f2e0df2c.css",
-    "main.js": "/static/js/main.9f7f1f9f.js",
+    "main.js": "/static/js/main.ac4575f0.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/IMG_7920.jpeg": "/static/media/IMG_7920.8de0282458918b248a14.jpeg",
     "static/media/IMG_7938.jpeg": "/static/media/IMG_7938.ded4da9517ad073c3542.jpeg",
+    "static/media/largemouth.png": "/static/media/largemouth.2ed8ca3a3fee82925e1b.png",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
     "static/media/pike.png": "/static/media/pike.fc065eedc876b63ea912.png",
     "static/media/walleye.png": "/static/media/walleye.dd83d45caa67a177e350.png",
     "static/media/laketrout.png": "/static/media/laketrout.b1f11253f9231a19690c.png",
     "static/media/tautog.png": "/static/media/tautog.c459cc081716cbf27957.png",
     "static/media/flounder.png": "/static/media/flounder.65361c4a559ce7e94151.png",
-    "static/media/largemouth.png": "/static/media/largemouth.039d310193595dabd686.png",
     "static/media/carp.png": "/static/media/carp.7555bd68dba6295673ea.png",
     "static/media/redfish.png": "/static/media/redfish.9748b2bc0168e4755214.png",
     "static/media/musky.png": "/static/media/musky.d7aab9bd399734640611.png",
@@ -36,11 +36,11 @@
     "static/media/cobia.png": "/static/media/cobia.51f77c95b6fb203ae199.png",
     "index.html": "/index.html",
     "main.f2e0df2c.css.map": "/static/css/main.f2e0df2c.css.map",
-    "main.9f7f1f9f.js.map": "/static/js/main.9f7f1f9f.js.map",
+    "main.ac4575f0.js.map": "/static/js/main.ac4575f0.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.f2e0df2c.css",
-    "static/js/main.9f7f1f9f.js"
+    "static/js/main.ac4575f0.js"
   ]
 }
