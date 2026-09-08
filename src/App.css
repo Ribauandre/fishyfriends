@@ -225,6 +225,14 @@ button { cursor: pointer; }
 .year-board-footer { align-items: center; border-top: 1px solid #386167; display: flex; justify-content: space-between; margin-top: 20px; padding-top: 18px; }
 .year-board-footer strong { color: var(--mint); font-size: 12px; }
 .year-board-footer span { color: #9bb6b1; font-size: 11px; }
+.species-board .section-heading { margin-bottom: 8px; }
+.species-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); margin-top: 16px; }
+.species-cell { align-items: center; background: rgba(3,8,11,.28); border: 1px solid #386167; display: flex; flex-direction: column; gap: 6px; padding: 12px 6px; text-align: center; }
+.species-cell .fish-illustration { filter: grayscale(1); height: auto; opacity: .38; width: 60px; }
+.species-cell span { color: #8ca9a5; font-size: 10px; font-weight: 700; line-height: 1.3; }
+.species-cell.is-caught { background: rgba(227,251,20,.14); border-color: var(--mint); }
+.species-cell.is-caught .fish-illustration { filter: none; opacity: 1; }
+.species-cell.is-caught span { color: var(--mint); }
 .table-card, .settings-card, .profile-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); padding: 28px; position: relative; }
 .table-card:before, .settings-card:before, .profile-card:before { border: 1px solid rgba(255,90,31,.28); content: ''; inset: 7px; pointer-events: none; position: absolute; }
 .table-card > *, .settings-card > *, .profile-card > * { position: relative; z-index: 1; }
