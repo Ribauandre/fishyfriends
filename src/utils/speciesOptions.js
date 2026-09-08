@@ -1,7 +1,7 @@
 // Canonical species list shared by every "what did you catch" form on the site, so a
 // catch logged on one page matches the same name (and fish icon) everywhere else. Every
 // icon here is either its own dedicated render or an intentional shared fallback (Steelhead/
-// Shark/Snook/Coho Salmon reuse a close relative's dedicated art) — never a crop pulled out
+// Snook/Coho Salmon reuse a close relative's dedicated art) — never a crop pulled out
 // of a shared multi-fish reference sheet.
 export const SPECIES_OPTIONS = [
   { label: 'Largemouth Bass', icon: 'largemouth' },
