@@ -33,7 +33,7 @@ const STEPS = [
     route: '/anglers',
     eyebrow: 'The crew',
     title: 'Anglers and personal bests',
-    body: 'Everyone\'s biggest fish by species. Tap an angler to open their personal bests, then go beat one.',
+    body: 'Log your own personal bests right here, check off species on your bingo board, then tap an angler to open theirs and go beat one.',
   },
   {
     target: '[data-tour="tournament-highlight"]',
@@ -53,7 +53,7 @@ const STEPS = [
     route: '/profile',
     eyebrow: 'Last stop',
     title: 'Your profile',
-    body: 'Set your photo, home water, and favourite species — and log the personal bests everyone else is trying to beat.',
+    body: 'Set your photo, home water, and favourite species so the crew knows who they\'re up against.',
   },
 ];
 

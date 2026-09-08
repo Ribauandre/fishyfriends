@@ -4,7 +4,9 @@ import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import LikeButton from './components/LikeButton';
 import PersonalBestComments from './components/PersonalBestComments';
+import PersonalBestForm from './components/PersonalBestForm';
 import PostMenu from './components/PostMenu';
+import SpeciesChecklist from './components/SpeciesChecklist';
 import iconFor from './utils/speciesOptions';
 
 function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted }) {
@@ -81,7 +83,7 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId }
 }
 
 export default function Anglers() {
-  const { user, listAnglers, deletePersonalBest } = useAuth();
+  const { user, listAnglers, deletePersonalBest, uploadPersonalBest } = useAuth();
   const [roster, setRoster] = useState(null);
   const [query, setQuery] = useState('');
   const [searchParams] = useSearchParams();
@@ -92,6 +94,21 @@ export default function Anglers() {
     if (!result.error) setRoster((previous) => previous.map((entry) => entry.profile.id === user.id
       ? { ...entry, personalBests: entry.personalBests.filter((best) => best.id !== id) }
       : entry));
+  }
+
+  async function handleSaveBest(payload) {
+    const result = await uploadPersonalBest(payload);
+    if (!result.error && result.bestEntry) {
+      setRoster((previous) => previous.map((entry) => {
+        if (entry.profile.id !== user.id) return entry;
+        const existingIndex = entry.personalBests.findIndex((best) => best.id === result.bestEntry.id);
+        const personalBests = existingIndex === -1
+          ? [...entry.personalBests, result.bestEntry]
+          : entry.personalBests.map((best) => (best.id === result.bestEntry.id ? result.bestEntry : best));
+        return { ...entry, personalBests };
+      }));
+    }
+    return result;
   }
 
   useEffect(() => {
@@ -112,11 +129,18 @@ export default function Anglers() {
       || personalBests.some((best) => best.species.toLowerCase().includes(q)));
   }, [roster, query]);
 
+  const yourBests = roster?.find((entry) => entry.profile.id === user?.id)?.personalBests || [];
+
   return <main className="content-shell anglers-page">
     <div className="page-intro" data-tour="anglers-intro">
-      <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species. Tap an angler to see their personal bests, and beat them.</p></div>
+      <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species — log yours below, then go pick a fight.</p></div>
       <FishIllustration species="bluegill" className="intro-sticker" />
     </div>
+    <section className="table-card personal-bests-panel">
+      <div className="section-heading"><div><span className="eyebrow">YOUR BESTS</span><h2>Log a new personal best</h2></div></div>
+      <PersonalBestForm onSave={handleSaveBest} />
+    </section>
+    <SpeciesChecklist personalBests={yourBests} />
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
     {!roster && <p className="month-empty">Rounding up the crew...</p>}
     {roster && <div className="anglers-grid">

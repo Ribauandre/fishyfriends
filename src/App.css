@@ -265,6 +265,7 @@ button { cursor: pointer; }
 .tournament-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
 .tournament-danger-zone { margin-top: 24px; text-align: right; }
 .profile-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; }
+.profile-bests-nudge { margin-top: 22px; text-align: center; }
 .profile-card { align-items: flex-start; display: flex; flex-direction: column; }
 .avatar-large { font-size: 38px; height: 92px; margin-bottom: 28px; width: 92px; }
 .avatar-upload { color: var(--mint); cursor: pointer; font-size: 11px; font-weight: 800; margin: -14px 0 24px; }
@@ -537,14 +538,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Personal bests, angler lookup, and comment threads */
 .personal-bests-panel { margin-top: 22px; }
-.best-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 20px; }
-.best-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); padding: 16px; position: relative; }
-.best-card .post-menu { right: 10px; top: 10px; }
-.best-card-fish { height: 68px; width: 148px; }
-.best-card-photo { height: 110px; object-fit: cover; width: 100%; }
-.best-card-info { margin-top: 12px; }
-.best-card-info strong { display: block; font-size: 14px; }
-.best-card-info span { color: var(--muted); display: block; font-size: 11px; margin-top: 4px; }
 .best-form { border-top: 1px solid var(--line); display: grid; gap: 0 20px; grid-template-columns: repeat(4, 1fr); margin-top: 28px; padding-top: 22px; }
 .best-form label { color: var(--muted); display: block; font-size: 11px; font-weight: 800; margin-top: 0; }
 .best-form input, .best-form select { background: rgba(3,8,11,.35); border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; margin-top: 8px; outline: none; padding: 10px 8px; width: 100%; }

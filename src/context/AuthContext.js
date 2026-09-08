@@ -191,7 +191,7 @@ export function AuthProvider({ children }) {
     setPersonalBests((previous) => existing ? previous.map((best) => (best.id === existing.id ? data : best)) : [...previous, data]);
     setNotice('Personal best saved.');
     registerSpecies(species);
-    return { error: null };
+    return { error: null, bestEntry: data };
   }
 
   async function deletePersonalBest(id) {
