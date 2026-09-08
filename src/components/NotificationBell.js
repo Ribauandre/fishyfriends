@@ -6,20 +6,16 @@ import ChatIcon from './ChatIcon';
 
 const POLL_INTERVAL_MS = 30000;
 
-function targetHref(notification) {
-  return notification.target_type === 'personal_best'
-    ? `/anglers?best=${notification.target_id}`
-    : `/fish-year?catch=${notification.target_id}`;
-}
-
 function describe(notification) {
   const action = notification.type === 'like' ? 'liked' : 'commented on';
-  const thing = notification.target_type === 'personal_best' ? 'your personal best' : 'your catch';
+  const thing = notification.target_type === 'personal_best' ? 'your personal best'
+    : notification.target_type === 'tournament_entry' ? 'your tournament entry'
+    : 'your catch';
   return `${notification.actor_name} ${action} ${thing}`;
 }
 
 export default function NotificationBell() {
-  const { listNotifications, markNotificationRead, markAllNotificationsRead } = useAuth();
+  const { listNotifications, markNotificationRead, markAllNotificationsRead, getTournamentEntry } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
@@ -57,7 +53,15 @@ export default function NotificationBell() {
       setNotifications((previous) => previous.map((item) => (item.id === notification.id ? { ...item, read: true } : item)));
       await markNotificationRead(notification.id);
     }
-    navigate(targetHref(notification));
+    if (notification.target_type === 'tournament_entry') {
+      const entry = await getTournamentEntry(notification.target_id);
+      navigate(entry ? `/tournaments/${entry.tournament_id}?entry=${notification.target_id}` : '/tournaments');
+      return;
+    }
+    const href = notification.target_type === 'personal_best'
+      ? `/anglers?best=${notification.target_id}`
+      : `/fish-year?catch=${notification.target_id}`;
+    navigate(href);
   }
 
   async function handleMarkAllRead() {

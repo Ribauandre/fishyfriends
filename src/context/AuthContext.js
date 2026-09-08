@@ -12,8 +12,8 @@ function tourSeenLocally() {
 }
 const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
 
-const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes' };
-const LIKE_COLUMNS = { personal_best: 'personal_best_id', fish_year_catch: 'catch_id' };
+const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes', tournament_entry: 'tournament_entry_likes' };
+const LIKE_COLUMNS = { personal_best: 'personal_best_id', fish_year_catch: 'catch_id', tournament_entry: 'tournament_entry_id' };
 
 function profileFromUser(user) {
   return { ...defaultProfile, display_name: user?.user_metadata?.display_name || user?.email?.split('@')[0] || defaultProfile.display_name };
@@ -362,6 +362,109 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
+  async function listTournaments() {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('tournaments').select('*').order('starts_on', { ascending: false });
+    return data || [];
+  }
+
+  async function getTournament(id) {
+    if (!isSupabaseConfigured) return null;
+    const { data } = await supabase.from('tournaments').select('*').eq('id', id).maybeSingle();
+    return data;
+  }
+
+  async function createTournament({ name, rules, unit, startsOn, endsOn }) {
+    if (!name?.trim()) return { error: new Error('Name the tournament.') };
+    if (!startsOn || !endsOn) return { error: new Error('Set both a start and end date.') };
+    if (endsOn < startsOn) return { error: new Error('The end date has to be on or after the start date.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before starting a tournament.') };
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { name: name.trim(), rules: rules?.trim() || '', unit: unit === 'lb' ? 'lb' : 'in', starts_on: startsOn, ends_on: endsOn, created_by: user.id, created_by_name: authorName };
+    const { data, error } = await supabase.from('tournaments').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, tournament: data };
+  }
+
+  async function deleteTournament(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a tournament.') };
+    const { error } = await supabase.from('tournaments').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
+  async function listTournamentEntries(tournamentId) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('tournament_entries').select('*').eq('tournament_id', tournamentId).order('size', { ascending: false });
+    return data || [];
+  }
+
+  async function getTournamentEntry(id) {
+    if (!isSupabaseConfigured) return null;
+    const { data } = await supabase.from('tournament_entries').select('*').eq('id', id).maybeSingle();
+    return data;
+  }
+
+  async function submitTournamentEntry({ tournamentId, species, size, caughtAt, file: rawFile }) {
+    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+    const numericSize = Number(size);
+    if (!size || Number.isNaN(numericSize) || numericSize <= 0) return { error: new Error('Enter the size of your catch.') };
+    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = rawFile && await compressImage(rawFile);
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a tournament entry.') };
+
+    let photoUrl = '';
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('tournament-entries').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      const { data } = supabase.storage.from('tournament-entries').getPublicUrl(path);
+      photoUrl = `${data.publicUrl}?v=${Date.now()}`;
+    }
+
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { tournament_id: tournamentId, user_id: user.id, angler_name: authorName, angler_avatar_url: profile.avatar_url || '', species: species.trim(), size: numericSize, caught_at: caughtAt || null, photo_url: photoUrl };
+    const { data, error } = await supabase.from('tournament_entries').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    registerSpecies(species);
+    return { error: null, entry: data };
+  }
+
+  async function deleteTournamentEntry(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a tournament entry.') };
+    const { error } = await supabase.from('tournament_entries').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
+  async function listTournamentEntryComments(entryId) {
+    if (!isSupabaseConfigured) return [];
+    const { data } = await supabase.from('tournament_entry_comments').select('*').eq('tournament_entry_id', entryId).order('created_at', { ascending: true });
+    return data || [];
+  }
+
+  async function addTournamentEntryComment(entryId, body, ownerId) {
+    if (!body?.trim()) return { error: new Error('Say something first.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before commenting.') };
+    const authorName = profile.display_name || user?.email?.split('@')[0] || 'Angler';
+    const trimmedBody = body.trim();
+    const row = { tournament_entry_id: entryId, user_id: user.id, author_name: authorName, body: trimmedBody };
+    const { data, error } = await supabase.from('tournament_entry_comments').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'tournament_entry', targetId: entryId, preview: trimmedBody });
+    return { error: null, comment: data };
+  }
+
+  async function deleteTournamentEntryComment(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a comment.') };
+    const { error } = await supabase.from('tournament_entry_comments').delete().eq('id', id);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null };
+  }
+
   const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
@@ -372,6 +475,9 @@ export function AuthProvider({ children }) {
     listComments, addComment, deleteComment,
     listFishYearCatches, logFishYearCatch, deleteFishYearCatch,
     listFishYearComments, addFishYearComment, deleteFishYearComment,
+    listTournaments, getTournament, createTournament, deleteTournament,
+    listTournamentEntries, getTournamentEntry, submitTournamentEntry, deleteTournamentEntry,
+    listTournamentEntryComments, addTournamentEntryComment, deleteTournamentEntryComment,
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     isSupabaseConfigured,

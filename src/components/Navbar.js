@@ -13,7 +13,7 @@ export default function Navbar() {
         <NavLink to="/home" end className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>01</span> Home
         </NavLink>
-        <NavLink to="/fluke-tournament" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+        <NavLink to="/tournaments" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>02</span> Tournaments
         </NavLink>
         <NavLink to="/fish-year" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>

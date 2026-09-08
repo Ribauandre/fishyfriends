@@ -3,7 +3,8 @@ import React from 'react';
 import Navbar from "./components/Navbar";
 import AppTour from './components/AppTour';
 import FishYear from "./FishYear";
-import FlukeTournament from './FlukeTournament';
+import Tournaments from './Tournaments';
+import TournamentDetail from './TournamentDetail';
 import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
@@ -24,7 +25,9 @@ function App() {
       <Route path="/account" element={<AuthPage />} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/fluke-tournament" element={<ProtectedRoute><FlukeTournament /></ProtectedRoute>} />
+      <Route path="/fluke-tournament" element={<Navigate to="/tournaments" replace />} />
+      <Route path="/tournaments" element={<ProtectedRoute><Tournaments /></ProtectedRoute>} />
+      <Route path="/tournaments/:tournamentId" element={<ProtectedRoute><TournamentDetail /></ProtectedRoute>} />
       <Route path="/fish-year" element={<ProtectedRoute><FishYear /></ProtectedRoute>} />
       <Route path="/anglers" element={<ProtectedRoute><Anglers /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>
