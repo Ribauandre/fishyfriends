@@ -465,6 +465,50 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
+  // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
+  // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
+  // it's joined against profiles here; tournament_entries needs its parent tournament's name
+  // and unit to read as more than a bare number.
+  async function listRecentActivity(limit = 6) {
+    if (!isSupabaseConfigured) return [];
+    const [catchesRes, bestsRes, entriesRes, profilesRes, tournamentsRes] = await Promise.all([
+      supabase.from('fish_year_catches').select('*').order('created_at', { ascending: false }).limit(limit),
+      supabase.from('personal_bests').select('*').order('created_at', { ascending: false }).limit(limit),
+      supabase.from('tournament_entries').select('*').order('created_at', { ascending: false }).limit(limit),
+      supabase.from('profiles').select('id, display_name, avatar_url'),
+      supabase.from('tournaments').select('id, name, unit'),
+    ]);
+    const profileById = new Map((profilesRes.data || []).map((row) => [row.id, row]));
+    const tournamentById = new Map((tournamentsRes.data || []).map((row) => [row.id, row]));
+
+    const catches = (catchesRes.data || []).map((row) => ({
+      kind: 'fish_year_catch', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: row.angler_avatar_url,
+      species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+      month: row.month, href: `/fish-year?catch=${row.id}`,
+    }));
+    const bests = (bestsRes.data || []).map((row) => {
+      const profile = profileById.get(row.user_id);
+      return {
+        kind: 'personal_best', id: row.id, userId: row.user_id, anglerName: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '',
+        species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+        sizeLabel: row.size_label, href: `/anglers?best=${row.id}`,
+      };
+    });
+    const entries = (entriesRes.data || []).map((row) => {
+      const tournament = tournamentById.get(row.tournament_id);
+      return {
+        kind: 'tournament_entry', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: row.angler_avatar_url,
+        species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+        size: row.size, unit: tournament?.unit || 'in', tournamentName: tournament?.name || 'a tournament',
+        href: `/tournaments/${row.tournament_id}?entry=${row.id}`,
+      };
+    });
+
+    return [...catches, ...bests, ...entries]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, limit);
+  }
+
   const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
@@ -478,6 +522,7 @@ export function AuthProvider({ children }) {
     listTournaments, getTournament, createTournament, deleteTournament,
     listTournamentEntries, getTournamentEntry, submitTournamentEntry, deleteTournamentEntry,
     listTournamentEntryComments, addTournamentEntryComment, deleteTournamentEntryComment,
+    listRecentActivity,
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     isSupabaseConfigured,
