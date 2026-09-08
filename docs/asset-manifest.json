@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.db14d4b3.css",
-    "main.js": "/static/js/main.09ac29c9.js",
+    "main.js": "/static/js/main.31137f18.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
     "static/media/flounder.png": "/static/media/flounder.f195b192379d6230aa1c.png",
@@ -17,6 +17,7 @@
     "static/media/salmon.png": "/static/media/salmon.b62153970530e31e535c.png",
     "static/media/stripedbass.png": "/static/media/stripedbass.38624bde52753be409d6.png",
     "static/media/largemouth.png": "/static/media/largemouth.2ed8ca3a3fee82925e1b.png",
+    "static/media/shark.png": "/static/media/shark.016101da65007edfbf3b.png",
     "static/media/pike.png": "/static/media/pike.fec7a5b2f35d14406730.png",
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
@@ -25,11 +26,11 @@
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "index.html": "/index.html",
     "main.db14d4b3.css.map": "/static/css/main.db14d4b3.css.map",
-    "main.09ac29c9.js.map": "/static/js/main.09ac29c9.js.map",
+    "main.31137f18.js.map": "/static/js/main.31137f18.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.db14d4b3.css",
-    "static/js/main.09ac29c9.js"
+    "static/js/main.31137f18.js"
   ]
 }
