@@ -36,7 +36,7 @@ function CreateTournamentModal({ onClose, onCreated }) {
         <div><span className="eyebrow">NEW TOURNAMENT</span><h2>Start a tournament</h2></div>
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close start tournament form">×</button>
       </div>
-      <label>Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Fall Fluke Classic" /></label>
+      <label>Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Summer Fluke Classic" /></label>
       <label>Rules<textarea rows="3" value={form.rules} onChange={(event) => setForm({ ...form, rules: event.target.value })} placeholder="Biggest fish wins. Photo with a tape measure required." /></label>
       <label>Measured in
         <select value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })}>
