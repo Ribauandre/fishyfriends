@@ -8,14 +8,18 @@ function randomHeroSpecies() {
   return HERO_SPECIES[Math.floor(Math.random() * HERO_SPECIES.length)];
 }
 
+// The feed scrolls now instead of being cut down to a handful of rows, so it can hold a
+// much longer scrollback than it needs to show at once.
+const ACTIVITY_LIMIT = 30;
+
 // Combines the initial fetch with anything that's arrived live since, deduping by
 // kind+id (a Map naturally overwrites on a repeat key) so it doesn't matter which of the
 // two resolves first — re-sorting and re-trimming after every merge keeps the feed at its
-// usual newest-6 length even as live items land on top.
+// usual newest-ACTIVITY_LIMIT length even as live items land on top.
 function mergeActivity(existing, incoming) {
   const byKey = new Map(existing.map((item) => [`${item.kind}-${item.id}`, item]));
   for (const item of incoming) byKey.set(`${item.kind}-${item.id}`, item);
-  return [...byKey.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
+  return [...byKey.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, ACTIVITY_LIMIT);
 }
 
 // Splits the headline into per-letter spans so the impact shake can stagger across them left
@@ -43,7 +47,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    listRecentActivity().then((data) => { if (active) { setActivity((previous) => mergeActivity(previous, data)); setActivityLoading(false); } });
+    listRecentActivity(ACTIVITY_LIMIT).then((data) => { if (active) { setActivity((previous) => mergeActivity(previous, data)); setActivityLoading(false); } });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
