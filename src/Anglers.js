@@ -8,6 +8,7 @@ import PersonalBestForm from './components/PersonalBestForm';
 import PostMenu from './components/PostMenu';
 import SpeciesChecklist from './components/SpeciesChecklist';
 import iconFor from './utils/speciesOptions';
+import { FISH_YEAR } from './constants';
 
 function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted }) {
   const [imageOpen, setImageOpen] = useState(false);
@@ -83,8 +84,9 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId }
 }
 
 export default function Anglers() {
-  const { user, listAnglers, deletePersonalBest, uploadPersonalBest } = useAuth();
+  const { user, listAnglers, deletePersonalBest, uploadPersonalBest, listFishYearCatches } = useAuth();
   const [roster, setRoster] = useState(null);
+  const [fishYearCatches, setFishYearCatches] = useState([]);
   const [query, setQuery] = useState('');
   const [searchParams] = useSearchParams();
   const highlightBestId = searchParams.get('best');
@@ -114,6 +116,7 @@ export default function Anglers() {
   useEffect(() => {
     let active = true;
     listAnglers().then((data) => { if (active) setRoster(data); });
+    listFishYearCatches(FISH_YEAR).then((data) => { if (active) setFishYearCatches(data); });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -130,6 +133,7 @@ export default function Anglers() {
   }, [roster, query]);
 
   const yourBests = roster?.find((entry) => entry.profile.id === user?.id)?.personalBests || [];
+  const yourFishYearCatches = fishYearCatches.filter((c) => c.user_id === user?.id);
 
   return <main className="content-shell anglers-page">
     <div className="page-intro" data-tour="anglers-intro">
@@ -140,7 +144,7 @@ export default function Anglers() {
       <div className="section-heading"><div><span className="eyebrow">YOUR BESTS</span><h2>Log a new personal best</h2></div></div>
       <PersonalBestForm onSave={handleSaveBest} />
     </section>
-    <SpeciesChecklist personalBests={yourBests} />
+    <SpeciesChecklist personalBests={yourBests} fishYearCatches={yourFishYearCatches} />
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
     {!roster && <p className="month-empty">Rounding up the crew...</p>}
     {roster && <div className="anglers-grid">

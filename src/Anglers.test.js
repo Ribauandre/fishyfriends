@@ -22,6 +22,7 @@ function makeBaseAuth(overrides = {}) {
     listAnglers: jest.fn().mockResolvedValue(roster),
     deletePersonalBest: jest.fn(),
     uploadPersonalBest: jest.fn(),
+    listFishYearCatches: jest.fn().mockResolvedValue([]),
     listComments: jest.fn().mockResolvedValue([]),
     addComment: jest.fn(),
     deleteComment: jest.fn(),
@@ -179,4 +180,19 @@ test('shows a species checklist reflecting the current user\'s own personal best
   await screen.findByText('Andre');
   expect(await screen.findByText(/species caught/i)).toBeInTheDocument();
   expect(screen.getByText('Striped Bass').closest('.species-cell')).toHaveClass('is-caught');
+});
+
+test('also credits the checklist for species logged as Fish Year catches, not just personal bests', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Carp' },
+      { id: 'fy-2', user_id: 'user-2', month: 'April', species: 'Bluegill' },
+    ]),
+  }));
+  renderAnglers();
+  await screen.findByText('Andre');
+  await screen.findByText(/species caught/i);
+  expect(screen.getByText('Carp').closest('.species-cell')).toHaveClass('is-caught');
+  // Kevin's (user-2) Fish Year catch shouldn't count toward the current user's checklist.
+  expect(screen.getByText('Bluegill').closest('.species-cell')).toHaveClass('is-missing');
 });
