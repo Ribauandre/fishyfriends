@@ -152,6 +152,9 @@ test('a ?best= query param auto-expands and highlights the matching card', async
   const kevinCard = screen.getByText('Kevin').closest('.angler-card');
   expect(kevinCard.querySelector('.angler-card-head')).toHaveAttribute('aria-expanded', 'true');
   expect(kevinCard.querySelector('.angler-best')).toHaveClass('is-shared-highlight');
+  // Landing here from a notification/share link should open the comments on that specific
+  // best, not just scroll to the card.
+  expect(within(kevinCard.querySelector('.angler-best')).getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });
 
 test('shows a form for logging a new personal best, now that it lives here instead of on Profile', async () => {

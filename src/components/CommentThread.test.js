@@ -18,6 +18,12 @@ test('toggle button opens and closes the comment list, showing a count', async (
   expect(screen.queryByText('Nice fish!')).not.toBeInTheDocument();
 });
 
+test('defaultOpen starts the thread expanded, for a post reached via a deep link', () => {
+  render(<CommentThread comments={comments} loading={false} onAdd={jest.fn()} defaultOpen />);
+  expect(screen.getByText('Nice fish!')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
+});
+
 test('shows a loading state and an empty state appropriately', async () => {
   const { rerender } = render(<CommentThread comments={[]} loading onAdd={jest.fn()} />);
   await userEvent.click(screen.getByRole('button', { name: /comments/i }));

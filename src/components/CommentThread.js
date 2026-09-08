@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-export default function CommentThread({ comments, loading, onAdd, onDelete, currentUserId }) {
-  const [open, setOpen] = useState(false);
+export default function CommentThread({ comments, loading, onAdd, onDelete, currentUserId, defaultOpen }) {
+  const [open, setOpen] = useState(Boolean(defaultOpen));
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
 

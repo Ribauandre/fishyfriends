@@ -35,7 +35,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
         <h3>{entry.angler_name}'s entry</h3>
         <p>{entry.size} {unit === 'lb' ? 'lbs' : 'inches'} of {entry.species}{entry.caught_at ? `, logged ${entry.caught_at}` : ''}.</p>
         <LikeButton targetType="tournament_entry" targetId={entry.id} ownerId={entry.user_id} />
-        <TournamentEntryComments entryId={entry.id} ownerId={entry.user_id} />
+        <TournamentEntryComments entryId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} />
       </div>
     </div>}
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}>

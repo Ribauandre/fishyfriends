@@ -118,7 +118,7 @@ test('shows the server error message and keeps the modal open when logging fails
   expect(screen.getByRole('button', { name: /make it official/i })).toBeInTheDocument();
 });
 
-test('passes the ?catch= query param through so the linked catch is highlighted', async () => {
+test('passes the ?catch= query param through so the linked catch is highlighted and its comments open', async () => {
   useAuth.mockReturnValue({
     ...makeBaseAuth(),
     listFishYearCatches: jest.fn().mockResolvedValue([
@@ -128,4 +128,7 @@ test('passes the ?catch= query param through so the linked catch is highlighted'
   renderFishYear('/fish-year?catch=fy-1');
   await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
   await waitFor(() => expect(document.querySelector('.catch-card.is-shared-highlight')).toBeInTheDocument());
+  // A notification/share link about this specific catch should land on its comments open,
+  // not just scrolled to the card — otherwise "take me to the comment" only gets you halfway.
+  expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });
