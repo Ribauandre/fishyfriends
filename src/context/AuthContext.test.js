@@ -126,6 +126,15 @@ test('addTournamentEntryComment requires a non-empty body before the configurati
   expect(response.error.message).toMatch(/say something/i);
 });
 
+test('subscribeToActivity returns a harmless no-op unsubscribe when unconfigured', async () => {
+  const result = await setup();
+  const onInsert = jest.fn();
+  const unsubscribe = result.current.subscribeToActivity(onInsert);
+  expect(typeof unsubscribe).toBe('function');
+  expect(() => unsubscribe()).not.toThrow();
+  expect(onInsert).not.toHaveBeenCalled();
+});
+
 test('submitBugReport requires a description before the configuration check', async () => {
   const result = await setup();
   let response;

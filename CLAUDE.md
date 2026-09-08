@@ -52,6 +52,8 @@ If CRA reports a missing `node_modules/.cache/default-development/0.pack`: stop 
 
 The provider fails closed when Supabase isn't configured (`isSupabaseConfigured` false) — it never fabricates a local user. CRA env vars are compiled into the public bundle, so a fake-login fallback would mask real deployment misconfiguration.
 
+The one exception to "fetch on demand" is `subscribeToActivity`, a Supabase Realtime `postgres_changes` subscription (`fish_year_catches`/`personal_bests`/`tournament_entries` INSERTs) that gives Home's activity feed a live "someone just posted" update instead of waiting for a refetch. It only works because those three tables were added to the `supabase_realtime` publication in migration `0015` — adding Realtime to another table needs the same publication step, not just a new `.on(...)` handler.
+
 ### Routing
 
 `src/App.js`: `AuthProvider` → `Router` → `Navbar` + `AppTour` (mounted once, globally, so it can spotlight nav items from any route) → routed pages. `ProtectedRoute` reads `user`/`loading` from `useAuth()` and redirects to `/account` when signed out. Current routes: `/account` (public), `/home`, `/profile`, `/fish-year`, `/anglers`, `/tournaments`, `/tournaments/:tournamentId`. `/` and the legacy `/fluke-tournament` both redirect (`/fluke-tournament` → `/tournaments` — the tournament feature was renamed from a single hardcoded "Fluke Tournament" to a general, user-creatable Tournaments feature; don't reintroduce the old name).
@@ -68,7 +70,7 @@ To ship a schema change: add the next-numbered file to `supabase/migrations/`, w
 
 ### Testing infrastructure
 
-- `src/test-utils/supabaseMock.js` — chainable fake for the Supabase query builder (`select/eq/order/insert/update/delete/upsert/maybeSingle`, all awaitable) plus `auth`/`storage` fakes. Script a table's response with `setResponse(table, response)`.
+- `src/test-utils/supabaseMock.js` — chainable fake for the Supabase query builder (`select/eq/order/insert/update/delete/upsert/maybeSingle`, all awaitable) plus `auth`/`storage` fakes. Script a table's response with `setResponse(table, response)`. Also fakes `channel`/`removeChannel` for Realtime: `.on('postgres_changes', { table }, cb)` registrations are recorded by table, and a test triggers one with `await __mock.current.emitPostgresChange(table, newRow)`.
 - `src/lib/__mocks__/supabase.js` — manual Jest mock for `src/lib/supabase.js`. A test that needs `isSupabaseConfigured: true` and a controllable client calls `jest.mock('../lib/supabase')` (path relative to the importing file), imports `{ supabase, isSupabaseConfigured, __mock }`, and calls `__mock.reset()` in `beforeEach` / `__mock.setResponse(...)` to script responses. A test file that does *not* mock the module gets the real one, which reads unset env vars and behaves like an unconfigured deployment — that's what covers "fails closed" guard clauses.
 - `src/test-utils/renderWithProviders.js` — renders inside `MemoryRouter` + `AuthProvider`, for components calling `useAuth()`/router hooks directly.
 - `setupTests.js` polyfills `Element.prototype.scrollIntoView` (unimplemented in jsdom; needed by the deep-link highlight effects in `Participants.tsx`/`Anglers.js`).

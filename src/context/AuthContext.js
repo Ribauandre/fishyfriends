@@ -519,6 +519,44 @@ export function AuthProvider({ children }) {
       .slice(0, limit);
   }
 
+  // Gives Home's activity feed a "someone just posted" feel via Supabase Realtime instead
+  // of only refreshing on the next page load. Builds each pushed item into the exact same
+  // shape listRecentActivity returns, so ActivityFeed doesn't need to know the difference.
+  // fish_year_catches and tournament_entries snapshot the poster's name/avatar on the row
+  // itself, same as listRecentActivity relies on; personal_bests doesn't, so that one needs
+  // a follow-up profile lookup, and tournament_entries needs its parent tournament's name/
+  // unit the same way listRecentActivity's own query joins it in.
+  function subscribeToActivity(onInsert) {
+    if (!isSupabaseConfigured) return () => {};
+    const channel = supabase.channel('home-activity-feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fish_year_catches' }, ({ new: row }) => {
+        onInsert({
+          kind: 'fish_year_catch', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: row.angler_avatar_url,
+          species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+          month: row.month, href: `/fish-year?catch=${row.id}`,
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'personal_bests' }, async ({ new: row }) => {
+        const { data: profileRow } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', row.user_id).maybeSingle();
+        onInsert({
+          kind: 'personal_best', id: row.id, userId: row.user_id, anglerName: profileRow?.display_name || 'Angler', avatarUrl: profileRow?.avatar_url || '',
+          species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+          sizeLabel: row.size_label, href: `/anglers?best=${row.id}`,
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tournament_entries' }, async ({ new: row }) => {
+        const tournament = await getTournament(row.tournament_id);
+        onInsert({
+          kind: 'tournament_entry', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: row.angler_avatar_url,
+          species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
+          size: row.size, unit: tournament?.unit || 'in', tournamentName: tournament?.name || 'a tournament',
+          href: `/tournaments/${row.tournament_id}?entry=${row.id}`,
+        });
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }
+
   const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
@@ -532,6 +570,7 @@ export function AuthProvider({ children }) {
     listTournaments, getTournament, createTournament, deleteTournament,
     listTournamentEntries, getTournamentEntry, submitTournamentEntry, deleteTournamentEntry,
     listTournamentEntryComments, addTournamentEntryComment, deleteTournamentEntryComment,
+    subscribeToActivity,
     listRecentActivity,
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,

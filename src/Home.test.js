@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Home from './Home';
 import { useAuth } from './context/AuthContext';
@@ -15,6 +15,7 @@ function makeBaseAuth(overrides = {}) {
     user: { id: 'user-1' },
     profile: { display_name: 'Andre' },
     listRecentActivity: jest.fn().mockResolvedValue([]),
+    subscribeToActivity: jest.fn(() => () => {}),
     ...overrides,
   };
 }
@@ -45,4 +46,25 @@ test('lists recent crew activity across catches, personal bests, and tournament 
   expect(await screen.findByText(/logged a bass for fish year/i)).toBeInTheDocument();
   expect(screen.getByText(/logged a personal best — 30 in/i)).toBeInTheDocument();
   expect(screen.getByText(/entered a 19\.5in fluke into summer fluke classic/i)).toBeInTheDocument();
+});
+
+test('merges a live-pushed activity item into the feed without waiting for a refetch', async () => {
+  let pushActivity;
+  const subscribeToActivity = jest.fn((onInsert) => { pushActivity = onInsert; return jest.fn(); });
+  useAuth.mockReturnValue(makeBaseAuth({
+    listRecentActivity: jest.fn().mockResolvedValue([
+      { kind: 'fish_year_catch', id: 'fy-1', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Bass', photoUrl: '', caughtAt: '2026-03-01', createdAt: '2026-03-01T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-1' },
+    ]),
+    subscribeToActivity,
+  }));
+  renderHome();
+  await screen.findByText(/logged a bass for fish year/i);
+
+  act(() => {
+    pushActivity({ kind: 'personal_best', id: 'pb-2', userId: 'user-5', anglerName: 'Priya', avatarUrl: '', species: 'Tuna', photoUrl: '', caughtAt: '2026-04-01', createdAt: '2026-04-01T12:00:00Z', sizeLabel: '40 in', href: '/anglers?best=pb-2' });
+  });
+
+  expect(await screen.findByText(/logged a personal best — 40 in/i)).toBeInTheDocument();
+  // The original fetched item is still there — the live item was merged in, not swapped in.
+  expect(screen.getByText(/logged a bass for fish year/i)).toBeInTheDocument();
 });
