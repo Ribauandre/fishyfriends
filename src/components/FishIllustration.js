@@ -19,6 +19,7 @@ import mahimahi from '../assets/fish/mahimahi.png';
 import salmon from '../assets/fish/salmon.png';
 import blackseabass from '../assets/fish/blackseabass.png';
 import tuna from '../assets/fish/tuna.png';
+import shark from '../assets/fish/shark.png';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -46,6 +47,7 @@ const fishDetails = {
   salmon: { label: 'Atlantic salmon', src: salmon },
   blackseabass: { label: 'Black sea bass', src: blackseabass },
   tuna: { label: 'Tuna', src: tuna },
+  shark: { label: 'Shark', src: shark },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails).filter((key) => key !== 'pike' && key !== 'trout');
