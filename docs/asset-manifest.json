@@ -1,11 +1,15 @@
 {
   "files": {
     "main.css": "/static/css/main.db14d4b3.css",
-    "main.js": "/static/js/main.31137f18.js",
+    "main.js": "/static/js/main.afa58c1a.js",
     "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
+    "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
     "static/media/flounder.png": "/static/media/flounder.f195b192379d6230aa1c.png",
+    "static/media/weakfish.png": "/static/media/weakfish.4dec75037990fc6f93bc.png",
+    "static/media/walleye.png": "/static/media/walleye.c8088c7a552f73bac8e1.png",
     "static/media/tautog.png": "/static/media/tautog.222baa8ee0e0f8a16ba9.png",
+    "static/media/chainpickerel.png": "/static/media/chainpickerel.452d7efacf64f9f2fc2c.png",
     "static/media/blackseabass.png": "/static/media/blackseabass.c63054e74f977bc115db.png",
     "static/media/smallmouth.png": "/static/media/smallmouth.b6d5141a3127505085e9.png",
     "static/media/browntrout.png": "/static/media/browntrout.0e6ea047ec7450af6c53.png",
@@ -26,11 +30,11 @@
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "index.html": "/index.html",
     "main.db14d4b3.css.map": "/static/css/main.db14d4b3.css.map",
-    "main.31137f18.js.map": "/static/js/main.31137f18.js.map",
+    "main.afa58c1a.js.map": "/static/js/main.afa58c1a.js.map",
     "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.db14d4b3.css",
-    "static/js/main.31137f18.js"
+    "static/js/main.afa58c1a.js"
   ]
 }
