@@ -233,13 +233,16 @@ button { cursor: pointer; }
 .rules-strip p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; max-width: 700px; }
 .rules-strip:after { color: var(--coral); content: '✦'; font-size: 17px; position: absolute; right: 0; }
 .tournament-intro { align-items: center; }
-.winner-stamp { border: 1px solid var(--coral); color: var(--coral); display: flex; flex-direction: column; padding: 18px 26px; text-align: center; transform: rotate(3deg); }
-.winner-stamp span, .winner-stamp small { font-size: 10px; font-weight: 800; letter-spacing: .1em; }
-.winner-stamp strong { font-size: 46px; letter-spacing: 0; line-height: 1.05; margin: 6px; }
-.winner-stamp strong span { font-size: 14px; letter-spacing: 0; }
-.winner-stamp small { color: var(--muted); letter-spacing: 0; }
 .rules-grid { grid-template-columns: 1fr 1fr; }
 .rules-grid > div + div { border-left: 1px solid var(--line); padding-left: 30px; }
+.tournaments-section { margin-top: 34px; }
+.tournaments-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-top: 14px; }
+.tournament-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); color: var(--ink); display: block; padding: 20px; position: relative; }
+.tournament-card-active { border-color: var(--mint); }
+.tournament-card .status-badge, .tournament-card .status-badge-muted { position: absolute; right: 16px; top: -4px; }
+.tournament-card h3 { font-size: 18px; margin: 20px 0 6px; }
+.tournament-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
+.tournament-danger-zone { margin-top: 24px; text-align: right; }
 .profile-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; }
 .profile-card { align-items: flex-start; display: flex; flex-direction: column; }
 .avatar-large { font-size: 38px; height: 92px; margin-bottom: 28px; width: 92px; }
@@ -314,8 +317,10 @@ button { cursor: pointer; }
 .rank-size strong { font-size: 17px; }
 .rank-date { color: var(--muted); font-size: 12px; }
 .expand-icon { color: var(--coral); font-size: 19px; text-align: center; }
-.leaderboard-detail { align-items: center; background: #eef3e9; display: flex; gap: 22px; margin: 0 18px 18px 66px; padding: 14px; }
+.leaderboard-detail { align-items: center; background: #eef3e9; display: flex; gap: 22px; margin: 0 18px 18px 66px; padding: 14px; position: relative; }
+.leaderboard-detail .post-menu { right: 10px; top: 10px; }
 .leaderboard-detail img { height: 82px; object-fit: cover; width: 112px; }
+.leaderboard-detail .fish-illustration { height: auto; object-fit: contain; opacity: .55; width: 112px; }
 .leaderboard-detail .eyebrow { font-size: 9px; }
 .leaderboard-detail h3 { font-size: 14px; margin: 7px 0; }
 .leaderboard-detail p { color: var(--muted); font-size: 11px; margin: 0; }
@@ -468,9 +473,9 @@ button { cursor: pointer; }
 /* Night tide theme details */
 h1, h2, h3, strong { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; }
 h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
-.eyebrow, .nav-link, .button, .brand-mark strong, .status-badge, .status-badge-muted, .scene-fish-tag, .winner-stamp span, .winner-stamp small, .avatar-upload, .text-link, .auth-switch button, .month-number, .year-month-number, .rule-index, .muted-label, .note-card strong { font-family: var(--font-head); letter-spacing: .06em; }
+.eyebrow, .nav-link, .button, .brand-mark strong, .status-badge, .status-badge-muted, .scene-fish-tag, .avatar-upload, .text-link, .auth-switch button, .month-number, .year-month-number, .rule-index, .muted-label, .note-card strong { font-family: var(--font-head); letter-spacing: .06em; }
 .button, .nav-link, .brand-mark strong { text-transform: uppercase; }
-.winner-stamp strong, .challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
+.challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
 .page-wrapper { background-image: radial-gradient(circle at 10% 30%, rgba(255,107,74,.05), transparent 24rem); }
 .welcome-banner { background-image: var(--tex-halftone-faint), linear-gradient(115deg, rgba(7,20,25,.98), rgba(8,61,67,.94)); background-size: 7px 7px, auto; }
 .feature-card-light { color: var(--ink); }
@@ -486,7 +491,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .year-month-number, .year-month-status { color: #6f9290; }
 .year-month.is-caught .year-month-status { color: var(--mint); }
 .table-card, .settings-card, .profile-card { box-shadow: 0 18px 50px rgba(0,0,0,.18); }
-.winner-stamp small { color: var(--muted); }
 .settings-card input, .settings-card select, .settings-card textarea, .auth-form input { background: rgba(3,8,11,.35); border-color: var(--line); color: var(--ink); padding-left: 10px; padding-right: 10px; }
 .settings-card input::placeholder, .settings-card textarea::placeholder, .auth-form input::placeholder { color: #58716f; }
 .preview-note { background: #182d2b; color: #a9c2bd; }

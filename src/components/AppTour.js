@@ -37,10 +37,10 @@ const STEPS = [
   },
   {
     target: '[data-tour="tournament-highlight"]',
-    route: '/fluke-tournament',
+    route: '/tournaments',
     eyebrow: 'Bragging rights',
     title: 'Tournaments',
-    body: 'Past seasons and final standings, kept around permanently so the winner can keep bringing it up.',
+    body: 'Start your own — name it, set the rules and dates — and the crew logs entries against a real leaderboard.',
   },
   {
     target: '[data-tour="notification-bell"]',

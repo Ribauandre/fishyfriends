@@ -79,6 +79,15 @@ test('list* helpers return empty arrays instead of throwing', async () => {
   await expect(result.current.listAnglers()).resolves.toEqual([]);
   await expect(result.current.listComments('best-1')).resolves.toEqual([]);
   await expect(result.current.listFishYearCatches(2026)).resolves.toEqual([]);
+  await expect(result.current.listTournaments()).resolves.toEqual([]);
+  await expect(result.current.listTournamentEntries('t-1')).resolves.toEqual([]);
+  await expect(result.current.listTournamentEntryComments('e-1')).resolves.toEqual([]);
+});
+
+test('get* helpers return null instead of throwing when unconfigured', async () => {
+  const result = await setup();
+  await expect(result.current.getTournament('t-1')).resolves.toBeNull();
+  await expect(result.current.getTournamentEntry('e-1')).resolves.toBeNull();
 });
 
 test('delete* helpers fail closed', async () => {
@@ -86,10 +95,32 @@ test('delete* helpers fail closed', async () => {
   await expect(result.current.deletePersonalBest('id')).resolves.toEqual({ error: expect.any(Error) });
   await expect(result.current.deleteComment('id')).resolves.toEqual({ error: expect.any(Error) });
   await expect(result.current.deleteFishYearCatch('id')).resolves.toEqual({ error: expect.any(Error) });
+  await expect(result.current.deleteTournament('id')).resolves.toEqual({ error: expect.any(Error) });
+  await expect(result.current.deleteTournamentEntry('id')).resolves.toEqual({ error: expect.any(Error) });
+  await expect(result.current.deleteTournamentEntryComment('id')).resolves.toEqual({ error: expect.any(Error) });
+});
+
+test('createTournament validates before checking configuration', async () => {
+  const result = await setup();
+  await expect(result.current.createTournament({ name: '  ', startsOn: '2026-01-01', endsOn: '2026-01-02' })).resolves.toEqual({ error: expect.objectContaining({ message: expect.stringMatching(/name the tournament/i) }) });
+  await expect(result.current.createTournament({ name: 'Fall Classic', startsOn: '2026-02-01', endsOn: '2026-01-01' })).resolves.toEqual({ error: expect.objectContaining({ message: expect.stringMatching(/end date/i) }) });
+  await expect(result.current.createTournament({ name: 'Fall Classic', startsOn: '2026-01-01', endsOn: '2026-01-02' })).resolves.toEqual({ error: expect.objectContaining({ message: expect.stringMatching(/sign in before starting/i) }) });
+});
+
+test('submitTournamentEntry requires a species and a positive size before the configuration check', async () => {
+  const result = await setup();
+  await expect(result.current.submitTournamentEntry({ tournamentId: 't-1', species: '', size: '12' })).resolves.toEqual({ error: expect.objectContaining({ message: expect.stringMatching(/name the species/i) }) });
+  await expect(result.current.submitTournamentEntry({ tournamentId: 't-1', species: 'Carp', size: '0' })).resolves.toEqual({ error: expect.objectContaining({ message: expect.stringMatching(/enter the size/i) }) });
 });
 
 test('addComment requires a non-empty body before the configuration check', async () => {
   const result = await setup();
   const response = await result.current.addComment('best-1', '   ');
+  expect(response.error.message).toMatch(/say something/i);
+});
+
+test('addTournamentEntryComment requires a non-empty body before the configuration check', async () => {
+  const result = await setup();
+  const response = await result.current.addTournamentEntryComment('e-1', '   ');
   expect(response.error.message).toMatch(/say something/i);
 });

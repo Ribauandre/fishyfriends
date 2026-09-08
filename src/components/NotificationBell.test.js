@@ -10,6 +10,7 @@ jest.mock('../context/AuthContext', () => ({ useAuth: jest.fn() }));
 const notifications = [
   { id: 'n-1', type: 'like', target_type: 'personal_best', target_id: 'pb-1', actor_name: 'Kevin', preview: '', read: false, created_at: '2026-01-01' },
   { id: 'n-2', type: 'comment', target_type: 'fish_year_catch', target_id: 'fy-1', actor_name: 'Sam', preview: 'Nice one!', read: true, created_at: '2026-01-02' },
+  { id: 'n-3', type: 'like', target_type: 'tournament_entry', target_id: 'te-1', actor_name: 'Andres', preview: '', read: true, created_at: '2026-01-03' },
 ];
 
 function makeBaseAuth(overrides = {}) {
@@ -17,6 +18,7 @@ function makeBaseAuth(overrides = {}) {
     listNotifications: jest.fn().mockResolvedValue([]),
     markNotificationRead: jest.fn().mockResolvedValue({ error: null }),
     markAllNotificationsRead: jest.fn().mockResolvedValue({ error: null }),
+    getTournamentEntry: jest.fn().mockResolvedValue({ id: 'te-1', tournament_id: 't-1' }),
     ...overrides,
   };
 }
@@ -76,6 +78,13 @@ test('clicking an already-read notification navigates without marking it read ag
   await userEvent.click(await screen.findByText(/sam commented on your catch/i));
   expect(markNotificationRead).not.toHaveBeenCalled();
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/fish-year?catch=fy-1'));
+});
+
+test('clicking a tournament entry notification looks up its tournament and navigates there', async () => {
+  renderBell({ listNotifications: jest.fn().mockResolvedValue(notifications) });
+  await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
+  await userEvent.click(await screen.findByText(/andres liked your tournament entry/i));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/tournaments/t-1?entry=te-1'));
 });
 
 test('mark all read clears the unread badge and calls markAllNotificationsRead', async () => {
