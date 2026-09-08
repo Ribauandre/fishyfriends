@@ -96,8 +96,7 @@ button { cursor: pointer; }
   85% { transform: translate(0, 0) rotate(0); }
 }
 .welcome-banner { animation: banner-shockwave .5s ease-out .27s; }
-.home-page .dashboard-grid { animation: banner-shockwave-soft .45s ease-out .32s; }
-.home-page .activity-section { animation: banner-shockwave-soft .4s ease-out .35s; }
+.home-page .activity-section { animation: banner-shockwave-soft .45s ease-out .32s; }
 .home-page .dock-notes { animation: banner-shockwave-soft .4s ease-out .37s; }
 .welcome-banner .eyebrow { color: var(--mint); }
 .welcome-banner h1 { font-size: clamp(38px, 5vw, 64px); letter-spacing: -.01em; line-height: 1.05; margin: 17px 0 16px; max-width: 650px; }
@@ -164,27 +163,9 @@ button { cursor: pointer; }
 .fish-illustration.intro-sticker { filter: drop-shadow(0 0 14px rgba(227,251,20,.3)); flex-shrink: 0; height: auto; transform: rotate(-6deg); width: min(240px, 30vw); }
 .empty-state { align-items: center; display: flex; flex-direction: column; gap: 6px; padding: 14px 0; text-align: center; }
 .fish-illustration.empty-state-sticker { filter: drop-shadow(0 0 12px rgba(227,251,20,.26)); height: auto; opacity: .72; transform: rotate(-5deg); width: min(150px, 60%); }
-.dashboard-grid { display: grid; gap: 18px; grid-template-columns: 1.1fr .9fr; margin-top: 18px; }
-.feature-card { min-height: 280px; padding: 30px; position: relative; }
-.feature-card-dark { background: #0a3d43; border: 1px solid #176e72; color: white; }
-.feature-card-light { background: #18262a; border: 1px solid #385057; color: var(--ink); }
-.feature-card-dark { background-image: var(--tex-halftone), linear-gradient(135deg, rgba(227,251,20,.13), transparent 46%); background-size: 7px 7px, auto; }
-.feature-card-light { background-image: var(--tex-halftone-warm), linear-gradient(145deg, rgba(255,90,31,.14), transparent 52%); background-size: 7px 7px, auto; }
-.card-topline, .card-footer, .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
-.feature-card .eyebrow { color: inherit; opacity: .7; }
+.section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .status-badge { background: var(--mint); border: 1px solid var(--deep); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
 .status-badge-muted { background: #172a2e; border: 1px solid var(--mint); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--mint); transform: rotate(-3deg); }
-.feature-card h2 { font-size: 37px; letter-spacing: -.01em; line-height: 1.08; margin: 48px 0 12px; }
-.feature-card h2 em { color: var(--mint); font-style: normal; }
-.feature-card-light h2 em { color: var(--coral); }
-.feature-card p { color: inherit; font-size: 13px; line-height: 1.5; max-width: 280px; opacity: .75; }
-.tally-row { display: flex; gap: 4px; margin: 34px 0 14px; }
-.tally-row span { border: 1px solid rgba(255,255,255,.25); flex: 1; height: 15px; }
-.tally-empty { background: rgba(255,255,255,.08); }
-.tally-filled { background: var(--mint); border-color: var(--mint); box-shadow: 0 0 10px var(--glow); }
-.card-footer { bottom: 27px; font-size: 11px; left: 30px; position: absolute; right: 30px; }
-.card-footer a { color: inherit; font-weight: 800; }
-.card-icon { color: var(--mint); font-size: 25px; }
 .activity-section { margin-top: 34px; }
 .activity-feed { display: flex; flex-direction: column; }
 .activity-row { align-items: center; border-bottom: 1px solid var(--line); color: inherit; display: flex; gap: 14px; padding: 14px 4px; text-decoration: none; }
@@ -413,7 +394,7 @@ button { cursor: pointer; }
   .welcome-banner { flex-direction: column; min-height: 0; padding: 35px 26px; }
   .welcome-banner > div { max-width: 100%; }
   .fishing-scene { inset: auto; margin: 22px -16px -18px auto; position: relative; width: 108%; }
-  .dashboard-grid, .profile-layout { grid-template-columns: 1fr; }
+  .profile-layout { grid-template-columns: 1fr; }
   .notes-board { grid-template-columns: 1fr; }
   .auth-page { display: block; margin: -28px -16px -92px; }
   .auth-story { min-height: auto; padding: 58px 24px 36px; }
@@ -500,8 +481,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
 .page-wrapper { background-image: radial-gradient(circle at 10% 30%, rgba(255,107,74,.05), transparent 24rem); }
 .welcome-banner { background-image: var(--tex-halftone-faint), linear-gradient(115deg, rgba(7,20,25,.98), rgba(8,61,67,.94)); background-size: 7px 7px, auto; }
-.feature-card-light { color: var(--ink); }
-.feature-card-light .card-icon { color: var(--mint); }
 .button-quiet { border-color: var(--line); color: var(--ink); }
 .button-quiet:hover { border-color: var(--mint); color: var(--mint); }
 .section-heading { border-color: var(--line); }
