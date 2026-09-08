@@ -16,10 +16,10 @@ const STEPS = [
   },
   {
     target: '[data-tour="fish-year-card"]',
-    route: '/home',
+    route: '/fish-year',
     eyebrow: 'The main event',
     title: 'Fish Year',
-    body: 'One fish a month, every month. This card tracks how many of the twelve you\'ve actually landed.',
+    body: 'One fish a month, every month. This board tracks how many of the twelve you\'ve actually landed.',
   },
   {
     target: '[data-tour="log-catch-button"]',
