@@ -33,3 +33,17 @@ test('a custom, non-canonical species logged as a personal best does not throw o
   render(<SpeciesChecklist personalBests={[{ id: 'pb-1', species: 'Mystery Fish' }]} />);
   expect(screen.getByText(`0 of ${SPECIES_OPTIONS.length} species caught`)).toBeInTheDocument();
 });
+
+test('credits a species caught only as a Fish Year catch, with no personal best logged', () => {
+  render(<SpeciesChecklist personalBests={[]} fishYearCatches={[{ id: 'fy-1', species: 'Carp' }]} />);
+  expect(screen.getByText(`1 of ${SPECIES_OPTIONS.length} species caught`)).toBeInTheDocument();
+  expect(screen.getByText('Carp').closest('.species-cell')).toHaveClass('is-caught');
+});
+
+test('the same species logged in both a personal best and a Fish Year catch counts once', () => {
+  render(<SpeciesChecklist
+    personalBests={[{ id: 'pb-1', species: 'Carp' }]}
+    fishYearCatches={[{ id: 'fy-1', species: 'Carp' }, { id: 'fy-2', species: 'Carp' }]}
+  />);
+  expect(screen.getByText(`1 of ${SPECIES_OPTIONS.length} species caught`)).toBeInTheDocument();
+});
