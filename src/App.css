@@ -8,7 +8,6 @@
      match the crisp vector sticker art rather than the painterly turbulence noise the
      hand-drawn SVG fish used to sit on. */
   --tex-halftone: radial-gradient(circle at center, rgba(227,251,20,.10) 1.1px, transparent 1.4px);
-  --tex-halftone-warm: radial-gradient(circle at center, rgba(255,90,31,.11) 1.1px, transparent 1.4px);
   --tex-halftone-faint: radial-gradient(circle at center, rgba(255,255,255,.055) 1px, transparent 1.3px);
   --tex-barring: repeating-linear-gradient(78deg, rgba(3,8,11,.4) 0 3px, transparent 3px 18px);
   /* Die-cut sticker edge: heavy black keyline plus a hard, blur-free drop shadow. */
@@ -235,8 +234,6 @@ button { cursor: pointer; }
 .rules-strip p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; max-width: 700px; }
 .rules-strip:after { color: var(--coral); content: '✦'; font-size: 17px; position: absolute; right: 0; }
 .tournament-intro { align-items: center; }
-.rules-grid { grid-template-columns: 1fr 1fr; }
-.rules-grid > div + div { border-left: 1px solid var(--line); padding-left: 30px; }
 .tournaments-section { margin-top: 34px; }
 .tournaments-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-top: 14px; }
 .tournament-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); color: var(--ink); display: block; padding: 20px; position: relative; }
@@ -430,8 +427,6 @@ button { cursor: pointer; }
   .challenge-summary { justify-content: space-between; }
   .challenge-summary div { min-width: 0; padding: 0 15px; }
   .challenge-summary strong { font-size: 29px; }
-  .rules-grid { display: block; }
-  .rules-grid > div + div { border-left: 0; border-top: 1px solid var(--line); margin-top: 20px; padding: 20px 0 0; }
   .table-card { padding: 18px 12px; }
   .participant-summary div { min-width: 0; padding: 0 10px; }
   .participant-summary strong { font-size: 21px; }
@@ -476,7 +471,7 @@ button { cursor: pointer; }
 /* Night tide theme details */
 h1, h2, h3, strong { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-serif; }
 h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
-.eyebrow, .nav-link, .button, .brand-mark strong, .status-badge, .status-badge-muted, .scene-fish-tag, .avatar-upload, .text-link, .auth-switch button, .month-number, .year-month-number, .rule-index, .muted-label, .note-card strong { font-family: var(--font-head); letter-spacing: .06em; }
+.eyebrow, .nav-link, .button, .brand-mark strong, .status-badge, .status-badge-muted, .avatar-upload, .text-link, .auth-switch button, .month-number, .year-month-number, .rule-index, .muted-label, .note-card strong { font-family: var(--font-head); letter-spacing: .06em; }
 .button, .nav-link, .brand-mark strong { text-transform: uppercase; }
 .challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
 .page-wrapper { background-image: radial-gradient(circle at 10% 30%, rgba(255,107,74,.05), transparent 24rem); }

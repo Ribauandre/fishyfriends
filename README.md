@@ -29,7 +29,6 @@ The app is intentionally account-oriented: the navbar is hidden until a session 
 - Supabase Auth, Postgres, and Storage
 - TypeScript only for the existing `.tsx` leaderboard/participant components
 - CSS-first visual system in `src/App.css`
-- MUI Joy and MUI icons remain installed for historical component compatibility, but the current redesigned leaderboard panels are mostly custom markup/CSS
 
 The project has no custom backend server. Browser code talks directly to Supabase using the public publishable/anon key.
 
@@ -46,7 +45,6 @@ src/
   Profile.js                Profile form and avatar upload UI
   context/AuthContext.js    Supabase session/profile/auth state
   lib/supabase.js           Supabase client and environment-key resolution
-  utils/supabase.js         Legacy helper; currently not imported by the active app
   components/
     FishIllustration.js     Reusable thick-line SVG fish illustration
     Leaderboard.tsx         Fluke leaderboard rows, image lightbox, local (unpersisted) likes/comments
@@ -54,7 +52,7 @@ src/
     Navbar.js               Responsive desktop/mobile authenticated navigation
     NotificationBell.js     Unread-count bell + dropdown for like/comment notifications
     Participants.tsx        Fish Year participant/month board with real likes and comments
-  assets/                   Challenge photos and historical fishing media
+  assets/fish/              Species illustration PNGs used by FishIllustration.js
 
 supabase/
   schema.sql                Full bootstrap schema for a brand-new Supabase project
