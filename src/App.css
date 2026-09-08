@@ -114,7 +114,7 @@ button { cursor: pointer; }
 }
 .welcome-banner p { color: #bdd0c9; margin: 0; }
 .hero-actions { align-items: center; display: flex; gap: 26px; margin-top: 32px; }
-.hero-actions .text-link { color: #d8e7dd; }
+.hero-actions .button-quiet { margin-top: 0; width: auto; }
 /* Lands like it got slapped down along with the fish: drops in, overshoots its rotation, then
    settles at a jaunty angle instead of dead level. */
 .hero-actions .button-primary { animation: button-land .45s cubic-bezier(.34,1.56,.64,1) .32s both; }
