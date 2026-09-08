@@ -1,22 +1,24 @@
 # Fishy Friends
 
-Fishy Friends is a mobile-first fishing challenge clubhouse. It combines member authentication, profiles, avatar uploads, a Fish Year monthly challenge, a Fluke Tournament archive, leaderboards, catch photos, likes, and a dark tattoo-inspired fishing visual system.
+Fishy Friends is a mobile-first fishing-club clubhouse. It combines member authentication, profiles, avatar uploads, a Fish Year monthly catch challenge, a species checklist ("fish bingo"), an angler directory with personal bests, user-created Tournaments with leaderboards, a crew activity feed, a first-run onboarding tour, catch photos, likes/comments/notifications, and a dark tattoo-inspired fishing visual system.
 
-This README is an implementation handoff for future developers and coding agents. It describes the current architecture, what is persisted, what is still static/local, deployment rules, and the main maintenance risks.
+This README is an implementation handoff for future developers and coding agents. It describes the current architecture, what is persisted, deployment rules, and the main maintenance risks. See `CLAUDE.md` for the condensed command/workflow reference used by coding agents.
 
 ## Product Surface
 
-The current product has four authenticated surfaces and one public entry surface:
+The current product has six authenticated surfaces and one public entry surface:
 
 | Route | Access | Purpose |
 | --- | --- | --- |
 | `/account` | Public | Sign in and account creation with Supabase Auth. |
-| `/home` | Authenticated | Personalized clubhouse dashboard and links into challenges. |
+| `/home` | Authenticated | Dashboard: welcome banner and the crew activity feed. |
 | `/profile` | Authenticated | Edit profile details, upload avatar, and sign out. |
-| `/fish-year` | Authenticated | Fish Year status board, catch logging form, monthly participant board. |
-| `/fluke-tournament` | Authenticated | 2025 Fluke Tournament leaderboard and catch proof. |
+| `/fish-year` | Authenticated | Fish Year status board: crew-wide season recap, personal month board, catch logging, and the month-by-month participant board. |
+| `/anglers` | Authenticated | Angler directory: log a personal best, the species checklist, and search/browse the roster. |
+| `/tournaments` | Authenticated | Browse tournaments and start a new one. |
+| `/tournaments/:tournamentId` | Authenticated | One tournament's leaderboard, entry submission, and (creator only) delete. |
 
-`/` redirects to `/home`. Unauthenticated visits to protected routes redirect to `/account`.
+`/` redirects to `/home`. `/fluke-tournament` — the old route for a single hardcoded tournament, before Tournaments became a general, user-creatable feature — redirects to `/tournaments`. Unauthenticated visits to protected routes redirect to `/account`.
 
 The app is intentionally account-oriented: the navbar is hidden until a session exists, and all challenge activity is reached from the authenticated shell.
 
@@ -27,7 +29,7 @@ The app is intentionally account-oriented: the navbar is hidden until a session 
 - React Router DOM 6
 - Supabase JavaScript client
 - Supabase Auth, Postgres, and Storage
-- TypeScript only for the existing `.tsx` leaderboard/participant components
+- TypeScript only for the existing `Participants.tsx` board component
 - CSS-first visual system in `src/App.css`
 
 The project has no custom backend server. Browser code talks directly to Supabase using the public publishable/anon key.
@@ -36,29 +38,55 @@ The project has no custom backend server. Browser code talks directly to Supabas
 
 ```text
 src/
-  App.js                    Router, auth provider, protected routes, species deck
-  App.css                   Global dark theme, responsive layout, fish illustration styling
-  AuthPage.js               Sign-in, sign-up, disabled configuration state, confirmation state
-  FishYear.js               Fish Year page and local catch logging interaction
-  FlukeTournament.js        Tournament page wrapper
-  Home.js                   Authenticated dashboard
-  Profile.js                Profile form and avatar upload UI
-  context/AuthContext.js    Supabase session/profile/auth state
-  lib/supabase.js           Supabase client and environment-key resolution
+  App.js                       Router, auth provider, protected routes, onboarding tour mount
+  App.css                      Global dark theme, responsive layout, sticker/fish illustration styling
+  AuthPage.js                  Sign-in, sign-up, disabled configuration state, confirmation state
+  Anglers.js                   Angler directory: personal-best form, species checklist, roster search
+  FishYear.js                  Fish Year page: season recap, personal board, catch logging modal
+  Home.js                      Authenticated dashboard: welcome banner + crew activity feed
+  Profile.js                   Profile form and avatar upload UI
+  Tournaments.js               Tournament list + create-tournament form
+  TournamentDetail.js          One tournament's leaderboard, entry form, delete (creator only)
+  constants.js                 Shared constants (the active Fish Year season year)
+  context/AuthContext.js       Single source of truth for Supabase reads/writes and session/profile state
+  lib/supabase.js              Supabase client and environment-key resolution
+  lib/__mocks__/supabase.js    Manual Jest mock for the Supabase client
   components/
-    FishIllustration.js     Reusable thick-line SVG fish illustration
-    Leaderboard.tsx         Fluke leaderboard rows, image lightbox, local (unpersisted) likes/comments
-    LikeButton.js           Persisted like toggle, used on personal bests and Fish Year catches
-    Navbar.js               Responsive desktop/mobile authenticated navigation
-    NotificationBell.js     Unread-count bell + dropdown for like/comment notifications
-    Participants.tsx        Fish Year participant/month board with real likes and comments
-  assets/fish/              Species illustration PNGs used by FishIllustration.js
+    ActivityFeed.js              Crew-wide recent-activity feed (catches, personal bests, tournament entries)
+    AppTour.js                   First-run onboarding tour; spotlights real elements via data-tour
+    BellIcon.js / ChatIcon.js    Small inline SVG icons (notifications / comments)
+    CommentThread.js             Shared comment-thread UI, wired up by the three adapters below
+    FishYearCatchComments.js     Comments adapter for Fish Year catches
+    PersonalBestComments.js      Comments adapter for personal bests
+    TournamentEntryComments.js   Comments adapter for tournament entries
+    FishIllustration.js          Reusable species sticker illustration (PNG-backed)
+    LikeButton.js                Persisted like toggle, shared across catches/bests/entries
+    Navbar.js                    Responsive desktop/mobile authenticated navigation
+    NotificationBell.js          Unread-count bell + dropdown for like/comment notifications
+    Participants.tsx             Fish Year month-by-month participant board (real likes + comments)
+    PersonalBestForm.js          Log-a-personal-best form (photo, date, species, size)
+    PostMenu.js                  Share/delete overflow menu on a post
+    SpeciesChecklist.js          "Fish bingo" checklist, credited from personal bests + Fish Year catches
+    SpeciesSelect.js             Species autocomplete with custom-species support
+    TournamentEntries.js         Tournament leaderboard rows + entry detail
+  assets/fish/                 Species illustration PNGs used by FishIllustration.js
+  utils/
+    compressImage.js            Client-side image downscale/compression before upload
+    photoDate.js                 EXIF date extraction for catch photos
+    speciesOptions.js            Canonical species list + icon matching
+    timeAgo.js                   Relative timestamp formatting for the activity feed
+    tournamentStatus.js          Derives upcoming/active/ended from a tournament's date range
+  test-utils/
+    renderWithProviders.js       Renders a component inside MemoryRouter + AuthProvider
+    supabaseMock.js              Chainable fake Supabase query builder
 
 supabase/
   schema.sql                Full bootstrap schema for a brand-new Supabase project
-  migrations/               Ordered, idempotent SQL files applied automatically on deploy
-  run-migrations.mjs        Applies pending files in migrations/ to DATABASE_URL
-  confirmation-email.html   Branded Supabase signup confirmation template
+  migrations/                Ordered, idempotent SQL files applied automatically on deploy
+  run-migrations.mjs         Applies pending files in migrations/ to DATABASE_URL
+  reset-crew-data.sql        Manual, one-off dev script: wipes profile/personal-best content (not auth.users)
+  reset-storage.mjs          Manual, one-off dev script: empties the avatars/personal-bests Storage buckets
+  confirmation-email.html    Branded Supabase signup confirmation template
 
 scripts/
   moveBuildToDocs.js         Replaces docs/ with the current build/ output
@@ -80,10 +108,12 @@ scripts/
 AuthProvider
   Router
     Navbar
-    SpeciesDeck
+    AppTour
     page wrapper
       Routes
 ```
+
+`AppTour` is mounted once, globally, beside the navbar (not per-page) so a single tour instance can navigate between routes and spotlight nav items or page content from wherever it's currently pointed.
 
 `ProtectedRoute` reads `user` and `loading` from `useAuth()`:
 
@@ -91,24 +121,20 @@ AuthProvider
 - With a session, it renders the requested page.
 - Without a session, it redirects to `/account`.
 
-The `SpeciesDeck` is decorative and globally visible. It renders original SVG line-art fish, not external image assets. It is `aria-hidden` because it is visual atmosphere rather than content.
+### Auth state and data access
 
-### Auth state
+`AuthContext.js` is the single source of truth for all data-fetching and mutation in the app — every page and component reads and writes through `useAuth()`, never through `src/lib/supabase.js` directly. It exposes:
 
-`AuthContext.js` owns:
+- **Session/profile state**: `user`, `profile`, `personalBests`, `customSpecies`, `loading`, `notice`/`setNotice`, `shouldShowTour`/`completeTour`, `isSupabaseConfigured`.
+- **Auth**: `signIn`, `signUp`, `signOut`, `updateProfile`, `uploadAvatar`.
+- **Personal bests**: `uploadPersonalBest` (inserts or, matched by species, updates), `deletePersonalBest`, `listAnglers` (the whole roster with each angler's personal bests), `listComments`/`addComment`/`deleteComment`.
+- **Fish Year**: `listFishYearCatches`, `logFishYearCatch`, `deleteFishYearCatch`, `listFishYearComments`/`addFishYearComment`/`deleteFishYearComment`.
+- **Tournaments**: `listTournaments`, `getTournament`, `createTournament`, `deleteTournament`, `listTournamentEntries`, `getTournamentEntry`, `submitTournamentEntry`, `deleteTournamentEntry`, `listTournamentEntryComments`/`addTournamentEntryComment`/`deleteTournamentEntryComment`.
+- **Likes** (shared across personal bests, Fish Year catches, and tournament entries): `listLikes`, `likeTarget`, `unlikeTarget`.
+- **Notifications**: `listNotifications`, `markNotificationRead`, `markAllNotificationsRead` (fired automatically by `likeTarget`/`addComment` and friends when the target isn't your own).
+- **Activity feed**: `listRecentActivity` — merges recent Fish Year catches, personal bests, and tournament entries into one feed, newest first.
 
-- `user`: Supabase Auth user or `null`
-- `profile`: profile row merged with safe defaults
-- `loading`: initial session/profile loading state
-- `notice`: latest auth/profile message
-- `signIn(email, password)`
-- `signUp(email, password, displayName)`
-- `signOut()`
-- `updateProfile(profile)`
-- `uploadAvatar(file)`
-- `isSupabaseConfigured`
-
-On startup, the provider calls `supabase.auth.getSession()`. It then loads the matching row from `public.profiles`. It also subscribes to `onAuthStateChange` so sign-in, confirmation, refresh, and sign-out update the UI.
+On startup, the provider calls `supabase.auth.getSession()`, then loads the matching row from `public.profiles`, and subscribes to `onAuthStateChange` so sign-in, confirmation, refresh, and sign-out update the UI.
 
 The provider deliberately fails closed when Supabase is not configured. It does not create fake local users. This is important because CRA environment variables are compiled into the public bundle and a preview-only login would hide deployment configuration problems.
 
@@ -176,7 +202,7 @@ Avatar upload behavior:
 
 ### Automated database migrations
 
-Schema changes are tracked as ordered SQL files in `supabase/migrations/` (e.g. `0007_add_something.sql`). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
+Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0013`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, and tournaments). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
 
 This requires a repository secret named `SUPABASE_DB_URL`: a Postgres connection string (not the publishable/anon key the app uses in the browser). Get it from the Supabase dashboard: Project Settings -> Database -> Connection string -> URI, with the **Session pooler** mode selected, and the database password filled in. Add it in the GitHub repo under Settings -> Secrets and variables -> Actions -> New repository secret.
 
@@ -186,11 +212,13 @@ If `SUPABASE_DB_URL` isn't set, the workflow logs a warning and skips the migrat
 
 To make a future schema change:
 
-1. Add a new file to `supabase/migrations/`, numbered one higher than the last (e.g. `0007_...sql`), containing the SQL to run.
+1. Add a new file to `supabase/migrations/`, numbered one higher than the last (e.g. `0014_...sql`), containing the SQL to run.
 2. Write it idempotently, following the existing files' style (`create table if not exists`, `drop policy if exists` before `create policy`, `alter table ... add column if not exists`, `on conflict do update/nothing`) — the migration should be safe to re-run even though the tracking table normally prevents that.
 3. Push to `deploy`. The next build applies it automatically; no manual SQL editor step is needed.
 
 `supabase/schema.sql` is not part of this automated path — it stays as the full bootstrap reference for setting up a brand-new project from scratch, and is not re-run against already-deployed projects.
+
+`supabase/reset-crew-data.sql` and `supabase/reset-storage.mjs` are separate, manual one-off scripts (not run by CI) for wiping crew content — accounts/passwords are left intact. See the comments at the top of each file before running either; `reset-storage.mjs` requires the Supabase service-role key and should only ever be exported in a shell for the one command, never committed.
 
 ### Auth URL configuration
 
@@ -207,23 +235,19 @@ Paste `supabase/confirmation-email.html` into Authentication -> Email Templates 
 
 The template uses Supabase's `{{ .ConfirmationURL }}` placeholder and matches the site's dark, inked fishing aesthetic. Updating the file does not automatically update Supabase; the HTML must be pasted into the Supabase dashboard or managed separately through Supabase tooling.
 
-## Data Ownership and Current Limitations
+## Data Ownership
 
-This distinction matters when extending the app:
-
-### Supabase-backed
+Everything the app displays is persisted in Supabase — there is no local-only or unpersisted feature left:
 
 - Auth users and sessions
 - Profile fields, avatar files and avatar URLs
 - Personal bests, their comments, and their likes (`personal_bests`, `personal_best_comments`, `personal_best_likes`)
 - Fish Year catches, their comments, and their likes (`fish_year_catches`, `fish_year_catch_comments`, `fish_year_catch_likes`)
-- Custom species suggestions
-- Notifications for likes/comments on your own personal bests and Fish Year catches (`notifications`)
+- Tournaments, entries, their comments, and their likes (`tournaments`, `tournament_entries`, `tournament_entry_comments`, `tournament_entry_likes`)
+- Custom species suggestions (`custom_species`)
+- Notifications for likes/comments on your own posts (`notifications`)
 
-### Static or local-only today
-
-- Fluke Tournament rows, likes, and comments in `Leaderboard.tsx` — this board has no backing table at all yet; every like and comment there resets on reload.
-- Catch image lightbox open/closed state (ephemeral UI state, not data worth persisting).
+Intentionally not persisted, because it's ephemeral UI state rather than data: which catch-photo lightbox is open, which month/tournament-entry row is expanded, search box text, in-progress form drafts.
 
 ## Visual System
 
@@ -242,7 +266,7 @@ Core visual decisions:
 
 ### Textures and motion
 
-Backgrounds use **halftone dot** textures (`--tex-halftone`, `--tex-halftone-warm`, `--tex-halftone-faint`) — a screenprint/sticker-sheet cue that matches the crisp vector art. These replaced earlier `feTurbulence` noise textures (`--tex-vermiculation`, `--tex-camo`, `--tex-scales`), which read as painterly/organic and clashed with the sticker style; don't reintroduce them. Cards use `--sticker-shadow` / `--sticker-shadow-lg`: hard, blur-free offsets that read as a die-cut sticker sitting on the page.
+Backgrounds use **halftone dot** textures (`--tex-halftone`, `--tex-halftone-faint`) — a screenprint/sticker-sheet cue that matches the crisp vector art. These replaced earlier `feTurbulence` noise textures (`--tex-vermiculation`, `--tex-camo`, `--tex-scales`), which read as painterly/organic and clashed with the sticker style; don't reintroduce them. Cards use `--sticker-shadow` / `--sticker-shadow-lg`: hard, blur-free offsets that read as a die-cut sticker sitting on the page.
 
 Motion is deliberately sparse. The fish are stickers, not swimming animals, so the old perpetual `chase-front`/`chase-back`/`auth-shark-chase` drift loops and the `ripple-pulse` water rings were removed — the art now sits at fixed jaunty angles and only responds to hover. The one remaining ambient animation is `shared-flash`, the neon outline pulse that marks a post you arrived at from a share link. If you add motion, prefer interaction-driven transitions over infinite loops.
 
@@ -256,29 +280,17 @@ The site's accent colors (`--mint`, `--coral`, `--glow` in `src/App.css`) were r
 
 ### First-run feature tour
 
-`src/components/AppTour.js` walks a new angler through the app once: the Fish Year card, logging a catch, the Anglers directory, tournaments, notifications, and their profile. It mounts in `App.js` beside the navbar so it can point at nav items from any route.
+`src/components/AppTour.js` walks a new angler through the app once: the Fish Year board, logging a catch, the Anglers directory, tournaments, notifications, and their profile. It mounts in `App.js` beside the navbar so it can point at nav items from any route.
 
-Steps target real elements by `data-tour="..."` attribute rather than by position, so moving an element around doesn't silently break the tour; a step whose target is missing (not on the current route, or hidden at that breakpoint) still shows, just centred with no spotlight. The spotlight itself is a transparent box with a 9999px spread shadow, which dims everything except the target without cloning or clipping any DOM.
+Steps target real elements by `data-tour="..."` attribute rather than by position, so moving an element around doesn't silently break the tour — just update that step's `route` if the target moves to a different page. A step whose target is missing (not on the current route, or hidden at that breakpoint) still shows, just centred with no spotlight. The spotlight itself is a transparent box with a 9999px spread shadow, which dims everything except the target without cloning or clipping any DOM.
 
 "Once" means once per **person**, not per browser: `profiles.tour_completed_at` (migration `0011`) is the source of truth so signing in on a phone after seeing it on a laptop doesn't replay it. `localStorage` mirrors it purely to avoid a flash of the tour in the moment before the profile loads — don't make localStorage the source of truth.
 
 ## Responsive Behavior
 
-Desktop:
+Desktop gets a fixed top navigation bar and multi-column layouts (e.g. the profile card + settings panel, the Fish Year month grid, the anglers roster grid).
 
-- Fixed top navigation.
-- Two-column dashboard feature cards.
-- Two-column month board.
-- Profile page uses a profile card plus settings panel.
-
-Mobile:
-
-- Fixed bottom navigation with safe-area padding.
-- Hidden desktop brand wordmark in the nav.
-- Single-column dashboard and profile layout.
-- Three-column personal Fish Year month board.
-- Full-width touch-friendly buttons and auth fields.
-- Decorative fish deck is moved lower and reduced in opacity/scale.
+Mobile gets a fixed bottom navigation bar with safe-area padding, a hidden desktop brand wordmark, single-column layouts for the dashboard/profile/roster, a reduced-column Fish Year month grid, and full-width touch-friendly buttons and form fields.
 
 Do not add wide tables or hover-only actions without a mobile equivalent. Catch photos, likes, modal controls, and profile uploads should remain usable with touch.
 
@@ -313,30 +325,17 @@ The scheduled `keep-db-active.yml` workflow uses the same publishable key naming
 
 ### Git workflow
 
-The active deployment branch is `deploy`.
+The active deployment branch is `deploy`. Never force-push it.
 
-Recommended update flow:
+The established flow for shipping a change is: branch off `deploy` for the change, commit and push the branch, `git merge --no-ff` it into `deploy` (keeping the merge commit), re-run the full test suite and a production build on the **merged `deploy` state** (not just the feature branch, to catch merge-induced regressions), then push `deploy` and confirm the resulting GitHub Actions run actually succeeds — its run-level status can report stale `in_progress` after the job has actually finished, so check job-level steps if it seems to be lagging.
 
-```bash
-git switch deploy
-git pull --rebase origin deploy
-# make focused changes
-npm test -- --watchAll=false --runInBand
-npm run build
-git add <files>
-git commit -m "Describe the change"
-git push origin deploy
-```
-
-The deploy workflow may create a follow-up `Build deploy site` commit. If a local push is rejected as non-fast-forward:
+If a local push is rejected as non-fast-forward (the deploy workflow's own `Build deploy site` commit is a common cause):
 
 ```bash
 git fetch origin deploy
 git rebase origin/deploy
 git push origin deploy
 ```
-
-Do not use `git push --force` for this branch.
 
 ## Local Development
 
@@ -366,7 +365,13 @@ Do not delete `node_modules/.cache` while `npm start` is running. The active web
 Run tests:
 
 ```bash
-npm test -- --watchAll=false --runInBand
+CI=true npx react-scripts test --watchAll=false
+```
+
+Run a single test file or pattern:
+
+```bash
+CI=true npx react-scripts test --watchAll=false --testPathPattern=FishYear
 ```
 
 Run a production build:
@@ -381,27 +386,27 @@ Build the GitHub Pages directory locally only when Supabase environment variable
 npm run build:github
 ```
 
+There is no separate lint script — ESLint (`react-app` config) runs as part of `npm start`/`npm run build`; check that output for warnings.
+
 ## Testing and Known Warnings
 
-The suite covers the app's actual business logic and user-facing behavior, not just a single smoke test. Run it before every deploy:
-
-```bash
-npm test -- --watchAll=false --runInBand
-```
+The suite covers the app's actual business logic and user-facing behavior, not just a single smoke test. Run it before every deploy.
 
 ### Test infrastructure
 
 - `src/test-utils/supabaseMock.js` — a chainable fake for the Supabase query builder (`select/eq/order/insert/update/delete/upsert/maybeSingle`, all awaitable), plus fakes for `auth` and `storage`. Configure what a table resolves to with `setResponse(table, response)`.
 - `src/lib/__mocks__/supabase.js` — the manual Jest mock for `src/lib/supabase.js`. Any test file that needs `isSupabaseConfigured` to be `true` and a controllable client calls `jest.mock('../lib/supabase')` (adjust the relative path to the importing file), then imports `{ supabase, isSupabaseConfigured, __mock }` — call `__mock.reset()` in `beforeEach` and `__mock.setResponse(...)` to script responses. Test files that do *not* call `jest.mock` get the real module, which reads (unset) env vars and behaves like a deployment missing its Supabase config — that's what covers every "fails closed" guard clause.
 - `src/test-utils/renderWithProviders.js` — renders a component inside `MemoryRouter` + `AuthProvider`, for components that call `useAuth()`/router hooks directly.
-- `setupTests.js` polyfills `Element.prototype.scrollIntoView`, which jsdom doesn't implement at all and which the deep-link highlight effects (Participants.tsx, Anglers.js) call on mount.
+- `setupTests.js` polyfills `Element.prototype.scrollIntoView`, which jsdom doesn't implement at all and which the deep-link highlight effects (`Participants.tsx`, `Anglers.js`, `TournamentEntries.js`) call on mount.
+
+Most page-level components mock `useAuth()` wholesale (`jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }))`) with a `makeBaseAuth()` helper supplying every function the component calls, rather than exercising the real provider — follow that pattern for new page tests.
 
 ### What's covered
 
-- **Utilities**: `speciesOptions` (icon matching, case-insensitivity, canonical list integrity) and `photoDate` (EXIF tag fallback order, graceful `null` on unsupported/missing metadata).
-- **AuthContext**: every "fails closed when unconfigured" guard clause, plus (with the mock) the full happy paths — session/profile loading, sign in/up/out, profile updates, avatar upload, personal-best insert-vs-update-by-species matching, species registration and its dedupe logic, Fish Year catch logging, and every delete path.
-- **Components**: `SpeciesSelect` (autocomplete filtering, keyboard nav, free text, merging in shared custom species), `PostMenu` (Share via the native share sheet or clipboard fallback, Delete only when an owner handler is passed, click-outside-to-close), `CommentThread` (delete only visible on the viewer's own comment), `FishIllustration` (species fallback, unique SVG filter ids).
-- **Pages**: `FishYear` (month derived from date, EXIF autofill, form validation/error display, `?catch=` deep-link highlighting), `Anglers` (search filtering by name/water/species, ownership-gated delete, `?best=` deep-link highlighting), `App` (protected-route redirects for every authenticated route, root redirect chain).
+- **Utilities**: `speciesOptions` (icon matching, case-insensitivity, canonical list integrity), `photoDate` (EXIF tag fallback order, graceful `null` on unsupported/missing metadata), `timeAgo` (relative-time formatting).
+- **AuthContext**: every "fails closed when unconfigured" guard clause (`AuthContext.test.js`), plus, with the mock, the full happy paths — session/profile loading, sign in/up/out, profile updates, avatar upload, personal-best insert-vs-update-by-species matching, species registration and its dedupe logic, Fish Year catch logging, and every delete path (`AuthContext.configured.test.js`).
+- **Components**: `SpeciesSelect` (autocomplete filtering, keyboard nav, free text, merging in shared custom species, plus a dedicated custom-species suite), `SpeciesChecklist` (credits a species from either a personal best or a Fish Year catch, dedupes repeats), `PostMenu` (share via the native share sheet or clipboard fallback, delete only when an owner handler is passed, click-outside-to-close), `CommentThread` (delete only visible on the viewer's own comment), `LikeButton`, `NotificationBell`, `FishIllustration` (species fallback, unique SVG filter ids), `AppTour` (step targeting and progression).
+- **Pages**: `FishYear` (month derived from date, EXIF autofill, form validation/error display, the crew-wide season recap stats, `?catch=` deep-link highlighting), `Anglers` (search filtering by name/water/species, ownership-gated delete, the species checklist crediting Fish Year catches too, `?best=` deep-link highlighting), `Tournaments` and `TournamentDetail` (create/delete, entry submission, `?entry=` deep-link highlighting), `Home` (the activity feed's empty/loaded states), `App` (protected-route redirects for every authenticated route, root and legacy-route redirect chains).
 
 Expected test output includes React Router v7 future-flag warnings and React "not wrapped in act(...)" warnings from a few fire-and-forget state updates (e.g. `registerSpecies` isn't awaited by its caller). Both are pre-existing noise, not failures — the tests that matter assert on flushed state via `waitFor`, not on immediate synchronous reads.
 
@@ -411,32 +416,36 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 
 ## Maintenance Guidance for Future Agents
 
-1. Read this README before changing auth or deployment.
+1. Read this README (and `CLAUDE.md`) before changing auth or deployment.
 2. Check `git status` before editing; user or workflow-generated changes may be present.
 3. Keep Supabase browser configuration limited to public URL and publishable/anon key.
 4. Treat `docs/` as generated output; source changes belong in `src/` and are rebuilt by Actions.
 5. Preserve exact filename casing. Linux CI is case-sensitive even if macOS local development is not.
 6. Keep the public route at `/` compatible with static hosting.
-7. Fluke Tournament rows, likes, and comments in `Leaderboard.tsx` have no backing table — do not claim they persist. Personal bests and Fish Year catches (including their likes and comments) are real and persisted.
+7. Every feature in the product is Supabase-backed and persisted (see Data Ownership) — there's no "local-only" carve-out left to preserve.
 8. Preserve the mobile bottom navigation and large touch targets.
 9. Keep fish illustrations original and readable; avoid emoji or ambiguous abstract glyphs as the primary fish visual.
 10. Run both the production build and the test suite after shared CSS, auth, routing, or deployment changes.
+11. When removing a feature or file, grep the whole `src` tree for anything it uniquely owned (CSS classes, `data-tour` targets, context functions) before deleting — dead code and dead styles should be cleaned up together, not left behind.
 
 ## Primary Files by Concern
 
 | Concern | Files |
 | --- | --- |
 | Routing/protection | `src/App.js` |
-| Auth/session/profile state | `src/context/AuthContext.js`, `src/lib/supabase.js` |
+| Auth/session/profile state and all data access | `src/context/AuthContext.js`, `src/lib/supabase.js` |
 | Auth UI | `src/AuthPage.js` |
 | Profile/avatar UI | `src/Profile.js`, `supabase/schema.sql` |
-| Dashboard | `src/Home.js` |
+| Dashboard | `src/Home.js`, `src/components/ActivityFeed.js` |
 | Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
-| Fluke Tournament | `src/FlukeTournament.js`, `src/components/Leaderboard.tsx` |
+| Anglers / personal bests / species checklist | `src/Anglers.js`, `src/components/PersonalBestForm.js`, `src/components/SpeciesChecklist.js` |
+| Tournaments | `src/Tournaments.js`, `src/TournamentDetail.js`, `src/components/TournamentEntries.js`, `supabase/migrations/0012_tournaments.sql` |
+| Onboarding tour | `src/components/AppTour.js` |
 | Navigation | `src/components/Navbar.js` |
 | Likes | `src/components/LikeButton.js`, `supabase/migrations/0007_personal_best_likes.sql`, `supabase/migrations/0008_fish_year_catch_likes.sql` |
+| Comments | `src/components/CommentThread.js` and its per-target adapters (`FishYearCatchComments.js`, `PersonalBestComments.js`, `TournamentEntryComments.js`) |
 | Notifications | `src/components/NotificationBell.js`, `supabase/migrations/0010_notifications.sql` |
-| Fish illustrations | `src/components/FishIllustration.js`, `src/App.css`, `src/App.js` |
+| Fish illustrations | `src/components/FishIllustration.js`, `src/App.css`, `src/assets/fish/` |
 | Global responsive theme | `src/App.css`, `src/index.css` |
 | Email template | `supabase/confirmation-email.html` |
 | Deployment | `.github/workflows/deploy-site.yml`, `scripts/moveBuildToDocs.js` |
