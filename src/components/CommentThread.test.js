@@ -74,6 +74,16 @@ test('does not clear the draft if onAdd reports an error', async () => {
   expect(input).toHaveValue('Still here');
 });
 
+test('highlightCommentId highlights and scrolls to that specific comment once the thread is open', async () => {
+  const scrollIntoView = jest.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
+  render(<CommentThread comments={comments} loading={false} onAdd={jest.fn()} defaultOpen highlightCommentId="c2" />);
+  const highlightedRow = screen.getByText('Beat that.').closest('.comment-row');
+  expect(highlightedRow).toHaveClass('is-shared-highlight');
+  expect(screen.getByText('Nice fish!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
+  await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' }));
+});
+
 test('the Post button is disabled while the draft is empty', async () => {
   render(<CommentThread comments={[]} loading={false} onAdd={jest.fn()} />);
   await userEvent.click(screen.getByRole('button', { name: /comments/i }));

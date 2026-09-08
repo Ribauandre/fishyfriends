@@ -263,7 +263,7 @@ describe('addComment / deleteComment', () => {
     const notificationCallIndex = __mock.current.fromCalls.indexOf('notifications');
     const builder = __mock.current.from.mock.results[notificationCallIndex].value;
     expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({
-      recipient_id: 'user-2', actor_id: 'user-1', actor_name: 'Andre', type: 'comment', target_type: 'personal_best', target_id: 'pb-1', preview: 'Nice!',
+      recipient_id: 'user-2', actor_id: 'user-1', actor_name: 'Andre', type: 'comment', target_type: 'personal_best', target_id: 'pb-1', preview: 'Nice!', comment_id: 'c-1',
     }));
   });
 
@@ -289,6 +289,9 @@ describe('Fish Year catch comments', () => {
 
     expect(response.comment.author_name).toBe('Andre');
     expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+    const notificationCallIndex = __mock.current.fromCalls.indexOf('notifications');
+    const builder = __mock.current.from.mock.results[notificationCallIndex].value;
+    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 'fc-1' }));
   });
 
   test('deleteFishYearComment reports success', async () => {
@@ -319,6 +322,9 @@ describe('likes', () => {
     expect(response.error).toBeNull();
     expect(__mock.current.from).toHaveBeenCalledWith('fish_year_catch_likes');
     expect(__mock.current.from).toHaveBeenCalledWith('notifications');
+    const notificationCallIndex = __mock.current.fromCalls.indexOf('notifications');
+    const builder = __mock.current.from.mock.results[notificationCallIndex].value;
+    expect(builder.insert).toHaveBeenCalledWith(expect.objectContaining({ comment_id: null }));
   });
 
   test('likeTarget does not notify when you like your own post', async () => {

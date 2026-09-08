@@ -50,6 +50,7 @@ export default function TournamentDetail() {
   const { user, getTournament, listTournamentEntries, deleteTournamentEntry, deleteTournament } = useAuth();
   const [searchParams] = useSearchParams();
   const highlightEntryId = searchParams.get('entry');
+  const highlightCommentId = searchParams.get('comment');
   const navigate = useNavigate();
   const [tournament, setTournament] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -111,7 +112,7 @@ export default function TournamentDetail() {
         <div><span className="eyebrow">THE BOARD</span><h2>Current standings</h2></div>
         <span className={`status-badge ${status === 'active' ? '' : 'status-badge-muted'}`}>{TOURNAMENT_STATUS_LABEL[status]}</span>
       </div>
-      <TournamentEntries entries={entries} unit={tournament.unit} tournamentId={tournament.id} currentUserId={user?.id} onDelete={handleDeleteEntry} highlightId={highlightEntryId} />
+      <TournamentEntries entries={entries} unit={tournament.unit} tournamentId={tournament.id} currentUserId={user?.id} onDelete={handleDeleteEntry} highlightId={highlightEntryId} highlightCommentId={highlightCommentId} />
     </section>
 
     {isCreator && <p className="tournament-danger-zone"><button type="button" className="text-link" onClick={handleDeleteTournament}>Delete this tournament</button></p>}

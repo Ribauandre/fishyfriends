@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
-export default function CommentThread({ comments, loading, onAdd, onDelete, currentUserId, defaultOpen }) {
+export default function CommentThread({ comments, loading, onAdd, onDelete, currentUserId, defaultOpen, highlightCommentId }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const [draft, setDraft] = useState('');
   const [posting, setPosting] = useState(false);
+  const highlightRef = useRef(null);
+
+  useEffect(() => {
+    if (open && highlightCommentId) highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [open, highlightCommentId, comments]);
 
   async function submit(event) {
     event.preventDefault();
@@ -20,10 +25,13 @@ export default function CommentThread({ comments, loading, onAdd, onDelete, curr
       <div className="comment-list">
         {loading && <p className="month-empty">Loading comments...</p>}
         {!loading && comments?.length === 0 && <p className="month-empty">No comments yet. Say something.</p>}
-        {!loading && comments?.map((comment) => <div className="comment-row" key={comment.id}>
-          <strong>{comment.author_name}</strong><span>{comment.body}</span>
-          {onDelete && currentUserId && comment.user_id === currentUserId && <button type="button" className="comment-remove" onClick={() => onDelete(comment.id)} aria-label="Delete comment">×</button>}
-        </div>)}
+        {!loading && comments?.map((comment) => {
+          const isHighlighted = comment.id === highlightCommentId;
+          return <div className={`comment-row ${isHighlighted ? 'is-shared-highlight' : ''}`} key={comment.id} ref={isHighlighted ? highlightRef : null}>
+            <strong>{comment.author_name}</strong><span>{comment.body}</span>
+            {onDelete && currentUserId && comment.user_id === currentUserId && <button type="button" className="comment-remove" onClick={() => onDelete(comment.id)} aria-label="Delete comment">×</button>}
+          </div>;
+        })}
       </div>
       <form className="comment-form" onSubmit={submit}>
         <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a comment..." />

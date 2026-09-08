@@ -87,6 +87,22 @@ test('clicking a tournament entry notification looks up its tournament and navig
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/tournaments/t-1?entry=te-1'));
 });
 
+test('a comment notification with a comment_id navigates with a &comment= param so the specific comment gets highlighted', async () => {
+  const withComment = { id: 'n-4', type: 'comment', target_type: 'personal_best', target_id: 'pb-1', comment_id: 'c-9', actor_name: 'Sam', preview: 'Nice!', read: false, created_at: '2026-01-04' };
+  renderBell({ listNotifications: jest.fn().mockResolvedValue([withComment]) });
+  await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
+  await userEvent.click(await screen.findByText(/sam commented on your personal best/i));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1&comment=c-9'));
+});
+
+test('a like notification (no comment_id) navigates without a &comment= param', async () => {
+  renderBell({ listNotifications: jest.fn().mockResolvedValue(notifications) });
+  await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
+  await userEvent.click(await screen.findByText(/kevin liked your personal best/i));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1'));
+  expect(screen.getByTestId('location')).not.toHaveTextContent('comment=');
+});
+
 test('mark all read clears the unread badge and calls markAllNotificationsRead', async () => {
   const markAllNotificationsRead = jest.fn().mockResolvedValue({ error: null });
   renderBell({ listNotifications: jest.fn().mockResolvedValue(notifications), markAllNotificationsRead });

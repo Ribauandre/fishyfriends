@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import CommentThread from './CommentThread';
 
-export default function TournamentEntryComments({ entryId, ownerId, defaultOpen }) {
+export default function TournamentEntryComments({ entryId, ownerId, defaultOpen, highlightCommentId }) {
   const { user, listTournamentEntryComments, addTournamentEntryComment, deleteTournamentEntryComment } = useAuth();
   const [comments, setComments] = useState(null);
 
@@ -24,5 +24,5 @@ export default function TournamentEntryComments({ entryId, ownerId, defaultOpen 
     if (!result.error) setComments((previous) => (previous || []).filter((comment) => comment.id !== id));
   }
 
-  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} onDelete={handleDelete} currentUserId={user?.id} defaultOpen={defaultOpen} />;
+  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} onDelete={handleDelete} currentUserId={user?.id} defaultOpen={defaultOpen} highlightCommentId={highlightCommentId} />;
 }
