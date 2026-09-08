@@ -100,6 +100,19 @@ button { cursor: pointer; }
 .home-page .dock-notes { animation: banner-shockwave-soft .4s ease-out .37s; }
 .welcome-banner .eyebrow { color: var(--mint); }
 .welcome-banner h1 { font-size: clamp(38px, 5vw, 64px); letter-spacing: -.01em; line-height: 1.05; margin: 17px 0 16px; max-width: 650px; }
+/* Each letter of the headline gets its own jolt instead of the whole line moving as one
+   block — staggered left to right so the shock reads as passing through the words, like the
+   rest of the page's impact reactions. .shake-word keeps each word glued together so lines
+   still wrap at spaces, not mid-word. */
+.shake-word { display: inline-block; }
+.shake-letter { animation: letter-shake .4s ease-out both; display: inline-block; }
+@keyframes letter-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  20% { transform: translate(-2px, 1px) rotate(-4deg); }
+  40% { transform: translate(2px, -1px) rotate(4deg); }
+  60% { transform: translate(-1px, 1px) rotate(-2deg); }
+  80% { transform: translate(1px, 0) rotate(1deg); }
+}
 .welcome-banner p { color: #bdd0c9; margin: 0; }
 .hero-actions { align-items: center; display: flex; gap: 26px; margin-top: 32px; }
 .hero-actions .text-link { color: #d8e7dd; }
