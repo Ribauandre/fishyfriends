@@ -49,3 +49,11 @@ test('does not count another angler\'s catches toward the current user\'s progre
   renderHome();
   expect(await screen.findByText('0 / 12 months logged')).toBeInTheDocument();
 });
+
+test('the shaky headline still exposes one readable sentence to assistive tech', () => {
+  useAuth.mockReturnValue(makeBaseAuth());
+  renderHome();
+  // The letters are split into individual decorative spans for the per-letter shake, so the
+  // accessible name has to come from aria-label rather than the (now fragmented) text nodes.
+  expect(screen.getByRole('heading', { name: 'Look who dragged themselves in, Andre.' })).toBeInTheDocument();
+});
