@@ -19,7 +19,7 @@ const STEPS = [
     route: '/fish-year',
     eyebrow: 'The main event',
     title: 'Fish Year',
-    body: 'One fish a month, every month. This board tracks how many of the twelve you\'ve actually landed.',
+    body: 'At least one fish a month, every month. This board tracks how many of the twelve you\'ve actually landed.',
   },
   {
     target: '[data-tour="log-catch-button"]',
