@@ -38,7 +38,7 @@ function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highligh
       <strong>{best.species}</strong>
       <span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span>
       <LikeButton targetType="personal_best" targetId={best.id} ownerId={profile.id} />
-      <PersonalBestComments personalBestId={best.id} ownerId={profile.id} />
+      <PersonalBestComments personalBestId={best.id} ownerId={profile.id} defaultOpen={highlighted} />
     </div>
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${anglerName}'s ${best.species} photo`} onClick={() => setImageOpen(false)}>
       <button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button>

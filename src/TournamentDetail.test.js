@@ -131,4 +131,7 @@ test('passes the ?entry= query param through so the linked entry is highlighted'
   }));
   renderDetail('/tournaments/t-1?entry=e-1');
   await waitFor(() => expect(document.querySelector('.leaderboard-entry.is-shared-highlight')).toBeInTheDocument());
+  // Landing here from a notification/share link should open the entry's comments too, not
+  // just scroll to and highlight the row.
+  expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });

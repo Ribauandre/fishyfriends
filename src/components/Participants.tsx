@@ -34,7 +34,7 @@ function MonthCatch({ entry, currentUserId, onDelete, highlighted }: { entry: Ca
     </div>
     <div className="catch-card-actions">
       <LikeButton targetType="fish_year_catch" targetId={entry.id} ownerId={entry.user_id} />
-      <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} />
+      <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} />
     </div>
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}
   </div>;
