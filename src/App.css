@@ -315,10 +315,7 @@ button { cursor: pointer; }
 .month-card-detail { background: #eef3e9; border-top: 1px solid var(--line); padding: 16px; }
 .month-empty { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
 .month-catches { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
-/* Every post someone can make (a logged catch, a personal best) gets the same neon keyline +
-   hard offset shadow as the hero fish art, so they read as stickers pinned to the page rather
-   than plain UI cards. */
-.catch-card { background: rgba(3,8,11,.3); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); overflow: hidden; position: relative; }
+.catch-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); overflow: hidden; position: relative; }
 .is-shared-highlight { animation: shared-flash 2.6s ease-out; }
 @keyframes shared-flash {
   0%, 80% { outline: 3px solid var(--mint); outline-offset: 3px; box-shadow: 0 0 22px var(--glow); }
@@ -483,7 +480,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* Personal bests, angler lookup, and comment threads */
 .personal-bests-panel { margin-top: 22px; }
 .best-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 20px; }
-.best-card { background: rgba(3,8,11,.3); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); padding: 16px; position: relative; }
+.best-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); padding: 16px; position: relative; }
 .best-card .post-menu { right: 10px; top: 10px; }
 .best-card-fish { height: 68px; width: 148px; }
 .best-card-photo { height: 110px; object-fit: cover; width: 100%; }
@@ -513,8 +510,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-card-bests { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
 .section-heading-mini { margin-bottom: 10px; }
 .angler-card-bests .angler-best + .angler-best { margin-top: 14px; }
-.angler-best { align-items: center; background: rgba(3,8,11,.18); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding: 10px 34px 10px 10px; position: relative; }
-.angler-best .post-menu { right: 6px; top: 6px; }
+.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding-right: 6px; position: relative; }
 .angler-best-media { background: transparent; border: 0; cursor: zoom-in; display: block; padding: 0; }
 .personal-best-tag { color: var(--mint); display: block; font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; margin-bottom: 2px; text-transform: uppercase; }
 .post-menu { position: absolute; right: 0; top: 0; }
