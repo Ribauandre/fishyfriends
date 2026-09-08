@@ -465,6 +465,16 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
+  async function submitBugReport({ body }) {
+    if (!body?.trim()) return { error: new Error('Describe what went wrong first.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before reporting a bug.') };
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { user_id: user.id, angler_name: authorName, body: body.trim(), page_url: window.location.pathname };
+    const { data, error } = await supabase.from('bug_reports').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, report: data };
+  }
+
   // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
@@ -525,6 +535,7 @@ export function AuthProvider({ children }) {
     listRecentActivity,
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
+    submitBugReport,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }
