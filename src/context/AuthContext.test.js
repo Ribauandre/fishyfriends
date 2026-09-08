@@ -82,6 +82,7 @@ test('list* helpers return empty arrays instead of throwing', async () => {
   await expect(result.current.listTournaments()).resolves.toEqual([]);
   await expect(result.current.listTournamentEntries('t-1')).resolves.toEqual([]);
   await expect(result.current.listTournamentEntryComments('e-1')).resolves.toEqual([]);
+  await expect(result.current.listRecentActivity()).resolves.toEqual([]);
 });
 
 test('get* helpers return null instead of throwing when unconfigured', async () => {
