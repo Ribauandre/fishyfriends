@@ -64,6 +64,11 @@ describe('speciesIcon', () => {
     // "Sea Bass" alone commonly means black sea bass in this app's NJ context, so it
     // resolves there rather than to the generic bass fallback.
     expect(speciesIcon('Sea Bass')).toBe('blackseabass');
+    // Common angler nicknames for species that already have their own canonical entry —
+    // "Fluke" for Fluke / Flounder, "Weak" for Weakfish, "Striper" for Striped Bass.
+    expect(speciesIcon('Fluke')).toBe('flounder');
+    expect(speciesIcon('Weak')).toBe('weakfish');
+    expect(speciesIcon('Striper')).toBe('stripedbass');
     expect(speciesIcon('Giant Snakehead')).toBe('snakehead');
     expect(speciesIcon('Trophy Lake Trout')).toBe('laketrout');
     expect(speciesIcon('Trophy Brown Trout')).toBe('browntrout');
