@@ -6,6 +6,7 @@ describe('SPECIES_OPTIONS', () => {
       'pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'snakehead', 'catfish',
       'carp', 'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
       'bluefish', 'mahimahi', 'shark', 'flounder', 'tautog', 'blackseabass', 'tuna',
+      'walleye', 'yellowperch', 'weakfish', 'chainpickerel',
     ]);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
@@ -43,6 +44,10 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Tuna')).toBe('tuna');
     expect(speciesIcon('Snook')).toBe('largemouth');
     expect(speciesIcon('Black Sea Bass')).toBe('blackseabass');
+    expect(speciesIcon('Weakfish')).toBe('weakfish');
+    expect(speciesIcon('Yellow Perch')).toBe('yellowperch');
+    expect(speciesIcon('Chain Pickerel')).toBe('chainpickerel');
+    expect(speciesIcon('Walleye')).toBe('walleye');
   });
 
   test('matches canonical labels case-insensitively', () => {
@@ -63,6 +68,14 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Trophy Lake Trout')).toBe('laketrout');
     expect(speciesIcon('Trophy Brown Trout')).toBe('browntrout');
     expect(speciesIcon('Some Blackfish')).toBe('tautog');
+    expect(speciesIcon('Trophy Walleye')).toBe('walleye');
+    expect(speciesIcon('A Big Chain Pickerel')).toBe('chainpickerel');
+    // A generic, non-canonical "pickerel" (e.g. grass or redfin pickerel) is close enough
+    // to share the chain pickerel art, the same way "Sea Bass" shares black sea bass's.
+    expect(speciesIcon('Redfin Pickerel')).toBe('chainpickerel');
+    // Likewise a plain "White Perch" isn't its own canonical species, so it shares the
+    // closest relative's art rather than falling all the way back to a bass icon.
+    expect(speciesIcon('White Perch')).toBe('yellowperch');
   });
 
   test('falls back to largemouth for a completely unrecognized species', () => {
@@ -72,9 +85,9 @@ describe('speciesIcon', () => {
   test('a species removed from the canonical list still resolves to a sensible icon instead of throwing', () => {
     // Regression guard: species that used to have their own SPECIES_OPTIONS entry and icon
     // (pulled from a shared reference sheet) were retired, but any catch someone already
-    // logged with that name must still render something reasonable, not crash.
-    expect(speciesIcon('Walleye')).toBe('largemouth');
-    expect(speciesIcon('Yellow Perch')).toBe('largemouth');
+    // logged with that name must still render something reasonable, not crash. Walleye and
+    // Yellow Perch were later re-added with real dedicated art (see the exact-match test
+    // above) — Crappie hasn't been, so it's still the case covered here.
     expect(speciesIcon('Crappie')).toBe('largemouth');
   });
 
