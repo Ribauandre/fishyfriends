@@ -36,12 +36,12 @@ test('submitting a bug report clears the field and shows a thank-you message', a
   useAuth.mockReturnValue(makeBaseAuth({ submitBugReport }));
   renderProfile();
 
-  const field = screen.getByLabelText(/what went wrong/i);
+  const field = screen.getByLabelText(/what happened/i);
   await userEvent.type(field, 'The like button does nothing.');
-  await userEvent.click(screen.getByRole('button', { name: /send report/i }));
+  await userEvent.click(screen.getByRole('button', { name: /reel it in/i }));
 
   await waitFor(() => expect(submitBugReport).toHaveBeenCalledWith({ body: 'The like button does nothing.' }));
-  expect(await screen.findByText(/we'll look into it/i)).toBeInTheDocument();
+  expect(await screen.findByText(/we'll get it untangled/i)).toBeInTheDocument();
   expect(field).toHaveValue('');
 });
 
@@ -50,9 +50,9 @@ test('shows the server error message and keeps the description when reporting fa
   useAuth.mockReturnValue(makeBaseAuth({ submitBugReport }));
   renderProfile();
 
-  const field = screen.getByLabelText(/what went wrong/i);
+  const field = screen.getByLabelText(/what happened/i);
   await userEvent.type(field, 'Broken thing');
-  await userEvent.click(screen.getByRole('button', { name: /send report/i }));
+  await userEvent.click(screen.getByRole('button', { name: /reel it in/i }));
 
   expect(await screen.findByText(/sign in before reporting a bug/i)).toBeInTheDocument();
   expect(field).toHaveValue('Broken thing');
