@@ -480,7 +480,7 @@ export function AuthProvider({ children }) {
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
   // and unit to read as more than a bare number.
-  async function listRecentActivity(limit = 6) {
+  async function listRecentActivity(limit = 30) {
     if (!isSupabaseConfigured) return [];
     const [catchesRes, bestsRes, entriesRes, profilesRes, tournamentsRes] = await Promise.all([
       supabase.from('fish_year_catches').select('*').order('created_at', { ascending: false }).limit(limit),

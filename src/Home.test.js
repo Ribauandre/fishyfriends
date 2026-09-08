@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Home from './Home';
 import { useAuth } from './context/AuthContext';
@@ -46,6 +47,52 @@ test('lists recent crew activity across catches, personal bests, and tournament 
   expect(await screen.findByText(/logged a bass for fish year/i)).toBeInTheDocument();
   expect(screen.getByText(/logged a personal best — 30 in/i)).toBeInTheDocument();
   expect(screen.getByText(/entered a 19\.5in fluke into summer fluke classic/i)).toBeInTheDocument();
+});
+
+test('squashes a bulk upload from the same angler into one row with an "and X more" summary', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listRecentActivity: jest.fn().mockResolvedValue([
+      { kind: 'fish_year_catch', id: 'fy-1', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Bass', photoUrl: '', caughtAt: '2026-03-03', createdAt: '2026-03-03T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-1' },
+      { kind: 'fish_year_catch', id: 'fy-2', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Trout', photoUrl: '', caughtAt: '2026-03-02', createdAt: '2026-03-02T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-2' },
+      { kind: 'fish_year_catch', id: 'fy-3', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Carp', photoUrl: '', caughtAt: '2026-03-01', createdAt: '2026-03-01T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-3' },
+    ]),
+  }));
+  renderHome();
+  expect(await screen.findByText(/and 2 more/i)).toBeInTheDocument();
+  expect(screen.getByText(/logged a bass for fish year/i)).toBeInTheDocument();
+  expect(screen.queryByText(/logged a trout for fish year/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/logged a carp for fish year/i)).not.toBeInTheDocument();
+});
+
+test('tapping a squashed row expands it to show every individual action', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listRecentActivity: jest.fn().mockResolvedValue([
+      { kind: 'fish_year_catch', id: 'fy-1', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Bass', photoUrl: '', caughtAt: '2026-03-03', createdAt: '2026-03-03T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-1' },
+      { kind: 'fish_year_catch', id: 'fy-2', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Trout', photoUrl: '', caughtAt: '2026-03-02', createdAt: '2026-03-02T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-2' },
+    ]),
+  }));
+  renderHome();
+  const squashedRow = await screen.findByRole('button', { name: /and 1 more/i });
+  expect(squashedRow).toHaveAttribute('aria-expanded', 'false');
+  await userEvent.click(squashedRow);
+  expect(squashedRow).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText(/logged a trout for fish year/i)).toBeInTheDocument();
+  await userEvent.click(squashedRow);
+  expect(squashedRow).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.queryByText(/logged a trout for fish year/i)).not.toBeInTheDocument();
+});
+
+test('does not squash activity from different anglers, even when interleaved', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listRecentActivity: jest.fn().mockResolvedValue([
+      { kind: 'fish_year_catch', id: 'fy-1', userId: 'user-2', anglerName: 'Kevin', avatarUrl: '', species: 'Bass', photoUrl: '', caughtAt: '2026-03-03', createdAt: '2026-03-03T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-1' },
+      { kind: 'fish_year_catch', id: 'fy-2', userId: 'user-3', anglerName: 'Sam', avatarUrl: '', species: 'Trout', photoUrl: '', caughtAt: '2026-03-02', createdAt: '2026-03-02T12:00:00Z', month: 'March', href: '/fish-year?catch=fy-2' },
+    ]),
+  }));
+  renderHome();
+  expect(await screen.findByText(/logged a bass for fish year/i)).toBeInTheDocument();
+  expect(screen.getByText(/logged a trout for fish year/i)).toBeInTheDocument();
+  expect(screen.queryByText(/and \d+ more/i)).not.toBeInTheDocument();
 });
 
 test('merges a live-pushed activity item into the feed without waiting for a refetch', async () => {
