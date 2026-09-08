@@ -58,7 +58,7 @@ const fishDetails = {
   chainpickerel: { label: 'Chain pickerel', src: chainpickerel },
 };
 
-export const HERO_SPECIES = Object.keys(fishDetails).filter((key) => key !== 'pike' && key !== 'trout');
+export const HERO_SPECIES = Object.keys(fishDetails);
 
 export default function FishIllustration({ species, className = '' }) {
   const fish = fishDetails[species] || fishDetails.trout;
