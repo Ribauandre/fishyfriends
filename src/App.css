@@ -73,8 +73,26 @@ button { cursor: pointer; }
 .brand-mark > span { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
 .navbar:before { background: repeating-linear-gradient(-45deg, var(--mint) 0 8px, var(--rust) 8px 16px); bottom: -3px; content: ''; height: 3px; left: 0; opacity: .8; position: absolute; right: 0; }
 .text-link { color: var(--mint); font-size: 12px; font-weight: 800; }
-.welcome-banner { background: var(--navy); border: 1px solid #23464d; color: white; display: flex; justify-content: space-between; min-height: 310px; overflow: hidden; padding: 56px 64px; position: relative; }
+.welcome-banner { animation: banner-shockwave .5s ease-out .27s; background: var(--navy); border: 1px solid #23464d; color: white; display: flex; justify-content: space-between; min-height: 310px; overflow: hidden; padding: 56px 64px; position: relative; }
 .welcome-banner:after { border: 1px solid rgba(227,251,20,.18); content: ''; height: 180px; position: absolute; right: -60px; top: -70px; transform: rotate(25deg); width: 280px; }
+/* A ring that washes out from where the sticker lands, timed to the sticker-slap's impact
+   keyframe (45% of .6s ≈ .27s in) so it reads as the shockwave of the slap rather than its
+   own unrelated effect. */
+.welcome-banner:before { animation: ripple-ring .65s ease-out .27s both; border: 4px solid var(--mint); border-radius: 50%; content: ''; height: 36px; left: 80%; opacity: 0; pointer-events: none; position: absolute; top: 52%; width: 36px; }
+@keyframes ripple-ring {
+  0% { opacity: .75; transform: translate(-50%, -50%) scale(.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+/* The rest of the banner reacts to the same impact instead of sitting still while only the
+   fish moves — a couple of decaying jolts, not a full shake, so it reads as felt rather than seen. */
+@keyframes banner-shockwave {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  15% { transform: translate(-4px, 2px) rotate(-.3deg); }
+  32% { transform: translate(3px, -2px) rotate(.3deg); }
+  50% { transform: translate(-2px, 1px) rotate(-.15deg); }
+  68% { transform: translate(1px, -1px) rotate(.1deg); }
+  85% { transform: translate(-1px, 0) rotate(0); }
+}
 .welcome-banner .eyebrow { color: var(--mint); }
 .welcome-banner h1 { font-size: clamp(38px, 5vw, 64px); letter-spacing: -.01em; line-height: 1.05; margin: 17px 0 16px; max-width: 650px; }
 .welcome-banner p { color: #bdd0c9; margin: 0; }
@@ -293,8 +311,10 @@ button { cursor: pointer; }
 .month-card-detail { background: #eef3e9; border-top: 1px solid var(--line); padding: 16px; }
 .month-empty { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
 .month-catches { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
-.catch-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); overflow: hidden; position: relative; }
-/* Reads like the neon keyline around the sticker art rather than a thin UI outline. */
+/* Every post someone can make (a logged catch, a personal best) gets the same neon keyline +
+   hard offset shadow as the hero fish art, so they read as stickers pinned to the page rather
+   than plain UI cards. */
+.catch-card { background: rgba(3,8,11,.3); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); overflow: hidden; position: relative; }
 .is-shared-highlight { animation: shared-flash 2.6s ease-out; }
 @keyframes shared-flash {
   0%, 80% { outline: 3px solid var(--mint); outline-offset: 3px; box-shadow: 0 0 22px var(--glow); }
@@ -459,7 +479,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* Personal bests, angler lookup, and comment threads */
 .personal-bests-panel { margin-top: 22px; }
 .best-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 20px; }
-.best-card { background: rgba(3,8,11,.3); border: 1px solid var(--line); padding: 16px; position: relative; }
+.best-card { background: rgba(3,8,11,.3); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); padding: 16px; position: relative; }
 .best-card .post-menu { right: 10px; top: 10px; }
 .best-card-fish { height: 68px; width: 148px; }
 .best-card-photo { height: 110px; object-fit: cover; width: 100%; }
@@ -489,7 +509,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .angler-card-bests { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 16px; }
 .section-heading-mini { margin-bottom: 10px; }
 .angler-card-bests .angler-best + .angler-best { margin-top: 14px; }
-.angler-best { align-items: center; display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding-right: 6px; position: relative; }
+.angler-best { align-items: center; background: rgba(3,8,11,.18); border: 2px solid var(--mint); box-shadow: 0 0 14px var(--glow), var(--sticker-shadow); display: grid; gap: 12px; grid-template-columns: 76px 1fr; padding: 10px 34px 10px 10px; position: relative; }
+.angler-best .post-menu { right: 6px; top: 6px; }
 .angler-best-media { background: transparent; border: 0; cursor: zoom-in; display: block; padding: 0; }
 .personal-best-tag { color: var(--mint); display: block; font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; margin-bottom: 2px; text-transform: uppercase; }
 .post-menu { position: absolute; right: 0; top: 0; }
