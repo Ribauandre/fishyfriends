@@ -12,7 +12,7 @@ The current product has six authenticated surfaces and one public entry surface:
 | --- | --- | --- |
 | `/account` | Public | Sign in and account creation with Supabase Auth. |
 | `/home` | Authenticated | Dashboard: welcome banner and the crew activity feed. |
-| `/profile` | Authenticated | Edit profile details, upload avatar, and sign out. |
+| `/profile` | Authenticated | Edit profile details, upload avatar, sign out, and report a bug. |
 | `/fish-year` | Authenticated | Fish Year status board: crew-wide season recap, personal month board, catch logging, and the month-by-month participant board. |
 | `/anglers` | Authenticated | Angler directory: log a personal best, the species checklist, and search/browse the roster. |
 | `/tournaments` | Authenticated | Browse tournaments and start a new one. |
@@ -133,6 +133,7 @@ AuthProvider
 - **Likes** (shared across personal bests, Fish Year catches, and tournament entries): `listLikes`, `likeTarget`, `unlikeTarget`.
 - **Notifications**: `listNotifications`, `markNotificationRead`, `markAllNotificationsRead` (fired automatically by `likeTarget`/`addComment` and friends when the target isn't your own).
 - **Activity feed**: `listRecentActivity` — merges recent Fish Year catches, personal bests, and tournament entries into one feed, newest first.
+- **Bug reports**: `submitBugReport` — inserts into `bug_reports`, private to the reporter.
 
 On startup, the provider calls `supabase.auth.getSession()`, then loads the matching row from `public.profiles`, and subscribes to `onAuthStateChange` so sign-in, confirmation, refresh, and sign-out update the UI.
 
@@ -202,7 +203,7 @@ Avatar upload behavior:
 
 ### Automated database migrations
 
-Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0013`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, and tournaments). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
+Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0014`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, tournaments, and bug reports). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
 
 This requires a repository secret named `SUPABASE_DB_URL`: a Postgres connection string (not the publishable/anon key the app uses in the browser). Get it from the Supabase dashboard: Project Settings -> Database -> Connection string -> URI, with the **Session pooler** mode selected, and the database password filled in. Add it in the GitHub repo under Settings -> Secrets and variables -> Actions -> New repository secret.
 
@@ -246,6 +247,7 @@ Everything the app displays is persisted in Supabase — there is no local-only 
 - Tournaments, entries, their comments, and their likes (`tournaments`, `tournament_entries`, `tournament_entry_comments`, `tournament_entry_likes`)
 - Custom species suggestions (`custom_species`)
 - Notifications for likes/comments on your own posts (`notifications`)
+- Bug reports (`bug_reports`) — private to the reporter; there's no in-app UI to view them, they're meant to be triaged directly in the Supabase dashboard
 
 Intentionally not persisted, because it's ephemeral UI state rather than data: which catch-photo lightbox is open, which month/tournament-entry row is expanded, search box text, in-progress form drafts.
 
@@ -436,6 +438,7 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 | Auth/session/profile state and all data access | `src/context/AuthContext.js`, `src/lib/supabase.js` |
 | Auth UI | `src/AuthPage.js` |
 | Profile/avatar UI | `src/Profile.js`, `supabase/schema.sql` |
+| Bug reports | `src/Profile.js`, `src/context/AuthContext.js` (`submitBugReport`), `supabase/migrations/0014_bug_reports.sql` |
 | Dashboard | `src/Home.js`, `src/components/ActivityFeed.js` |
 | Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
 | Anglers / personal bests / species checklist | `src/Anglers.js`, `src/components/PersonalBestForm.js`, `src/components/SpeciesChecklist.js` |

@@ -125,3 +125,17 @@ test('addTournamentEntryComment requires a non-empty body before the configurati
   const response = await result.current.addTournamentEntryComment('e-1', '   ');
   expect(response.error.message).toMatch(/say something/i);
 });
+
+test('submitBugReport requires a description before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.submitBugReport({ body: '   ' }); });
+  expect(response.error.message).toMatch(/describe what went wrong/i);
+});
+
+test('submitBugReport fails closed once a description is given', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.submitBugReport({ body: 'The like button does nothing.' }); });
+  expect(response.error.message).toMatch(/sign in before reporting/i);
+});

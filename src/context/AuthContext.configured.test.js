@@ -411,3 +411,28 @@ describe('feature tour', () => {
     expect(result.current.shouldShowTour).toBe(false);
   });
 });
+
+describe('submitBugReport', () => {
+  test('stamps the current display name and page path onto the report', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('bug_reports', { data: { id: 'br-1', angler_name: 'Andre', body: 'The like button does nothing.' }, error: null });
+
+    const response = await result.current.submitBugReport({ body: 'The like button does nothing.' });
+
+    expect(response.report.angler_name).toBe('Andre');
+    expect(__mock.current.from).toHaveBeenCalledWith('bug_reports');
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.indexOf('bug_reports')];
+    expect(call.value.insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'user-1', angler_name: 'Andre', body: 'The like button does nothing.',
+    }));
+  });
+
+  test('surfaces a Supabase error instead of throwing', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('bug_reports', { data: null, error: { message: 'insert failed' } });
+
+    const response = await result.current.submitBugReport({ body: 'Broken thing' });
+
+    expect(response.error.message).toBe('insert failed');
+  });
+});
