@@ -132,12 +132,20 @@ AuthProvider
 - **Tournaments**: `listTournaments`, `getTournament`, `createTournament`, `deleteTournament`, `listTournamentEntries`, `getTournamentEntry`, `submitTournamentEntry`, `deleteTournamentEntry`, `listTournamentEntryComments`/`addTournamentEntryComment`/`deleteTournamentEntryComment`.
 - **Likes** (shared across personal bests, Fish Year catches, and tournament entries): `listLikes`, `likeTarget`, `unlikeTarget`.
 - **Notifications**: `listNotifications`, `markNotificationRead`, `markAllNotificationsRead` (fired automatically by `likeTarget`/`addComment` and friends when the target isn't your own).
-- **Activity feed**: `listRecentActivity` — merges recent Fish Year catches, personal bests, and tournament entries into one feed, newest first.
+- **Activity feed**: `listRecentActivity` — merges recent Fish Year catches, personal bests, and tournament entries into one feed, newest first. `subscribeToActivity` complements it with a live Supabase Realtime subscription on those same three tables, pushing new posts into Home's feed the instant they happen instead of waiting for a refetch — see "Realtime activity feed" below.
 - **Bug reports**: `submitBugReport` — inserts into `bug_reports`, private to the reporter.
 
 On startup, the provider calls `supabase.auth.getSession()`, then loads the matching row from `public.profiles`, and subscribes to `onAuthStateChange` so sign-in, confirmation, refresh, and sign-out update the UI.
 
 The provider deliberately fails closed when Supabase is not configured. It does not create fake local users. This is important because CRA environment variables are compiled into the public bundle and a preview-only login would hide deployment configuration problems.
+
+### Realtime activity feed
+
+`Home.js` gets its "someone just posted" feel from `subscribeToActivity` in `AuthContext.js`, the app's one use of Supabase Realtime. It opens a single channel subscribed to `postgres_changes` INSERT events on `fish_year_catches`, `personal_bests`, and `tournament_entries`, and normalizes each incoming row into the exact same item shape `listRecentActivity` returns — `fish_year_catches` and `tournament_entries` snapshot the poster's name/avatar on the row itself so those two go straight through, but `personal_bests` doesn't, so that path does a follow-up `profiles` lookup, and a tournament entry needs a `tournaments` lookup for its parent's name/unit, mirroring the joins `listRecentActivity` already does.
+
+`Home.js` merges live-pushed items with the initial `listRecentActivity()` fetch by deduping on `kind`+`id` and re-sorting/re-trimming to the newest 6 after every merge, so it doesn't matter which of the two resolves first — a catch that streams in before the initial fetch finishes isn't lost when that fetch's result lands.
+
+Realtime only broadcasts changes for a table once it's added to the `supabase_realtime` publication (migration `0015`) — a plain `create table` isn't enough. Adding another table to the live feed later means adding it to that publication (a new migration, `alter publication supabase_realtime add table ...`) in addition to wiring up the `.on('postgres_changes', ...)` handler and item mapping in `subscribeToActivity`.
 
 ### Session persistence
 
@@ -203,7 +211,7 @@ Avatar upload behavior:
 
 ### Automated database migrations
 
-Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0014`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, tournaments, and bug reports). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
+Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0015`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, tournaments, bug reports, and enabling Realtime on the activity-feed tables). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
 
 This requires a repository secret named `SUPABASE_DB_URL`: a Postgres connection string (not the publishable/anon key the app uses in the browser). Get it from the Supabase dashboard: Project Settings -> Database -> Connection string -> URI, with the **Session pooler** mode selected, and the database password filled in. Add it in the GitHub repo under Settings -> Secrets and variables -> Actions -> New repository secret.
 
@@ -439,7 +447,7 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 | Auth UI | `src/AuthPage.js` |
 | Profile/avatar UI | `src/Profile.js`, `supabase/schema.sql` |
 | Bug reports | `src/Profile.js`, `src/context/AuthContext.js` (`submitBugReport`), `supabase/migrations/0014_bug_reports.sql` |
-| Dashboard | `src/Home.js`, `src/components/ActivityFeed.js` |
+| Dashboard / realtime activity feed | `src/Home.js`, `src/components/ActivityFeed.js`, `src/context/AuthContext.js` (`listRecentActivity`, `subscribeToActivity`), `supabase/migrations/0015_enable_activity_realtime.sql` |
 | Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
 | Anglers / personal bests / species checklist | `src/Anglers.js`, `src/components/PersonalBestForm.js`, `src/components/SpeciesChecklist.js` |
 | Tournaments | `src/Tournaments.js`, `src/TournamentDetail.js`, `src/components/TournamentEntries.js`, `supabase/migrations/0012_tournaments.sql` |

@@ -412,6 +412,61 @@ describe('feature tour', () => {
   });
 });
 
+describe('subscribeToActivity', () => {
+  test('pushes a Fish Year catch insert straight through, using its own snapshotted name/avatar', async () => {
+    const result = await setupSignedIn();
+    const onInsert = jest.fn();
+    result.current.subscribeToActivity(onInsert);
+
+    await act(async () => { await __mock.current.emitPostgresChange('fish_year_catches', {
+      id: 'fy-9', user_id: 'user-2', angler_name: 'Kevin', angler_avatar_url: 'kevin.jpg',
+      species: 'Pike', photo_url: '', caught_at: '2026-05-01', created_at: '2026-05-01T12:00:00Z', month: 'May',
+    }); });
+
+    expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'fish_year_catch', id: 'fy-9', anglerName: 'Kevin', avatarUrl: 'kevin.jpg', species: 'Pike', href: '/fish-year?catch=fy-9',
+    }));
+  });
+
+  test('looks up the poster\'s profile for a personal best insert, which doesn\'t snapshot one', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { data: { display_name: 'Priya', avatar_url: 'priya.jpg' }, error: null });
+    const onInsert = jest.fn();
+    result.current.subscribeToActivity(onInsert);
+
+    await act(async () => { await __mock.current.emitPostgresChange('personal_bests', {
+      id: 'pb-9', user_id: 'user-5', species: 'Tuna', size_label: '40 in', photo_url: '', caught_at: '2026-05-02', created_at: '2026-05-02T12:00:00Z',
+    }); });
+
+    expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'personal_best', id: 'pb-9', anglerName: 'Priya', avatarUrl: 'priya.jpg', sizeLabel: '40 in', href: '/anglers?best=pb-9',
+    }));
+  });
+
+  test('looks up the parent tournament\'s name and unit for a tournament entry insert', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('tournaments', { data: { id: 't-1', name: 'Summer Fluke Classic', unit: 'in' }, error: null });
+    const onInsert = jest.fn();
+    result.current.subscribeToActivity(onInsert);
+
+    await act(async () => { await __mock.current.emitPostgresChange('tournament_entries', {
+      id: 'te-9', tournament_id: 't-1', user_id: 'user-4', angler_name: 'Andres', angler_avatar_url: '',
+      species: 'Fluke', size: 21, photo_url: '', caught_at: '2026-05-03', created_at: '2026-05-03T12:00:00Z',
+    }); });
+
+    expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'tournament_entry', id: 'te-9', tournamentName: 'Summer Fluke Classic', unit: 'in', size: 21, href: '/tournaments/t-1?entry=te-9',
+    }));
+  });
+
+  test('unsubscribing removes the underlying Realtime channel', async () => {
+    const result = await setupSignedIn();
+    const unsubscribe = result.current.subscribeToActivity(jest.fn());
+    unsubscribe();
+    expect(__mock.current.removeChannel).toHaveBeenCalled();
+  });
+});
+
 describe('submitBugReport', () => {
   test('stamps the current display name and page path onto the report', async () => {
     const result = await setupSignedIn();
