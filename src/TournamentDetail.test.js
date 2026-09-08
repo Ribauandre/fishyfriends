@@ -135,3 +135,18 @@ test('passes the ?entry= query param through so the linked entry is highlighted'
   // just scroll to and highlight the row.
   expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });
+
+test('also passes a ?comment= query param through so the specific comment is highlighted', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listTournamentEntries: jest.fn().mockResolvedValue([
+      { id: 'e-1', tournament_id: 't-1', user_id: 'user-1', angler_name: 'Andre', species: 'Fluke', size: 20, caught_at: '2026-07-16', photo_url: '' },
+    ]),
+    listTournamentEntryComments: jest.fn().mockResolvedValue([
+      { id: 'c-1', user_id: 'user-2', author_name: 'Kevin', body: 'Great catch!' },
+      { id: 'c-2', user_id: 'user-3', author_name: 'Sam', body: 'Huge!' },
+    ]),
+  }));
+  renderDetail('/tournaments/t-1?entry=e-1&comment=c-2');
+  await waitFor(() => expect(screen.getByText('Huge!').closest('.comment-row')).toHaveClass('is-shared-highlight'));
+  expect(screen.getByText('Great catch!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
+});

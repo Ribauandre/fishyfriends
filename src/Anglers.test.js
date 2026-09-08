@@ -157,6 +157,19 @@ test('a ?best= query param auto-expands and highlights the matching card', async
   expect(within(kevinCard.querySelector('.angler-best')).getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });
 
+test('also passes a ?comment= query param through so the specific comment is highlighted', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listComments: jest.fn().mockResolvedValue([
+      { id: 'c-1', user_id: 'user-3', author_name: 'Andre', body: 'Nice fish!' },
+      { id: 'c-2', user_id: 'user-4', author_name: 'Sam', body: 'Beat that.' },
+    ]),
+  }));
+  renderAnglers('/anglers?best=pb-2&comment=c-2');
+  await screen.findByText('Andre');
+  await waitFor(() => expect(screen.getByText('Beat that.').closest('.comment-row')).toHaveClass('is-shared-highlight'));
+  expect(screen.getByText('Nice fish!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
+});
+
 test('shows a form for logging a new personal best, now that it lives here instead of on Profile', async () => {
   renderAnglers();
   await screen.findByText('Andre');

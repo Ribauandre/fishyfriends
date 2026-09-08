@@ -8,12 +8,12 @@ import speciesIcon from '../utils/speciesOptions';
 type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_url?: string; month: string; species: string; caught_at: string | null; photo_url: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function MonthDetail({ entries, currentUserId, onDelete, highlightId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null }) {
+function MonthDetail({ entries, currentUserId, onDelete, highlightId, highlightCommentId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null; highlightCommentId?: string | null }) {
   if (!entries.length) return <div className="empty-state"><FishIllustration species="smallmouth" className="empty-state-sticker" /><p className="month-empty">No catches yet. Somebody's gotta break the ice.</p></div>;
-  return <div className="month-catches">{entries.map((entry) => <MonthCatch key={entry.id} entry={entry} currentUserId={currentUserId} onDelete={onDelete} highlighted={entry.id === highlightId} />)}</div>;
+  return <div className="month-catches">{entries.map((entry) => <MonthCatch key={entry.id} entry={entry} currentUserId={currentUserId} onDelete={onDelete} highlighted={entry.id === highlightId} highlightCommentId={entry.id === highlightId ? highlightCommentId : null} />)}</div>;
 }
 
-function MonthCatch({ entry, currentUserId, onDelete, highlighted }: { entry: Catch; currentUserId?: string; onDelete: (id: string) => void; highlighted?: boolean }) {
+function MonthCatch({ entry, currentUserId, onDelete, highlighted, highlightCommentId }: { entry: Catch; currentUserId?: string; onDelete: (id: string) => void; highlighted?: boolean; highlightCommentId?: string | null }) {
   const [imageOpen, setImageOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -34,24 +34,24 @@ function MonthCatch({ entry, currentUserId, onDelete, highlighted }: { entry: Ca
     </div>
     <div className="catch-card-actions">
       <LikeButton targetType="fish_year_catch" targetId={entry.id} ownerId={entry.user_id} />
-      <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} />
+      <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} highlightCommentId={highlightCommentId} />
     </div>
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}
   </div>;
 }
 
-function MonthCard({ month, index, entries, currentUserId, onDelete, highlightId }: { month: string; index: number; entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null }) {
+function MonthCard({ month, index, entries, currentUserId, onDelete, highlightId, highlightCommentId }: { month: string; index: number; entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null; highlightCommentId?: string | null }) {
   const containsHighlight = highlightId ? entries.some((entry) => entry.id === highlightId) : false;
   const [open, setOpen] = React.useState(index < 2 || containsHighlight);
-  return <div className={`month-card ${entries.length ? 'has-catches' : ''} ${open ? 'is-open' : ''}`}><button className="month-card-header" type="button" onClick={() => setOpen(!open)} aria-expanded={open}><span className="month-number">{String(index + 1).padStart(2, '0')}</span><span className="month-name"><strong>{month}</strong><small>{entries.length ? `${entries.length} catches logged` : 'Waiting for a catch'}</small></span><span className={`month-state ${entries.length ? 'complete' : ''}`}>{entries.length ? '✓' : '—'}</span><span className="expand-icon">{open ? '−' : '+'}</span></button>{open && <div className="month-card-detail"><MonthDetail entries={entries} currentUserId={currentUserId} onDelete={onDelete} highlightId={highlightId} /></div>}</div>;
+  return <div className={`month-card ${entries.length ? 'has-catches' : ''} ${open ? 'is-open' : ''}`}><button className="month-card-header" type="button" onClick={() => setOpen(!open)} aria-expanded={open}><span className="month-number">{String(index + 1).padStart(2, '0')}</span><span className="month-name"><strong>{month}</strong><small>{entries.length ? `${entries.length} catches logged` : 'Waiting for a catch'}</small></span><span className={`month-state ${entries.length ? 'complete' : ''}`}>{entries.length ? '✓' : '—'}</span><span className="expand-icon">{open ? '−' : '+'}</span></button>{open && <div className="month-card-detail"><MonthDetail entries={entries} currentUserId={currentUserId} onDelete={onDelete} highlightId={highlightId} highlightCommentId={highlightCommentId} /></div>}</div>;
 }
 
-export default function Participants({ catches, currentUserId, onDelete, highlightId }: { catches: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null }) {
+export default function Participants({ catches, currentUserId, onDelete, highlightId, highlightCommentId }: { catches: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null; highlightCommentId?: string | null }) {
   const entries = React.useMemo(() => {
     const grouped: Record<string, Catch[]> = {};
     for (const entry of catches) grouped[entry.month] = [...(grouped[entry.month] || []), entry];
     return grouped;
   }, [catches]);
   const currentParticipants = Array.from(new Set(catches.map((entry) => entry.angler_name)));
-  return <div className="participants-panel"><div className="participant-summary"><div><strong>{currentParticipants.length}</strong><span>active anglers</span></div><div><strong>{Object.values(entries).filter((monthEntries) => monthEntries.length).length.toString().padStart(2, '0')}</strong><span>months complete</span></div><div><strong>{12 - Object.values(entries).filter((monthEntries) => monthEntries.length).length}</strong><span>months ahead</span></div></div><div className="progress-board"><div className="progress-board-heading"><span className="eyebrow">MONTH-BY-MONTH</span><span className="muted-label">Tap a month to inspect catches</span></div><div className="months-grid">{months.map((month, index) => <MonthCard key={month} month={month} index={index} entries={entries[month] || []} currentUserId={currentUserId} onDelete={onDelete} highlightId={highlightId} />)}</div></div></div>;
+  return <div className="participants-panel"><div className="participant-summary"><div><strong>{currentParticipants.length}</strong><span>active anglers</span></div><div><strong>{Object.values(entries).filter((monthEntries) => monthEntries.length).length.toString().padStart(2, '0')}</strong><span>months complete</span></div><div><strong>{12 - Object.values(entries).filter((monthEntries) => monthEntries.length).length}</strong><span>months ahead</span></div></div><div className="progress-board"><div className="progress-board-heading"><span className="eyebrow">MONTH-BY-MONTH</span><span className="muted-label">Tap a month to inspect catches</span></div><div className="months-grid">{months.map((month, index) => <MonthCard key={month} month={month} index={index} entries={entries[month] || []} currentUserId={currentUserId} onDelete={onDelete} highlightId={highlightId} highlightCommentId={highlightCommentId} />)}</div></div></div>;
 }

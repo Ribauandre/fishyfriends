@@ -5,7 +5,7 @@ import PostMenu from './PostMenu';
 import TournamentEntryComments from './TournamentEntryComments';
 import speciesIcon from '../utils/speciesOptions';
 
-function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, onDelete, highlighted }) {
+function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, onDelete, highlighted, highlightCommentId }) {
   const [open, setOpen] = useState(Boolean(highlighted));
   const [imageOpen, setImageOpen] = useState(false);
   const ref = useRef(null);
@@ -35,7 +35,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
         <h3>{entry.angler_name}'s entry</h3>
         <p>{entry.size} {unit === 'lb' ? 'lbs' : 'inches'} of {entry.species}{entry.caught_at ? `, logged ${entry.caught_at}` : ''}.</p>
         <LikeButton targetType="tournament_entry" targetId={entry.id} ownerId={entry.user_id} />
-        <TournamentEntryComments entryId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} />
+        <TournamentEntryComments entryId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} highlightCommentId={highlighted ? highlightCommentId : null} />
       </div>
     </div>}
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}>
@@ -45,7 +45,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
   </div>;
 }
 
-export default function TournamentEntries({ entries, unit, tournamentId, currentUserId, onDelete, highlightId }) {
+export default function TournamentEntries({ entries, unit, tournamentId, currentUserId, onDelete, highlightId, highlightCommentId }) {
   if (!entries.length) return <div className="empty-state"><FishIllustration species="flounder" className="empty-state-sticker" /><p className="month-empty">No entries yet. Somebody's gotta break the ice.</p></div>;
   return <div className="leaderboard-panel">
     <div className="leaderboard-labels"><span>RANK / ANGLER</span><span>SIZE</span><span>DATE</span></div>
@@ -58,6 +58,7 @@ export default function TournamentEntries({ entries, unit, tournamentId, current
       currentUserId={currentUserId}
       onDelete={onDelete}
       highlighted={entry.id === highlightId}
+      highlightCommentId={highlightCommentId}
     />)}
   </div>;
 }

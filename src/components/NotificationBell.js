@@ -53,14 +53,15 @@ export default function NotificationBell() {
       setNotifications((previous) => previous.map((item) => (item.id === notification.id ? { ...item, read: true } : item)));
       await markNotificationRead(notification.id);
     }
+    const commentParam = notification.comment_id ? `&comment=${notification.comment_id}` : '';
     if (notification.target_type === 'tournament_entry') {
       const entry = await getTournamentEntry(notification.target_id);
-      navigate(entry ? `/tournaments/${entry.tournament_id}?entry=${notification.target_id}` : '/tournaments');
+      navigate(entry ? `/tournaments/${entry.tournament_id}?entry=${notification.target_id}${commentParam}` : '/tournaments');
       return;
     }
     const href = notification.target_type === 'personal_best'
-      ? `/anglers?best=${notification.target_id}`
-      : `/fish-year?catch=${notification.target_id}`;
+      ? `/anglers?best=${notification.target_id}${commentParam}`
+      : `/fish-year?catch=${notification.target_id}${commentParam}`;
     navigate(href);
   }
 

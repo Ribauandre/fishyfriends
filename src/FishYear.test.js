@@ -132,3 +132,20 @@ test('passes the ?catch= query param through so the linked catch is highlighted 
   // not just scrolled to the card — otherwise "take me to the comment" only gets you halfway.
   expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
 });
+
+test('also passes a ?comment= query param through so the specific comment is highlighted', async () => {
+  useAuth.mockReturnValue({
+    ...makeBaseAuth(),
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Bass', angler_name: 'Me', caught_at: '2026-03-01', photo_url: '' },
+    ]),
+    listFishYearComments: jest.fn().mockResolvedValue([
+      { id: 'c-1', user_id: 'user-2', author_name: 'Kevin', body: 'Nice bass!' },
+      { id: 'c-2', user_id: 'user-3', author_name: 'Sam', body: 'Wow!' },
+    ]),
+  });
+  renderFishYear('/fish-year?catch=fy-1&comment=c-2');
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('Wow!').closest('.comment-row')).toHaveClass('is-shared-highlight'));
+  expect(screen.getByText('Nice bass!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
+});

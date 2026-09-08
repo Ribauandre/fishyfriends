@@ -10,7 +10,7 @@ import SpeciesChecklist from './components/SpeciesChecklist';
 import iconFor from './utils/speciesOptions';
 import { FISH_YEAR } from './constants';
 
-function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted }) {
+function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted, highlightCommentId }) {
   const [imageOpen, setImageOpen] = useState(false);
   const ref = useRef(null);
 
@@ -38,7 +38,7 @@ function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highligh
       <strong>{best.species}</strong>
       <span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span>
       <LikeButton targetType="personal_best" targetId={best.id} ownerId={profile.id} />
-      <PersonalBestComments personalBestId={best.id} ownerId={profile.id} defaultOpen={highlighted} />
+      <PersonalBestComments personalBestId={best.id} ownerId={profile.id} defaultOpen={highlighted} highlightCommentId={highlightCommentId} />
     </div>
     {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${anglerName}'s ${best.species} photo`} onClick={() => setImageOpen(false)}>
       <button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button>
@@ -47,7 +47,7 @@ function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highligh
   </div>;
 }
 
-function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId }) {
+function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, highlightCommentId }) {
   const containsHighlight = personalBests.some((best) => best.id === highlightBestId);
   const [open, setOpen] = useState(containsHighlight);
 
@@ -78,6 +78,7 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId }
         isOwner={isYou}
         onDelete={onDelete}
         highlighted={best.id === highlightBestId}
+        highlightCommentId={best.id === highlightBestId ? highlightCommentId : null}
       />)}
     </div>}
   </article>;
@@ -90,6 +91,7 @@ export default function Anglers() {
   const [query, setQuery] = useState('');
   const [searchParams] = useSearchParams();
   const highlightBestId = searchParams.get('best');
+  const highlightCommentId = searchParams.get('comment');
 
   async function handleDeleteBest(id) {
     const result = await deletePersonalBest(id);
@@ -155,6 +157,7 @@ export default function Anglers() {
         isYou={profile.id === user?.id}
         onDelete={handleDeleteBest}
         highlightBestId={highlightBestId}
+        highlightCommentId={highlightCommentId}
       />)}
       {filtered.length === 0 && <p className="month-empty">Nobody matches that. Try a different name or water.</p>}
     </div>}

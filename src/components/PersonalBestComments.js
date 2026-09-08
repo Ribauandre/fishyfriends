@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import CommentThread from './CommentThread';
 
-export default function PersonalBestComments({ personalBestId, ownerId, defaultOpen }) {
+export default function PersonalBestComments({ personalBestId, ownerId, defaultOpen, highlightCommentId }) {
   const { user, listComments, addComment, deleteComment } = useAuth();
   const [comments, setComments] = useState(null);
 
@@ -24,5 +24,5 @@ export default function PersonalBestComments({ personalBestId, ownerId, defaultO
     if (!result.error) setComments((previous) => (previous || []).filter((comment) => comment.id !== id));
   }
 
-  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} onDelete={handleDelete} currentUserId={user?.id} defaultOpen={defaultOpen} />;
+  return <CommentThread comments={comments || []} loading={comments === null} onAdd={handleAdd} onDelete={handleDelete} currentUserId={user?.id} defaultOpen={defaultOpen} highlightCommentId={highlightCommentId} />;
 }

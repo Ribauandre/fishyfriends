@@ -228,7 +228,7 @@ export function AuthProvider({ children }) {
     const row = { personal_best_id: personalBestId, user_id: user.id, author_name: authorName, body: trimmedBody };
     const { data, error } = await supabase.from('personal_best_comments').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
-    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'personal_best', targetId: personalBestId, preview: trimmedBody });
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'personal_best', targetId: personalBestId, preview: trimmedBody, commentId: data.id });
     return { error: null, comment: data };
   }
 
@@ -253,7 +253,7 @@ export function AuthProvider({ children }) {
     const row = { catch_id: catchId, user_id: user.id, author_name: authorName, body: trimmedBody };
     const { data, error } = await supabase.from('fish_year_catch_comments').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
-    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'fish_year_catch', targetId: catchId, preview: trimmedBody });
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'fish_year_catch', targetId: catchId, preview: trimmedBody, commentId: data.id });
     return { error: null, comment: data };
   }
 
@@ -291,7 +291,7 @@ export function AuthProvider({ children }) {
   // block or error out the like/comment action that triggered it. Never notifies yourself:
   // the DB's own insert policy (actor_id <> recipient_id) would reject it anyway, but
   // checking here avoids a pointless round trip when you like or comment on your own post.
-  async function notifyIfNeeded({ recipientId, type, targetType, targetId, preview }) {
+  async function notifyIfNeeded({ recipientId, type, targetType, targetId, preview, commentId }) {
     if (!isSupabaseConfigured || !user || !recipientId || recipientId === user.id) return;
     const actorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
     await supabase.from('notifications').insert({
@@ -301,6 +301,7 @@ export function AuthProvider({ children }) {
       type,
       target_type: targetType,
       target_id: targetId,
+      comment_id: commentId || null,
       preview: preview || '',
     });
   }
@@ -454,7 +455,7 @@ export function AuthProvider({ children }) {
     const row = { tournament_entry_id: entryId, user_id: user.id, author_name: authorName, body: trimmedBody };
     const { data, error } = await supabase.from('tournament_entry_comments').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
-    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'tournament_entry', targetId: entryId, preview: trimmedBody });
+    notifyIfNeeded({ recipientId: ownerId, type: 'comment', targetType: 'tournament_entry', targetId: entryId, preview: trimmedBody, commentId: data.id });
     return { error: null, comment: data };
   }
 
