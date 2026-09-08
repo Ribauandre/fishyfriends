@@ -13,11 +13,11 @@ export default function Navbar() {
         <NavLink to="/home" end className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>01</span> Home
         </NavLink>
-        <NavLink to="/tournaments" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-          <span>02</span> Tournaments
-        </NavLink>
         <NavLink to="/fish-year" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-          <span>03</span> Fish Year
+          <span>02</span> Fish Year
+        </NavLink>
+        <NavLink to="/tournaments" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+          <span>03</span> Tournaments
         </NavLink>
         <NavLink to="/anglers" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>04</span> Anglers

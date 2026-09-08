@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Anglers from './Anglers';
@@ -21,6 +21,7 @@ function makeBaseAuth(overrides = {}) {
     user: { id: 'user-1' },
     listAnglers: jest.fn().mockResolvedValue(roster),
     deletePersonalBest: jest.fn(),
+    uploadPersonalBest: jest.fn(),
     listComments: jest.fn().mockResolvedValue([]),
     addComment: jest.fn(),
     deleteComment: jest.fn(),
@@ -98,7 +99,8 @@ test('tapping a card expands it to show personal bests', async () => {
   renderAnglers();
   await screen.findByText('Andre');
   await expandCard('Andre');
-  expect(screen.getByText('Striped Bass')).toBeInTheDocument();
+  const andreCard = screen.getByText('Andre').closest('.angler-card');
+  expect(within(andreCard).getByText('Striped Bass')).toBeInTheDocument();
   expect(screen.getAllByText(/personal best/i).length).toBeGreaterThan(0);
 });
 
@@ -149,4 +151,32 @@ test('a ?best= query param auto-expands and highlights the matching card', async
   const kevinCard = screen.getByText('Kevin').closest('.angler-card');
   expect(kevinCard.querySelector('.angler-card-head')).toHaveAttribute('aria-expanded', 'true');
   expect(kevinCard.querySelector('.angler-best')).toHaveClass('is-shared-highlight');
+});
+
+test('shows a form for logging a new personal best, now that it lives here instead of on Profile', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  expect(screen.getByRole('heading', { name: /log a new personal best/i })).toBeInTheDocument();
+  expect(screen.getByRole('combobox')).toBeInTheDocument();
+});
+
+test('logging a new personal best adds it to the current user\'s own card', async () => {
+  const uploadPersonalBest = jest.fn().mockResolvedValue({ error: null, bestEntry: { id: 'pb-new', species: 'Carp', size_label: '', caught_at: '', photo_url: '' } });
+  useAuth.mockReturnValue(makeBaseAuth({ uploadPersonalBest }));
+  renderAnglers();
+  await screen.findByText('Andre');
+  await userEvent.type(screen.getByRole('combobox'), 'Carp');
+  await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
+  await userEvent.click(screen.getByRole('button', { name: /log personal best/i }));
+  await waitFor(() => expect(uploadPersonalBest).toHaveBeenCalled());
+  await expandCard('Andre');
+  const andreCard = screen.getByText('Andre').closest('.angler-card');
+  expect(within(andreCard).getByText('Carp')).toBeInTheDocument();
+});
+
+test('shows a species checklist reflecting the current user\'s own personal bests', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  expect(await screen.findByText(/species caught/i)).toBeInTheDocument();
+  expect(screen.getByText('Striped Bass').closest('.species-cell')).toHaveClass('is-caught');
 });
