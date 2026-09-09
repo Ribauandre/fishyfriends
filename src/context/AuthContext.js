@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
+import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
@@ -466,6 +467,61 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1 };
+
+  // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
+  // as everything else here — the minigame page loads it itself rather than this provider
+  // holding it in global state. No row yet just means a brand-new player.
+  async function getGameProfile() {
+    if (!isSupabaseConfigured || !user) return null;
+    const { data } = await supabase.from('game_profiles').select('*').eq('user_id', user.id).maybeSingle();
+    if (data) return data;
+    const fallback = { user_id: user.id, ...GAME_DEFAULT_PROFILE };
+    await supabase.from('game_profiles').upsert({ ...fallback, updated_at: new Date().toISOString() });
+    return fallback;
+  }
+
+  async function listMyGameCatches(limit = 50) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data } = await supabase.from('game_catches').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    return data || [];
+  }
+
+  // Logs a trophy-case entry and credits its points to the tackle balance. Purely a fun
+  // side game — this never touches fish_year_catches or tournament_entries.
+  async function logGameCatch({ species, rarity, sizeLabel, pointsEarned }) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { user_id: user.id, angler_name: authorName, species, rarity, size_label: sizeLabel || '', points_earned: pointsEarned || 0 };
+    const { data, error } = await supabase.from('game_catches').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    const currentGameProfile = await getGameProfile();
+    const nextPoints = (currentGameProfile?.tackle_points || 0) + (pointsEarned || 0);
+    const { data: updatedProfile, error: profileError } = await supabase.from('game_profiles')
+      .update({ tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (profileError) return { error: null, catchEntry: data, gameProfile: currentGameProfile };
+    return { error: null, catchEntry: data, gameProfile: updatedProfile };
+  }
+
+  // Spends tackle points to bump one gear track a level. Every track only smooths the
+  // existing cast/hookset/reel-in skill checks (see utils/gameUpgrades.js) — it never
+  // auto-lands a fish for you.
+  async function purchaseUpgrade(trackKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before upgrading your gear.') };
+    const track = UPGRADE_TRACKS.find((candidate) => candidate.key === trackKey);
+    if (!track) return { error: new Error('Unknown upgrade.') };
+    const currentGameProfile = await getGameProfile();
+    const currentLevel = currentGameProfile?.[track.column] || 1;
+    if (currentLevel >= MAX_UPGRADE_LEVEL) return { error: new Error('That gear is already maxed out.') };
+    const cost = upgradeCost(currentLevel);
+    if ((currentGameProfile?.tackle_points || 0) < cost) return { error: new Error('Not enough tackle points yet.') };
+    const nextPoints = currentGameProfile.tackle_points - cost;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ [track.column]: currentLevel + 1, tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data };
+  }
+
   async function submitBugReport({ body }) {
     if (!body?.trim()) return { error: new Error('Describe what went wrong first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before reporting a bug.') };
@@ -576,6 +632,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
+    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

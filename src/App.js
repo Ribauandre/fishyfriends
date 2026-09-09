@@ -9,6 +9,7 @@ import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
 import Anglers from './Anglers';
+import FishingGame from './FishingGame';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ function App() {
       <Route path="/tournaments/:tournamentId" element={<ProtectedRoute><TournamentDetail /></ProtectedRoute>} />
       <Route path="/fish-year" element={<ProtectedRoute><FishYear /></ProtectedRoute>} />
       <Route path="/anglers" element={<ProtectedRoute><Anglers /></ProtectedRoute>} />
+      <Route path="/fishing-game" element={<ProtectedRoute><FishingGame /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>
   );
 }
