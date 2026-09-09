@@ -613,6 +613,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 }
 
 /* Cast & Catch minigame — one frame: HUD, scene, dock, and in-frame overlays. */
+/* The game gets more of the screen than the rest of the site: a wider shell, and on narrow
+   screens a taller stage that crops the painting to the dock side so the angler stays big. */
+.game-page { max-width: 1560px; }
 .game-frame { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 14px solid transparent; border-image: url(./assets/props/frame.png) 21% round; box-shadow: var(--sticker-shadow-lg); margin-top: 18px; overflow: hidden; position: relative; }
 .game-frame.is-hookset { animation: frame-shake .35s ease-out; }
 @keyframes frame-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 1px); } 80% { transform: translate(1px, -1px); } }
@@ -738,8 +741,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .rarity-tag.is-real { background: var(--coral); color: var(--deep); }
 
 /* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
-.game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
-.scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; position: absolute; width: 100%; }
+.game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; max-height: calc(100vh - 230px); min-height: 300px; overflow: hidden; position: relative; width: 100%; }
+.scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; object-position: left center; position: absolute; width: 100%; }
 .game-scene-svg { display: block; height: 100%; inset: 0; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: 8%; top: 57%; }
 .game-scene .scene-fish { height: auto; left: 50%; margin-left: -7%; position: absolute; top: 62%; transition: left .08s linear; width: 14%; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
@@ -940,9 +943,33 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-panel.is-play { gap: 10px; padding-top: 14px; }
 .game-panel.is-play > p { font-size: 12px; }
 
+
+/* Cast & Catch — presence: club members on the same ground stand on the deck behind you. */
+.scene-sprite.is-crew { filter: brightness(.92) saturate(.85); }
+.scene-crew-tag { color: #ffb38a; font-family: Oswald, 'Arial Narrow', sans-serif; font-size: 8px; font-weight: 700; letter-spacing: 1px; pointer-events: none; position: absolute; text-shadow: 1px 1px 0 #03080b, -1px -1px 0 #03080b, 1px -1px 0 #03080b, -1px 1px 0 #03080b; transform: translateX(-50%); white-space: nowrap; z-index: 1; }
+.scene-crew-bubble { animation: overlay-rise .3s ease-out both; background: var(--cream); border: 1px solid var(--line); color: var(--ink); font-size: 10px; font-weight: 700; padding: 3px 7px; pointer-events: none; position: absolute; transform: translateX(-50%); white-space: nowrap; z-index: 7; }
+.scene-crew-bubble:after { border: 5px solid transparent; border-top-color: var(--line); content: ''; left: 50%; margin-left: -5px; position: absolute; top: 100%; }
+.scene-crew-more { background: rgba(3,8,11,.7); border: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 700; padding: 2px 6px; pointer-events: none; position: absolute; z-index: 1; }
+.dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: -6px; width: 100%; }
+.dock-crew-label { color: var(--muted); font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.dock-crew-chip { align-items: center; background: rgba(3,8,11,.3); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: inline-flex; gap: 7px; padding: 4px 9px 4px 5px; text-align: left; }
+.dock-crew-chip .mini-avatar { height: 22px; width: 22px; font-size: 10px; }
+.dock-crew-chip.is-here { border-color: var(--mint); }
+.dock-crew-chip:disabled { cursor: default; opacity: .8; }
+.dock-crew-chip:not(:disabled):hover { border-color: var(--mint); }
+.dock-crew-text { display: flex; flex-direction: column; line-height: 1.15; }
+.dock-crew-text strong { font-size: 11px; }
+.dock-crew-text small { color: var(--muted); font-size: 9px; }
+
+@media (max-width: 800px) {
+  .game-scene { aspect-ratio: 3 / 2; max-height: none; min-height: 0; }
+}
 @media (max-width: 500px) {
+  /* The page wrapper pads 16px on phones; the game frame reaches the screen edges instead. */
+  .game-frame { margin-left: -16px; margin-right: -16px; }
+  .game-scene { aspect-ratio: 5 / 4; }
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
-  .game-frame { border-width: 9px; }
+  .game-frame { border-width: 7px; margin-top: 8px; }
   .game-hud { gap: 4px 6px; padding: 6px 6px; }
   .hud-plate { border-width: 9px; margin: -1px 0 0 -1px; padding: 0 2px; }
   .hud-plate .hud-brand { font-size: 7px; }

@@ -621,3 +621,28 @@ describe('Cast & Catch world', () => {
     expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({ kind: 'game_catch', id: 'gc-9', species: 'Swordfish', sizeLabel: '120.0 in', avatarUrl: 'kevin.jpg' }));
   });
 });
+
+describe('the dock (presence)', () => {
+  test('joinDock tracks who you are once subscribed, reports everyone but you on sync, and leaves cleanly', async () => {
+    const result = await setupSignedIn();
+    const onSync = jest.fn();
+    const dock = result.current.joinDock({ name: 'Andre', biome: 'river', phase: 'ready' }, onSync);
+    const chan = __mock.current.channels[__mock.current.channels.length - 1];
+    expect(chan.name).toBe('cast-and-catch-dock');
+    expect(chan.options).toEqual({ config: { presence: { key: 'user-1' } } });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    expect(chan.track).toHaveBeenCalledWith(expect.objectContaining({ name: 'Andre', biome: 'river', phase: 'ready', at: expect.any(Number) }));
+
+    await act(async () => { await __mock.current.emitPresenceSync({
+      'user-1': [{ name: 'Andre', biome: 'river', phase: 'ready' }],
+      'user-2': [{ name: 'Kevin', biome: 'bay', phase: 'waiting' }, { name: 'Kevin', biome: 'bay', phase: 'reeling' }],
+      'user-3': [{}],
+    }); });
+    expect(onSync).toHaveBeenCalledWith([{ userId: 'user-2', name: 'Kevin', biome: 'bay', phase: 'reeling' }]);
+
+    dock.update({ name: 'Andre', biome: 'bay', phase: 'casting' });
+    expect(chan.track).toHaveBeenLastCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
+    dock.leave();
+    expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
+  });
+});

@@ -745,6 +745,30 @@ export function AuthProvider({ children }) {
     return () => supabase.removeChannel(channel);
   }
 
+  // Cast & Catch presence: everyone with the game open shares one Realtime presence channel,
+  // keyed by user id, carrying where they are and what they're doing. Nothing is stored —
+  // Presence is in-memory on the Realtime server and vanishes when the tab closes — so this is
+  // the one piece of the game that is deliberately not a table. onSync gets everyone but you.
+  function joinDock(initial, onSync) {
+    if (!isSupabaseConfigured || !user) return { update: () => {}, leave: () => {} };
+    const channel = supabase.channel('cast-and-catch-dock', { config: { presence: { key: user.id } } });
+    const sync = () => {
+      const state = channel.presenceState() || {};
+      const others = Object.entries(state)
+        .filter(([key]) => key !== user.id)
+        .map(([key, metas]) => ({ userId: key, ...(metas[metas.length - 1] || {}) }))
+        .filter((entry) => entry.name);
+      onSync(others);
+    };
+    channel.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') await channel.track({ ...initial, at: Date.now() });
+    });
+    return {
+      update: (payload) => channel.track({ ...payload, at: Date.now() }),
+      leave: () => supabase.removeChannel(channel),
+    };
+  }
+
   const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
@@ -764,7 +788,7 @@ export function AuthProvider({ children }) {
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
     getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
-    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

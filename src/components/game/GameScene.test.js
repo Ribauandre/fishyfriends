@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GameScene from './GameScene';
 
@@ -154,4 +154,64 @@ test('a harder cast lands the bobber further out', () => {
   const shortCast = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
   rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={90} />);
   expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeGreaterThan(shortCast);
+});
+
+test('club members on the same ground stand on the deck in their own pose, with a bubble for a fresh catch', () => {
+  const now = () => 100000;
+  const others = [
+    { userId: 'u2', name: 'Kevin', biome: 'river', phase: 'reeling', species: 'pike' },
+    { userId: 'u3', name: 'Sam', biome: 'river', phase: 'result', species: 'walleye', lastCatch: { species: 'Walleye', at: 96000 } },
+    { userId: 'u4', name: 'Priya', biome: 'river', phase: 'waiting', lastCatch: { species: 'Carp', at: 10000 } },
+    { userId: 'u5', name: 'Lee', biome: 'river', phase: 'ready' },
+  ];
+  const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" others={others} now={now} />);
+  const crew = container.querySelectorAll('.scene-sprite.is-crew');
+  expect(crew.length).toBe(3);
+  expect(crew[0]).toHaveAttribute('data-action', 'reel');
+  expect(crew[0]).toHaveClass('is-looping');
+  expect(crew[1]).toHaveAttribute('data-action', 'celebrate');
+  expect(crew[2]).toHaveAttribute('data-action', 'cast');
+  expect(screen.getByText('KEVIN')).toHaveClass('scene-crew-tag');
+  expect(screen.getByText('Landed a walleye!')).toHaveClass('scene-crew-bubble');
+  expect(screen.queryByText(/landed a carp/i)).toBeNull();
+  expect(screen.getByText('+1 more')).toBeInTheDocument();
+  expect(container.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-action', 'idle');
+  // Crew stand behind the player, further left along the deck.
+  const you = parseFloat(container.querySelector('.scene-sprite.is-you').style.left);
+  crew.forEach((sprite) => expect(parseFloat(sprite.style.left)).toBeLessThan(you));
+});
+
+test('the boat only has room for one guest', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready' }, { userId: 'u3', name: 'Sam', phase: 'ready' }];
+  const { container } = render(<GameScene biome="offshore" phase="ready" displayName="Andre" others={others} />);
+  expect(container.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(screen.getByText('+1 more')).toBeInTheDocument();
+});
+
+test('a taller stage keeps the scene on the painting: positions follow the visible width', () => {
+  // jsdom has no layout; drive the measurement through a fake ResizeObserver and a fake box.
+  const callbacks = [];
+  const RO = class { constructor(cb) { callbacks.push(cb); } observe() {} disconnect() {} };
+  const original = global.ResizeObserver;
+  global.ResizeObserver = RO;
+  const rect = jest.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ width: 400, height: 300, top: 0, left: 0, right: 400, bottom: 300 });
+  try {
+    const { container, rerender } = render(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
+    const scene = container.querySelector('.game-scene');
+    expect(scene).toHaveAttribute('data-view-w', '360');
+    expect(container.querySelector('.game-scene-svg')).toHaveAttribute('viewBox', '0 0 360 270');
+    // The hardest cast still lands inside the visible water.
+    expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeLessThanOrEqual(360 - 24);
+    // The angler's feet keep the same unit position, so as a share of a narrower stage he sits further right.
+    const you = container.querySelector('.scene-sprite.is-you');
+    const leftNarrow = parseFloat(you.style.left);
+    rect.mockReturnValue({ width: 480, height: 270, top: 0, left: 0, right: 480, bottom: 270 });
+    callbacks.forEach((cb) => act(() => cb()));
+    rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
+    expect(scene).toHaveAttribute('data-view-w', '480');
+    expect(parseFloat(container.querySelector('.scene-sprite.is-you').style.left)).toBeLessThan(leftNarrow);
+  } finally {
+    rect.mockRestore();
+    global.ResizeObserver = original;
+  }
 });
