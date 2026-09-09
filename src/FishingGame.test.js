@@ -4,15 +4,20 @@ import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
 import { useAuth } from './context/AuthContext';
 import { stepReel } from './utils/reelPhysics';
+import { twitchJerk, stepCrank } from './utils/lurePhysics';
 
 jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('./utils/reelPhysics', () => {
   const actual = jest.requireActual('./utils/reelPhysics');
   return { ...actual, stepReel: jest.fn(actual.stepReel) };
 });
+jest.mock('./utils/lurePhysics', () => {
+  const actual = jest.requireActual('./utils/lurePhysics');
+  return { ...actual, twitchJerk: jest.fn(actual.twitchJerk), stepCrank: jest.fn(actual.stepCrank) };
+});
 
 function makeGameProfile(overrides = {}) {
-  return { tackle_points: 100, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, ...overrides };
+  return { tackle_points: 100, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], ...overrides };
 }
 
 function makeBaseAuth(overrides = {}) {
@@ -26,6 +31,7 @@ function makeBaseAuth(overrides = {}) {
     }),
     purchaseUpgrade: jest.fn(),
     charterBoat: jest.fn(),
+    purchaseLure: jest.fn(),
     ...overrides,
   };
 }
@@ -48,6 +54,8 @@ beforeEach(() => {
   useAuth.mockReturnValue(makeBaseAuth());
   jest.spyOn(Math, 'random').mockReturnValue(0.5);
   stepReel.mockClear();
+  twitchJerk.mockClear();
+  stepCrank.mockClear();
 });
 
 afterEach(() => {
@@ -201,6 +209,86 @@ test('leaving offshore and coming back requires chartering again', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
   expect(charterBoat).toHaveBeenCalledTimes(2);
+});
+
+test('unlocking a lure spends tackle points and ties it on', async () => {
+  const purchaseLure = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 40, owned_lures: ['jerkbait'] }) });
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseLure }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+
+  expect(screen.getByRole('button', { name: /jerk bait unlock · 60 pts/i })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+  expect(purchaseLure).toHaveBeenCalledWith('jerkbait');
+  expect(screen.getByText('40')).toBeInTheDocument();
+  expect(screen.getByText('JERK BAIT')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /jerk bait owned/i })).toBeInTheDocument();
+});
+
+test('a failed lure purchase shows the error and keeps live bait tied on', async () => {
+  const purchaseLure = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points yet.') });
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseLure }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
+  expect(await screen.findByText(/not enough tackle points yet/i)).toBeInTheDocument();
+  expect(screen.getByText('LIVE BAIT')).toBeInTheDocument();
+});
+
+test('jerk bait: twitching on the beat fills attraction and triggers the bite', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await reachWaiting();
+
+  expect(screen.getByRole('button', { name: 'Twitch' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Set the hook' })).not.toBeInTheDocument();
+
+  twitchJerk.mockReturnValueOnce({ attraction: 100, hits: 5, misses: 0, lastTwitchOnBeat: true });
+  await userEvent.click(screen.getByRole('button', { name: 'Twitch' }));
+  await act(async () => { await Promise.resolve(); });
+
+  expect(screen.getByText(/fish on/i)).toBeInTheDocument();
+});
+
+test('jerk bait: running out of retrieve with no bite wastes the cast', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await reachWaiting();
+  await advance(16000);
+  expect(screen.getByText(/no takers/i)).toBeInTheDocument();
+});
+
+test('crank bait: a retrieve held in the strike zone triggers the bite', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
+  await reachWaiting();
+
+  expect(screen.getByRole('button', { name: 'Hold to crank' })).toBeInTheDocument();
+  stepCrank.mockReturnValueOnce({ speed: 55, bandCenter: 55, attraction: 100, distance: 20, inBandTicks: 30, ticks: 30 });
+  await advance(80);
+
+  expect(screen.getByText(/fish on/i)).toBeInTheDocument();
+});
+
+test('crank bait: reaching the boat with no strike wastes the cast', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
+  await reachWaiting();
+
+  stepCrank.mockReturnValueOnce({ speed: 80, bandCenter: 40, attraction: 10, distance: 100, inBandTicks: 0, ticks: 30 });
+  await advance(80);
+
+  expect(screen.getByText(/nothing followed/i)).toBeInTheDocument();
 });
 
 test('renders past catches in the trophy case', async () => {

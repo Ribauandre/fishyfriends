@@ -4,15 +4,21 @@ import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST } from './utils/gameBiomes';
+import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
+import {
+  INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_ZONE, JERK_TIME_LIMIT_MS, CRANK_TICK_MS, CRANK_BAND_WIDTH,
+  jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
+} from './utils/lurePhysics';
 
 const CAST_SWEET_SPOT = [40, 60];
 const REEL_TICK_MS = 80;
 const REEL_TIME_LIMIT_MS = 16000;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1 };
+const JERK_TICK_MS = 50;
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
 
 export default function FishingGame() {
-  const { getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat } = useAuth();
+  const { getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure } = useAuth();
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +27,12 @@ export default function FishingGame() {
   const [chartered, setChartered] = useState(false);
   const [castBusy, setCastBusy] = useState(false);
   const [charterError, setCharterError] = useState('');
+  const [lure, setLure] = useState('livebait');
+  const [lureBusy, setLureBusy] = useState(false);
+  const [lureError, setLureError] = useState('');
+  const [lureDisplay, setLureDisplay] = useState(null);
+  const [lureFeedback, setLureFeedback] = useState('');
+  const [presentationQuality, setPresentationQuality] = useState(0);
   const [perfectCast, setPerfectCast] = useState(false);
   const [pendingCatch, setPendingCatch] = useState(null);
   const [result, setResult] = useState(null);
@@ -90,7 +102,18 @@ export default function FishingGame() {
     setResult(null);
     setPendingCatch(null);
     setPerfectCast(false);
+    setPresentationQuality(0);
+    setLureFeedback('');
     setPhase('ready');
+  }
+
+  async function handleLurePurchase(lureKey) {
+    setLureBusy(true); setLureError('');
+    const response = await purchaseLure(lureKey);
+    setLureBusy(false);
+    if (response?.error) { setLureError(response.error.message); return; }
+    if (response.gameProfile) setGameProfile(response.gameProfile);
+    setLure(lureKey);
   }
 
   function stopCast() {
@@ -99,18 +122,68 @@ export default function FishingGame() {
     setPhase('waiting');
   }
 
-  // ---- Waiting for a bite: a random delay before the fish is even on the line. Striking
-  // early (impatience) is its own failure mode, same button as the real hookset. ----
+  // ---- Waiting for a bite. How this plays depends on the lure: live bait is a random delay
+  // (striking early is its own failure mode, same button as the real hookset); jerk bait and
+  // crank bait turn the wait into a skill check whose quality shifts the roll toward rarer
+  // fish and pays a points bonus (see utils/gameLures.js and utils/lurePhysics.js). ----
   const biteTimeoutRef = useRef(null);
+  const lureIntervalRef = useRef(null);
+  const jerkStateRef = useRef(INITIAL_JERK_STATE);
+  const jerkElapsedRef = useRef(0);
+  const jerkMarkerRef = useRef(0);
+  const crankStateRef = useRef(INITIAL_CRANK_STATE);
+  const crankHoldingRef = useRef(false);
+
+  function triggerBite(quality) {
+    clearInterval(lureIntervalRef.current);
+    setPresentationQuality(quality);
+    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species));
+    setPhase('hookset');
+  }
 
   useEffect(() => {
     if (phase !== 'waiting') return undefined;
-    const delay = 1200 + Math.random() * 2600;
-    biteTimeoutRef.current = setTimeout(() => {
-      setPendingCatch(rollSpecies(gameProfile.bait_level, BIOMES[biome].species));
-      setPhase('hookset');
-    }, delay);
-    return () => clearTimeout(biteTimeoutRef.current);
+    const interaction = LURES[lure].interaction;
+    setLureFeedback('');
+
+    if (interaction === 'wait') {
+      const delay = 1200 + Math.random() * 2600;
+      biteTimeoutRef.current = setTimeout(() => triggerBite(0), delay);
+      return () => clearTimeout(biteTimeoutRef.current);
+    }
+
+    if (interaction === 'twitch') {
+      jerkStateRef.current = INITIAL_JERK_STATE;
+      jerkElapsedRef.current = 0;
+      jerkMarkerRef.current = 0;
+      setLureDisplay({ marker: 0, attraction: 0 });
+      lureIntervalRef.current = setInterval(() => {
+        jerkElapsedRef.current += JERK_TICK_MS;
+        jerkStateRef.current = decayJerk(jerkStateRef.current, JERK_TICK_MS);
+        jerkMarkerRef.current = jerkMarker(jerkElapsedRef.current);
+        setLureDisplay({ marker: jerkMarkerRef.current, attraction: jerkStateRef.current.attraction, lineOut: 100 - (jerkElapsedRef.current / JERK_TIME_LIMIT_MS) * 100 });
+        if (jerkElapsedRef.current >= JERK_TIME_LIMIT_MS) {
+          clearInterval(lureIntervalRef.current);
+          finishRound({ success: false, message: 'Worked it all the way back — no takers.' });
+        }
+      }, JERK_TICK_MS);
+      return () => clearInterval(lureIntervalRef.current);
+    }
+
+    crankStateRef.current = INITIAL_CRANK_STATE;
+    crankHoldingRef.current = false;
+    setLureDisplay({ ...INITIAL_CRANK_STATE });
+    lureIntervalRef.current = setInterval(() => {
+      const nextState = stepCrank(crankStateRef.current, { holding: crankHoldingRef.current });
+      crankStateRef.current = nextState;
+      setLureDisplay(nextState);
+      if (nextState.attraction >= 100) triggerBite(crankQuality(nextState));
+      else if (nextState.distance >= 100) {
+        clearInterval(lureIntervalRef.current);
+        finishRound({ success: false, message: 'Cranked it back to the boat — nothing followed.' });
+      }
+    }, CRANK_TICK_MS);
+    return () => clearInterval(lureIntervalRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -118,6 +191,17 @@ export default function FishingGame() {
     clearTimeout(biteTimeoutRef.current);
     finishRound({ success: false, message: 'Too early — there was no bite yet.' });
   }
+
+  function twitch() {
+    const nextState = twitchJerk(jerkStateRef.current, jerkMarkerRef.current);
+    jerkStateRef.current = nextState;
+    setLureFeedback(nextState.lastTwitchOnBeat ? 'Nice twitch.' : 'Spooked it — off the beat.');
+    setLureDisplay((previous) => ({ ...previous, marker: jerkMarkerRef.current, attraction: nextState.attraction }));
+    if (nextState.attraction >= 100) triggerBite(jerkQuality(nextState));
+  }
+
+  function startCrank() { crankHoldingRef.current = true; }
+  function stopCrank() { crankHoldingRef.current = false; }
 
   // ---- Hookset: a short, rarity-scaled window (widened by the rod level) to react in. ----
   const hooksetTimeoutRef = useRef(null);
@@ -186,7 +270,7 @@ export default function FishingGame() {
   function stopReel() { holdingRef.current = false; }
 
   async function landFish() {
-    let pointsEarned = pointsFor(pendingCatch.rarity);
+    let pointsEarned = Math.round(pointsFor(pendingCatch.rarity) * qualityPointsMultiplier(presentationQuality));
     if (perfectCast) pointsEarned = Math.round(pointsEarned * 1.2);
     const sizeLabel = sizeLabelFor(pendingCatch.rarity);
     const response = await logGameCatch({ species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel, pointsEarned });
@@ -223,6 +307,7 @@ export default function FishingGame() {
           <div><span className="eyebrow">TACKLE POINTS</span><h2>{gameProfile.tackle_points}</h2></div>
           <div className="game-status-badges">
             <span className="status-badge-muted game-biome-badge">{BIOMES[biome].label.toUpperCase()}</span>
+            <span className="status-badge-muted game-biome-badge">{LURES[lure].label.toUpperCase()}</span>
             <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
           </div>
         </div>
@@ -240,6 +325,23 @@ export default function FishingGame() {
             </button>)}
           </div>
           <p>{BIOMES[biome].blurb}</p>
+          <div className="biome-picker lure-picker">
+            {LURE_LIST.map((lureOption) => {
+              const owned = lureOwned(gameProfile, lureOption.key);
+              return <button
+                key={lureOption.key}
+                type="button"
+                className={`biome-button ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
+                disabled={lureBusy}
+                onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
+              >
+                <strong>{lureOption.label}</strong>
+                <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
+              </button>;
+            })}
+          </div>
+          <p>{LURES[lure].blurb}</p>
+          {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
           <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
@@ -253,9 +355,44 @@ export default function FishingGame() {
           <button className="button button-primary" type="button" onClick={stopCast}>Cast! <span>⚓</span></button>
         </div>}
 
-        {phase === 'waiting' && <div className="game-panel">
+        {phase === 'waiting' && LURES[lure].interaction === 'wait' && <div className="game-panel">
           <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Waiting for a bite...</p>
           <button className="button button-quiet" type="button" onClick={strikeEarly}>Set the hook</button>
+        </div>}
+
+        {phase === 'waiting' && LURES[lure].interaction === 'twitch' && lureDisplay && <div className="game-panel">
+          <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Twitch when the marker hits the zone.</p>
+          <div className="cast-meter">
+            <div className="cast-sweet-spot" style={{ left: `${JERK_ZONE[0]}%`, width: `${JERK_ZONE[1] - JERK_ZONE[0]}%` }} />
+            <div className="cast-indicator" style={{ left: `${lureDisplay.marker}%` }} />
+          </div>
+          <div className="reel-meters">
+            <div className="reel-meter"><span>Attraction</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${lureDisplay.attraction}%` }} /></div></div>
+            <div className="reel-meter"><span>Line out</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${lureDisplay.lineOut ?? 100}%` }} /></div></div>
+          </div>
+          <p className="lure-feedback">{lureFeedback || ' '}</p>
+          <button className="button button-primary game-hookset-button" type="button" onClick={twitch}>Twitch</button>
+        </div>}
+
+        {phase === 'waiting' && LURES[lure].interaction === 'crank' && lureDisplay && <div className="game-panel">
+          <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Hold to crank — keep the speed in the strike zone.</p>
+          <div className="cast-meter">
+            <div className="cast-sweet-spot" style={{ left: `${lureDisplay.bandCenter - CRANK_BAND_WIDTH / 2}%`, width: `${CRANK_BAND_WIDTH}%` }} />
+            <div className="cast-indicator" style={{ left: `${lureDisplay.speed}%` }} />
+          </div>
+          <div className="reel-meters">
+            <div className="reel-meter"><span>Attraction</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${lureDisplay.attraction}%` }} /></div></div>
+            <div className="reel-meter"><span>Line out</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${100 - lureDisplay.distance}%` }} /></div></div>
+          </div>
+          <button
+            className="button button-primary game-reel-button"
+            type="button"
+            onPointerDown={startCrank}
+            onPointerUp={stopCrank}
+            onPointerLeave={stopCrank}
+            onTouchStart={startCrank}
+            onTouchEnd={stopCrank}
+          >Hold to crank</button>
         </div>}
 
         {phase === 'hookset' && pendingCatch && <div className="game-panel">

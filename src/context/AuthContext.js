@@ -4,6 +4,7 @@ import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
 import { OFFSHORE_CHARTER_COST } from '../utils/gameBiomes';
+import { LURES } from '../utils/gameLures';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
@@ -468,7 +469,7 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1 };
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
 
   // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
   // as everything else here — the minigame page loads it itself rather than this provider
@@ -533,6 +534,23 @@ export function AuthProvider({ children }) {
     const nextPoints = currentGameProfile.tackle_points - OFFSHORE_CHARTER_COST;
     const { data, error } = await supabase.from('game_profiles')
       .update({ tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data };
+  }
+
+  // One-time lure unlock, paid in tackle points. Live bait is free and never needs unlocking;
+  // which lure is currently tied on is a per-session choice FishingGame keeps to itself.
+  async function purchaseLure(lureKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before buying a lure.') };
+    const lure = LURES[lureKey];
+    if (!lure) return { error: new Error('Unknown lure.') };
+    const currentGameProfile = await getGameProfile();
+    const owned = currentGameProfile?.owned_lures || [];
+    if (lure.cost === 0 || owned.includes(lureKey)) return { error: new Error('You already have that lure.') };
+    if ((currentGameProfile?.tackle_points || 0) < lure.cost) return { error: new Error('Not enough tackle points yet.') };
+    const nextPoints = currentGameProfile.tackle_points - lure.cost;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ owned_lures: [...owned, lureKey], tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     return { error: null, gameProfile: data };
   }
@@ -647,7 +665,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
-    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat,
+    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

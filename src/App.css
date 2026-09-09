@@ -587,6 +587,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .biome-button span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .biome-button.is-active { border-color: var(--mint); }
 .biome-button.is-active strong { color: var(--mint); }
+.biome-button.is-locked strong { color: var(--muted); }
+.biome-button.is-locked span { color: var(--coral); }
+.biome-button:disabled { cursor: not-allowed; opacity: .6; }
+.lure-feedback { color: var(--mint); font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin: -8px 0 0; min-height: 14px; }
 .game-panel { align-items: center; display: flex; flex-direction: column; gap: 18px; padding: 26px 10px 10px; text-align: center; }
 .game-panel > p { color: var(--muted); font-size: 13px; margin: 0; max-width: 380px; }
 .game-panel .button { justify-content: center; min-height: 56px; width: min(320px, 100%); }
