@@ -134,6 +134,7 @@ test('passes the ?entry= query param through so the linked entry is highlighted'
   // Landing here from a notification/share link should open the entry's comments too, not
   // just scroll to and highlight the row.
   expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
+  expect(document.querySelector('.leaderboard-detail')).toHaveClass('reveal-in');
 });
 
 test('also passes a ?comment= query param through so the specific comment is highlighted', async () => {

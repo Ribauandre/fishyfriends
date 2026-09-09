@@ -22,6 +22,7 @@ test('defaultOpen starts the thread expanded, for a post reached via a deep link
   render(<CommentThread comments={comments} loading={false} onAdd={jest.fn()} defaultOpen />);
   expect(screen.getByText('Nice fish!')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /hide comments/i })).toBeInTheDocument();
+  expect(screen.getByText('Nice fish!').closest('.comment-body')).toHaveClass('reveal-in');
 });
 
 test('shows a loading state and an empty state appropriately', async () => {

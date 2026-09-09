@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LikeButton from './LikeButton';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +19,8 @@ function makeBaseAuth(overrides = {}) {
 beforeEach(() => {
   useAuth.mockReturnValue(makeBaseAuth());
 });
+
+afterEach(() => { jest.useRealTimers(); });
 
 test('shows the like count and unliked state once likes resolve', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ listLikes: jest.fn().mockResolvedValue([{ user_id: 'user-2' }]) }));
@@ -53,6 +55,20 @@ test('clicking a liked button calls unlikeTarget and flips back to unliked', asy
   await userEvent.click(screen.getByRole('button'));
   expect(unlikeTarget).toHaveBeenCalledWith('personal_best', 'pb-1');
   await waitFor(() => expect(screen.getByRole('button')).not.toHaveClass('is-liked'));
+});
+
+test('liking gives the heart a brief pop animation that clears itself', async () => {
+  const likeTarget = jest.fn().mockResolvedValue({ error: null });
+  useAuth.mockReturnValue(makeBaseAuth({ likeTarget }));
+  render(<LikeButton targetType="fish_year_catch" targetId="fy-1" ownerId="user-2" />);
+  await waitFor(() => expect(screen.getByRole('button')).toBeEnabled());
+
+  jest.useFakeTimers();
+  userEvent.click(screen.getByRole('button'));
+  expect(screen.getByRole('button').querySelector('span')).toHaveClass('is-popping');
+  act(() => { jest.advanceTimersByTime(400); });
+  expect(screen.getByRole('button').querySelector('span')).not.toHaveClass('is-popping');
+  jest.useRealTimers();
 });
 
 test('rolls back the optimistic update if likeTarget fails', async () => {

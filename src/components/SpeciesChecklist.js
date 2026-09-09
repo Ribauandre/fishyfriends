@@ -20,7 +20,7 @@ export default function SpeciesChecklist({ personalBests, fishYearCatches = [] }
         <span className="expand-icon">{open ? '−' : '+'}</span>
       </div>
     </button>
-    {open && <>
+    {open && <div className="reveal-in">
       <div className="year-legend species-legend">
         <span><i className="legend-caught" />Caught</span>
         <span><i className="legend-missing" />Not yet</span>
@@ -34,6 +34,6 @@ export default function SpeciesChecklist({ personalBests, fishYearCatches = [] }
           </div>;
         })}
       </div>
-    </>}
+    </div>}
   </section>;
 }

@@ -18,8 +18,12 @@ export default function NotificationBell() {
   const { listNotifications, markNotificationRead, markAllNotificationsRead, getTournamentEntry } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
+  const [badgePulsing, setBadgePulsing] = useState(false);
   const navigate = useNavigate();
   const containerRef = useRef(null);
+  // null until the first fetch lands, so that initial unread count (e.g. from a previous
+  // session) doesn't itself read as "a new one just arrived" and pulse on mount.
+  const previousUnreadRef = useRef(null);
 
   async function refresh() {
     const data = await listNotifications();
@@ -42,6 +46,16 @@ export default function NotificationBell() {
   }, []);
 
   const unreadCount = notifications.filter((notification) => !notification.read).length;
+
+  useEffect(() => {
+    if (previousUnreadRef.current !== null && unreadCount > previousUnreadRef.current) {
+      setBadgePulsing(true);
+      const timeout = setTimeout(() => setBadgePulsing(false), 500);
+      previousUnreadRef.current = unreadCount;
+      return () => clearTimeout(timeout);
+    }
+    previousUnreadRef.current = unreadCount;
+  }, [unreadCount]);
 
   function handleToggle() {
     setOpen((previous) => !previous);
@@ -73,7 +87,7 @@ export default function NotificationBell() {
   return <div className="notification-bell" data-tour="notification-bell" ref={containerRef}>
     <button type="button" className="notification-bell-trigger" onClick={handleToggle} aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`} aria-expanded={open}>
       <BellIcon />
-      {unreadCount > 0 && <span className="notification-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+      {unreadCount > 0 && <span className={`notification-badge ${badgePulsing ? 'is-pulsing' : ''}`}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
     </button>
     {open && <div className="notification-panel">
       <div className="notification-panel-head">
