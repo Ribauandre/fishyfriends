@@ -235,11 +235,6 @@ button { cursor: pointer; }
 .page-intro { align-items: end; display: flex; justify-content: space-between; margin: 30px 0 40px; }
 .page-intro h1 { font-size: clamp(42px, 6vw, 76px); letter-spacing: -.01em; line-height: 1.02; margin: 15px 0; }
 .page-intro p { color: var(--muted); font-size: 15px; margin: 0; }
-.challenge-summary { display: flex; gap: 0; margin-bottom: 35px; }
-.challenge-summary div { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 170px; padding: 0 35px; }
-.challenge-summary div:first-child { border-left: 0; padding-left: 0; }
-.challenge-summary strong { font-size: 36px; letter-spacing: 0; }
-.challenge-summary span { color: var(--muted); font-size: 11px; margin-top: 4px; }
 .challenge-actions { align-items: center; display: flex; gap: 12px; }
 .challenge-actions .button-quiet { margin-top: 0; width: auto; }
 .season-recap { margin-bottom: 35px; margin-top: 34px; }
@@ -473,9 +468,6 @@ button { cursor: pointer; }
   .year-month { min-height: 78px; padding: 9px; }
   .year-month strong { font-size: 14px; margin: 9px 0 6px; }
   .year-board-footer { align-items: flex-start; flex-direction: column; gap: 6px; }
-  .challenge-summary { justify-content: space-between; }
-  .challenge-summary div { min-width: 0; padding: 0 15px; }
-  .challenge-summary strong { font-size: 29px; }
   .table-card { padding: 18px 12px; }
   .participant-summary div { min-width: 0; padding: 0 10px; }
   .participant-summary strong { font-size: 21px; }
@@ -522,7 +514,7 @@ h1, h2, h3, strong { font-family: 'Avenir Next', 'Helvetica Neue', Arial, sans-s
 h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .eyebrow, .nav-link, .button, .brand-mark strong, .status-badge, .status-badge-muted, .avatar-upload, .text-link, .auth-switch button, .month-number, .year-month-number, .rule-index, .muted-label, .note-card strong { font-family: var(--font-head); letter-spacing: .06em; }
 .button, .nav-link, .brand-mark strong { text-transform: uppercase; }
-.challenge-summary strong, .participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
+.participant-summary strong, .year-month strong, .rank-size strong, .auth-stat-row strong { font-family: var(--font-display); }
 .page-wrapper { background-image: radial-gradient(circle at 10% 30%, rgba(255,107,74,.05), transparent 24rem); }
 .welcome-banner { background-image: var(--tex-halftone-faint), linear-gradient(115deg, rgba(7,20,25,.98), rgba(8,61,67,.94)); background-size: 7px 7px, auto; }
 .button-quiet { border-color: var(--line); color: var(--ink); }
