@@ -89,6 +89,17 @@ Dark-mode-only, deliberately not a generic light SaaS look: near-black base, neo
 
 Mobile gets fixed bottom nav with safe-area padding, single-column layouts, and full-width touch targets — don't add wide tables or hover-only actions without a touch-usable equivalent.
 
+### Cast & Catch (the fishing minigame at `/fishing-game`)
+
+`src/FishingGame.js` is one screen: the 2D stage (`components/game/GameScene.js`) with the HUD drawn on it as wooden signage, the dock panel below, and the map / shop / almanac / trophy case as in-frame overlays. Game rules live in pure modules under `src/utils/` (`gameSpecies`, `gameBiomes`, `gameLures`, `gameUpgrades`, `gameQuests`, `gameDerby`, `gameClock`, `reelPhysics`, `lurePhysics`, `sceneAmbience`) and the component only drives them with timers — test the rules there, not through the UI.
+
+- **Ambient motion is allowed on the stage, and only there.** Clouds, gulls, dragonflies, the lamp, water sparkle and distant fish jumps (`SceneAmbience`) loop on purpose; it's a game world, not chrome. Everything loops off under `prefers-reduced-motion`. Don't extend this exception to the rest of the site.
+- **Time of day follows the real clock** (`gameClock.periodFor`) and tints the backdrops; the roll leans toward `NOCTURNAL` species at night. `FishingGame` takes a `clock` prop — tests and the playtest harness must pass a fixed one or they'll change behaviour by the hour.
+- **Sound is synthesized** (`gameAudio.js`, Web Audio) — no audio files. Mute is per-device in `localStorage`; every call is a no-op where `AudioContext` doesn't exist.
+- **Persistence** is all on `game_profiles` (`records`, `quests`, `bounties_claimed` jsonb/array columns) and `game_catches` (`size_in`, `biome`) — migration `0019`. Legendary game catches are in the activity feed and the Realtime publication. The weekly derby needs no table: `gameDerby.derbyFor` picks the target from the ISO week.
+- **Art pipeline:** `scripts/generateImage.mjs` (OpenAI Images, key from `OPENAI_API_KEY`, `--transparent` for sprites) produces raw renders; sprites get their alpha haze thresholded and sheets sliced in a Chromium canvas before landing in `src/assets/{props,ambient,scenes,fish}`. Match existing pieces: pixel-art backdrops/props, and the neon-outlined sticker style for anything in `assets/fish`. Plank and rope frames are `border-image` PNGs in `assets/props`.
+- The sprite strips in `assets/angler` are stepped with `steps(n, jump-none)` and inline animation longhands (a `var()` inside the `animation` shorthand did not work).
+
 ## Deployment and the `deploy` branch workflow
 
 The `deploy` branch is what ships: pushing to it triggers `.github/workflows/deploy-site.yml`, which installs, verifies the Supabase publishable key isn't a secret key, runs pending migrations, runs `npm run build:github` (builds then replaces `docs/` via `scripts/moveBuildToDocs.js`), and pushes a `Build deploy site` commit. Treat `docs/` as generated output — never hand-edit it; source changes belong in `src/`.

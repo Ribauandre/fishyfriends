@@ -7,6 +7,7 @@ import timeAgo from '../utils/timeAgo';
 function actionText(item) {
   if (item.kind === 'fish_year_catch') return `logged a ${item.species} for Fish Year`;
   if (item.kind === 'personal_best') return `logged a personal best${item.sizeLabel ? ` — ${item.sizeLabel}` : ''}`;
+  if (item.kind === 'game_catch') return `landed a legendary ${item.species.toLowerCase()} in Cast & Catch${item.sizeLabel ? ` — ${item.sizeLabel}` : ''}`;
   return `entered a ${item.size}${item.unit} ${item.species} into ${item.tournamentName}`;
 }
 

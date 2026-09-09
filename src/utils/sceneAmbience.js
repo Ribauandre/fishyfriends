@@ -27,6 +27,7 @@ export const AMBIENCE = {
   bay: { clouds: OPEN_SKY, critter: 'seagull', critters: 2, lamp: true, water: { left: 48, top: 30 }, jumpY: [36, 46] },
   shoreline: { clouds: OPEN_SKY, critter: 'seagull', critters: 2, lamp: true, water: { left: 48, top: 26 }, jumpY: [34, 44] },
   offshore: { clouds: BIG_SKY, critter: 'seagull', critters: 3, lamp: false, water: { left: 28, top: 30 }, jumpY: [36, 50] },
+  canyon: { clouds: [{ top: 4, height: 8, duration: 120, delay: -40 }], critter: 'seagull', critters: 2, lamp: false, water: { left: 42, top: 32 }, jumpY: [36, 46] },
 };
 
 export function ambienceFor(biome) { return AMBIENCE[biome] || AMBIENCE.river; }

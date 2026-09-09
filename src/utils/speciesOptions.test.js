@@ -6,7 +6,7 @@ describe('SPECIES_OPTIONS', () => {
       'pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'snakehead', 'catfish',
       'carp', 'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
       'bluefish', 'mahimahi', 'shark', 'flounder', 'tautog', 'blackseabass', 'tuna',
-      'walleye', 'yellowperch', 'weakfish', 'chainpickerel',
+      'walleye', 'yellowperch', 'weakfish', 'chainpickerel', 'swordfish',
     ]);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);

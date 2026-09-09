@@ -27,6 +27,7 @@ export const SPECIES_OPTIONS = [
   { label: 'Bluefish', icon: 'bluefish' },
   { label: 'Mahi Mahi', icon: 'mahimahi' },
   { label: 'Shark', icon: 'shark' },
+  { label: 'Swordfish', icon: 'swordfish' },
   { label: 'Fluke / Flounder', icon: 'flounder' },
   { label: 'Tautog', icon: 'tautog' },
   { label: 'Black Sea Bass', icon: 'blackseabass' },

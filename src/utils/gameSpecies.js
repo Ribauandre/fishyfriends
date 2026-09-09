@@ -36,7 +36,7 @@ const SPECIES_LABELS = {
   browntrout: 'Brown trout', weakfish: 'Weakfish', blackseabass: 'Black sea bass',
   stripedbass: 'Striped bass', bluefish: 'Bluefish', laketrout: 'Lake trout', rainbowtrout: 'Rainbow trout',
   tautog: 'Tautog', snakehead: 'Northern snakehead', salmon: 'Atlantic salmon', mahimahi: 'Mahi mahi',
-  tuna: 'Tuna', shark: 'Shark',
+  tuna: 'Tuna', shark: 'Shark', swordfish: 'Swordfish',
 };
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
@@ -51,8 +51,20 @@ const SPECIES_RARITY = {
   blackseabass: 'uncommon', tautog: 'uncommon', bluefish: 'uncommon',
   laketrout: 'rare', snakehead: 'rare', stripedbass: 'rare', salmon: 'rare',
   mahimahi: 'epic', tuna: 'epic',
-  shark: 'legendary',
+  shark: 'legendary', swordfish: 'legendary',
 };
+
+// Fish that feed after dark. At night the roll leans hard toward these within whatever tier
+// it lands on; at dawn and dusk a little; in full daylight it leans away from them. Which
+// tier you roll is still bait and rarity's business (see rollSpecies) — night changes what's
+// moving, not how hard it fights.
+export const NOCTURNAL = ['catfish', 'walleye', 'snakehead', 'stripedbass', 'weakfish', 'shark', 'swordfish'];
+
+const PERIOD_NOCTURNAL_WEIGHT = { night: 3, dusk: 1.7, dawn: 1.7, day: 0.6 };
+
+export function speciesWeight(species, period = 'day') {
+  return NOCTURNAL.includes(species) ? (PERIOD_NOCTURNAL_WEIGHT[period] || 1) : 1;
+}
 
 export function rarityOf(species) { return SPECIES_RARITY[species] || 'common'; }
 
@@ -65,7 +77,7 @@ export function difficultyFor(rarity) { return RARITY_DIFFICULTY[rarity] || RARI
 // more shots at a big fish, it doesn't help you land one once it's on the line.
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
-export function rollSpecies(baitLevel, biomeSpecies) {
+export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', random = Math.random } = {}) {
   const speciesByRarity = {};
   biomeSpecies.forEach((species) => {
     const rarity = rarityOf(species);
@@ -79,20 +91,51 @@ export function rollSpecies(baitLevel, biomeSpecies) {
     return Math.max(1, base + (isLowTier ? -shift : shift * 0.6));
   });
   const total = weights.reduce((sum, w) => sum + w, 0);
-  let roll = Math.random() * total;
+  let roll = random() * total;
   let chosenTier = tiers[tiers.length - 1];
   for (let i = 0; i < tiers.length; i += 1) {
     if (roll < weights[i]) { chosenTier = tiers[i]; break; }
     roll -= weights[i];
   }
   const pool = speciesByRarity[chosenTier];
-  const species = pool[Math.floor(Math.random() * pool.length)];
+  const poolWeights = pool.map((species) => speciesWeight(species, period));
+  let pick = random() * poolWeights.reduce((sum, w) => sum + w, 0);
+  let species = pool[pool.length - 1];
+  for (let i = 0; i < pool.length; i += 1) {
+    if (pick < poolWeights[i]) { species = pool[i]; break; }
+    pick -= poolWeights[i];
+  }
   return { species, rarity: chosenTier };
 }
 
 export function pointsFor(rarity) {
   const [min, max] = difficultyFor(rarity).points;
   return Math.round(min + Math.random() * (max - min));
+}
+
+// Real-ish length ranges per species, in inches, so a record is a number worth chasing and a
+// 9-inch bluegill means something a 9-inch shark never could. Skewed toward the small end;
+// the big ones are rare, like real ones.
+export const SPECIES_SIZE = {
+  bluegill: [5, 11], yellowperch: [6, 14], trout: [8, 20], largemouth: [10, 24], smallmouth: [9, 21],
+  carp: [14, 36], catfish: [12, 40], chainpickerel: [12, 26], flounder: [12, 26], weakfish: [12, 28],
+  pike: [18, 44], walleye: [14, 30], brooktrout: [7, 20], browntrout: [10, 28], rainbowtrout: [10, 28],
+  blackseabass: [10, 22], tautog: [12, 26], bluefish: [14, 34], laketrout: [18, 40], snakehead: [16, 34],
+  stripedbass: [18, 48], salmon: [20, 42], mahimahi: [24, 54], tuna: [30, 80], shark: [40, 110], swordfish: [60, 140],
+};
+
+export function rollSize(species, random = Math.random) {
+  const [min, max] = SPECIES_SIZE[species] || [6, 18];
+  return Math.round((min + (max - min) * random() ** 1.6) * 10) / 10;
+}
+
+export function sizeLabel(sizeIn) { return `${Number(sizeIn).toFixed(1)} in`; }
+
+// A record is the biggest of a species you've personally landed in the game (the almanac keeps
+// them, see game_profiles.records). The first of a species is a record by definition.
+export function isNewRecord(records, species, sizeIn) {
+  const best = records?.[species]?.size_in;
+  return best === undefined || best === null || sizeIn > Number(best);
 }
 
 export function sizeLabelFor(rarity) {

@@ -8,6 +8,7 @@
 // tackle shop spends on gear, just spent on the trip instead. Switching to another biome ends
 // the trip, so heading back offshore later means chartering again.
 export const OFFSHORE_CHARTER_COST = 50;
+export const CANYON_CHARTER_COST = 80;
 
 export const BIOMES = {
   river: {
@@ -52,6 +53,21 @@ export const BIOMES = {
     charterCost: OFFSHORE_CHARTER_COST,
     species: ['mahimahi', 'tuna', 'shark'],
   },
+  // The seventh ground. Cap'n Ray only runs out past the shelf for anglers who've proven
+  // themselves on the bay (see utils/gameQuests.js) — until then it's a rumor on the map.
+  canyon: {
+    key: 'canyon',
+    label: 'The Canyon',
+    blurb: "Ray's secret: the drop-off past the shelf, run at dusk. Swordfish live here and nowhere else.",
+    charterCost: CANYON_CHARTER_COST,
+    requiresQuest: 'rays_proving',
+    species: ['tuna', 'mahimahi', 'shark', 'swordfish'],
+  },
 };
+
+export function biomeUnlocked(biome, quests) {
+  const required = BIOMES[biome]?.requiresQuest;
+  return !required || Boolean(quests?.[required]?.done);
+}
 
 export const BIOME_LIST = Object.values(BIOMES);
