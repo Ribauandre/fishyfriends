@@ -231,3 +231,47 @@ test('the derby champion flies the golden pennant from the rod tip, and so does 
   expect(screen.getByText('KEVIN')).toHaveClass('is-champion');
   expect(screen.getByText('SAM')).not.toHaveClass('is-champion');
 });
+
+test('the camera pushes in and pans right toward the fight once the line is out, and settles back after', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="casting" displayName="Andre" />);
+  const world = () => container.querySelector('.scene-world');
+  expect(world()).toHaveAttribute('data-camera', 'rest');
+  expect(world().style.transform).toBe('scale(1) translate(0%, 0%)');
+
+  rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
+  expect(world()).toHaveAttribute('data-camera', 'fight');
+  expect(container.querySelector('.game-scene')).toHaveClass('is-focused');
+  const scale = parseFloat(world().getAttribute('data-camera-scale'));
+  const x = parseFloat(world().getAttribute('data-camera-x'));
+  expect(scale).toBeGreaterThan(1);
+  expect(x).toBeGreaterThan(0);
+  expect(world().style.transform).toMatch(/^scale\(1\.\d+\) translate\(-\d+(\.\d+)?%, -\d+(\.\d+)?%\)$/);
+  // The bobber lands inside the visible window, and the angler is still in shot.
+  const bobberX = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
+  expect(bobberX).toBeLessThan(x + 480 / scale);
+  expect(x).toBeLessThan(175);
+
+  // The tension meter is drawn outside the camera, so it stays on screen where the angler now is.
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 40, zonePos: 45, progress: 30 }} zoneWidth={30} tension={55} />);
+  expect(world()).toHaveAttribute('data-camera', 'fight');
+  const meter = container.querySelector('.stage-meter.is-tension');
+  expect(meter.closest('.scene-world')).toBeNull();
+  expect(parseFloat(meter.style.left)).toBeGreaterThan(0);
+  expect(container.querySelector('.scene-fish').closest('.scene-world')).not.toBeNull();
+
+  rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'pike' }} />);
+  expect(world()).toHaveAttribute('data-camera', 'rest');
+  expect(container.querySelector('.scene-trophy').closest('.scene-world')).toBeNull();
+});
+
+test('on the boat the camera never pushes past the angler: he stays at the left edge of the fight', () => {
+  const { container } = render(<GameScene biome="offshore" phase="reeling" displayName="Andre" species="tuna" reel={{ fishPos: 60, zonePos: 55, progress: 10 }} zoneWidth={20} tension={20} />);
+  const world = container.querySelector('.scene-world');
+  const x = parseFloat(world.getAttribute('data-camera-x'));
+  expect(x).toBeGreaterThan(0);
+  expect(x).toBeLessThan(100 - 40);
+  // The meter keeps its spot on the angler's left, still on screen.
+  const meterLeft = parseFloat(container.querySelector('.stage-meter.is-tension').style.left);
+  expect(meterLeft).toBeGreaterThan(0);
+  expect(meterLeft).toBeLessThan(6);
+});
