@@ -67,7 +67,7 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, 
       {isYou && <span className="status-badge">YOU</span>}
       <span className="expand-icon">{open ? '−' : '+'}</span>
     </button>
-    {open && <div className="angler-card-bests">
+    {open && <div className="angler-card-bests reveal-in">
       <div className="section-heading-mini"><span className="eyebrow">Personal bests</span></div>
       {personalBests.length === 0 && <div className="empty-state"><FishIllustration species="flounder" className="empty-state-sticker" /><p className="month-empty">No personal bests logged yet.</p></div>}
       {personalBests.map((best) => <AnglerBestItem

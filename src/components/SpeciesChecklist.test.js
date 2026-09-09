@@ -15,10 +15,11 @@ test('shows a caught-count summary even while collapsed', () => {
   expect(screen.queryByText(SPECIES_OPTIONS[0].label)).not.toBeInTheDocument();
 });
 
-test('expanding shows every canonical species', async () => {
+test('expanding shows every canonical species with an entrance animation', async () => {
   render(<SpeciesChecklist personalBests={[]} />);
   await expand();
   for (const option of SPECIES_OPTIONS) expect(screen.getByText(option.label)).toBeInTheDocument();
+  expect(screen.getByText(SPECIES_OPTIONS[0].label).closest('.reveal-in')).toBeInTheDocument();
 });
 
 test('marks a species caught only when a personal best matches its exact canonical label', async () => {

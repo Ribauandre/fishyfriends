@@ -21,7 +21,7 @@ export default function CommentThread({ comments, loading, onAdd, onDelete, curr
 
   return <div className="comment-thread">
     <button type="button" className="comment-toggle" onClick={() => setOpen(!open)}>{open ? 'Hide comments' : `Comments${comments?.length ? ` (${comments.length})` : ''}`}</button>
-    {open && <div className="comment-body">
+    {open && <div className="comment-body reveal-in">
       <div className="comment-list">
         {loading && <p className="month-empty">Loading comments...</p>}
         {!loading && comments?.length === 0 && <p className="month-empty">No comments yet. Say something.</p>}

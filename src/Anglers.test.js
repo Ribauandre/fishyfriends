@@ -103,6 +103,7 @@ test('tapping a card expands it to show personal bests', async () => {
   const andreCard = screen.getByText('Andre').closest('.angler-card');
   expect(within(andreCard).getByText('Striped Bass')).toBeInTheDocument();
   expect(screen.getAllByText(/personal best/i).length).toBeGreaterThan(0);
+  expect(andreCard.querySelector('.angler-card-bests')).toHaveClass('reveal-in');
 });
 
 test('only the owner\'s personal best gets a Delete option', async () => {

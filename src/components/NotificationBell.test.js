@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
@@ -36,6 +36,8 @@ function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location">{location.pathname}{location.search}</div>;
 }
+
+afterEach(() => { jest.useRealTimers(); });
 
 test('shows an unread badge count matching unread notifications', async () => {
   renderBell({ listNotifications: jest.fn().mockResolvedValue(notifications) });
@@ -101,6 +103,26 @@ test('a like notification (no comment_id) navigates without a &comment= param', 
   await userEvent.click(await screen.findByText(/kevin liked your personal best/i));
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1'));
   expect(screen.getByTestId('location')).not.toHaveTextContent('comment=');
+});
+
+test('the unread badge pulses when a poll reveals a newly-arrived notification, then stops', async () => {
+  jest.useFakeTimers();
+  const listNotifications = jest.fn()
+    .mockResolvedValueOnce([notifications[1]])
+    .mockResolvedValueOnce([notifications[1], notifications[0]]);
+  renderBell({ listNotifications });
+  // Flush the mount-time fetch (no pulse yet — there's no "previous" count to compare against).
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(document.querySelector('.notification-badge')).not.toBeInTheDocument();
+
+  // Advance past the poll interval, then flush the microtasks its fetch resolves on.
+  await act(async () => { jest.advanceTimersByTime(30000); await Promise.resolve(); await Promise.resolve(); });
+  expect(document.querySelector('.notification-badge')).toHaveClass('is-pulsing');
+
+  act(() => { jest.advanceTimersByTime(500); });
+  expect(document.querySelector('.notification-badge')).not.toHaveClass('is-pulsing');
+
+  jest.useRealTimers();
 });
 
 test('mark all read clears the unread badge and calls markAllNotificationsRead', async () => {

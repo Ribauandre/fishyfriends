@@ -22,7 +22,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
       <span className="rank-date">{entry.caught_at || ''}</span>
       <span className="expand-icon">{open ? '−' : '+'}</span>
     </button>
-    {open && <div className="leaderboard-detail">
+    {open && <div className="leaderboard-detail reveal-in">
       <PostMenu
         shareData={{ title: `${entry.angler_name}'s ${entry.species}`, text: `${entry.angler_name} entered a ${entry.size}${unit} ${entry.species} into the tournament.`, url: `${window.location.origin}/tournaments/${tournamentId}?entry=${entry.id}` }}
         onDelete={currentUserId && entry.user_id === currentUserId ? () => onDelete(entry.id) : undefined}
