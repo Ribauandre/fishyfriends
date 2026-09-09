@@ -113,6 +113,69 @@ test('a rapid double-tap on the submit button only logs the catch once', async (
   await waitFor(() => expect(screen.queryByRole('button', { name: /make it official/i })).not.toBeInTheDocument());
 });
 
+test('bulks multiple catches from the same angler in one month into a single expandable entry', async () => {
+  useAuth.mockReturnValue({
+    ...makeBaseAuth(),
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-2', month: 'January', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-01-05', photo_url: '' },
+      { id: 'fy-2', user_id: 'user-2', month: 'January', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-01-12', photo_url: '' },
+    ]),
+  });
+  renderFishYear();
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  expect(screen.getByText('2 fish logged this month')).toBeInTheDocument();
+  expect(screen.queryByText('Bass')).not.toBeInTheDocument();
+  expect(screen.queryByText('Trout')).not.toBeInTheDocument();
+});
+
+test('tapping the bulked entry expands it to show each individual catch', async () => {
+  useAuth.mockReturnValue({
+    ...makeBaseAuth(),
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-2', month: 'January', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-01-05', photo_url: '' },
+      { id: 'fy-2', user_id: 'user-2', month: 'January', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-01-12', photo_url: '' },
+    ]),
+  });
+  renderFishYear();
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  const groupToggle = screen.getByRole('button', { name: /2 fish logged this month/i });
+  expect(groupToggle).toHaveAttribute('aria-expanded', 'false');
+  await userEvent.click(groupToggle);
+  expect(groupToggle).toHaveAttribute('aria-expanded', 'true');
+  expect(screen.getByText('Bass')).toBeInTheDocument();
+  expect(screen.getByText('Trout')).toBeInTheDocument();
+});
+
+test('does not bulk catches from different anglers logged in the same month', async () => {
+  useAuth.mockReturnValue({
+    ...makeBaseAuth(),
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-2', month: 'January', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-01-05', photo_url: '' },
+      { id: 'fy-2', user_id: 'user-3', month: 'January', species: 'Trout', angler_name: 'Sam', caught_at: '2026-01-12', photo_url: '' },
+    ]),
+  });
+  renderFishYear();
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  expect(screen.getByText('Bass')).toBeInTheDocument();
+  expect(screen.getByText('Trout')).toBeInTheDocument();
+  expect(screen.queryByText(/fish logged this month/i)).not.toBeInTheDocument();
+});
+
+test('a ?catch= deep link into a bulked entry auto-expands the group and highlights that catch', async () => {
+  useAuth.mockReturnValue({
+    ...makeBaseAuth(),
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-2', month: 'March', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-03-05', photo_url: '' },
+      { id: 'fy-2', user_id: 'user-2', month: 'March', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-03-12', photo_url: '' },
+    ]),
+  });
+  renderFishYear('/fish-year?catch=fy-2');
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  expect(screen.getByText('Bass')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('Trout').closest('.catch-card')).toHaveClass('is-shared-highlight'));
+  expect(screen.getByText('Bass').closest('.catch-card')).not.toHaveClass('is-shared-highlight');
+});
+
 test('passes the ?catch= query param through so the linked catch is highlighted and its comments open', async () => {
   useAuth.mockReturnValue({
     ...makeBaseAuth(),
