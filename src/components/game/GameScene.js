@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
-import { LURE_ICONS } from '../../utils/gameProps';
+import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import riverArt from '../../assets/scenes/river.webp';
 import mountainlakeArt from '../../assets/scenes/mountainlake.webp';
@@ -56,6 +56,21 @@ const pct = (value, of) => `${round2((value / of) * 100)}%`;
 // behind the player along the deck, in whatever pose their own game is in. `crew` slots are
 // x offsets from the player's feet; anyone past the last slot is counted on a tag instead.
 const RECENT_CATCH_MS = 9000;
+// Where a sprite's rod tip is, in units, for the pose it's holding — the pennant hangs there.
+function rodTipFor(x, y, boxH, action) {
+  const tip = ANGLER_SPRITES[action].rodTip;
+  const scale = (boxH / 100) * VIEW_H / SPRITE_FRAME.h;
+  return { x: x + (tip.x - SPRITE_FRAME.feetX) * scale, y: y - (SPRITE_FRAME.feetY - tip.y) * scale };
+}
+
+function Pennant({ tip, viewW }) {
+  return <span
+    className="scene-pennant"
+    data-cosmetic="golden-pennant"
+    style={{ left: pct(tip.x, viewW), top: pct(tip.y, VIEW_H), backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }}
+  />;
+}
+
 function crewAction(other) {
   const phase = other.phase || 'ready';
   return anglerAction({ phase, result: { success: phase === 'result' && Boolean(other.species) }, holding: phase === 'reeling' });
@@ -116,7 +131,7 @@ function AnglerSprite({ x, y, boxH, phase, current, className = '', viewW = VIEW
 export default function GameScene({
   biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day',
   interaction = null, castFillRef = null, castDistance = 60, lure = 'livebait', lureDisplay = null, lureFeedback = '',
-  hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now,
+  hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false,
 }) {
   const scene = SCENES[biome] || SCENES.river;
   const layout = scene.layout;
@@ -179,20 +194,23 @@ export default function GameScene({
         <circle cx={strikeX} cy={strikeY} r="10" fill="none" stroke="#e3fb14" strokeWidth="2" />
         <circle cx={strikeX} cy={strikeY} r="18" fill="none" stroke="#e3fb14" strokeWidth="1.5" opacity=".6" />
       </g>}
-      <text x={layout.anglerX} y={layout.anglerY + 16} textAnchor="middle" fontSize="9" fontWeight="700" fill="#e3fb14" stroke="#03080b" strokeWidth="2.5" paintOrder="stroke" fontFamily="Oswald, Arial Narrow, sans-serif" letterSpacing="1">{(displayName || 'YOU').toUpperCase()}</text>
+      <text className={champion ? 'is-champion' : ''} x={layout.anglerX} y={layout.anglerY + 16} textAnchor="middle" fontSize="9" fontWeight="700" fill={champion ? '#ffc93c' : '#e3fb14'} stroke="#03080b" strokeWidth="2.5" paintOrder="stroke" fontFamily="Oswald, Arial Narrow, sans-serif" letterSpacing="1">{(displayName || 'YOU').toUpperCase()}</text>
     </svg>
     {crewShown.map((other, index) => {
       const x = layout.anglerX + crewSlots[index];
       const action = crewAction(other);
       const recent = other.lastCatch && now() - other.lastCatch.at < RECENT_CATCH_MS;
+      const crewTip = other.champion ? rodTipFor(x, layout.anglerY + 2, layout.spriteBoxH * 0.92, action.action) : null;
       return <React.Fragment key={other.userId}>
         <AnglerSprite x={x} y={layout.anglerY + 2} boxH={layout.spriteBoxH * 0.92} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} />
-        <span className="scene-crew-tag" data-user={other.userId} style={{ left: pct(x, viewW), top: pct(layout.anglerY + 8, VIEW_H) }}>{(other.name || 'Angler').toUpperCase()}</span>
+        {crewTip && <Pennant tip={crewTip} viewW={viewW} />}
+        <span className={`scene-crew-tag ${other.champion ? 'is-champion' : ''}`} data-user={other.userId} style={{ left: pct(x, viewW), top: pct(layout.anglerY + 8, VIEW_H) }}>{(other.name || 'Angler').toUpperCase()}</span>
         {recent && <span className="scene-crew-bubble" style={{ left: pct(x, viewW), top: pct(layout.anglerY - 66, VIEW_H) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
       </React.Fragment>;
     })}
     {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pct(layout.anglerX + crewSlots[crewSlots.length - 1] - 40, viewW), top: pct(layout.anglerY - 50, VIEW_H) }}>+{crewExtra} more</span>}
     <AnglerSprite x={layout.anglerX} y={layout.anglerY} boxH={layout.spriteBoxH} phase={phase} current={current} className="is-you" viewW={viewW} />
+    {champion && <Pennant tip={{ x: rodTipX, y: rodTipY }} viewW={viewW} />}
     {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pct(lureX, viewW), top: pct(strikeY, VIEW_H) }} />}
 
     {phase === 'casting' && <div className="stage-meter is-cast" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">

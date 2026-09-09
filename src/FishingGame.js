@@ -6,7 +6,7 @@ import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, GOLDEN_PENNANT, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
@@ -23,7 +23,7 @@ import {
 } from './utils/lurePhysics';
 import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
-import { derbyFor } from './utils/gameDerby';
+import { derbyFor, isChampion, dateOfWeekKey, PENNANT_PRIZE } from './utils/gameDerby';
 import { questsFor, questProgressLabel, questState, claimableQuests, QUEST_BY_KEY } from './utils/gameQuests';
 
 const CAST_SWEET_SPOT = [40, 60];
@@ -31,7 +31,7 @@ const REEL_TICK_MS = 80;
 const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
 const REEL_SOUND_MS = 110;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [] };
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [] };
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
 // and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
@@ -41,7 +41,7 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 export default function FishingGame({ clock = () => new Date() }) {
   const {
     profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
-    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
@@ -75,6 +75,7 @@ export default function FishingGame({ clock = () => new Date() }) {
   const [derbyLeaders, setDerbyLeaders] = useState(null);
   const [crew, setCrew] = useState([]);
   const [lastCatch, setLastCatch] = useState(null);
+  const [derbyWin, setDerbyWin] = useState(null);
   const clockRef = useRef(clock);
   clockRef.current = clock;
   const [derby] = useState(() => derbyFor(clock()));
@@ -87,6 +88,13 @@ export default function FishingGame({ clock = () => new Date() }) {
       setCatches(catchData);
       setBounties(bountyData || []);
       setLoading(false);
+      // Last week's board is final now — if you topped it, the pennant is yours this week.
+      if (claimDerbyWin) claimDerbyWin(clockRef.current()).then((outcome) => {
+        if (!active || !outcome?.won) return;
+        if (outcome.gameProfile) setGameProfile((current) => ({ ...current, ...outcome.gameProfile }));
+        setDerbyWin({ species: outcome.derby.species, week: outcome.derby.key, sizeIn: outcome.sizeIn });
+        sfx.record();
+      });
     });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +105,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   // they're on the same ground; the dock strip lists all of them. ----
   const dockRef = useRef(null);
   const presenceRef = useRef(null);
-  const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch };
+  const champion = isChampion(gameProfile.derby_wins, clock());
+  const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch, champion };
   presenceRef.current = presence;
   useEffect(() => {
     if (loading || !joinDock) return undefined;
@@ -108,7 +117,7 @@ export default function FishingGame({ clock = () => new Date() }) {
   useEffect(() => {
     if (!loading && dockRef.current) dockRef.current.update(presenceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [biome, phase, presence.species, lastCatch, loading]);
+  }, [biome, phase, presence.species, lastCatch, loading, champion]);
 
   // ---- Time of day follows the real clock; re-tint exactly at the next boundary. ----
   useEffect(() => {
@@ -514,6 +523,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         tension={tensionPct}
         callout={stageCallout}
         others={crew.filter((other) => other.biome === biome)}
+        champion={champion}
       />
       {/* The HUD lives on the stage itself, as signage in the world: a plank plate for the
           balance, plank tags for the current setup, and signpost buttons for the map, the shop,
@@ -527,6 +537,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <span className="hud-chip">{biomeConfig.label}</span>
           <span className="hud-chip has-icon"><img src={LURE_ICONS[lure]} alt="" />{LURES[lure].label}</span>
           <span className={`hud-chip is-${period}`}>{PERIOD_LABELS[period]}</span>
+          {champion && <span className="hud-chip is-champion has-icon"><span className="hud-pennant" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} />Champion</span>}
           <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
         </div>
         <nav className="hud-nav" aria-label="Game menu">
@@ -589,7 +600,11 @@ export default function FishingGame({ clock = () => new Date() }) {
           {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
-          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests })} compact />
+          {derbyWin && <div className="derby-win" role="status">
+            <span className="derby-win-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} />
+            <div><strong>You won last week's derby!</strong><span>Biggest {speciesLabel(derbyWin.species).toLowerCase()} in the club{derbyWin.sizeIn ? ` at ${sizeLabel(derbyWin.sizeIn)}` : ''}. The Golden Pennant flies from your rod all week.</span></div>
+          </div>}
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests, champion, justWon: derbyWin })} compact />
           {captainQuests.length > 0 && <ul className="quest-list is-compact" aria-label="Cap'n Ray's quests">
             {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
               <span className="quest-title">{quest.title}</span>
@@ -744,6 +759,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <span className="eyebrow">CLUB DERBY · {derby.key}</span>
               <h3>Biggest {speciesLabel(derby.species).toLowerCase()} this week</h3>
               <small>Found in {derby.grounds.map((ground) => BIOMES[ground].label).join(', ')}. Resets Monday.</small>
+              <p className="derby-prize"><span className="derby-prize-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} /><strong>Prize: {PENNANT_PRIZE.name}.</strong> {PENNANT_PRIZE.blurb}{champion ? ' You are the defending champion.' : ''}</p>
             </div>
           </div>
           {derbyLeaders === null && <p className="month-empty">Checking the board...</p>}
@@ -757,6 +773,16 @@ export default function FishingGame({ clock = () => new Date() }) {
             </li>)}
           </ol>}
         </section>
+        {(gameProfile.derby_wins || []).length > 0 && <section className="derby-ribbons" aria-label="Derby wins">
+          <span className="eyebrow">DERBY WINS</span>
+          <ul>
+            {[...gameProfile.derby_wins].reverse().map((week) => {
+              const monday = dateOfWeekKey(week);
+              const won = monday ? derbyFor(monday) : null;
+              return <li key={week} className="derby-ribbon"><span className="derby-ribbon-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} /><strong>{week}</strong><span>{won ? `Biggest ${speciesLabel(won.species).toLowerCase()}` : 'Club derby'}</span></li>;
+            })}
+          </ul>
+        </section>}
         {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
             {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}

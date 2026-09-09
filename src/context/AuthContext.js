@@ -6,7 +6,7 @@ import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpg
 import { OFFSHORE_CHARTER_COST, BIOMES } from '../utils/gameBiomes';
 import { isNewRecord, speciesLabel, sizeLabel } from '../utils/gameSpecies';
 import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
-import { rankDerby } from '../utils/gameDerby';
+import { rankDerby, previousDerby } from '../utils/gameDerby';
 import { LURES } from '../utils/gameLures';
 
 const AuthContext = createContext(null);
@@ -482,7 +482,7 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [] };
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [] };
   const FISH_YEAR_BOUNTY_POINTS = 15;
 
   // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
@@ -546,15 +546,35 @@ export function AuthProvider({ children }) {
   // This week's club derby: everyone's catches of the target species since Monday, ranked
   // one row per angler (see utils/gameDerby.js). game_catches snapshots angler_name; avatars
   // come from profiles so the board looks like the rest of the site's leaderboards.
-  async function listDerbyLeaders({ species, since }) {
+  async function listDerbyLeaders({ species, since, until = null }) {
     if (!isSupabaseConfigured) return [];
+    let query = supabase.from('game_catches').select('*').eq('species', species).gte('created_at', since);
+    if (until) query = query.lt('created_at', until);
     const [catchesRes, profilesRes] = await Promise.all([
-      supabase.from('game_catches').select('*').eq('species', species).gte('created_at', since).order('size_in', { ascending: false }).limit(200),
+      query.order('size_in', { ascending: false }).limit(200),
       supabase.from('profiles').select('id, display_name, avatar_url'),
     ]);
     const profileById = new Map((profilesRes.data || []).map((row) => [row.id, row]));
     const rows = (catchesRes.data || []).map((row) => ({ ...row, avatar_url: profileById.get(row.user_id)?.avatar_url || '' }));
     return rankDerby(rows);
+  }
+
+  // The derby's prize. Checks last week's final board; if you topped it and haven't been paid
+  // for that week yet, the week key goes on your derby_wins and the Golden Pennant is yours
+  // for this week (utils/gameDerby.isChampion). Only ever writes your own row.
+  async function claimDerbyWin(now = new Date()) {
+    if (!isSupabaseConfigured || !user) return { won: false };
+    const last = previousDerby(now);
+    const currentGameProfile = await getGameProfile();
+    const wins = currentGameProfile?.derby_wins || [];
+    if (wins.includes(last.key)) return { won: false, alreadyClaimed: true, derby: last };
+    const leaders = await listDerbyLeaders({ species: last.species, since: last.since, until: last.until });
+    const winner = leaders[0];
+    if (!winner || winner.userId !== user.id) return { won: false, derby: last, winner: winner || null };
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ derby_wins: [...wins, last.key], updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { won: false, error }; }
+    return { won: true, derby: last, sizeIn: winner.sizeIn, gameProfile: data };
   }
 
   // Real Fish Year catches pay a tackle-point bounty in the game, once each. The angler in
@@ -788,7 +808,7 @@ export function AuthProvider({ children }) {
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
     getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
-    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

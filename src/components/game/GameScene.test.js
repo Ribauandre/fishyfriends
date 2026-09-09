@@ -215,3 +215,19 @@ test('a taller stage keeps the scene on the painting: positions follow the visib
     global.ResizeObserver = original;
   }
 });
+
+test('the derby champion flies the golden pennant from the rod tip, and so does a champion on the crew', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="ready" displayName="Andre" champion />);
+  const pennant = container.querySelector('.scene-pennant');
+  expect(pennant).toHaveAttribute('data-cosmetic', 'golden-pennant');
+  expect(container.querySelector('text.is-champion')).toBeInTheDocument();
+  // It follows the rod: the cast pose holds the rod far out to the right.
+  const idleLeft = parseFloat(pennant.style.left);
+  rerender(<GameScene biome="river" phase="waiting" displayName="Andre" champion />);
+  expect(parseFloat(container.querySelector('.scene-pennant').style.left)).toBeGreaterThan(idleLeft);
+
+  rerender(<GameScene biome="river" phase="ready" displayName="Andre" others={[{ userId: 'u2', name: 'Kevin', phase: 'ready', champion: true }, { userId: 'u3', name: 'Sam', phase: 'ready' }]} />);
+  expect(container.querySelectorAll('.scene-pennant').length).toBe(1);
+  expect(screen.getByText('KEVIN')).toHaveClass('is-champion');
+  expect(screen.getByText('SAM')).not.toHaveClass('is-champion');
+});

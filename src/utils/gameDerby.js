@@ -56,3 +56,34 @@ export function rankDerby(catches) {
   });
   return [...best.values()].sort((a, b) => b.sizeIn - a.sizeIn || (a.createdAt < b.createdAt ? -1 : 1));
 }
+
+// The Monday (UTC) a week key like '2026-W37' starts on — so a stored win can be turned back
+// into that week's derby (species, dates) without storing anything else.
+export function dateOfWeekKey(key) {
+  const match = /^(\d{4})-W(\d{2})$/.exec(key || '');
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  // ISO week 1 is the week with January 4th in it.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday = weekStart(jan4);
+  monday.setUTCDate(monday.getUTCDate() + (week - 1) * 7);
+  return monday;
+}
+
+// Last week's derby: the one whose board is final and whose winner gets the pennant now.
+export function previousDerby(date = new Date()) {
+  const lastWeek = new Date(weekStart(date));
+  lastWeek.setUTCDate(lastWeek.getUTCDate() - 1);
+  return derbyFor(lastWeek);
+}
+
+// The Golden Pennant is worn for exactly one week: the week after the one you won.
+export function isChampion(derbyWins, date = new Date()) {
+  return (derbyWins || []).includes(previousDerby(date).key);
+}
+
+export const PENNANT_PRIZE = {
+  name: 'The Golden Pennant',
+  blurb: 'Top the board and it flies from your rod all next week, for everyone on the dock to see.',
+};
