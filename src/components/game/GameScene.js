@@ -18,7 +18,7 @@ const VIEW_H = 270;
 
 // Where things sit in the painted scenes (viewBox units): the dock deck the angler stands on,
 // the water surface the bobber floats at, and how far out the cast lands.
-const ART_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spriteBoxH: 54 };
+const ART_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spriteBoxH: 44 };
 
 const SCENES = {
   lake: { art: lakeArt },
@@ -135,7 +135,7 @@ export default function GameScene({ biome, phase, displayName, species, reel, zo
       anglerY: (scene.stand === 'boat' ? 120 : 120) * FALLBACK_SCALE,
       waterY: FALLBACK_WATER_TOP * FALLBACK_SCALE,
       bobberX: 300,
-      spriteBoxH: 60,
+      spriteBoxH: 48,
     };
   const current = anglerAction({ phase, result, holding });
   const rodTip = ANGLER_SPRITES[current.action].rodTip;

@@ -1,21 +1,21 @@
-// The main character's sprite strips, sliced from the angler sheet at 75% scale. Every frame
-// sits in the same box with the feet anchored at (feetX, feetY) so actions can swap without
-// the figure hopping. Frame counts are what the sheet actually has (the reel row is seven).
+// The main character's sprite strips, sliced from the angler sheet. Every frame sits in the
+// same box with the feet anchored at (feetX, feetY) so actions can swap without the figure
+// hopping. Frame counts are what the sheet actually has (idle and reel are seven).
 import idle from '../assets/angler/idle.png';
 import cast from '../assets/angler/cast.png';
 import reel from '../assets/angler/reel.png';
 import fishon from '../assets/angler/fishon.png';
 import celebrate from '../assets/angler/celebrate.png';
 
-export const SPRITE_FRAME = { w: 255, h: 188, feetX: 82, feetY: 182 };
+export const SPRITE_FRAME = { w: 250, h: 150, feetX: 80, feetY: 144 };
 
 // rodTip is where the line leaves the rod for that strip's held pose, in frame pixels.
 export const ANGLER_SPRITES = {
-  idle: { src: idle, frames: 8, rodTip: { x: 96, y: 30 } },
-  cast: { src: cast, frames: 6, rodTip: { x: 248, y: 64 } },
-  reel: { src: reel, frames: 7, rodTip: { x: 168, y: 56 } },
-  fishon: { src: fishon, frames: 6, rodTip: { x: 210, y: 42 } },
-  celebrate: { src: celebrate, frames: 8, rodTip: { x: 96, y: 30 } },
+  idle: { src: idle, frames: 7, rodTip: { x: 80, y: 20 } },
+  cast: { src: cast, frames: 6, rodTip: { x: 228, y: 34 } },
+  reel: { src: reel, frames: 7, rodTip: { x: 176, y: 14 } },
+  fishon: { src: fishon, frames: 6, rodTip: { x: 195, y: 10 } },
+  celebrate: { src: celebrate, frames: 8, rodTip: { x: 80, y: 20 } },
 };
 
 // What the angler is doing in each phase: which strip, how many frames to step through, and
