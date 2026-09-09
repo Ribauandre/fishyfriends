@@ -41,7 +41,7 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 export default function FishingGame({ clock = () => new Date() }) {
   const {
     profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
-    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
@@ -73,6 +73,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   const [bountyBusy, setBountyBusy] = useState(false);
   const [questBusy, setQuestBusy] = useState(false);
   const [derbyLeaders, setDerbyLeaders] = useState(null);
+  const [crew, setCrew] = useState([]);
+  const [lastCatch, setLastCatch] = useState(null);
   const clockRef = useRef(clock);
   clockRef.current = clock;
   const [derby] = useState(() => derbyFor(clock()));
@@ -89,6 +91,24 @@ export default function FishingGame({ clock = () => new Date() }) {
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Presence: join the shared dock once loaded, then keep everyone told where you are and
+  // what you're doing. The others come back through setCrew and stand on the stage when
+  // they're on the same ground; the dock strip lists all of them. ----
+  const dockRef = useRef(null);
+  const presenceRef = useRef(null);
+  const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch };
+  presenceRef.current = presence;
+  useEffect(() => {
+    if (loading || !joinDock) return undefined;
+    dockRef.current = joinDock(presenceRef.current, setCrew);
+    return () => { dockRef.current?.leave(); dockRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, joinDock]);
+  useEffect(() => {
+    if (!loading && dockRef.current) dockRef.current.update(presenceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [biome, phase, presence.species, lastCatch, loading]);
 
   // ---- Time of day follows the real clock; re-tint exactly at the next boundary. ----
   useEffect(() => {
@@ -375,6 +395,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     }
     sfx.land(pendingCatch.rarity);
     if (isRecord) sfx.record();
+    setLastCatch({ species: speciesLabel(pendingCatch.species), at: Date.now() });
     setResult({ success: true, species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests });
     setPhase('result');
   }
@@ -492,6 +513,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         hooksetWindowMs={hooksetWindowMs}
         tension={tensionPct}
         callout={stageCallout}
+        others={crew.filter((other) => other.biome === biome)}
       />
       {/* The HUD lives on the stage itself, as signage in the world: a plank plate for the
           balance, plank tags for the current setup, and signpost buttons for the map, the shop,
@@ -544,6 +566,26 @@ export default function FishingGame({ clock = () => new Date() }) {
             </div>
           </div>
           <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}</p>
+          {crew.length > 0 && <div className="dock-crew" role="group" aria-label="On the water now">
+            <span className="dock-crew-label">On the water</span>
+            {crew.map((other) => {
+              const here = other.biome === biome;
+              const ground = BIOMES[other.biome]?.label || 'somewhere';
+              const doing = { casting: 'casting', waiting: 'waiting on a bite', hookset: 'fish on!', reeling: 'fighting one', result: other.species ? `landed a ${String(other.species).toLowerCase()}` : 'between casts' }[other.phase] || 'on the dock';
+              const canGo = !here && biomeUnlocked(other.biome, quests) && phase === 'ready';
+              return <button
+                key={other.userId}
+                type="button"
+                className={`dock-crew-chip ${here ? 'is-here' : ''}`}
+                disabled={!canGo}
+                aria-label={`${other.name} · ${doing} · ${ground}${canGo ? ' · travel there' : ''}`}
+                onClick={() => selectBiome(other.biome)}
+              >
+                <span className="mini-avatar">{other.avatarUrl ? <img src={other.avatarUrl} alt="" /> : String(other.name || 'A').slice(0, 1).toUpperCase()}</span>
+                <span className="dock-crew-text"><strong>{other.name}</strong><small>{doing} · {ground}</small></span>
+              </button>;
+            })}
+          </div>}
           {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}

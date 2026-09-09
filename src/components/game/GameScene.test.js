@@ -155,3 +155,35 @@ test('a harder cast lands the bobber further out', () => {
   rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={90} />);
   expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeGreaterThan(shortCast);
 });
+
+test('club members on the same ground stand on the deck in their own pose, with a bubble for a fresh catch', () => {
+  const now = () => 100000;
+  const others = [
+    { userId: 'u2', name: 'Kevin', biome: 'river', phase: 'reeling', species: 'pike' },
+    { userId: 'u3', name: 'Sam', biome: 'river', phase: 'result', species: 'walleye', lastCatch: { species: 'Walleye', at: 96000 } },
+    { userId: 'u4', name: 'Priya', biome: 'river', phase: 'waiting', lastCatch: { species: 'Carp', at: 10000 } },
+    { userId: 'u5', name: 'Lee', biome: 'river', phase: 'ready' },
+  ];
+  const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" others={others} now={now} />);
+  const crew = container.querySelectorAll('.scene-sprite.is-crew');
+  expect(crew.length).toBe(3);
+  expect(crew[0]).toHaveAttribute('data-action', 'reel');
+  expect(crew[0]).toHaveClass('is-looping');
+  expect(crew[1]).toHaveAttribute('data-action', 'celebrate');
+  expect(crew[2]).toHaveAttribute('data-action', 'cast');
+  expect(screen.getByText('KEVIN')).toHaveClass('scene-crew-tag');
+  expect(screen.getByText('Landed a walleye!')).toHaveClass('scene-crew-bubble');
+  expect(screen.queryByText(/landed a carp/i)).toBeNull();
+  expect(screen.getByText('+1 more')).toBeInTheDocument();
+  expect(container.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-action', 'idle');
+  // Crew stand behind the player, further left along the deck.
+  const you = parseFloat(container.querySelector('.scene-sprite.is-you').style.left);
+  crew.forEach((sprite) => expect(parseFloat(sprite.style.left)).toBeLessThan(you));
+});
+
+test('the boat only has room for one guest', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready' }, { userId: 'u3', name: 'Sam', phase: 'ready' }];
+  const { container } = render(<GameScene biome="offshore" phase="ready" displayName="Andre" others={others} />);
+  expect(container.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(screen.getByText('+1 more')).toBeInTheDocument();
+});

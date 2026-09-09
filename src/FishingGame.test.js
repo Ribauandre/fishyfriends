@@ -579,3 +579,36 @@ test('a worked lure shows on the stage with its gauge, and twitching from the st
   expect(screen.getByText(/fish on/i)).toBeInTheDocument();
   expect(document.querySelector('.scene-hook-ring')).toBeInTheDocument();
 });
+
+test('the dock shows who else is on the water, puts same-ground anglers on the stage, and lets you travel to a friend', async () => {
+  let sync;
+  const update = jest.fn(); const leave = jest.fn();
+  const joinDock = jest.fn((initial, onSync) => { sync = onSync; return { update, leave }; });
+  useAuth.mockReturnValue(makeBaseAuth({ joinDock }));
+  const { unmount } = render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  expect(joinDock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Andre', biome: 'river', phase: 'ready' }), expect.any(Function));
+  expect(screen.queryByRole('group', { name: /on the water now/i })).toBeNull();
+
+  await act(async () => { sync([
+    { userId: 'u2', name: 'Kevin', biome: 'river', phase: 'reeling', species: 'pike' },
+    { userId: 'u3', name: 'Sam', biome: 'bay', phase: 'waiting' },
+  ]); });
+  expect(screen.getByRole('group', { name: /on the water now/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Kevin · fighting one · River' })).toBeDisabled();
+  expect(document.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(screen.getByText('KEVIN')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Sam · waiting on a bite · Bay · travel there' }));
+  expect(screen.getByText('Bay', { selector: '.hud-chip' })).toBeInTheDocument();
+  expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ biome: 'bay', phase: 'ready' }));
+  expect(document.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(screen.getByText('SAM')).toBeInTheDocument();
+
+  // The stage isn't tappable until the trip finishes.
+  await advance(2000);
+  await userEvent.click(screen.getByRole('button', { name: 'Cast a line' }));
+  expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
+  unmount();
+  expect(leave).toHaveBeenCalledTimes(1);
+});

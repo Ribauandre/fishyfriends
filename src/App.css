@@ -903,6 +903,24 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-panel.is-play { gap: 10px; padding-top: 14px; }
 .game-panel.is-play > p { font-size: 12px; }
 
+
+/* Cast & Catch — presence: club members on the same ground stand on the deck behind you. */
+.scene-sprite.is-crew { filter: brightness(.92) saturate(.85); }
+.scene-crew-tag { color: #ffb38a; font-family: Oswald, 'Arial Narrow', sans-serif; font-size: 8px; font-weight: 700; letter-spacing: 1px; pointer-events: none; position: absolute; text-shadow: 1px 1px 0 #03080b, -1px -1px 0 #03080b, 1px -1px 0 #03080b, -1px 1px 0 #03080b; transform: translateX(-50%); white-space: nowrap; z-index: 1; }
+.scene-crew-bubble { animation: overlay-rise .3s ease-out both; background: var(--cream); border: 1px solid var(--line); color: var(--ink); font-size: 10px; font-weight: 700; padding: 3px 7px; pointer-events: none; position: absolute; transform: translateX(-50%); white-space: nowrap; z-index: 7; }
+.scene-crew-bubble:after { border: 5px solid transparent; border-top-color: var(--line); content: ''; left: 50%; margin-left: -5px; position: absolute; top: 100%; }
+.scene-crew-more { background: rgba(3,8,11,.7); border: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 700; padding: 2px 6px; pointer-events: none; position: absolute; z-index: 1; }
+.dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: -6px; width: 100%; }
+.dock-crew-label { color: var(--muted); font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.dock-crew-chip { align-items: center; background: rgba(3,8,11,.3); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: inline-flex; gap: 7px; padding: 4px 9px 4px 5px; text-align: left; }
+.dock-crew-chip .mini-avatar { height: 22px; width: 22px; font-size: 10px; }
+.dock-crew-chip.is-here { border-color: var(--mint); }
+.dock-crew-chip:disabled { cursor: default; opacity: .8; }
+.dock-crew-chip:not(:disabled):hover { border-color: var(--mint); }
+.dock-crew-text { display: flex; flex-direction: column; line-height: 1.15; }
+.dock-crew-text strong { font-size: 11px; }
+.dock-crew-text small { color: var(--muted); font-size: 9px; }
+
 @media (max-width: 500px) {
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
   .game-frame { border-width: 9px; }

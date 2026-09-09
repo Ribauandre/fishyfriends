@@ -41,15 +41,28 @@ export function createSupabaseMock() {
   // so a test can trigger one directly with emitPostgresChange instead of needing a real
   // websocket connection.
   const channelHandlersByTable = new Map();
+  // Presence (Cast & Catch's dock): the channel also records presence handlers by event,
+  // fakes track()/presenceState(), and calls subscribe's callback with 'SUBSCRIBED' so the
+  // first track() fires. emitPresenceSync(state) replaces the state and runs the sync handler.
+  const presenceHandlers = new Map();
+  let presenceState = {};
+  const channels = [];
   const removeChannel = jest.fn();
-  const channel = jest.fn(() => {
+  const channel = jest.fn((name, options) => {
     const chan = {
-      on: jest.fn((_event, filter, callback) => {
-        if (filter?.table) channelHandlersByTable.set(filter.table, callback);
+      name,
+      options,
+      on: jest.fn((event, filter, callback) => {
+        if (event === 'presence') presenceHandlers.set(filter?.event || 'sync', callback);
+        else if (filter?.table) channelHandlersByTable.set(filter.table, callback);
         return chan;
       }),
-      subscribe: jest.fn(() => chan),
+      subscribe: jest.fn((callback) => { if (callback) Promise.resolve().then(() => callback('SUBSCRIBED')); return chan; }),
+      track: jest.fn().mockResolvedValue('ok'),
+      untrack: jest.fn().mockResolvedValue('ok'),
+      presenceState: jest.fn(() => presenceState),
     };
+    channels.push(chan);
     return chan;
   });
 
@@ -66,6 +79,12 @@ export function createSupabaseMock() {
     async emitPostgresChange(table, newRow) {
       const callback = channelHandlersByTable.get(table);
       if (callback) await callback({ new: newRow });
+    },
+    channels,
+    async emitPresenceSync(state) {
+      presenceState = state;
+      const callback = presenceHandlers.get('sync');
+      if (callback) await callback();
     },
   };
 }
