@@ -6,7 +6,7 @@ import { speciesLabel } from './gameSpecies';
 
 export const NPCS = {
   shopkeeper: { name: 'Sal', title: "Runs Sal's Tackle" },
-  captain: { name: "Cap'n Rosa", title: 'Charter captain' },
+  captain: { name: "Cap'n Ray", title: 'Reel Life Charters' },
 };
 
 export function shopkeeperLine({ gameProfile, event }) {

@@ -650,8 +650,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-splash { animation: scene-splash .6s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes scene-splash { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.6); } }
 
-.npc-dialogue { align-items: start; display: grid; gap: 12px; grid-template-columns: 64px 1fr; margin: 16px 0 0; text-align: left; width: min(420px, 100%); }
-.npc-portrait { box-shadow: 3px 4px 0 var(--deep); display: block; height: 64px; width: 64px; }
+.npc-dialogue { align-items: start; display: grid; gap: 12px; grid-template-columns: 80px 1fr; margin: 16px 0 0; text-align: left; width: min(420px, 100%); }
+.npc-portrait { border: 2px solid var(--line); box-shadow: 3px 4px 0 var(--deep); display: block; height: 80px; object-fit: cover; width: 80px; }
 .npc-bubble { background: rgba(3,8,11,.35); border: 1px solid var(--line); padding: 10px 12px; position: relative; }
 .npc-bubble:before { border: 7px solid transparent; border-right-color: var(--line); content: ''; left: -14px; position: absolute; top: 16px; }
 .npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-head); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
