@@ -24,6 +24,7 @@ import walleye from '../assets/fish/walleye.png';
 import yellowperch from '../assets/fish/yellowperch.png';
 import weakfish from '../assets/fish/weakfish.png';
 import chainpickerel from '../assets/fish/chainpickerel.png';
+import swordfish from '../assets/fish/swordfish.png';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -56,6 +57,7 @@ const fishDetails = {
   yellowperch: { label: 'Yellow perch', src: yellowperch },
   weakfish: { label: 'Weakfish', src: weakfish },
   chainpickerel: { label: 'Chain pickerel', src: chainpickerel },
+  swordfish: { label: 'Swordfish', src: swordfish },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails);

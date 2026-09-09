@@ -16,6 +16,9 @@ jest.mock('./utils/lurePhysics', () => {
   return { ...actual, twitchJerk: jest.fn(actual.twitchJerk), stepCrank: jest.fn(actual.stepCrank) };
 });
 
+// A fixed daytime clock so the dock, the captain and the derby don't depend on when CI runs.
+const NOON = () => new Date(2026, 5, 15, 12, 0, 0);
+
 function makeGameProfile(overrides = {}) {
   return { tackle_points: 100, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], ...overrides };
 }
@@ -66,7 +69,7 @@ afterEach(() => {
 });
 
 test('shows a loading state, then one game frame with the shop and trophy case as overlays', async () => {
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   expect(screen.getByText(/loading your tackle box/i)).toBeInTheDocument();
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
@@ -84,7 +87,7 @@ test('shows a loading state, then one game frame with the shop and trophy case a
 });
 
 test('striking before a bite ends the round as a false start', async () => {
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await reachWaiting();
   expect(screen.getByText(/waiting for a bite/i)).toBeInTheDocument();
@@ -93,7 +96,7 @@ test('striking before a bite ends the round as a false start', async () => {
 });
 
 test('missing the hookset window lets the fish steal the bait', async () => {
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await reachWaiting();
   await advance(4000);
@@ -109,7 +112,7 @@ test('landing the fish logs the catch and shows the trophy result', async () => 
     gameProfile: makeGameProfile({ tackle_points: 105 }),
   });
   useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await reachWaiting();
   await advance(4000);
@@ -127,7 +130,7 @@ test('landing the fish logs the catch and shows the trophy result', async () => 
 test('a snapped line ends the round without logging a catch', async () => {
   const logGameCatch = jest.fn();
   useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await reachWaiting();
   await advance(4000);
@@ -143,7 +146,7 @@ test('a snapped line ends the round without logging a catch', async () => {
 test('purchasing an upgrade updates the tackle profile shown', async () => {
   const purchaseUpgrade = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 60, rod_level: 2 }) });
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
@@ -155,7 +158,7 @@ test('purchasing an upgrade updates the tackle profile shown', async () => {
 test('shows the server error when an upgrade purchase fails', async () => {
   const purchaseUpgrade = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points yet.') });
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
@@ -165,7 +168,7 @@ test('shows the server error when an upgrade purchase fails', async () => {
 test('chartering an offshore trip deducts tackle points before casting', async () => {
   const charterBoat = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) });
   useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
 
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
@@ -181,7 +184,7 @@ test('chartering an offshore trip deducts tackle points before casting', async (
 test('declines to charter without enough points and stays on the dock', async () => {
   const charterBoat = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points to charter a boat.') });
   useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
 
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
@@ -196,7 +199,7 @@ test('declines to charter without enough points and stays on the dock', async ()
 test('leaving offshore and coming back requires chartering again', async () => {
   const charterBoat = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) });
   useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
 
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
@@ -231,7 +234,7 @@ test('leaving offshore and coming back requires chartering again', async () => {
 test('unlocking a lure spends tackle points and ties it on', async () => {
   const purchaseLure = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 40, owned_lures: ['jerkbait'] }) });
   useAuth.mockReturnValue(makeBaseAuth({ purchaseLure }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
 
   expect(screen.getByRole('button', { name: /jerk bait unlock · 60 pts/i })).toBeInTheDocument();
@@ -247,7 +250,7 @@ test('unlocking a lure spends tackle points and ties it on', async () => {
 test('a failed lure purchase shows the error and keeps live bait tied on', async () => {
   const purchaseLure = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points yet.') });
   useAuth.mockReturnValue(makeBaseAuth({ purchaseLure }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
   expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
@@ -256,7 +259,7 @@ test('a failed lure purchase shows the error and keeps live bait tied on', async
 
 test('jerk bait: twitching on the beat fills attraction and triggers the bite', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
   await reachWaiting();
@@ -273,7 +276,7 @@ test('jerk bait: twitching on the beat fills attraction and triggers the bite', 
 
 test('jerk bait: running out of retrieve with no bite wastes the cast', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
   await reachWaiting();
@@ -283,7 +286,7 @@ test('jerk bait: running out of retrieve with no bite wastes the cast', async ()
 
 test('crank bait: a retrieve held in the strike zone triggers the bite', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
   await reachWaiting();
@@ -297,7 +300,7 @@ test('crank bait: a retrieve held in the strike zone triggers the bite', async (
 
 test('crank bait: reaching the boat with no strike wastes the cast', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
   await reachWaiting();
@@ -309,7 +312,7 @@ test('crank bait: reaching the boat with no strike wastes the cast', async () =>
 });
 
 test('the angler on the stage is the signed-in person', async () => {
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   expect(document.querySelector('.game-scene[data-phase="ready"]')).toBeInTheDocument();
   expect(screen.getByText('ANDRE')).toBeInTheDocument();
@@ -320,7 +323,7 @@ test('real personal bests hang in the trophy case, tagged apart from game catche
     personalBests: [{ id: 'pb-1', species: 'Striped Bass', size_label: '34 in', photo_url: '' }],
     listMyGameCatches: jest.fn().mockResolvedValue([{ id: 'gc-1', species: 'walleye', rarity: 'uncommon', size_label: '18.0 in', points_earned: 12 }]),
   }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
   expect(screen.getByText('Striped Bass')).toBeInTheDocument();
@@ -334,7 +337,7 @@ test('real personal bests hang in the trophy case, tagged apart from game catche
 test('the shop owner reacts to a purchase and the captain pitches the charter', async () => {
   const purchaseUpgrade = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 60, rod_level: 2 }) });
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByText(/work the current seams/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
@@ -354,7 +357,7 @@ test('renders past catches in the trophy case', async () => {
       { id: 'gc-1', species: 'shark', rarity: 'legendary', size_label: '50.0 in', points_earned: 150 },
     ]),
   }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
   expect(screen.getByText('Shark')).toBeInTheDocument();
@@ -364,7 +367,7 @@ test('renders past catches in the trophy case', async () => {
 
 test('picking a new ground plays the trip on the stage, and casting cuts it short', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ charterBoat: jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) }) }));
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   expect(document.querySelector('.scene-travel')).toBeNull();
 
@@ -384,7 +387,7 @@ test('picking a new ground plays the trip on the stage, and casting cuts it shor
 });
 
 test('the shop is a place: Sal, the shop interior, and gear icons on every upgrade', async () => {
-  render(<FishingGame />);
+  render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   const panel = document.querySelector('.game-overlay-panel');
@@ -392,4 +395,150 @@ test('the shop is a place: Sal, the shop interior, and gear icons on every upgra
   expect(panel.getAttribute('data-backdrop')).toContain('shop');
   expect(document.querySelectorAll('.upgrade-icon').length).toBe(4);
   expect(document.querySelectorAll('.lure-icon').length).toBe(3);
+});
+
+// ---- The world: clock, almanac, derby, quests, bounties, sound ----
+
+const NIGHT = () => new Date(2026, 5, 15, 23, 0, 0);
+
+test('after dark the HUD says so, the captain changes his tip, and the roll is told the hour', async () => {
+  render(<FishingGame clock={NIGHT} />);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText('Night', { selector: '.hud-chip' })).toBeInTheDocument();
+  expect(screen.getByText(/catfish and walleye come out after dark/i)).toBeInTheDocument();
+  expect(document.querySelector('.game-scene')).toHaveAttribute('data-period', 'night');
+  expect(document.querySelector('.scene-tint')).toHaveClass('is-night');
+});
+
+test('the almanac shows silhouettes until a species is landed, then its best size', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ records: { walleye: { size_in: 22.5 } } })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Almanac' }));
+  expect(screen.getByRole('dialog', { name: /almanac/i })).toBeInTheDocument();
+  const walleye = document.querySelector('.almanac-card[data-species="walleye"]');
+  expect(walleye).toHaveClass('is-known');
+  expect(walleye).toHaveTextContent('Walleye');
+  expect(walleye).toHaveTextContent('Best 22.5 in');
+  const pike = document.querySelector('.almanac-card[data-species="pike"]');
+  expect(pike).toHaveClass('is-unknown');
+  expect(pike).toHaveTextContent('???');
+  // The locked canyon is listed as a rumor, not by name.
+  expect(screen.getByRole('region', { name: 'Locked ground' })).toBeInTheDocument();
+  expect(document.querySelector('.almanac-progress')).toHaveTextContent('1 of 26 species landed');
+});
+
+test('landing your biggest of a species is called out as a record', async () => {
+  const logGameCatch = jest.fn().mockResolvedValue({
+    error: null, isRecord: true, completedQuests: [],
+    catchEntry: { id: 'gc-1', species: 'trout', rarity: 'common', size_label: '14.0 in', points_earned: 5 },
+    gameProfile: makeGameProfile({ tackle_points: 105, records: { trout: { size_in: 14 } } }),
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await reachWaiting();
+  await advance(4000);
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+  await advance(80);
+  expect(await screen.findByText('NEW RECORD')).toBeInTheDocument();
+  expect(logGameCatch).toHaveBeenCalledWith(expect.objectContaining({ sizeIn: expect.any(Number), biome: 'river' }));
+  expect(screen.getByText(/your biggest yet/i)).toBeInTheDocument();
+});
+
+test('the trophy case opens on this week\'s derby board', async () => {
+  const listDerbyLeaders = jest.fn().mockResolvedValue([
+    { userId: 'user-2', anglerName: 'Kevin', sizeIn: 24, catchId: 'a', createdAt: '2026-06-15T10:00:00Z', avatarUrl: '' },
+    { userId: 'user-1', anglerName: 'Andre', sizeIn: 21.5, catchId: 'b', createdAt: '2026-06-15T11:00:00Z', avatarUrl: '' },
+  ]);
+  useAuth.mockReturnValue(makeBaseAuth({ listDerbyLeaders }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(listDerbyLeaders).toHaveBeenCalledWith(expect.objectContaining({ species: expect.any(String), since: expect.stringMatching(/T00:00:00/) }));
+  expect(await screen.findByText('Kevin')).toBeInTheDocument();
+  expect(screen.getByText('24.0 in')).toBeInTheDocument();
+  expect(screen.getByText('21.5 in')).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: /club derby/i })).toHaveTextContent(/biggest .* this week/i);
+});
+
+test('the canyon stays locked on the map until the proving quest is done', async () => {
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
+  expect(screen.getByRole('button', { name: 'The Canyon · Locked' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: /dismiss fishing grounds/i }));
+
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ quests: { rays_proving: { progress: 3, done: true, claimed: false } } })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getAllByRole('button', { name: 'Travel' })[1]);
+  expect(screen.getByRole('button', { name: 'The Canyon · Charter · 80 pts' })).toBeEnabled();
+});
+
+test("Cap'n Ray tracks the proving quest on the dock and it completes on the third bay fish", async () => {
+  const logGameCatch = jest.fn().mockResolvedValue({
+    error: null, isRecord: false, completedQuests: ['rays_proving'],
+    catchEntry: { id: 'gc-1', species: 'flounder', rarity: 'common', size_label: '14.0 in', points_earned: 5 },
+    gameProfile: makeGameProfile({ quests: { rays_proving: { progress: 3, done: true, claimed: false } } }),
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ logGameCatch, getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ quests: { rays_proving: { progress: 2, done: false, claimed: false } } })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
+  await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  expect(screen.getByText(/1 more from the bay/i)).toBeInTheDocument();
+  await reachWaiting();
+  await advance(4000);
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+  await advance(80);
+  expect(await screen.findByText(/quest complete/i)).toBeInTheDocument();
+  expect(screen.getByText(/a new ground is on the map/i)).toBeInTheDocument();
+});
+
+test("Sal's bass can be turned in at the shop for the promised points", async () => {
+  const claimQuestReward = jest.fn().mockResolvedValue({ error: null, points: 75, gameProfile: makeGameProfile({ tackle_points: 175, quests: { sals_wall: { progress: 1, done: true, claimed: true } } }) });
+  useAuth.mockReturnValue(makeBaseAuth({ claimQuestReward, getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ quests: { sals_wall: { progress: 1, done: true, claimed: false } } })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
+  expect(screen.getByText(/is that my bass/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /turn in · 75 pts/i }));
+  expect(claimQuestReward).toHaveBeenCalledWith('sals_wall');
+  expect(await screen.findByLabelText('175 tackle points')).toBeInTheDocument();
+  expect(screen.getByText(/75 points, as promised/i)).toBeInTheDocument();
+  expect(screen.getByText('Turned in')).toBeInTheDocument();
+});
+
+test('real Fish Year catches pay a bounty at the shop, once', async () => {
+  const listFishYearBounties = jest.fn().mockResolvedValue([{ id: 'fy-1', species: 'Pike', points: 15 }, { id: 'fy-2', species: 'Carp', points: 15 }]);
+  const claimFishYearBounties = jest.fn().mockResolvedValue({ error: null, claimed: 2, points: 30, gameProfile: makeGameProfile({ tackle_points: 130, bounties_claimed: ['fy-1', 'fy-2'] }) });
+  useAuth.mockReturnValue(makeBaseAuth({ listFishYearBounties, claimFishYearBounties }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
+  expect(screen.getByText(/saw 2 real catches in your logbook/i)).toBeInTheDocument();
+  expect(screen.getByText('2 to claim · 30 pts')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Claim bounty' }));
+  expect(claimFishYearBounties).toHaveBeenCalledTimes(1);
+  expect(await screen.findByLabelText('130 tackle points')).toBeInTheDocument();
+  expect(screen.getByText(/2 real fish on the books — 30 points/i)).toBeInTheDocument();
+  expect(screen.getByText('Nothing new to claim')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Claim bounty' })).toBeDisabled();
+});
+
+test('the bell toggles sound and remembers it for this device', async () => {
+  window.localStorage.removeItem('cast-and-catch-muted');
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  const bell = screen.getByRole('button', { name: 'Sound on' });
+  expect(bell).toHaveAttribute('aria-pressed', 'true');
+  await userEvent.click(bell);
+  expect(screen.getByRole('button', { name: 'Sound off' })).toHaveAttribute('aria-pressed', 'false');
+  expect(window.localStorage.getItem('cast-and-catch-muted')).toBe('1');
+  await userEvent.click(screen.getByRole('button', { name: 'Sound off' }));
+  expect(window.localStorage.getItem('cast-and-catch-muted')).toBe('0');
 });

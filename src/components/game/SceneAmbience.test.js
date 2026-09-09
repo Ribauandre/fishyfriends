@@ -73,3 +73,16 @@ test('fish shadows cruise under the bobber only while a line is out', () => {
   rerender(<SceneAmbience biome="bay" phase="reeling" />);
   expect(container.querySelector('.scene-shadow')).toBeNull();
 });
+
+test('after dark the gulls roost, the stars come out, and the swamp bugs keep going', () => {
+  const { container, rerender } = render(<SceneAmbience biome="bay" phase="ready" period="night" />);
+  expect(container.querySelector('.scene-gull')).toBeNull();
+  expect(container.querySelector('.scene-stars')).toBeInTheDocument();
+  rerender(<SceneAmbience biome="swamp" phase="ready" period="night" />);
+  expect(container.querySelectorAll('.scene-dragonfly').length).toBe(2);
+  // No sky to put stars in under the canopy.
+  expect(container.querySelector('.scene-stars')).toBeNull();
+  rerender(<SceneAmbience biome="bay" phase="ready" period="day" />);
+  expect(container.querySelectorAll('.scene-gull').length).toBe(2);
+  expect(container.querySelector('.scene-stars')).toBeNull();
+});

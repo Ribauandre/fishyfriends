@@ -90,3 +90,12 @@ test('the world around the angler is alive for the biome they are in', () => {
   expect(container.querySelector('.scene-ambience')).toHaveAttribute('data-critter', 'seagull');
   expect(container.querySelector('.scene-water')).toBeInTheDocument();
 });
+
+test('the hour tints the stage and the canyon puts the angler on the cockpit deck', () => {
+  const { container, rerender } = render(<GameScene biome="bay" phase="ready" displayName="Andre" period="night" />);
+  expect(container.querySelector('.game-scene')).toHaveAttribute('data-period', 'night');
+  expect(container.querySelector('.scene-tint')).toHaveClass('is-night');
+  rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('canyon'));
+  expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
+});

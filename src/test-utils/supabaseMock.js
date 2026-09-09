@@ -17,7 +17,7 @@ export function createSupabaseMock() {
 
   function makeBuilder(table) {
     const builder = {};
-    const chainMethods = ['select', 'eq', 'neq', 'ilike', 'order', 'limit', 'maybeSingle', 'single', 'insert', 'update', 'delete', 'upsert'];
+    const chainMethods = ['select', 'eq', 'neq', 'ilike', 'gte', 'lte', 'in', 'order', 'limit', 'maybeSingle', 'single', 'insert', 'update', 'delete', 'upsert'];
     chainMethods.forEach((method) => { builder[method] = jest.fn(() => builder); });
     builder.then = (resolve, reject) => Promise.resolve(resolveFor(table)).then(resolve, reject);
     builder.catch = (reject) => Promise.resolve(resolveFor(table)).catch(reject);

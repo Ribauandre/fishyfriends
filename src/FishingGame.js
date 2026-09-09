@@ -6,35 +6,43 @@ import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine } from './utils/gameDialogue';
 import { useAuth } from './context/AuthContext';
-import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
+import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
-import { BIOMES } from './utils/gameBiomes';
+import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
   INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_ZONE, JERK_TIME_LIMIT_MS, CRANK_TICK_MS, CRANK_BAND_WIDTH,
   jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
 } from './utils/lurePhysics';
+import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
+import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
+import { derbyFor } from './utils/gameDerby';
+import { questsFor, questProgressLabel, questState, claimableQuests, QUEST_BY_KEY } from './utils/gameQuests';
 
 const CAST_SWEET_SPOT = [40, 60];
 const REEL_TICK_MS = 80;
 const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
+const REEL_SOUND_MS = 110;
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [] };
 
-// The whole game lives in one frame: the scene is the viewport, the HUD above it carries the
-// balance and the Travel / Shop / Trophies buttons, and the dock below it holds whatever the
-// current phase needs. The map, the tackle shop, and the trophy case open as overlays inside
-// the frame rather than as cards further down the page, so the loop is dock -> cast -> bite ->
-// reel -> result -> dock without ever leaving the screen.
-export default function FishingGame() {
-  const { profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure } = useAuth();
+// The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
+// and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
+// almanac and the trophy case open as overlays inside the frame rather than as cards further
+// down the page, so the loop is dock -> cast -> bite -> reel -> result -> dock without ever
+// leaving the screen. `clock` is injectable so the harness and tests can pick the hour.
+export default function FishingGame({ clock = () => new Date() }) {
+  const {
+    profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties,
+  } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
   const [catches, setCatches] = useState([]);
@@ -58,18 +66,56 @@ export default function FishingGame() {
   const [reelDisplay, setReelDisplay] = useState({ fishPos: 50, zonePos: 50, progress: 0, tension: 0 });
   const [upgradeError, setUpgradeError] = useState('');
   const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const [period, setPeriod] = useState(() => periodFor(clock()));
+  const [muted, setMuted] = useState(() => isMuted());
+  const [audioReady, setAudioReady] = useState(false);
+  const [bounties, setBounties] = useState([]);
+  const [bountyBusy, setBountyBusy] = useState(false);
+  const [questBusy, setQuestBusy] = useState(false);
+  const [derbyLeaders, setDerbyLeaders] = useState(null);
+  const clockRef = useRef(clock);
+  clockRef.current = clock;
+  const [derby] = useState(() => derbyFor(clock()));
 
   useEffect(() => {
     let active = true;
-    Promise.all([getGameProfile(), listMyGameCatches()]).then(([profileData, catchData]) => {
+    Promise.all([getGameProfile(), listMyGameCatches(), listFishYearBounties ? listFishYearBounties() : []]).then(([profileData, catchData, bountyData]) => {
       if (!active) return;
-      setGameProfile(profileData || DEFAULT_GAME_PROFILE);
+      setGameProfile({ ...DEFAULT_GAME_PROFILE, ...(profileData || {}) });
       setCatches(catchData);
+      setBounties(bountyData || []);
       setLoading(false);
     });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Time of day follows the real clock; re-tint exactly at the next boundary. ----
+  useEffect(() => {
+    const timer = setTimeout(() => setPeriod(periodFor(clockRef.current())), msUntilNextPeriod(clockRef.current()));
+    return () => clearTimeout(timer);
+  }, [period]);
+
+  // ---- Sound: the ambient bed follows the ground and the hour once the player has tapped
+  // something (browsers won't start audio before that); effects fire on phase changes. ----
+  useEffect(() => { if (audioReady) setAmbience(biome, period); }, [audioReady, biome, period]);
+  useEffect(() => () => stopAllAudio(), []);
+  function wakeAudio() { unlockAudio(); setAudioReady(true); }
+  function handleSoundToggle() { wakeAudio(); setMuted(toggleMuted()); sfx.tap(); }
+
+  const previousPointsRef = useRef(null);
+  useEffect(() => {
+    if (loading) return;
+    const previous = previousPointsRef.current;
+    previousPointsRef.current = gameProfile.tackle_points;
+    if (previous !== null && previous !== gameProfile.tackle_points) sfx.coin(gameProfile.tackle_points > previous);
+  }, [gameProfile.tackle_points, loading]);
+
+  useEffect(() => {
+    if (phase === 'casting') sfx.cast();
+    else if (phase === 'waiting') sfx.splash();
+    else if (phase === 'hookset') sfx.bite();
+  }, [phase]);
 
   // ---- Casting: a power meter you have to time a stop on. Landing it in the sweet spot
   // earns a small points bonus on whatever gets landed this round. ----
@@ -93,23 +139,26 @@ export default function FishingGame() {
   }, [phase]);
 
   // Switching biomes ends any chartered trip in progress — heading back to a paid biome later
-  // means chartering again, which is the point: most biomes are free, offshore costs a trip.
+  // means chartering again, which is the point: most biomes are free, the charters cost a trip.
   // The trip itself plays out on the stage (TravelTransition) while the new ground is already
   // set underneath, so nothing waits on the animation.
   const travelTimerRef = useRef(null);
   function selectBiome(nextBiome) {
     setOverlay(null);
-    if (nextBiome === biome) return;
+    if (nextBiome === biome || !biomeUnlocked(nextBiome, gameProfile.quests)) return;
     if (BIOMES[biome].charterCost > 0) setChartered(false);
     setBiome(nextBiome);
     setCharterError('');
     clearTimeout(travelTimerRef.current);
-    setTravel({ to: nextBiome, vehicle: vehicleFor(biome, nextBiome) });
+    const vehicle = vehicleFor(biome, nextBiome);
+    setTravel({ to: nextBiome, vehicle });
+    sfx.travel(vehicle);
     travelTimerRef.current = setTimeout(() => setTravel(null), TRAVEL_MS);
   }
   useEffect(() => () => clearTimeout(travelTimerRef.current), []);
 
   async function startCast() {
+    wakeAudio();
     setCharterError('');
     setOverlay(null);
     clearTimeout(travelTimerRef.current);
@@ -117,10 +166,10 @@ export default function FishingGame() {
     const biomeConfig = BIOMES[biome];
     if (biomeConfig.charterCost > 0 && !chartered) {
       setCastBusy(true);
-      const response = await charterBoat();
+      const response = await charterBoat(biome);
       setCastBusy(false);
       if (response?.error) { setCharterError(response.error.message); return; }
-      if (response.gameProfile) setGameProfile(response.gameProfile);
+      if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
       setChartered(true);
     }
     setPhase('casting');
@@ -142,7 +191,7 @@ export default function FishingGame() {
     const response = await purchaseLure(lureKey);
     setLureBusy(false);
     if (response?.error) { setLureError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
-    if (response.gameProfile) setGameProfile(response.gameProfile);
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
     setShopEvent({ type: 'lure', label: LURES[lureKey].label });
     setLure(lureKey);
   }
@@ -168,7 +217,7 @@ export default function FishingGame() {
   function triggerBite(quality) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
-    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species));
+    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period }));
     setPhase('hookset');
   }
 
@@ -228,6 +277,7 @@ export default function FishingGame() {
     jerkStateRef.current = nextState;
     setLureFeedback(nextState.lastTwitchOnBeat ? 'Nice twitch.' : 'Spooked it — off the beat.');
     setLureDisplay((previous) => ({ ...previous, marker: jerkMarkerRef.current, attraction: nextState.attraction }));
+    sfx.tap();
     if (nextState.attraction >= 100) triggerBite(jerkQuality(nextState));
   }
 
@@ -301,20 +351,34 @@ export default function FishingGame() {
   function startReel() { holdingRef.current = true; setReelHolding(true); }
   function stopReel() { holdingRef.current = false; setReelHolding(false); }
 
+  useEffect(() => {
+    if (!reelHolding) return undefined;
+    const ticker = setInterval(() => sfx.reelTick(), REEL_SOUND_MS);
+    return () => clearInterval(ticker);
+  }, [reelHolding]);
+
   async function landFish() {
     let pointsEarned = Math.round(pointsFor(pendingCatch.rarity) * qualityPointsMultiplier(presentationQuality));
     if (perfectCast) pointsEarned = Math.round(pointsEarned * 1.2);
-    const sizeLabel = sizeLabelFor(pendingCatch.rarity);
-    const response = await logGameCatch({ species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel, pointsEarned });
+    const sizeIn = rollSize(pendingCatch.species);
+    const label = sizeLabel(sizeIn);
+    const response = await logGameCatch({ species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel: label, pointsEarned, sizeIn, biome });
+    let isRecord = false;
+    let completedQuests = [];
     if (!response?.error) {
-      if (response.gameProfile) setGameProfile(response.gameProfile);
+      if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
       if (response.catchEntry) setCatches((previous) => [response.catchEntry, ...previous]);
+      isRecord = Boolean(response.isRecord);
+      completedQuests = response.completedQuests || [];
     }
-    setResult({ success: true, species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel, pointsEarned });
+    sfx.land(pendingCatch.rarity);
+    if (isRecord) sfx.record();
+    setResult({ success: true, species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests });
     setPhase('result');
   }
 
   function finishRound({ success, message }) {
+    if (!success) { if (/snapped/i.test(message)) sfx.snap(); else sfx.lost(); }
     setResult({ success, message, species: pendingCatch?.species, rarity: pendingCatch?.rarity });
     setPhase('result');
   }
@@ -324,9 +388,39 @@ export default function FishingGame() {
     const response = await purchaseUpgrade(trackKey);
     setUpgradeBusy(false);
     if (response?.error) { setUpgradeError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
-    if (response.gameProfile) setGameProfile(response.gameProfile);
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
     setShopEvent({ type: 'upgrade', label: UPGRADE_TRACKS.find((track) => track.key === trackKey)?.label || 'gear' });
   }
+
+  async function handleQuestTurnIn(questKey) {
+    if (!claimQuestReward) return;
+    setQuestBusy(true);
+    const response = await claimQuestReward(questKey);
+    setQuestBusy(false);
+    if (response?.error) { setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    setShopEvent({ type: 'quest', points: response.points });
+  }
+
+  async function handleBountyClaim() {
+    if (!claimFishYearBounties) return;
+    setBountyBusy(true);
+    const response = await claimFishYearBounties();
+    setBountyBusy(false);
+    if (response?.error) { setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    setBounties([]);
+    setShopEvent({ type: 'bounty', count: response.claimed, points: response.points });
+  }
+
+  // The derby board loads when the trophy case opens, so the dock never waits on it.
+  useEffect(() => {
+    if (overlay !== 'trophies' || !listDerbyLeaders) return undefined;
+    let active = true;
+    setDerbyLeaders(null);
+    listDerbyLeaders({ species: derby.species, since: derby.since }).then((rows) => { if (active) setDerbyLeaders(rows || []); });
+    return () => { active = false; };
+  }, [overlay, listDerbyLeaders, derby]);
 
   // Real-life personal bests sit in the trophy case next to game catches, tagged so the two
   // never get confused — the point is that the angler in the game is the actual person.
@@ -334,9 +428,16 @@ export default function FishingGame() {
     id: `pb-${best.id}`, species: best.species, icon: speciesIcon(best.species), sizeLabel: best.size_label, photoUrl: best.photo_url,
   }));
 
-  const toggleOverlay = (name) => setOverlay((current) => (current === name ? null : name));
+  const toggleOverlay = (name) => { wakeAudio(); sfx.tap(); setOverlay((current) => (current === name ? null : name)); };
   const biomeConfig = BIOMES[biome];
   const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${biomeConfig.charterCost} pts`) : 'free';
+  const quests = gameProfile.quests || {};
+  const records = gameProfile.records || {};
+  const captainQuests = questsFor('captain', quests);
+  const shopQuests = questsFor('shopkeeper', quests);
+  const captainClaimable = claimableQuests(quests).filter((quest) => quest.giver === 'captain');
+  const almanacTotal = new Set(BIOME_LIST.flatMap((entry) => entry.species)).size;
+  const almanacCaught = Object.keys(records).length;
 
   if (loading) return <main className="content-shell game-page">
     <div className="game-loading"><img className="game-loading-box" src={TACKLE_BOX} alt="" /><p className="month-empty">Loading your tackle box...</p></div>
@@ -344,7 +445,6 @@ export default function FishingGame() {
 
   return <main className="content-shell game-page">
     <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
-
       <div className="game-body">
       <div className="game-stage">
       <GameScene
@@ -357,10 +457,11 @@ export default function FishingGame() {
         result={result}
         holding={reelHolding}
         travel={travel}
+        period={period}
       />
       {/* The HUD lives on the stage itself, as signage in the world: a plank plate for the
-          balance, plank tags for the current setup, and signpost buttons for the map, the shop
-          and the trophy case. It sits above the overlays so those buttons always work. */}
+          balance, plank tags for the current setup, and signpost buttons for the map, the shop,
+          the almanac and the trophy case. It sits above the overlays so those buttons always work. */}
       <header className="game-hud">
         <div className="hud-plate">
           <span className="hud-brand">CAST &amp; CATCH</span>
@@ -369,12 +470,15 @@ export default function FishingGame() {
         <div className="hud-chips" aria-label="Current setup">
           <span className="hud-chip">{biomeConfig.label}</span>
           <span className="hud-chip has-icon"><img src={LURE_ICONS[lure]} alt="" />{LURES[lure].label}</span>
+          <span className={`hud-chip is-${period}`}>{PERIOD_LABELS[period]}</span>
           <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
         </div>
         <nav className="hud-nav" aria-label="Game menu">
-          <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} onClick={() => toggleOverlay('map')}><img src={HUD_ICONS.map} alt="" /><span>Travel</span></button>
-          <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} onClick={() => toggleOverlay('shop')}><img src={HUD_ICONS.shop} alt="" /><span>Shop</span></button>
-          <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} onClick={() => toggleOverlay('trophies')}><img src={HUD_ICONS.trophies} alt="" /><span>Trophies</span></button>
+          <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} aria-label="Travel" onClick={() => toggleOverlay('map')}><img src={HUD_ICONS.map} alt="" /><span aria-hidden="true">Travel</span></button>
+          <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} aria-label="Shop" onClick={() => toggleOverlay('shop')}><img src={HUD_ICONS.shop} alt="" /><span aria-hidden="true">Shop</span></button>
+          <button type="button" className={`hud-button ${overlay === 'almanac' ? 'is-open' : ''}`} aria-pressed={overlay === 'almanac'} aria-label="Almanac" onClick={() => toggleOverlay('almanac')}><img src={HUD_ICONS.almanac} alt="" /><span aria-hidden="true">Almanac</span></button>
+          <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} aria-label="Trophies" onClick={() => toggleOverlay('trophies')}><img src={HUD_ICONS.trophies} alt="" /><span aria-hidden="true">Trophies</span></button>
+          <button type="button" className={`hud-button hud-button-sound ${muted ? 'is-muted' : ''}`} aria-label={muted ? 'Sound off' : 'Sound on'} aria-pressed={!muted} onClick={handleSoundToggle}><img src={HUD_ICONS.sound} alt="" /><span aria-hidden="true">{muted ? 'Muted' : 'Sound'}</span></button>
         </nav>
       </header>
       </div>
@@ -406,9 +510,17 @@ export default function FishingGame() {
             </div>
           </div>
           <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}</p>
+          {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
-          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase })} compact />
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests })} compact />
+          {captainQuests.length > 0 && <ul className="quest-list is-compact" aria-label="Cap'n Ray's quests">
+            {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
+              <span className="quest-title">{quest.title}</span>
+              <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
+              {captainClaimable.some((candidate) => candidate.key === quest.key) && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
+            </li>)}
+          </ul>}
           <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
@@ -486,22 +598,27 @@ export default function FishingGame() {
 
         {phase === 'result' && result && <div className="game-panel game-result">
           {result.success ? <>
-            <span className="status-badge rarity-tag" style={{ background: RARITY_INFO[result.rarity].color, color: RARITY_INFO[result.rarity].text }}>{RARITY_INFO[result.rarity].label.toUpperCase()}</span>
+            <div className="result-tags">
+              <span className="status-badge rarity-tag" style={{ background: RARITY_INFO[result.rarity].color, color: RARITY_INFO[result.rarity].text }}>{RARITY_INFO[result.rarity].label.toUpperCase()}</span>
+              {result.isRecord && <span className="status-badge rarity-tag is-record">NEW RECORD</span>}
+              {result.species === derby.species && <span className="status-badge rarity-tag is-derby">DERBY FISH</span>}
+            </div>
             <h3>{speciesLabel(result.species)} landed!</h3>
             <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
+            {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
-          {biome === 'offshore' && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result })} compact />}
+          {(biome === 'offshore' || biome === 'canyon' || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result, period, quests, isRecord: result.isRecord })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </div>
 
       {overlay === 'map' && <GameOverlay eyebrow="Travel" title="Fishing grounds" onClose={() => setOverlay(null)}>
-        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} />
+        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} />
         <p className="dock-hint">{biomeConfig.blurb}</p>
       </GameOverlay>}
 
       {overlay === 'shop' && <GameOverlay eyebrow="Sal's Tackle" title="Tackle shop" backdrop={shopBackdrop} onClose={() => setOverlay(null)}>
-        <NpcDialogue npc="shopkeeper" line={shopkeeperLine({ gameProfile, event: shopEvent })} />
+        <NpcDialogue npc="shopkeeper" line={shopkeeperLine({ gameProfile, event: shopEvent, personalBests, bounties })} />
         {upgradeError && <p className="form-error">{upgradeError}</p>}
         <div className="upgrade-grid">
           {UPGRADE_TRACKS.map((track) => {
@@ -517,10 +634,79 @@ export default function FishingGame() {
             </div>;
           })}
         </div>
+        <div className="shop-boards">
+          <section className="shop-board" aria-label="Sal's quests">
+            <span className="eyebrow">SAL'S WALL</span>
+            {shopQuests.map((quest) => {
+              const state = questState(quests, quest.key);
+              return <div className={`quest-card ${state.done ? 'is-done' : ''}`} key={quest.key}>
+                <strong>{quest.title}</strong>
+                <p>{quest.brief} <em>{quest.hint}</em></p>
+                <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
+                {state.done && !state.claimed && <button type="button" className="button button-quiet" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
+              </div>;
+            })}
+          </section>
+          <section className="shop-board" aria-label="Bounty board">
+            <span className="eyebrow">BOUNTY BOARD</span>
+            <div className="quest-card">
+              <strong>Real catches pay here</strong>
+              <p>Every fish you log for Fish Year is worth {bounties[0]?.points || 15} tackle points at the counter, once.</p>
+              <span className="quest-progress">{bounties.length === 0 ? 'Nothing new to claim' : `${bounties.length} to claim · ${bounties.length * (bounties[0]?.points || 15)} pts`}</span>
+              <button type="button" className="button button-quiet" disabled={bounties.length === 0 || bountyBusy} onClick={handleBountyClaim}>Claim bounty</button>
+            </div>
+          </section>
+        </div>
         <p className="dock-hint">Lures are on the dock — pick one there, or unlock it from its chip.</p>
       </GameOverlay>}
 
+      {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
+        <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'}</p>
+        {BIOME_LIST.map((ground) => {
+          const unlocked = biomeUnlocked(ground.key, quests);
+          return <section key={ground.key} className={`almanac-biome ${unlocked ? '' : 'is-locked'}`} aria-label={unlocked ? ground.label : 'Locked ground'}>
+            <h3>{unlocked ? ground.label : '???'} <small>{ground.species.filter((species) => records[species]).length} / {ground.species.length}</small></h3>
+            <div className="almanac-grid">
+              {ground.species.map((species) => {
+                const record = records[species];
+                const rarity = rarityOf(species);
+                return <div key={species} className={`almanac-card ${record ? 'is-known' : 'is-unknown'}`} data-species={species}>
+                  <FishIllustration species={species} />
+                  <strong>{record && unlocked ? speciesLabel(species) : '???'}</strong>
+                  <span className="almanac-meta">
+                    <i className="rarity-dot" style={{ background: RARITY_INFO[rarity].color }} title={RARITY_INFO[rarity].label} />
+                    {record ? `Best ${sizeLabel(record.size_in)}` : RARITY_INFO[rarity].label}
+                    {NOCTURNAL.includes(species) && <em title="Feeds after dark"> ☾</em>}
+                    {species === derby.species && <img className="almanac-flag" src={DERBY_FLAG} alt="Derby target" />}
+                  </span>
+                </div>;
+              })}
+            </div>
+          </section>;
+        })}
+      </GameOverlay>}
+
       {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game catches" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
+        <section className="derby-board" aria-label="Club derby">
+          <div className="derby-head">
+            <img src={DERBY_FLAG} alt="" />
+            <div>
+              <span className="eyebrow">CLUB DERBY · {derby.key}</span>
+              <h3>Biggest {speciesLabel(derby.species).toLowerCase()} this week</h3>
+              <small>Found in {derby.grounds.map((ground) => BIOMES[ground].label).join(', ')}. Resets Monday.</small>
+            </div>
+          </div>
+          {derbyLeaders === null && <p className="month-empty">Checking the board...</p>}
+          {derbyLeaders?.length === 0 && <p className="month-empty">Nobody has landed one yet this week. First on the board wins bragging rights.</p>}
+          {derbyLeaders?.length > 0 && <ol className="derby-list">
+            {derbyLeaders.slice(0, 10).map((row, index) => <li key={row.userId} className={row.userId === profile?.id ? 'is-me' : ''}>
+              <span className="derby-rank">{index + 1}</span>
+              <span className="mini-avatar">{row.avatarUrl ? <img src={row.avatarUrl} alt="" /> : row.anglerName.slice(0, 1).toUpperCase()}</span>
+              <span className="derby-name">{row.anglerName}</span>
+              <strong>{sizeLabel(row.sizeIn)}</strong>
+            </li>)}
+          </ol>}
+        </section>
         {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
             {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}

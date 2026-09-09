@@ -9,6 +9,7 @@ import swampArt from '../../assets/scenes/swamp.webp';
 import bayArt from '../../assets/scenes/bay.webp';
 import shorelineArt from '../../assets/scenes/shoreline.webp';
 import offshoreArt from '../../assets/scenes/offshore.webp';
+import canyonArt from '../../assets/scenes/canyon.webp';
 
 // The 2D stage for Cast & Catch, a 16:9 layered scene: a pixel-art backdrop per biome, the
 // angler sprite, and an SVG overlay for the line, bobber, strike splash, and the real
@@ -24,6 +25,8 @@ const VIEW_H = 270;
 // floats at, how far out the cast lands, and how tall the sprite box is (% of stage height).
 const DOCK_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spriteBoxH: 32 };
 const BOAT_LAYOUT = { anglerX: 100, anglerY: 173, waterY: 150, bobberX: 320, spriteBoxH: 32 };
+// The Canyon is painted from the cockpit: the angler stands on the deck right of the chair.
+const CANYON_LAYOUT = { anglerX: 150, anglerY: 222, waterY: 150, bobberX: 340, spriteBoxH: 32 };
 
 const SCENES = {
   river: { art: riverArt, layout: DOCK_LAYOUT },
@@ -32,6 +35,7 @@ const SCENES = {
   bay: { art: bayArt, layout: DOCK_LAYOUT },
   shoreline: { art: shorelineArt, layout: DOCK_LAYOUT },
   offshore: { art: offshoreArt, layout: BOAT_LAYOUT },
+  canyon: { art: canyonArt, layout: CANYON_LAYOUT },
 };
 
 // The fish and catch zone live in the open water right of the dock/boat, not the whole stage.
@@ -78,7 +82,7 @@ function AnglerSprite({ x, y, boxH, phase, current }) {
   />;
 }
 
-export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null }) {
+export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day' }) {
   const scene = SCENES[biome] || SCENES.river;
   const layout = scene.layout;
   const current = anglerAction({ phase, result, holding });
@@ -90,9 +94,11 @@ export default function GameScene({ biome, phase, displayName, species, reel, zo
   const fishY = layout.waterY + 60;
   const lineOut = phase === 'waiting' || phase === 'hookset' || phase === 'reeling';
 
-  return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase}>
+  return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase} data-period={period}>
     <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
-    <SceneAmbience biome={biome} phase={phase} />
+    {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
+    <div className={`scene-tint is-${period}`} aria-hidden="true" />
+    <SceneAmbience biome={biome} phase={phase} period={period} />
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
       {lineOut && <path
         className="scene-line"

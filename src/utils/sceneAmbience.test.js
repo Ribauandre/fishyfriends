@@ -3,6 +3,8 @@ import { BIOMES } from './gameBiomes';
 
 test('every biome has an ambience plan, and unknown ones fall back to the river', () => {
   Object.keys(BIOMES).forEach((biome) => expect(ambienceFor(biome)).toBeTruthy());
+  expect(ambienceFor('canyon')).not.toBe(ambienceFor('river'));
+  expect(ambienceFor('canyon').critter).toBe('seagull');
   expect(ambienceFor('nowhere')).toBe(ambienceFor('river'));
 });
 

@@ -522,3 +522,102 @@ describe('submitBugReport', () => {
     expect(response.error.message).toBe('insert failed');
   });
 });
+
+describe('Cast & Catch world', () => {
+  // Errors come back as { error: Error }; this Jest doesn't match Error objects with objectContaining.
+  const expectError = async (promise, pattern) => { const response = await promise; expect(response.error?.message).toMatch(pattern); };
+  const builderFor = (table) => {
+    const index = __mock.current.from.mock.calls.map(([name]) => name).lastIndexOf(table);
+    return __mock.current.from.mock.results[index].value;
+  };
+
+  test('logGameCatch stores the size and ground, then rolls the catch into records and quests in one profile write', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_catches', { data: { id: 'gc-1', species: 'largemouth', size_in: 17.5 }, error: null });
+    __mock.setResponse('game_profiles', [
+      { data: { user_id: 'user-1', tackle_points: 10, records: { largemouth: { size_in: 12 } }, quests: {} }, error: null },
+      { data: { user_id: 'user-1', tackle_points: 16, records: { largemouth: { size_in: 17.5 } }, quests: { sals_wall: { progress: 1, done: true, claimed: false } } }, error: null },
+    ]);
+    const response = await result.current.logGameCatch({ species: 'largemouth', rarity: 'common', sizeLabel: '17.5 in', pointsEarned: 6, sizeIn: 17.5, biome: 'swamp' });
+    expect(builderFor('game_catches').insert).toHaveBeenCalledWith(expect.objectContaining({ species: 'largemouth', size_in: 17.5, biome: 'swamp', angler_name: 'Andre' }));
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({
+      tackle_points: 16,
+      records: { largemouth: expect.objectContaining({ size_in: 17.5, catch_id: 'gc-1' }) },
+      quests: { sals_wall: { progress: 1, done: true, claimed: false } },
+    }));
+    expect(response.isRecord).toBe(true);
+    expect(response.completedQuests).toEqual(['sals_wall']);
+  });
+
+  test('claimQuestReward pays once and refuses an unfinished or already-claimed quest', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, quests: { sals_wall: { progress: 1, done: true, claimed: false } } }, error: null });
+    const paid = await result.current.claimQuestReward('sals_wall');
+    expect(paid.points).toBe(75);
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ tackle_points: 85, quests: { sals_wall: { progress: 1, done: true, claimed: true } } }));
+
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 85, quests: { sals_wall: { progress: 1, done: true, claimed: true } } }, error: null });
+    await expectError(result.current.claimQuestReward('sals_wall'), 'Already turned in.');
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 85, quests: {} }, error: null });
+    await expectError(result.current.claimQuestReward('sals_wall'), /not finished/);
+    await expectError(result.current.claimQuestReward('rays_proving'), /nothing to turn in/i);
+  });
+
+  test('charterBoat charges what the ground costs', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 100 }, error: null });
+    await result.current.charterBoat('canyon');
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ tackle_points: 20 }));
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60 }, error: null });
+    await expectError(result.current.charterBoat('canyon'), /not enough tackle points/i);
+  });
+
+  test('listDerbyLeaders ranks the week\'s catches one row per angler with avatars from profiles', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_catches', { data: [
+      { id: 'a', user_id: 'user-2', angler_name: 'Kevin', size_in: '24.0', created_at: '2026-06-15T10:00:00Z' },
+      { id: 'b', user_id: 'user-1', angler_name: 'Andre', size_in: '26.5', created_at: '2026-06-15T11:00:00Z' },
+      { id: 'c', user_id: 'user-1', angler_name: 'Andre', size_in: '20.0', created_at: '2026-06-15T12:00:00Z' },
+    ], error: null });
+    __mock.setResponse('profiles', { data: [{ id: 'user-1', display_name: 'Andre', avatar_url: 'andre.jpg' }, { id: 'user-2', display_name: 'Kevin', avatar_url: '' }], error: null });
+    const leaders = await result.current.listDerbyLeaders({ species: 'stripedbass', since: '2026-06-15T00:00:00.000Z' });
+    expect(builderFor('game_catches').eq).toHaveBeenCalledWith('species', 'stripedbass');
+    expect(builderFor('game_catches').gte).toHaveBeenCalledWith('created_at', '2026-06-15T00:00:00.000Z');
+    expect(leaders.map((row) => [row.anglerName, row.sizeIn, row.avatarUrl])).toEqual([['Andre', 26.5, 'andre.jpg'], ['Kevin', 24, '']]);
+  });
+
+  test('Fish Year bounties are listed unclaimed and paid once each', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', { data: [{ id: 'fy-1', species: 'Pike', month: 'May', year: 2026 }, { id: 'fy-2', species: 'Carp', month: 'June', year: 2026 }], error: null });
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, bounties_claimed: ['fy-1'] }, error: null });
+    const unclaimed = await result.current.listFishYearBounties();
+    expect(unclaimed).toEqual([{ id: 'fy-2', species: 'Carp', month: 'June', year: 2026, points: 15 }]);
+    const paid = await result.current.claimFishYearBounties();
+    expect(paid.claimed).toBe(1);
+    expect(paid.points).toBe(15);
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ tackle_points: 25, bounties_claimed: ['fy-1', 'fy-2'] }));
+
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 25, bounties_claimed: ['fy-1', 'fy-2'] }, error: null });
+    await expectError(result.current.claimFishYearBounties(), /nothing new to claim/i);
+  });
+
+  test('legendary game catches join the activity feed, by fetch and by Realtime, with a readable species name', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', { data: [], error: null });
+    __mock.setResponse('tournament_entries', { data: [], error: null });
+    __mock.setResponse('tournaments', { data: [], error: null });
+    __mock.setResponse('profiles', { data: [{ id: 'user-2', display_name: 'Kevin', avatar_url: 'kevin.jpg' }], error: null });
+    __mock.setResponse('game_catches', { data: [{ id: 'gc-7', user_id: 'user-2', angler_name: 'Kevin', species: 'shark', rarity: 'legendary', size_in: '88.0', size_label: '88.0 in', created_at: '2026-06-15T12:00:00Z' }], error: null });
+    const feed = await result.current.listRecentActivity();
+    expect(builderFor('game_catches').eq).toHaveBeenCalledWith('rarity', 'legendary');
+    expect(feed).toEqual([expect.objectContaining({ kind: 'game_catch', id: 'gc-7', anglerName: 'Kevin', avatarUrl: 'kevin.jpg', species: 'Shark', sizeLabel: '88.0 in', href: '/fishing-game' })]);
+
+    const onInsert = jest.fn();
+    result.current.subscribeToActivity(onInsert);
+    __mock.setResponse('profiles', { data: { display_name: 'Kevin', avatar_url: 'kevin.jpg' }, error: null });
+    await act(async () => { await __mock.current.emitPostgresChange('game_catches', { id: 'gc-8', user_id: 'user-2', angler_name: 'Kevin', species: 'bluegill', rarity: 'common', size_in: '7.0', created_at: '2026-06-15T13:00:00Z' }); });
+    expect(onInsert).not.toHaveBeenCalled();
+    await act(async () => { await __mock.current.emitPostgresChange('game_catches', { id: 'gc-9', user_id: 'user-2', angler_name: 'Kevin', species: 'swordfish', rarity: 'legendary', size_in: '120.0', created_at: '2026-06-15T14:00:00Z' }); });
+    expect(onInsert).toHaveBeenCalledWith(expect.objectContaining({ kind: 'game_catch', id: 'gc-9', species: 'Swordfish', sizeLabel: '120.0 in', avatarUrl: 'kevin.jpg' }));
+  });
+});

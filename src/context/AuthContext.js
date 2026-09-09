@@ -3,7 +3,10 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
-import { OFFSHORE_CHARTER_COST } from '../utils/gameBiomes';
+import { OFFSHORE_CHARTER_COST, BIOMES } from '../utils/gameBiomes';
+import { isNewRecord, speciesLabel, sizeLabel } from '../utils/gameSpecies';
+import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
+import { rankDerby } from '../utils/gameDerby';
 import { LURES } from '../utils/gameLures';
 
 const AuthContext = createContext(null);
@@ -479,7 +482,8 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [] };
+  const FISH_YEAR_BOUNTY_POINTS = 15;
 
   // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
   // as everything else here — the minigame page loads it itself rather than this provider
@@ -499,20 +503,85 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  // Logs a trophy-case entry and credits its points to the tackle balance. Purely a fun
-  // side game — this never touches fish_year_catches or tournament_entries.
-  async function logGameCatch({ species, rarity, sizeLabel, pointsEarned }) {
+  // Logs a trophy-case entry and credits its points to the tackle balance, then rolls the
+  // catch into the almanac (a new species or a bigger one than before is a record) and every
+  // open NPC quest, all in the same profile write. Purely a fun side game — this never
+  // touches fish_year_catches or tournament_entries.
+  async function logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn = 0, biome = '' }) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const row = { user_id: user.id, angler_name: authorName, species, rarity, size_label: sizeLabel || '', points_earned: pointsEarned || 0 };
+    const row = { user_id: user.id, angler_name: authorName, species, rarity, size_label: label || '', points_earned: pointsEarned || 0, size_in: sizeIn || 0, biome };
     const { data, error } = await supabase.from('game_catches').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     const currentGameProfile = await getGameProfile();
     const nextPoints = (currentGameProfile?.tackle_points || 0) + (pointsEarned || 0);
+    const records = { ...(currentGameProfile?.records || {}) };
+    const isRecord = isNewRecord(records, species, sizeIn);
+    if (isRecord) records[species] = { size_in: sizeIn, catch_id: data?.id || null, at: new Date().toISOString() };
+    const { quests, completed } = advanceQuests(currentGameProfile?.quests || {}, { species, sizeIn, biome });
     const { data: updatedProfile, error: profileError } = await supabase.from('game_profiles')
-      .update({ tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
-    if (profileError) return { error: null, catchEntry: data, gameProfile: currentGameProfile };
-    return { error: null, catchEntry: data, gameProfile: updatedProfile };
+      .update({ tackle_points: nextPoints, records, quests, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (profileError) return { error: null, catchEntry: data, gameProfile: currentGameProfile, isRecord, completedQuests: completed };
+    return { error: null, catchEntry: data, gameProfile: updatedProfile, isRecord, completedQuests: completed };
+  }
+
+  // Turns in a finished quest with its giver for the points it promised. Unlock rewards
+  // (The Canyon) need no turn-in — they're live the moment the quest is done.
+  async function claimQuestReward(questKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before turning in a quest.') };
+    const quest = QUEST_BY_KEY[questKey];
+    if (!quest?.reward?.points) return { error: new Error('Nothing to turn in for that.') };
+    const currentGameProfile = await getGameProfile();
+    const state = questState(currentGameProfile?.quests, questKey);
+    if (!state.done) return { error: new Error("That one's not finished yet.") };
+    if (state.claimed) return { error: new Error('Already turned in.') };
+    const quests = { ...(currentGameProfile?.quests || {}), [questKey]: { ...state, claimed: true } };
+    const nextPoints = (currentGameProfile?.tackle_points || 0) + quest.reward.points;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ quests, tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data, points: quest.reward.points };
+  }
+
+  // This week's club derby: everyone's catches of the target species since Monday, ranked
+  // one row per angler (see utils/gameDerby.js). game_catches snapshots angler_name; avatars
+  // come from profiles so the board looks like the rest of the site's leaderboards.
+  async function listDerbyLeaders({ species, since }) {
+    if (!isSupabaseConfigured) return [];
+    const [catchesRes, profilesRes] = await Promise.all([
+      supabase.from('game_catches').select('*').eq('species', species).gte('created_at', since).order('size_in', { ascending: false }).limit(200),
+      supabase.from('profiles').select('id, display_name, avatar_url'),
+    ]);
+    const profileById = new Map((profilesRes.data || []).map((row) => [row.id, row]));
+    const rows = (catchesRes.data || []).map((row) => ({ ...row, avatar_url: profileById.get(row.user_id)?.avatar_url || '' }));
+    return rankDerby(rows);
+  }
+
+  // Real Fish Year catches pay a tackle-point bounty in the game, once each. The angler in
+  // Cast & Catch is the real person, so the real logbook is worth something at Sal's.
+  async function listFishYearBounties() {
+    if (!isSupabaseConfigured || !user) return [];
+    const [catchesRes, currentGameProfile] = await Promise.all([
+      supabase.from('fish_year_catches').select('id, species, month, year, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
+      getGameProfile(),
+    ]);
+    const claimed = new Set(currentGameProfile?.bounties_claimed || []);
+    return (catchesRes.data || []).filter((row) => !claimed.has(row.id)).map((row) => ({ id: row.id, species: row.species, month: row.month, year: row.year, points: FISH_YEAR_BOUNTY_POINTS }));
+  }
+
+  async function claimFishYearBounties() {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before claiming a bounty.') };
+    const unclaimed = await listFishYearBounties();
+    if (unclaimed.length === 0) return { error: new Error('Nothing new to claim — log a real catch first.') };
+    const currentGameProfile = await getGameProfile();
+    const points = unclaimed.length * FISH_YEAR_BOUNTY_POINTS;
+    const { data, error } = await supabase.from('game_profiles').update({
+      tackle_points: (currentGameProfile?.tackle_points || 0) + points,
+      bounties_claimed: [...(currentGameProfile?.bounties_claimed || []), ...unclaimed.map((row) => row.id)],
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data, claimed: unclaimed.length, points };
   }
 
   // Spends tackle points to bump one gear track a level. Every track only smooths the
@@ -537,11 +606,12 @@ export function AuthProvider({ children }) {
   // Spends tackle points to charter a boat for an offshore trip — the epic/legendary species
   // only spawn out there (see utils/gameBiomes.js). One charter covers however many casts the
   // trip lasts; FishingGame only calls this again once the player has left and come back.
-  async function charterBoat() {
+  async function charterBoat(biome = 'offshore') {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before chartering a boat.') };
+    const cost = BIOMES[biome]?.charterCost || OFFSHORE_CHARTER_COST;
     const currentGameProfile = await getGameProfile();
-    if ((currentGameProfile?.tackle_points || 0) < OFFSHORE_CHARTER_COST) return { error: new Error('Not enough tackle points to charter a boat.') };
-    const nextPoints = currentGameProfile.tackle_points - OFFSHORE_CHARTER_COST;
+    if ((currentGameProfile?.tackle_points || 0) < cost) return { error: new Error('Not enough tackle points to charter a boat.') };
+    const nextPoints = currentGameProfile.tackle_points - cost;
     const { data, error } = await supabase.from('game_profiles')
       .update({ tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
@@ -581,12 +651,13 @@ export function AuthProvider({ children }) {
   // and unit to read as more than a bare number.
   async function listRecentActivity(limit = 30) {
     if (!isSupabaseConfigured) return [];
-    const [catchesRes, bestsRes, entriesRes, profilesRes, tournamentsRes] = await Promise.all([
+    const [catchesRes, bestsRes, entriesRes, profilesRes, tournamentsRes, gameRes] = await Promise.all([
       supabase.from('fish_year_catches').select('*').order('created_at', { ascending: false }).limit(limit),
       supabase.from('personal_bests').select('*').order('created_at', { ascending: false }).limit(limit),
       supabase.from('tournament_entries').select('*').order('created_at', { ascending: false }).limit(limit),
       supabase.from('profiles').select('id, display_name, avatar_url'),
       supabase.from('tournaments').select('id, name, unit'),
+      supabase.from('game_catches').select('*').eq('rarity', 'legendary').order('created_at', { ascending: false }).limit(limit),
     ]);
     const profileById = new Map((profilesRes.data || []).map((row) => [row.id, row]));
     const tournamentById = new Map((tournamentsRes.data || []).map((row) => [row.id, row]));
@@ -614,9 +685,21 @@ export function AuthProvider({ children }) {
       };
     });
 
-    return [...catches, ...bests, ...entries]
+    // Only legendary game catches make the feed — a club-wide "did you see that?" moment,
+    // not every bluegill from the minigame.
+    const gameCatches = (gameRes?.data || []).map((row) => gameCatchActivity(row, profileById.get(row.user_id)));
+
+    return [...catches, ...bests, ...entries, ...gameCatches]
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
       .slice(0, limit);
+  }
+
+  function gameCatchActivity(row, profileRow) {
+    return {
+      kind: 'game_catch', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: profileRow?.avatar_url || '',
+      species: speciesLabel(row.species), photoUrl: '', caughtAt: row.created_at, createdAt: row.created_at,
+      sizeLabel: row.size_in ? sizeLabel(row.size_in) : row.size_label, rarity: row.rarity, href: '/fishing-game',
+    };
   }
 
   // Gives Home's activity feed a "someone just posted" feel via Supabase Realtime instead
@@ -643,6 +726,11 @@ export function AuthProvider({ children }) {
           species: row.species, photoUrl: row.photo_url, caughtAt: row.caught_at, createdAt: row.created_at,
           sizeLabel: row.size_label, href: `/anglers?best=${row.id}`,
         });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'game_catches' }, async ({ new: row }) => {
+        if (row.rarity !== 'legendary') return;
+        const { data: profileRow } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', row.user_id).maybeSingle();
+        onInsert(gameCatchActivity(row, profileRow));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'tournament_entries' }, async ({ new: row }) => {
         const tournament = await getTournament(row.tournament_id);
@@ -676,6 +764,7 @@ export function AuthProvider({ children }) {
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
     getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

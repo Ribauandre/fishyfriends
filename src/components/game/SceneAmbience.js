@@ -15,7 +15,7 @@ const SEAGULL_FRAMES = 3;
 // CSS loops; the distant fish jump is a timer here so it stays random and infrequent. It
 // pauses during the hookset and the fight, when the real fish is the only thing that should
 // be splashing. Fish shadows cruise under the bobber only while a line is actually out.
-export default function SceneAmbience({ biome, phase }) {
+export default function SceneAmbience({ biome, phase, period = 'day' }) {
   const config = ambienceFor(biome);
   const [jump, setJump] = useState(null);
   const [shadows, setShadows] = useState([]);
@@ -40,9 +40,14 @@ export default function SceneAmbience({ biome, phase }) {
     else if (phase !== 'hookset') setShadows([]);
   }, [phase, biome]);
 
-  const critters = Array.from({ length: config.critters }, (_, index) => index);
+  // Gulls roost after dark; the fresh-water bugs keep going (crickets take over the sound).
+  const night = period === 'night';
+  const critterCount = config.critter === 'seagull' && night ? 0 : config.critters;
+  const critters = Array.from({ length: critterCount }, (_, index) => index);
+  const stars = night && config.clouds.length > 0;
 
-  return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter}>
+  return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter} data-period={period}>
+    {stars && <div className="scene-stars" style={{ height: `${Math.max(...config.clouds.map((lane) => lane.top + lane.height)) + 4}%` }} />}
     {config.clouds.map((lane, index) => <img
       key={index}
       className="scene-cloud"
