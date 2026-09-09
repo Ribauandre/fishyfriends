@@ -65,13 +65,21 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-test('shows a loading state, then the stage, shop and empty trophy case once data resolves', async () => {
+test('shows a loading state, then one game frame with the shop and trophy case as overlays', async () => {
   render(<FishingGame />);
   expect(screen.getByText(/loading your tackle box/i)).toBeInTheDocument();
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
-  expect(screen.getByText('100')).toBeInTheDocument();
+  expect(screen.getByLabelText('100 tackle points')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(screen.getByRole('dialog', { name: /real bests and game catches/i })).toBeInTheDocument();
   expect(screen.getByText(/nothing on the wall yet/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /close real bests/i }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   ['Rod', 'Line', 'Reel', 'Bait'].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
 });
 
@@ -137,9 +145,10 @@ test('purchasing an upgrade updates the tackle profile shown', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
   expect(purchaseUpgrade).toHaveBeenCalledWith('rod');
-  expect(await screen.findByText('60')).toBeInTheDocument();
+  expect(await screen.findByLabelText('60 tackle points')).toBeInTheDocument();
   expect(screen.getByText(/lv 2/i)).toBeInTheDocument();
 });
 
@@ -148,6 +157,7 @@ test('shows the server error when an upgrade purchase fails', async () => {
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
   expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
 });
@@ -158,12 +168,13 @@ test('chartering an offshore trip deducts tackle points before casting', async (
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
 
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
   expect(charterBoat).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('50')).toBeInTheDocument();
+  expect(screen.getByLabelText('50 tackle points')).toBeInTheDocument();
   expect(screen.getByText(/tap to stop the cast/i)).toBeInTheDocument();
 });
 
@@ -173,6 +184,7 @@ test('declines to charter without enough points and stays on the dock', async ()
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
 
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -187,6 +199,7 @@ test('leaving offshore and coming back requires chartering again', async () => {
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
 
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -206,7 +219,9 @@ test('leaving offshore and coming back requires chartering again', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
 
   // Switching away and back to offshore ends the trip, so it charters again.
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /^river/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -224,8 +239,8 @@ test('unlocking a lure spends tackle points and ties it on', async () => {
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 
   expect(purchaseLure).toHaveBeenCalledWith('jerkbait');
-  expect(screen.getByText('40')).toBeInTheDocument();
-  expect(screen.getByText('JERK BAIT')).toBeInTheDocument();
+  expect(screen.getByLabelText('40 tackle points')).toBeInTheDocument();
+  expect(screen.getByText('Jerk bait', { selector: '.hud-chip' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /jerk bait owned/i })).toBeInTheDocument();
 });
 
@@ -236,7 +251,7 @@ test('a failed lure purchase shows the error and keeps live bait tied on', async
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
   expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
-  expect(screen.getByText('LIVE BAIT')).toBeInTheDocument();
+  expect(screen.getByText('Live bait', { selector: '.hud-chip' })).toBeInTheDocument();
 });
 
 test('jerk bait: twitching on the beat fills attraction and triggers the bite', async () => {
@@ -307,6 +322,7 @@ test('real personal bests hang in the trophy case, tagged apart from game catche
   }));
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
   expect(screen.getByText('Striped Bass')).toBeInTheDocument();
   expect(screen.getByText('Real PB')).toBeInTheDocument();
   expect(screen.getByText('34 in')).toBeInTheDocument();
@@ -320,11 +336,14 @@ test('the shop owner reacts to a purchase and the captain pitches the charter', 
   useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText(/work the current seams/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   expect(screen.getByText(/100 tackle points, huh/i)).toBeInTheDocument();
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
   expect(await screen.findByText(/rod will treat you right/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /close tackle shop/i }));
 
-  expect(screen.getByText(/work the current seams/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   expect(screen.getByText(/50 points gets you past the reef/i)).toBeInTheDocument();
 });
@@ -337,6 +356,7 @@ test('renders past catches in the trophy case', async () => {
   }));
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
   expect(screen.getByText('Shark')).toBeInTheDocument();
   expect(screen.getByText(/50\.0 in · \+150 pts/i)).toBeInTheDocument();
   expect(screen.getByText('Legendary')).toBeInTheDocument();

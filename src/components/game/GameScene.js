@@ -82,13 +82,14 @@ export default function GameScene({ biome, phase, displayName, species, reel, zo
   const lineOut = phase === 'waiting' || phase === 'hookset' || phase === 'reeling';
 
   return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase}>
-    <img className="scene-backdrop" src={scene.art} alt="" />
+    <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
       {lineOut && <path
         className="scene-line"
         d={phase === 'reeling' ? `M${rodTipX} ${rodTipY} L${fishX} ${fishY}` : `M${rodTipX} ${rodTipY} Q${(rodTipX + layout.bobberX) / 2} ${rodTipY - 30} ${layout.bobberX} ${layout.waterY + 4}`}
         stroke="#e7f4ef" strokeWidth="1.2" fill="none" opacity=".85"
       />}
+      {phase === 'waiting' && <circle className="scene-ripple" cx={layout.bobberX} cy={layout.waterY + 2} r="12" fill="none" stroke="#e7f4ef" strokeWidth="1.2" />}
       {(phase === 'waiting' || phase === 'hookset') && <circle className="scene-bobber" cx={layout.bobberX} cy={layout.waterY + 2} r="5" fill="#ff5a1f" stroke="#03080b" strokeWidth="1.5" />}
       {phase === 'hookset' && <g className="scene-splash">
         <circle cx={layout.bobberX} cy={layout.waterY + 2} r="10" fill="none" stroke="#e3fb14" strokeWidth="2" />

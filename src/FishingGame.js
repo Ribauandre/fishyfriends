@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './components/FishIllustration';
 import GameScene from './components/game/GameScene';
+import GameOverlay from './components/game/GameOverlay';
+import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
+import BiomeMap from './components/game/BiomeMap';
 import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine } from './utils/gameDialogue';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES } from './utils/gameBiomes';
-import BiomeMap from './components/game/BiomeMap';
 import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
@@ -22,6 +24,11 @@ const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
 
+// The whole game lives in one frame: the scene is the viewport, the HUD above it carries the
+// balance and the Travel / Shop / Trophies buttons, and the dock below it holds whatever the
+// current phase needs. The map, the tackle shop, and the trophy case open as overlays inside
+// the frame rather than as cards further down the page, so the loop is dock -> cast -> bite ->
+// reel -> result -> dock without ever leaving the screen.
 export default function FishingGame() {
   const { profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
@@ -29,6 +36,7 @@ export default function FishingGame() {
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState('ready');
+  const [overlay, setOverlay] = useState(null);
   const [biome, setBiome] = useState('river');
   const [chartered, setChartered] = useState(false);
   const [castBusy, setCastBusy] = useState(false);
@@ -82,6 +90,7 @@ export default function FishingGame() {
   // Switching biomes ends any chartered trip in progress — heading back to a paid biome later
   // means chartering again, which is the point: most biomes are free, offshore costs a trip.
   function selectBiome(nextBiome) {
+    setOverlay(null);
     if (nextBiome === biome) return;
     if (BIOMES[biome].charterCost > 0) setChartered(false);
     setBiome(nextBiome);
@@ -90,6 +99,7 @@ export default function FishingGame() {
 
   async function startCast() {
     setCharterError('');
+    setOverlay(null);
     const biomeConfig = BIOMES[biome];
     if (biomeConfig.charterCost > 0 && !chartered) {
       setCastBusy(true);
@@ -102,7 +112,7 @@ export default function FishingGame() {
     setPhase('casting');
   }
 
-  // Back to the dock: lets the angler see their tackle points and switch biomes before the
+  // Back to the dock: lets the angler see their tackle points and switch grounds before the
   // next trip, rather than snapping straight back into casting wherever they left off.
   function returnToReady() {
     setResult(null);
@@ -310,61 +320,68 @@ export default function FishingGame() {
     id: `pb-${best.id}`, species: best.species, icon: speciesIcon(best.species), sizeLabel: best.size_label, photoUrl: best.photo_url,
   }));
 
+  const toggleOverlay = (name) => setOverlay((current) => (current === name ? null : name));
+  const biomeConfig = BIOMES[biome];
+  const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${biomeConfig.charterCost} pts`) : 'free';
+
+  if (loading) return <main className="content-shell game-page"><p className="month-empty">Loading your tackle box...</p></main>;
+
   return <main className="content-shell game-page">
-    <div className="page-intro">
-      <div><span className="eyebrow">CAST &amp; CATCH</span><h1>Fishing minigame</h1><p>Time the cast, set the hook, keep tension on the line. Just for bragging rights — it never touches Fish Year or tournaments.</p></div>
-      <FishIllustration species="shark" className="intro-sticker" />
-    </div>
-
-    {loading ? <p className="month-empty">Loading your tackle box...</p> : <>
-      <section className="table-card game-stage">
-        <div className="section-heading">
-          <div><span className="eyebrow">TACKLE POINTS</span><h2>{gameProfile.tackle_points}</h2></div>
-          <div className="game-status-badges">
-            <span className="status-badge-muted game-biome-badge">{BIOMES[biome].label.toUpperCase()}</span>
-            <span className="status-badge-muted game-biome-badge">{LURES[lure].label.toUpperCase()}</span>
-            <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
-          </div>
+    <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
+      <header className="game-hud">
+        <div className="hud-brand"><span className="eyebrow">CAST &amp; CATCH</span><strong>{profile?.display_name || 'You'}</strong></div>
+        <PointsCounter value={gameProfile.tackle_points} />
+        <div className="hud-chips" aria-label="Current setup">
+          <span className="hud-chip">{biomeConfig.label}</span>
+          <span className="hud-chip">{LURES[lure].label}</span>
+          <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
         </div>
+        <nav className="hud-nav" aria-label="Game menu">
+          <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} onClick={() => toggleOverlay('map')}>Travel</button>
+          <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} onClick={() => toggleOverlay('shop')}>Shop</button>
+          <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} onClick={() => toggleOverlay('trophies')}>Trophies</button>
+        </nav>
+      </header>
 
-        <GameScene
-          biome={biome}
-          phase={phase}
-          displayName={profile?.display_name}
-          species={pendingCatch?.species}
-          reel={reelDisplay}
-          zoneWidth={zoneWidthRef.current}
-          result={result}
-          holding={reelHolding}
-        />
+      <div className="game-body">
+      <GameScene
+        biome={biome}
+        phase={phase}
+        displayName={profile?.display_name}
+        species={pendingCatch?.species}
+        reel={reelDisplay}
+        zoneWidth={zoneWidthRef.current}
+        result={result}
+        holding={reelHolding}
+      />
 
+      <div className="game-dock">
         {phase === 'ready' && <div className="game-panel">
-          <BiomeMap
-            biome={biome}
-            chartered={chartered}
-            onSelect={selectBiome}
-            onShop={() => document.querySelector('.game-shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          />
-          <p>{BIOMES[biome].blurb}</p>
-          <div className="biome-picker lure-picker">
-            {LURE_LIST.map((lureOption) => {
-              const owned = lureOwned(gameProfile, lureOption.key);
-              return <button
-                key={lureOption.key}
-                type="button"
-                className={`biome-button ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
-                disabled={lureBusy}
-                onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
-              >
-                <strong>{lureOption.label}</strong>
-                <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
-              </button>;
-            })}
+          <div className="dock-row">
+            <button type="button" className="dock-ground" onClick={() => toggleOverlay('map')} aria-label={`Change fishing ground · currently ${biomeConfig.label}`}>
+              <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost}</small>
+            </button>
+            <div className="lure-chips" role="group" aria-label="Lure">
+              {LURE_LIST.map((lureOption) => {
+                const owned = lureOwned(gameProfile, lureOption.key);
+                return <button
+                  key={lureOption.key}
+                  type="button"
+                  className={`lure-chip ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
+                  disabled={lureBusy}
+                  aria-pressed={lure === lureOption.key}
+                  onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
+                >
+                  <strong>{lureOption.label}</strong>
+                  <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
+                </button>;
+              })}
+            </div>
           </div>
-          <p>{LURES[lure].blurb}</p>
+          <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}</p>
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
-          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase })} />
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase })} compact />
           <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
@@ -392,7 +409,7 @@ export default function FishingGame() {
             <div className="reel-meter"><span>Attraction</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${lureDisplay.attraction}%` }} /></div></div>
             <div className="reel-meter"><span>Line out</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${lureDisplay.lineOut ?? 100}%` }} /></div></div>
           </div>
-          <p className="lure-feedback">{lureFeedback || ' '}</p>
+          <p className="lure-feedback">{lureFeedback || ' '}</p>
           <button className="button button-primary game-hookset-button" type="button" onClick={twitch}>Twitch</button>
         </div>}
 
@@ -446,13 +463,17 @@ export default function FishingGame() {
             <h3>{speciesLabel(result.species)} landed!</h3>
             <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
           </> : <h3>{result.message}</h3>}
-          {biome === 'offshore' && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result })} />}
+          {biome === 'offshore' && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
-      </section>
+      </div>
 
-      <section className="table-card game-shop">
-        <div className="section-heading"><div><span className="eyebrow">TACKLE SHOP</span><h2>Smooth out the fight</h2></div></div>
+      {overlay === 'map' && <GameOverlay eyebrow="Travel" title="Fishing grounds" onClose={() => setOverlay(null)}>
+        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} />
+        <p className="dock-hint">{biomeConfig.blurb}</p>
+      </GameOverlay>}
+
+      {overlay === 'shop' && <GameOverlay eyebrow="Sal's Tackle" title="Tackle shop" onClose={() => setOverlay(null)}>
         <NpcDialogue npc="shopkeeper" line={shopkeeperLine({ gameProfile, event: shopEvent })} />
         {upgradeError && <p className="form-error">{upgradeError}</p>}
         <div className="upgrade-grid">
@@ -468,11 +489,11 @@ export default function FishingGame() {
             </div>;
           })}
         </div>
-      </section>
+        <p className="dock-hint">Lures are on the dock — pick one there, or unlock it from its chip.</p>
+      </GameOverlay>}
 
-      <section className="table-card game-trophy-case">
-        <div className="section-heading"><div><span className="eyebrow">TROPHY CASE</span><h2>Real bests and game catches</h2></div></div>
-        {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line above, or log a real personal best on your profile.</p> : <div className="trophy-grid">
+      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game catches" onClose={() => setOverlay(null)}>
+        {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
             {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}
             <span className="rarity-tag is-real">Real PB</span>
@@ -486,7 +507,8 @@ export default function FishingGame() {
             <span>{entry.size_label} · +{entry.points_earned} pts</span>
           </div>)}
         </div>}
-      </section>
-    </>}
+      </GameOverlay>}
+      </div>
+    </div>
   </main>;
 }

@@ -7,9 +7,9 @@ import shopkeeperPortrait from '../../assets/npcs/shopkeeper.png';
 // bundle), shown as dialogue cards rather than animated sprites.
 const PORTRAITS = { captain: captainPortrait, shopkeeper: shopkeeperPortrait };
 
-export default function NpcDialogue({ npc, line }) {
+export default function NpcDialogue({ npc, line, compact = false }) {
   const character = NPCS[npc];
-  return <figure className={`npc-dialogue npc-${npc}`}>
+  return <figure className={`npc-dialogue npc-${npc} ${compact ? 'is-compact' : ''}`}>
     <img className="npc-portrait" src={PORTRAITS[npc]} alt="" />
     <figcaption className="npc-bubble">
       <strong>{character.name}</strong>

@@ -575,12 +575,67 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .anglers-grid { grid-template-columns: 1fr; }
 }
 
-/* Cast & Catch minigame */
-.game-stage { margin-bottom: 24px; }
-/* The shared status-badge corner clip is sized for short labels like "LIVE" — this badge's
-   trailing digit needs extra clearance so the clip doesn't slice through it. */
-.game-bait-badge, .game-biome-badge { padding-right: 16px; padding-top: 8px; }
-.game-status-badges { align-items: flex-end; display: flex; flex-direction: column; gap: 6px; }
+/* Cast & Catch minigame — one frame: HUD, scene, dock, and in-frame overlays. */
+.game-frame { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); margin-top: 18px; overflow: hidden; position: relative; }
+.game-frame.is-hookset { animation: frame-shake .35s ease-out; }
+@keyframes frame-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 1px); } 80% { transform: translate(1px, -1px); } }
+.game-hud { align-items: center; background: rgba(3,8,11,.55); border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 16px; padding: 10px 14px; }
+.hud-brand { display: flex; flex-direction: column; gap: 2px; }
+.hud-brand strong { font-family: var(--font-head); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.hud-points { align-items: center; display: flex; gap: 6px; position: relative; }
+.hud-coin { height: 18px; width: 18px; }
+.hud-points strong { font-family: var(--font-display); font-size: 22px; letter-spacing: .02em; }
+.hud-points strong.is-bumped { animation: points-bump .45s cubic-bezier(.34,1.56,.64,1); display: inline-block; }
+@keyframes points-bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.hud-points em { animation: points-delta 1.4s ease-out both; font-family: var(--font-head); font-size: 12px; font-style: normal; font-weight: 800; left: 24px; position: absolute; top: -13px; white-space: nowrap; }
+.hud-points em.is-gain { color: var(--mint); }
+.hud-points em.is-loss { color: var(--coral); }
+@keyframes points-delta { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+.hud-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hud-chip { background: rgba(227,251,20,.1); border: 1px solid var(--line); color: var(--ink); font-family: var(--font-head); font-size: 10px; font-weight: 700; letter-spacing: .06em; padding: 4px 8px; text-transform: uppercase; }
+.hud-nav { display: flex; gap: 6px; margin-left: auto; }
+.hud-button { background: transparent; border: 1px solid var(--line); color: var(--ink); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .06em; min-height: 36px; padding: 6px 12px; text-transform: uppercase; }
+.hud-button:hover:not(:disabled) { border-color: var(--mint); color: var(--mint); }
+.hud-button.is-open, .hud-button.is-open:hover:not(:disabled) { background: var(--mint); border-color: var(--mint); color: var(--deep); }
+.hud-button:disabled { cursor: not-allowed; opacity: .4; }
+.game-body { position: relative; }
+.game-frame .game-scene { border: 0; border-bottom: 1px solid var(--line); box-shadow: none; margin-top: 0; }
+.scene-backdrop { animation: scene-arrive .5s ease-out both; }
+@keyframes scene-arrive { from { filter: brightness(0); } to { filter: brightness(1); } }
+.scene-ripple { animation: scene-ripple .9s ease-out both; transform-box: fill-box; transform-origin: center; }
+@keyframes scene-ripple { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(2.4); } }
+.game-dock { padding: 4px 16px 18px; }
+.game-dock .game-panel { padding-top: 16px; }
+.dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
+.dock-ground { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; min-width: 120px; padding: 6px 12px; text-align: left; }
+.dock-ground span { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.dock-ground strong { font-family: var(--font-head); font-size: 13px; letter-spacing: .05em; text-transform: uppercase; }
+.dock-ground small { font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.dock-ground:hover { background: #fff2c6; }
+.lure-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lure-chip { background: rgba(3,8,11,.28); border: 1px solid var(--line); color: var(--ink); display: flex; flex-direction: column; gap: 2px; min-width: 96px; padding: 6px 10px; text-align: left; }
+.lure-chip strong { font-size: 12px; }
+.lure-chip span { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.lure-chip.is-active { border-color: var(--mint); }
+.lure-chip.is-active strong { color: var(--mint); }
+.lure-chip.is-locked strong { color: var(--muted); }
+.lure-chip.is-locked span { color: var(--coral); }
+.lure-chip:disabled { cursor: not-allowed; opacity: .6; }
+.dock-hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; max-width: 460px; text-align: center; }
+.npc-dialogue.is-compact { grid-template-columns: 48px 1fr; margin-top: 4px; }
+.npc-dialogue.is-compact .npc-portrait { height: 48px; width: 48px; }
+.npc-dialogue.is-compact .npc-bubble { padding: 8px 10px; }
+.npc-dialogue.is-compact .npc-bubble p { font-size: 12px; margin-top: 4px; }
+.game-overlay { align-items: flex-end; display: flex; inset: 0; position: absolute; z-index: 5; }
+.game-overlay-scrim { background: rgba(3,8,11,.7); border: 0; inset: 0; padding: 0; position: absolute; }
+.game-overlay-panel { animation: overlay-rise .28s cubic-bezier(.2,.8,.2,1) both; background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border-top: 2px solid var(--mint); max-height: 92%; overflow-y: auto; padding: 16px 16px 20px; position: relative; width: 100%; }
+@keyframes overlay-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.game-overlay-head { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; }
+.game-overlay-head h2 { font-size: 22px; margin: 4px 0 0; }
+.game-overlay-body { display: flex; flex-direction: column; gap: 12px; }
+.game-overlay .npc-dialogue { margin-top: 0; width: 100%; }
+.game-overlay .upgrade-grid { margin-top: 0; }
+.game-overlay .trophy-grid { margin-top: 0; }
 .biome-map { border: 2px solid var(--line); box-shadow: var(--sticker-shadow); overflow: hidden; position: relative; width: 100%; }
 .biome-map-art { display: block; height: auto; width: 100%; }
 .map-hotspot { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; line-height: 1.1; min-height: 34px; padding: 4px 9px; position: absolute; text-align: center; transform: translate(-50%, -50%); }
@@ -590,15 +645,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .map-hotspot.is-active { background: var(--mint); box-shadow: 0 0 0 3px rgba(227,251,20,.45), 2px 3px 0 rgba(3,8,11,.7); }
 .map-hotspot-shop { background: #1c2a2e; border-color: var(--mint); color: var(--mint); }
 .map-hotspot-shop:hover { background: #243a40; }
-.biome-picker { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); width: min(420px, 100%); }
-.biome-button { background: rgba(3,8,11,.28); border: 1px solid var(--line); color: var(--ink); display: flex; flex-direction: column; gap: 4px; padding: 12px; text-align: left; }
-.biome-button strong { font-size: 13px; }
-.biome-button span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.biome-button.is-active { border-color: var(--mint); }
-.biome-button.is-active strong { color: var(--mint); }
-.biome-button.is-locked strong { color: var(--muted); }
-.biome-button.is-locked span { color: var(--coral); }
-.biome-button:disabled { cursor: not-allowed; opacity: .6; }
 .lure-feedback { color: var(--mint); font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin: -8px 0 0; min-height: 14px; }
 .game-panel { align-items: center; display: flex; flex-direction: column; gap: 18px; padding: 26px 10px 10px; text-align: center; }
 .game-panel > p { color: var(--muted); font-size: 13px; margin: 0; max-width: 380px; }
@@ -633,7 +679,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-result h3 { font-size: 22px; margin: 4px 0; }
 .game-result p { color: var(--muted); font-size: 13px; margin: 0; }
 
-.game-shop { margin-bottom: 24px; }
 .upgrade-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 16px; }
 .upgrade-card { background: rgba(3,8,11,.28); border: 1px solid var(--line); padding: 16px; }
 .upgrade-card strong { display: block; font-size: 14px; }
@@ -672,10 +717,14 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-head); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .npc-bubble small { color: var(--muted); font-size: 10px; margin-left: 8px; }
 .npc-bubble p { color: var(--ink); font-size: 13px; line-height: 1.45; margin: 6px 0 0; }
-.game-shop .npc-dialogue { width: 100%; }
 
 @media (max-width: 500px) {
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
+  .game-hud { gap: 8px 12px; padding: 10px 12px; }
+  .hud-brand strong { display: none; }
+  .hud-nav { margin-left: 0; width: 100%; }
+  .hud-button { flex: 1; }
+  .game-dock { padding: 0 12px 16px; }
   .map-hotspot { min-height: 30px; padding: 3px 6px; }
   .map-hotspot strong { font-size: 9px; }
   .map-hotspot span { font-size: 8px; }
