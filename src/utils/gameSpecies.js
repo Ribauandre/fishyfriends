@@ -41,15 +41,37 @@ const SPECIES_LABELS = {
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
 
+// Each species' rarity is fixed here, independent of where it's caught — a species can live in
+// several biomes (see utils/gameBiomes.js) but its difficulty/points/hookset numbers never
+// change with location.
+const SPECIES_RARITY = {
+  bluegill: 'common', yellowperch: 'common', trout: 'common', largemouth: 'common', smallmouth: 'common',
+  carp: 'common', catfish: 'common', chainpickerel: 'common', flounder: 'common', weakfish: 'common',
+  pike: 'uncommon', walleye: 'uncommon', brooktrout: 'uncommon', browntrout: 'uncommon', rainbowtrout: 'uncommon',
+  blackseabass: 'uncommon', tautog: 'uncommon', bluefish: 'uncommon',
+  laketrout: 'rare', snakehead: 'rare', stripedbass: 'rare', salmon: 'rare',
+  mahimahi: 'epic', tuna: 'epic',
+  shark: 'legendary',
+};
+
+export function rarityOf(species) { return SPECIES_RARITY[species] || 'common'; }
+
 export function difficultyFor(rarity) { return RARITY_DIFFICULTY[rarity] || RARITY_DIFFICULTY.common; }
 
-// Rolls a species from a biome's tier -> species[] roster (see utils/gameBiomes.js), weighted
-// by each tier's base spawn odds. Each bait level above 1 pulls weight away from common/
-// uncommon and toward rare+ — within whichever tiers that biome actually has — without ever
-// making the harder reel-in mechanic itself easier; bait gets you more shots at a big fish,
-// it doesn't help you land one once it's on the line.
-export function rollSpecies(baitLevel, speciesByRarity) {
-  const tiers = Object.keys(speciesByRarity);
+// Rolls a species from a biome's species list (see utils/gameBiomes.js), grouping them by their
+// fixed rarity and weighting by each tier's base spawn odds. Each bait level above 1 pulls
+// weight away from common/uncommon and toward rare+ — within whichever tiers that biome
+// actually has — without ever making the harder reel-in mechanic itself easier; bait gets you
+// more shots at a big fish, it doesn't help you land one once it's on the line.
+const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+
+export function rollSpecies(baitLevel, biomeSpecies) {
+  const speciesByRarity = {};
+  biomeSpecies.forEach((species) => {
+    const rarity = rarityOf(species);
+    (speciesByRarity[rarity] || (speciesByRarity[rarity] = [])).push(species);
+  });
+  const tiers = RARITY_ORDER.filter((tier) => speciesByRarity[tier]);
   const shift = Math.max(0, baitLevel - 1) * 6;
   const weights = tiers.map((tier) => {
     const base = RARITY_DIFFICULTY[tier].spawnWeight;

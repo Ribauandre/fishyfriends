@@ -579,7 +579,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-stage { margin-bottom: 24px; }
 /* The shared status-badge corner clip is sized for short labels like "LIVE" — this badge's
    trailing digit needs extra clearance so the clip doesn't slice through it. */
-.game-bait-badge { padding-right: 16px; padding-top: 8px; }
+.game-bait-badge, .game-biome-badge { padding-right: 16px; padding-top: 8px; }
 .game-status-badges { align-items: flex-end; display: flex; flex-direction: column; gap: 6px; }
 .biome-picker { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); width: min(420px, 100%); }
 .biome-button { background: rgba(3,8,11,.28); border: 1px solid var(--line); color: var(--ink); display: flex; flex-direction: column; gap: 4px; padding: 12px; text-align: left; }

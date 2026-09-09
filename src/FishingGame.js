@@ -17,7 +17,7 @@ export default function FishingGame() {
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState('ready');
-  const [biome, setBiome] = useState('freshwater');
+  const [biome, setBiome] = useState('lake');
   const [chartered, setChartered] = useState(false);
   const [castBusy, setCastBusy] = useState(false);
   const [charterError, setCharterError] = useState('');
@@ -61,11 +61,11 @@ export default function FishingGame() {
     return () => { if (castRafRef.current) cancelAnimationFrame(castRafRef.current); };
   }, [phase]);
 
-  // Switching biomes ends any offshore trip in progress — heading back out there later means
-  // chartering again, which is the point: freshwater/inshore are free, offshore costs a trip.
+  // Switching biomes ends any chartered trip in progress — heading back to a paid biome later
+  // means chartering again, which is the point: most biomes are free, offshore costs a trip.
   function selectBiome(nextBiome) {
     if (nextBiome === biome) return;
-    if (biome === 'offshore') setChartered(false);
+    if (BIOMES[biome].charterCost > 0) setChartered(false);
     setBiome(nextBiome);
     setCharterError('');
   }
@@ -107,7 +107,7 @@ export default function FishingGame() {
     if (phase !== 'waiting') return undefined;
     const delay = 1200 + Math.random() * 2600;
     biteTimeoutRef.current = setTimeout(() => {
-      setPendingCatch(rollSpecies(gameProfile.bait_level, BIOMES[biome].speciesByRarity));
+      setPendingCatch(rollSpecies(gameProfile.bait_level, BIOMES[biome].species));
       setPhase('hookset');
     }, delay);
     return () => clearTimeout(biteTimeoutRef.current);
@@ -222,7 +222,7 @@ export default function FishingGame() {
         <div className="section-heading">
           <div><span className="eyebrow">TACKLE POINTS</span><h2>{gameProfile.tackle_points}</h2></div>
           <div className="game-status-badges">
-            <span className="status-badge-muted">{BIOMES[biome].label.toUpperCase()}</span>
+            <span className="status-badge-muted game-biome-badge">{BIOMES[biome].label.toUpperCase()}</span>
             <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
           </div>
         </div>

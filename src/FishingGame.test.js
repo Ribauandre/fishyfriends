@@ -196,7 +196,7 @@ test('leaving offshore and coming back requires chartering again', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
 
   // Switching away and back to offshore ends the trip, so it charters again.
-  await userEvent.click(screen.getByRole('button', { name: /freshwater/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^lake/i }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
