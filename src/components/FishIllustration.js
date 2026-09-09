@@ -60,7 +60,7 @@ const fishDetails = {
 
 export const HERO_SPECIES = Object.keys(fishDetails);
 
-export default function FishIllustration({ species, className = '' }) {
+export default function FishIllustration({ species, className = '', style }) {
   const fish = fishDetails[species] || fishDetails.trout;
-  return <img className={`fish-illustration ${className}`} data-species={species} src={fish.src} alt={fish.label} />;
+  return <img className={`fish-illustration ${className}`} data-species={species} src={fish.src} alt={fish.label} style={style} />;
 }
