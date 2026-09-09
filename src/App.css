@@ -95,6 +95,7 @@ button { cursor: pointer; }
   85% { transform: translate(0, 0) rotate(0); }
 }
 .welcome-banner { animation: banner-shockwave .5s ease-out .27s; }
+.home-page .season-recap { animation: banner-shockwave-soft .4s ease-out .3s; }
 .home-page .activity-section { animation: banner-shockwave-soft .45s ease-out .32s; }
 .home-page .dock-notes { animation: banner-shockwave-soft .4s ease-out .37s; }
 .welcome-banner .eyebrow { color: var(--mint); }
@@ -207,7 +208,7 @@ button { cursor: pointer; }
 .challenge-summary span { color: var(--muted); font-size: 11px; margin-top: 4px; }
 .challenge-actions { align-items: center; display: flex; gap: 12px; }
 .challenge-actions .button-quiet { margin-top: 0; width: auto; }
-.season-recap { margin-bottom: 35px; }
+.season-recap { margin-bottom: 35px; margin-top: 34px; }
 .personal-year-board { background: var(--navy); border: 1px solid #23464d; color: white; margin-bottom: 35px; padding: 27px 30px 22px; }
 .personal-year-board .section-heading { border-color: #386167; }
 .personal-year-board .section-heading h2 { color: white; }
