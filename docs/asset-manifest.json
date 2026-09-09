@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.css": "/static/css/main.c7df472f.css",
-    "main.js": "/static/js/main.4b883008.js",
-    "static/js/453.54b97868.chunk.js": "/static/js/453.54b97868.chunk.js",
+    "main.css": "/static/css/main.2239f7b4.css",
+    "main.js": "/static/js/main.9b898074.js",
+    "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
     "static/media/flounder.png": "/static/media/flounder.f195b192379d6230aa1c.png",
@@ -22,19 +22,33 @@
     "static/media/stripedbass.png": "/static/media/stripedbass.38624bde52753be409d6.png",
     "static/media/largemouth.png": "/static/media/largemouth.2ed8ca3a3fee82925e1b.png",
     "static/media/shark.png": "/static/media/shark.016101da65007edfbf3b.png",
+    "static/media/map.webp": "/static/media/map.ac6a1cb539dddfdb94f3.webp",
     "static/media/pike.png": "/static/media/pike.fec7a5b2f35d14406730.png",
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
+    "static/media/celebrate.png": "/static/media/celebrate.592052a541731ee0e837.png",
+    "static/media/reel.png": "/static/media/reel.49fcce323c9ace7debd9.png",
+    "static/media/idle.png": "/static/media/idle.4288530e1b75ed2de01b.png",
+    "static/media/fishon.png": "/static/media/fishon.03e1bd70f4e2d4e55437.png",
+    "static/media/cast.png": "/static/media/cast.5ac2a3bcd97d72c3a80b.png",
+    "static/media/mountainlake.webp": "/static/media/mountainlake.1174425a080435a0e5f4.webp",
+    "static/media/swamp.webp": "/static/media/swamp.d7339f8bf407ddba1099.webp",
+    "static/media/offshore.webp": "/static/media/offshore.d93e052d039f4a70395a.webp",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
+    "static/media/river.webp": "/static/media/river.8509b9250a2d3a6cab75.webp",
+    "static/media/shopkeeper.png": "/static/media/shopkeeper.3ba2ba32c3b4a9e1ed2e.png",
+    "static/media/bay.webp": "/static/media/bay.a73866f7ac71a3bf78df.webp",
+    "static/media/captain.png": "/static/media/captain.c5a212a32f1cd89a1186.png",
+    "static/media/shoreline.webp": "/static/media/shoreline.5e996d2d36acea569749.webp",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "index.html": "/index.html",
-    "main.c7df472f.css.map": "/static/css/main.c7df472f.css.map",
-    "main.4b883008.js.map": "/static/js/main.4b883008.js.map",
-    "453.54b97868.chunk.js.map": "/static/js/453.54b97868.chunk.js.map"
+    "main.2239f7b4.css.map": "/static/css/main.2239f7b4.css.map",
+    "main.9b898074.js.map": "/static/js/main.9b898074.js.map",
+    "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.c7df472f.css",
-    "static/js/main.4b883008.js"
+    "static/css/main.2239f7b4.css",
+    "static/js/main.9b898074.js"
   ]
 }
