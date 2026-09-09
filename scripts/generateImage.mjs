@@ -7,6 +7,10 @@
 //     [--size 1536x1024] [--quality medium] [--transparent] "prompt text"
 //
 // --transparent asks for a real alpha channel (sprites); omit it for backdrops.
+//
+// Behind an egress proxy (e.g. Claude Code on the web), Node's fetch does not read
+// HTTPS_PROXY on its own — run with NODE_USE_ENV_PROXY=1 (and NODE_EXTRA_CA_CERTS pointing at
+// the proxy's CA bundle) or the request never leaves the box.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
