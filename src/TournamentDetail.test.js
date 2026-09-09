@@ -114,13 +114,48 @@ test('a non-creator does not see the delete-tournament link', async () => {
   expect(screen.queryByRole('button', { name: /delete this tournament/i })).not.toBeInTheDocument();
 });
 
-test('deleting the tournament navigates back to the tournaments list', async () => {
+test('the delete-tournament button uses the site\'s danger button style, not a plain link', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'u1' } }));
+  renderDetail();
+  expect(await screen.findByRole('button', { name: /delete this tournament/i })).toHaveClass('button', 'button-danger');
+});
+
+test('clicking delete this tournament opens an are-you-sure confirmation instead of deleting immediately', async () => {
   const deleteTournament = jest.fn().mockResolvedValue({ error: null });
   useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'u1' }, deleteTournament }));
   renderDetail();
   await userEvent.click(await screen.findByRole('button', { name: /delete this tournament/i }));
+  expect(screen.getByRole('heading', { name: /are you sure/i })).toBeInTheDocument();
+  expect(deleteTournament).not.toHaveBeenCalled();
+});
+
+test('canceling the confirmation leaves the tournament in place', async () => {
+  const deleteTournament = jest.fn().mockResolvedValue({ error: null });
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'u1' }, deleteTournament }));
+  renderDetail();
+  await userEvent.click(await screen.findByRole('button', { name: /delete this tournament/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+  expect(screen.queryByRole('heading', { name: /are you sure/i })).not.toBeInTheDocument();
+  expect(deleteTournament).not.toHaveBeenCalled();
+});
+
+test('confirming the deletion navigates back to the tournaments list', async () => {
+  const deleteTournament = jest.fn().mockResolvedValue({ error: null });
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'u1' }, deleteTournament }));
+  renderDetail();
+  await userEvent.click(await screen.findByRole('button', { name: /delete this tournament/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^delete tournament$/i }));
   expect(deleteTournament).toHaveBeenCalledWith('t-1');
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/tournaments'));
+});
+
+test('a failed deletion closes the confirmation instead of leaving it stuck on "Deleting..."', async () => {
+  const deleteTournament = jest.fn().mockResolvedValue({ error: new Error('db is down') });
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'u1' }, deleteTournament }));
+  renderDetail();
+  await userEvent.click(await screen.findByRole('button', { name: /delete this tournament/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^delete tournament$/i }));
+  await waitFor(() => expect(screen.queryByRole('heading', { name: /are you sure/i })).not.toBeInTheDocument());
 });
 
 test('passes the ?entry= query param through so the linked entry is highlighted', async () => {

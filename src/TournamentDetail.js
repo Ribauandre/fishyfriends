@@ -45,6 +45,22 @@ function EntryModal({ tournamentId, unit, onClose, onSaved }) {
   </div>;
 }
 
+function DeleteTournamentModal({ tournamentName, deleting, onCancel, onConfirm }) {
+  return <div className="catch-modal-backdrop" role="presentation" onClick={onCancel}>
+    <div className="catch-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="section-heading">
+        <div><span className="eyebrow">DELETE TOURNAMENT</span><h2>Are you sure?</h2></div>
+        <button className="modal-close" type="button" onClick={onCancel} aria-label="Cancel deleting tournament">×</button>
+      </div>
+      <p>This deletes "{tournamentName}" along with every entry, comment, and like on it. This can't be undone.</p>
+      <div className="form-actions">
+        <button className="button button-quiet" type="button" onClick={onCancel} disabled={deleting}>Cancel</button>
+        <button className="button button-danger" type="button" onClick={onConfirm} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete tournament'}</button>
+      </div>
+    </div>
+  </div>;
+}
+
 export default function TournamentDetail() {
   const { tournamentId } = useParams();
   const { user, getTournament, listTournamentEntries, deleteTournamentEntry, deleteTournament } = useAuth();
@@ -56,6 +72,8 @@ export default function TournamentDetail() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -75,8 +93,11 @@ export default function TournamentDetail() {
   }
 
   async function handleDeleteTournament() {
+    setDeleting(true);
     const result = await deleteTournament(tournamentId);
+    setDeleting(false);
     if (!result.error) navigate('/tournaments');
+    else setConfirmingDelete(false);
   }
 
   if (loading) return <main className="content-shell challenge-page"><p className="month-empty">Loading the tournament...</p></main>;
@@ -115,9 +136,10 @@ export default function TournamentDetail() {
       <TournamentEntries entries={entries} unit={tournament.unit} tournamentId={tournament.id} currentUserId={user?.id} onDelete={handleDeleteEntry} highlightId={highlightEntryId} highlightCommentId={highlightCommentId} />
     </section>
 
-    {isCreator && <p className="tournament-danger-zone"><button type="button" className="text-link" onClick={handleDeleteTournament}>Delete this tournament</button></p>}
+    {isCreator && <p className="tournament-danger-zone"><button type="button" className="button button-danger" onClick={() => setConfirmingDelete(true)}>Delete this tournament</button></p>}
 
     {showForm && <EntryModal tournamentId={tournament.id} unit={tournament.unit} onClose={() => setShowForm(false)} onSaved={(entry) => { setEntries((previous) => [entry, ...previous].sort((a, b) => b.size - a.size)); setShowForm(false); }} />}
+    {confirmingDelete && <DeleteTournamentModal tournamentName={tournament.name} deleting={deleting} onCancel={() => setConfirmingDelete(false)} onConfirm={handleDeleteTournament} />}
   </main>;
 }
 

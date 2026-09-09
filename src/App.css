@@ -68,6 +68,8 @@ button { cursor: pointer; }
 .button span { font-size: 16px; }
 .button-primary { background: var(--mint); color: var(--deep); }
 .button-primary:hover { background: #f2ff5c; box-shadow: 0 0 24px var(--glow); }
+.button-danger { background: var(--coral); color: var(--deep); }
+.button-danger:hover { background: #ff7a49; box-shadow: 0 0 24px rgba(255,90,31,.35); }
 .button-quiet { background: transparent; border: 1px solid var(--line); color: var(--ink); justify-content: center; margin-top: 22px; width: 100%; }
 .status-badge, .status-badge-muted { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
 .brand-mark > span { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
@@ -344,7 +346,9 @@ button { cursor: pointer; }
 .catch-modal input:focus, .catch-modal select:focus { border-color: var(--coral); }
 .field-hint { color: var(--mint); display: block; font-size: 10px; font-weight: 700; margin-top: 6px; text-transform: none; }
 .modal-close { background: transparent; border: 0; color: var(--muted); font-size: 27px; line-height: 1; padding: 0; }
-.catch-modal .form-actions { justify-content: flex-end; margin-top: 12px; }
+.catch-modal .form-actions { gap: 12px; justify-content: flex-end; margin-top: 12px; }
+.catch-modal .form-actions .button-quiet { margin-top: 0; width: auto; }
+.catch-modal p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 14px 0 0; }
 .leaderboard-panel { border-top: 1px solid var(--line); }
 .leaderboard-labels { color: var(--muted); display: grid; font-size: 10px; font-weight: 800; grid-template-columns: 1fr 100px 82px 28px; letter-spacing: .12em; padding: 14px 18px 10px 66px; }
 .leaderboard-labels span:nth-child(2) { grid-column: 2; }
