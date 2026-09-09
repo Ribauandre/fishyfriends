@@ -551,7 +551,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       </div>
 
       <div className="game-dock">
-        {phase === 'ready' && <div className="game-panel">
+        {phase === 'ready' && <div className="game-panel is-ready">
           <div className="dock-row">
             <button type="button" className="dock-ground" onClick={() => toggleOverlay('map')} aria-label={`Change fishing ground · currently ${biomeConfig.label}`}>
               <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost} · {PERIOD_LABELS[period].toLowerCase()}</small>
@@ -612,7 +612,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               {captainClaimable.some((candidate) => candidate.key === quest.key) && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
             </li>)}
           </ul>}
-          <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
+          <button className="button button-primary dock-cast" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
         {phase === 'casting' && <div className="game-panel is-play">

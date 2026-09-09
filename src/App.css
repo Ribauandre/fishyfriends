@@ -613,9 +613,25 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 }
 
 /* Cast & Catch minigame — one frame: HUD, scene, dock, and in-frame overlays. */
-/* The game gets more of the screen than the rest of the site: a wider shell, and on narrow
-   screens a taller stage that crops the painting to the dock side so the angler stays big. */
-.game-page { max-width: 1560px; }
+/* The game owns the screen: the page is a fixed frame between the nav and the viewport edges,
+   the stage takes the top of it and the dock — styled as the deck itself — takes the rest.
+   Nothing scrolls but the deck, and only if it has to. */
+.game-page.content-shell { bottom: 14px; left: 18px; margin: 0; max-width: none; position: fixed; right: 18px; top: 94px; z-index: 2; }
+.game-page .game-frame { display: flex; flex-direction: column; height: 100%; margin-top: 0; }
+.game-page .game-body { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.game-page .game-stage { flex: 0 0 56%; min-height: 0; }
+/* On a wide screen the deck is two columns: setup, note and crew on the left; the captain, the
+   notice board and the Cast sign on the right — so nothing is below the fold. */
+@media (min-width: 801px) {
+  .game-dock .game-panel.is-ready { align-items: start; display: grid; gap: 10px 24px; grid-auto-flow: row dense; grid-template-columns: 1.1fr .9fr; text-align: left; }
+  .game-dock .game-panel.is-ready > * { grid-column: 1; justify-self: stretch; width: 100%; }
+  .game-dock .game-panel.is-ready > .dock-row { justify-content: flex-start; }
+  .game-dock .game-panel.is-ready > .npc-dialogue, .game-dock .game-panel.is-ready > .quest-list, .game-dock .game-panel.is-ready > .derby-win, .game-dock .game-panel.is-ready > .dock-cast, .game-dock .game-panel.is-ready > .form-error { grid-column: 2; }
+  .game-dock .game-panel.is-ready > .dock-cast { margin-top: 4px; width: 100%; }
+  .game-dock .game-panel.is-ready > .dock-crew { justify-content: flex-start; }
+}
+.game-page .game-scene { aspect-ratio: auto; height: 100%; margin-top: 0; max-height: none; min-height: 0; }
+.game-page .game-dock { flex: 1; min-height: 0; overflow-y: auto; }
 .game-frame { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 14px solid transparent; border-image: url(./assets/props/frame.png) 21% round; box-shadow: var(--sticker-shadow-lg); margin-top: 18px; overflow: hidden; position: relative; }
 .game-frame.is-hookset { animation: frame-shake .35s ease-out; }
 @keyframes frame-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 1px); } 80% { transform: translate(1px, -1px); } }
@@ -649,7 +665,37 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes scene-arrive { from { filter: brightness(0); } to { filter: brightness(1); } }
 .scene-ripple { animation: scene-ripple .9s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes scene-ripple { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(2.4); } }
-.game-dock { padding: 4px 16px 18px; }
+/* The dock panel is the deck: plank texture underfoot, and everything on it is signage,
+   a pinned note, a tackle tray or a notice board rather than form controls. */
+.game-dock { background: url(./assets/scenes/deck.webp) center top / 220px repeat, #2b1d0e; box-shadow: inset 0 14px 22px rgba(3,8,11,.6); padding: 8px 14px 16px; }
+.game-dock .game-panel { padding-top: 12px; }
+.game-dock .dock-ground { background: transparent; border: 10px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 10px stretch; box-shadow: none; color: #fff3d6; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); text-shadow: 1px 1px 0 #2a1c0b, -1px 1px 0 #2a1c0b, 1px -1px 0 #2a1c0b, -1px -1px 0 #2a1c0b; }
+.game-dock .dock-ground:hover { background: transparent; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)) brightness(1.12); }
+.game-dock .dock-ground span, .game-dock .dock-ground small { color: #e8d3a8; }
+.game-dock .lure-chip { background: rgba(3,8,11,.35); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; color: #fff3d6; filter: drop-shadow(2px 2px 0 rgba(3,8,11,.7)); text-shadow: 1px 1px 0 #2a1c0b; }
+.game-dock .lure-chip span { color: #e8d3a8; }
+.game-dock .lure-chip.is-active { filter: drop-shadow(0 0 5px rgba(227,251,20,.75)) drop-shadow(2px 2px 0 rgba(3,8,11,.7)); }
+.game-dock .lure-chip.is-active strong { color: var(--mint); }
+.game-dock .lure-chip.is-locked strong { color: #b9a27f; }
+.game-dock .game-panel > p.dock-hint { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.6); color: #2a1c0b; font-size: 12px; padding: 8px 14px; position: relative; transform: rotate(-.5deg); }
+.game-dock .dock-hint:before { background: var(--coral); border: 1px solid #2a1c0b; border-radius: 50%; content: ''; height: 9px; left: 50%; position: absolute; top: -6px; transform: translateX(-50%); width: 9px; }
+.game-dock .dock-derby { background: rgba(3,8,11,.45); border: 1px solid #ffc93c; color: #fff3d6; padding: 4px 10px; }
+.game-dock .npc-dialogue.is-compact .npc-portrait { border: 6px solid transparent; border-image: url(./assets/props/plank.png) 30% / 6px stretch; box-shadow: none; height: 56px; width: 56px; }
+.game-dock .npc-dialogue.is-compact { grid-template-columns: 56px 1fr; }
+.game-dock .npc-bubble { background: rgba(3,8,11,.5); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; }
+.game-dock .npc-bubble:before { display: none; }
+.game-dock .npc-bubble p { color: #fff3d6; }
+.game-dock .quest-row { background: rgba(3,8,11,.5); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; color: #fff3d6; }
+.game-dock .quest-row.is-done { filter: drop-shadow(0 0 4px rgba(227,251,20,.6)); }
+.game-dock .dock-crew-label { background: transparent; border: 7px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 7px stretch; color: #fff3d6; padding: 0 2px; }
+.game-dock .dock-crew-chip { background: rgba(3,8,11,.5); border: 7px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 7px stretch; color: #fff3d6; }
+.game-dock .dock-crew-chip.is-here { filter: drop-shadow(0 0 4px rgba(227,251,20,.6)); }
+.game-dock .dock-crew-text small { color: #e8d3a8; }
+.game-dock .game-panel > p { color: #e8d3a8; }
+.game-dock .game-result h3, .game-dock .game-result p { text-shadow: 1px 1px 0 #03080b; }
+.game-dock .game-result p { color: #e8d3a8; }
+.game-dock .form-error { background: rgba(3,8,11,.5); padding: 4px 10px; }
+.game-dock .derby-win { background: rgba(3,8,11,.55); }
 .game-dock .game-panel { padding-top: 16px; }
 .dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
 .dock-ground { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; min-width: 120px; padding: 6px 12px; text-align: left; }
@@ -741,7 +787,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .rarity-tag.is-real { background: var(--coral); color: var(--deep); }
 
 /* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
-.game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; max-height: calc(100vh - 230px); min-height: 300px; overflow: hidden; position: relative; width: 100%; }
+.game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
 .scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; object-position: left center; position: absolute; width: 100%; }
 .game-scene-svg { display: block; height: 100%; inset: 0; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: 8%; top: 57%; }
@@ -983,14 +1029,19 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) { .scene-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; } }
 
 @media (max-width: 800px) {
-  .game-scene { aspect-ratio: 3 / 2; max-height: none; min-height: 0; }
+  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
+  .game-page .game-stage { flex: none; }
+  .game-page .game-scene { aspect-ratio: 3 / 2; height: auto; }
+  .game-frame { margin-top: 0; }
 }
 @media (max-width: 500px) {
-  /* The page wrapper pads 16px on phones; the game frame reaches the screen edges instead. */
-  .game-frame { margin-left: -16px; margin-right: -16px; }
-  .game-scene { aspect-ratio: 5 / 4; }
+  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
+  .game-page .game-stage { flex: none; }
+  .game-page .game-scene { aspect-ratio: 5 / 4; height: auto; }
+  .game-dock { padding: 6px 10px 12px; }
+  .game-dock .game-panel.is-ready > .dock-cast { bottom: 0; box-shadow: 0 -10px 16px rgba(3,8,11,.55); position: sticky; z-index: 2; }
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
-  .game-frame { border-width: 7px; margin-top: 8px; }
+  .game-frame { border-width: 7px; margin-top: 0; }
   .game-hud { gap: 4px 6px; padding: 6px 6px; }
   .hud-plate { border-width: 9px; margin: -1px 0 0 -1px; padding: 0 2px; }
   .hud-plate .hud-brand { font-size: 7px; }

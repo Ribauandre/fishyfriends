@@ -27,7 +27,7 @@ import canyonArt from '../../assets/scenes/canyon.webp';
 const VIEW_W = 480;
 const VIEW_H = 270;
 const VIEW_W_MIN = 300;
-const VIEW_W_MAX = 640;
+const VIEW_W_MAX = 960;
 
 // Where things sit (viewBox units): where the angler's feet go, the water surface the bobber
 // floats at, how far out the cast lands, and how tall the sprite box is (% of stage height).
