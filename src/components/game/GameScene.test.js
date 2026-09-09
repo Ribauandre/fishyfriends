@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GameScene from './GameScene';
 
@@ -186,4 +186,32 @@ test('the boat only has room for one guest', () => {
   const { container } = render(<GameScene biome="offshore" phase="ready" displayName="Andre" others={others} />);
   expect(container.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
   expect(screen.getByText('+1 more')).toBeInTheDocument();
+});
+
+test('a taller stage keeps the scene on the painting: positions follow the visible width', () => {
+  // jsdom has no layout; drive the measurement through a fake ResizeObserver and a fake box.
+  const callbacks = [];
+  const RO = class { constructor(cb) { callbacks.push(cb); } observe() {} disconnect() {} };
+  const original = global.ResizeObserver;
+  global.ResizeObserver = RO;
+  const rect = jest.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({ width: 400, height: 300, top: 0, left: 0, right: 400, bottom: 300 });
+  try {
+    const { container, rerender } = render(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
+    const scene = container.querySelector('.game-scene');
+    expect(scene).toHaveAttribute('data-view-w', '360');
+    expect(container.querySelector('.game-scene-svg')).toHaveAttribute('viewBox', '0 0 360 270');
+    // The hardest cast still lands inside the visible water.
+    expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeLessThanOrEqual(360 - 24);
+    // The angler's feet keep the same unit position, so as a share of a narrower stage he sits further right.
+    const you = container.querySelector('.scene-sprite.is-you');
+    const leftNarrow = parseFloat(you.style.left);
+    rect.mockReturnValue({ width: 480, height: 270, top: 0, left: 0, right: 480, bottom: 270 });
+    callbacks.forEach((cb) => act(() => cb()));
+    rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
+    expect(scene).toHaveAttribute('data-view-w', '480');
+    expect(parseFloat(container.querySelector('.scene-sprite.is-you').style.left)).toBeLessThan(leftNarrow);
+  } finally {
+    rect.mockRestore();
+    global.ResizeObserver = original;
+  }
 });

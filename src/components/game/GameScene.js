@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
@@ -19,8 +19,15 @@ import canyonArt from '../../assets/scenes/canyon.webp';
 // fish stays the site's PNG sticker art, laid over the water as HTML rather than redrawn, per
 // the repo rule that fish are never abstract glyphs. The angler, line and splash only move on
 // the player's actions; the world around them (SceneAmbience) is what keeps the stage alive.
+// Scene units: the paintings are 16:9, so a full-width stage is 480 x 270 units. The stage
+// itself can be taller than that (phones get 4:3, a short desktop window caps the height) —
+// the backdrop then crops with object-fit: cover anchored on the dock side, and everything
+// positioned here uses the *visible* width in units (`viewW`, measured from the element) so
+// the angler, line, bobber and meters stay on the painting no matter the crop.
 const VIEW_W = 480;
 const VIEW_H = 270;
+const VIEW_W_MIN = 300;
+const VIEW_W_MAX = 640;
 
 // Where things sit (viewBox units): where the angler's feet go, the water surface the bobber
 // floats at, how far out the cast lands, and how tall the sprite box is (% of stage height).
@@ -42,7 +49,7 @@ const SCENES = {
 };
 
 // How far a cast lands: power 0-100 from the meter maps to a spot around the layout's default.
-const landingFor = (layout, power) => Math.round(layout.bobberX - 70 + Math.max(0, Math.min(100, power)) * 1.2);
+const landingFor = (layout, power, viewW) => Math.min(viewW - 24, Math.round(layout.bobberX - 70 + Math.max(0, Math.min(100, power)) * 1.2));
 const pct = (value, of) => `${round2((value / of) * 100)}%`;
 
 // Other club members on this ground (Realtime presence, see joinDock in AuthContext) stand
@@ -54,8 +61,11 @@ function crewAction(other) {
   return anglerAction({ phase, result: { success: phase === 'result' && Boolean(other.species) }, holding: phase === 'reeling' });
 }
 
-// The fish and catch zone live in the open water right of the dock/boat, not the whole stage.
-const WATER_X = [36, 98];
+// The fish and catch zone live in the open water right of the dock/boat, not the whole stage:
+// in units, from just past the dock's end to a hair inside the visible right edge.
+const WATER_START = 172.8;
+const WATER_END_INSET = 9.6;
+const waterSpan = (viewW) => [WATER_START, viewW - WATER_END_INSET];
 
 // The burst around a landed fish. Rarity decides how many of these light up (see CSS).
 const SPARKLES = [
@@ -63,23 +73,23 @@ const SPARKLES = [
   { x: 34, y: 42, delay: 0.42 }, { x: 12, y: 18, delay: 0.5 }, { x: 56, y: 16, delay: 0.58 }, { x: 40, y: 22, delay: 0.66 },
 ];
 const round2 = (value) => Math.round(value * 100) / 100;
-const waterLeft = (pos) => round2(WATER_X[0] + (pos / 100) * (WATER_X[1] - WATER_X[0]));
-const waterWidth = (width) => round2((width / 100) * (WATER_X[1] - WATER_X[0]));
+const waterLeftAt = (pos, viewW) => { const [a, z] = waterSpan(viewW); return round2(((a + (pos / 100) * (z - a)) / viewW) * 100); };
+const waterWidthAt = (width, viewW) => { const [a, z] = waterSpan(viewW); return round2((((width / 100) * (z - a)) / viewW) * 100); };
 
 // Positions the sprite box so its feet anchor lands on (anglerX, anglerY) in viewBox units.
-function spriteLayout(anglerX, anglerY, boxH) {
-  const boxW = boxH * (VIEW_H / VIEW_W) * (SPRITE_FRAME.w / SPRITE_FRAME.h);
-  const left = (anglerX / VIEW_W) * 100 - boxW * (SPRITE_FRAME.feetX / SPRITE_FRAME.w);
+function spriteLayout(anglerX, anglerY, boxH, viewW) {
+  const boxW = boxH * (VIEW_H / viewW) * (SPRITE_FRAME.w / SPRITE_FRAME.h);
+  const left = (anglerX / viewW) * 100 - boxW * (SPRITE_FRAME.feetX / SPRITE_FRAME.w);
   const bottom = ((VIEW_H - anglerY) / VIEW_H) * 100 - boxH * (1 - SPRITE_FRAME.feetY / SPRITE_FRAME.h);
   return { left: `${left}%`, bottom: `${bottom}%`, height: `${boxH}%`, width: `${boxW}%` };
 }
 
-function AnglerSprite({ x, y, boxH, phase, current, className = '' }) {
+function AnglerSprite({ x, y, boxH, phase, current, className = '', viewW = VIEW_W }) {
   const { action, frame = 0, play, durationMs, loop } = current;
   const sprite = ANGLER_SPRITES[action];
   const frameStep = 100 / (sprite.frames - 1);
   const style = {
-    ...spriteLayout(x, y, boxH),
+    ...spriteLayout(x, y, boxH, viewW),
     backgroundImage: `url(${sprite.src})`,
     backgroundSize: `${sprite.frames * 100}% 100%`,
     backgroundPositionX: `${frame * frameStep}%`,
@@ -110,13 +120,29 @@ export default function GameScene({
 }) {
   const scene = SCENES[biome] || SCENES.river;
   const layout = scene.layout;
+  const stageRef = useRef(null);
+  const [viewW, setViewW] = useState(VIEW_W);
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node || typeof ResizeObserver !== 'function') return undefined;
+    const measure = () => {
+      const { width, height } = node.getBoundingClientRect();
+      if (width > 0 && height > 0) setViewW(Math.max(VIEW_W_MIN, Math.min(VIEW_W_MAX, Math.round((VIEW_H * width) / height))));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const waterLeft = (pos) => waterLeftAt(pos, viewW);
+  const waterWidth = (width) => waterWidthAt(width, viewW);
   const current = anglerAction({ phase, result, holding });
   const rodTip = ANGLER_SPRITES[current.action].rodTip;
   const spriteScale = (layout.spriteBoxH / 100) * VIEW_H / SPRITE_FRAME.h;
   const rodTipX = layout.anglerX + (rodTip.x - SPRITE_FRAME.feetX) * spriteScale;
   const rodTipY = layout.anglerY - (SPRITE_FRAME.feetY - rodTip.y) * spriteScale;
-  const landingX = landingFor(layout, castDistance);
-  const fishX = reel ? (waterLeft(reel.fishPos) / 100) * VIEW_W : landingX;
+  const landingX = landingFor(layout, castDistance, viewW);
+  const fishX = reel ? (waterLeft(reel.fishPos) / 100) * viewW : landingX;
   const fishY = layout.waterY + 60;
   const lineOut = phase === 'waiting' || phase === 'hookset' || phase === 'reeling';
   const working = lure !== 'livebait' && lureDisplay && (phase === 'waiting' || phase === 'hookset');
@@ -130,18 +156,18 @@ export default function GameScene({
     : { band: [(lureDisplay.bandCenter || 50) - 11, (lureDisplay.bandCenter || 50) + 11], marker: lureDisplay.speed || 0, fill: lureDisplay.attraction || 0 }) : null;
   const hold = Boolean(interaction?.onHoldStart);
   // Meters go on the angler's left, over the deck, so they never sit on the rod arm.
-  const meterLeft = pct(layout.anglerX - 46, VIEW_W);
+  const meterLeft = pct(layout.anglerX - 46, viewW);
   const meterBottom = pct(VIEW_H - layout.anglerY, VIEW_H);
   const crewSlots = layout.crew || [];
   const crewShown = others.slice(0, crewSlots.length);
   const crewExtra = others.length - crewShown.length;
 
-  return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase} data-period={period}>
+  return <div ref={stageRef} className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
     <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
     {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
     <div className={`scene-tint is-${period}`} aria-hidden="true" />
-    <SceneAmbience biome={biome} phase={phase} period={period} />
-    <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
+    <SceneAmbience biome={biome} phase={phase} period={period} viewW={viewW} />
+    <svg viewBox={`0 0 ${viewW} ${VIEW_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
       {lineOut && <path
         className="scene-line"
         d={phase === 'reeling' ? `M${rodTipX} ${rodTipY} L${fishX} ${fishY}` : `M${rodTipX} ${rodTipY} Q${(rodTipX + strikeX) / 2} ${rodTipY - 30} ${strikeX} ${strikeY + 2}`}
@@ -160,20 +186,20 @@ export default function GameScene({
       const action = crewAction(other);
       const recent = other.lastCatch && now() - other.lastCatch.at < RECENT_CATCH_MS;
       return <React.Fragment key={other.userId}>
-        <AnglerSprite x={x} y={layout.anglerY + 2} boxH={layout.spriteBoxH * 0.92} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" />
-        <span className="scene-crew-tag" data-user={other.userId} style={{ left: pct(x, VIEW_W), top: pct(layout.anglerY + 8, VIEW_H) }}>{(other.name || 'Angler').toUpperCase()}</span>
-        {recent && <span className="scene-crew-bubble" style={{ left: pct(x, VIEW_W), top: pct(layout.anglerY - 66, VIEW_H) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
+        <AnglerSprite x={x} y={layout.anglerY + 2} boxH={layout.spriteBoxH * 0.92} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} />
+        <span className="scene-crew-tag" data-user={other.userId} style={{ left: pct(x, viewW), top: pct(layout.anglerY + 8, VIEW_H) }}>{(other.name || 'Angler').toUpperCase()}</span>
+        {recent && <span className="scene-crew-bubble" style={{ left: pct(x, viewW), top: pct(layout.anglerY - 66, VIEW_H) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
       </React.Fragment>;
     })}
-    {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pct(layout.anglerX + crewSlots[crewSlots.length - 1] - 40, VIEW_W), top: pct(layout.anglerY - 50, VIEW_H) }}>+{crewExtra} more</span>}
-    <AnglerSprite x={layout.anglerX} y={layout.anglerY} boxH={layout.spriteBoxH} phase={phase} current={current} className="is-you" />
-    {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pct(lureX, VIEW_W), top: pct(strikeY, VIEW_H) }} />}
+    {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pct(layout.anglerX + crewSlots[crewSlots.length - 1] - 40, viewW), top: pct(layout.anglerY - 50, VIEW_H) }}>+{crewExtra} more</span>}
+    <AnglerSprite x={layout.anglerX} y={layout.anglerY} boxH={layout.spriteBoxH} phase={phase} current={current} className="is-you" viewW={viewW} />
+    {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pct(lureX, viewW), top: pct(strikeY, VIEW_H) }} />}
 
     {phase === 'casting' && <div className="stage-meter is-cast" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
       <span className="stage-meter-fill" ref={castFillRef} />
       <span className="stage-meter-band" style={{ bottom: '40%', height: '20%' }} />
     </div>}
-    {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pct(lureX, VIEW_W), top: pct(layout.waterY - 30, VIEW_H) }} aria-hidden="true">
+    {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pct(lureX, viewW), top: pct(layout.waterY - 30, VIEW_H) }} aria-hidden="true">
       <span className="stage-gauge-track">
         <span className="stage-gauge-band" style={{ left: `${round2(gauge.band[0])}%`, width: `${round2(gauge.band[1] - gauge.band[0])}%` }} />
         <span className="stage-gauge-marker" style={{ left: `${round2(gauge.marker)}%` }} />
@@ -181,7 +207,7 @@ export default function GameScene({
       <span className="stage-gauge-fill"><span style={{ width: `${round2(gauge.fill)}%` }} /></span>
       {lureFeedback && <span key={lureFeedback} className="stage-feedback">{lureFeedback}</span>}
     </div>}
-    {phase === 'hookset' && <span className="scene-hook-ring" style={{ left: pct(strikeX, VIEW_W), top: pct(strikeY, VIEW_H), animationDuration: `${hooksetWindowMs || 600}ms` }} aria-hidden="true" />}
+    {phase === 'hookset' && <span className="scene-hook-ring" style={{ left: pct(strikeX, viewW), top: pct(strikeY, VIEW_H), animationDuration: `${hooksetWindowMs || 600}ms` }} aria-hidden="true" />}
     {phase === 'reeling' && reel && <>
       <div className="reel-zone scene-zone" style={{ left: `${waterLeft(reel.zonePos - zoneWidth / 2)}%`, width: `${waterWidth(zoneWidth)}%`, top: `${((layout.waterY + 12) / VIEW_H) * 100}%` }} />
       <FishIllustration species={species} className="reel-fish scene-fish" style={{ left: `${waterLeft(reel.fishPos)}%`, top: `${((fishY - 22) / VIEW_H) * 100}%` }} />

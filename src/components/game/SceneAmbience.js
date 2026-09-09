@@ -15,7 +15,7 @@ const SEAGULL_FRAMES = 3;
 // CSS loops; the distant fish jump is a timer here so it stays random and infrequent. It
 // pauses during the hookset and the fight, when the real fish is the only thing that should
 // be splashing. Fish shadows cruise under the bobber only while a line is actually out.
-export default function SceneAmbience({ biome, phase, period = 'day' }) {
+export default function SceneAmbience({ biome, phase, period = 'day', viewW = 480 }) {
   const config = ambienceFor(biome);
   const [jump, setJump] = useState(null);
   const [shadows, setShadows] = useState([]);
@@ -55,8 +55,10 @@ export default function SceneAmbience({ biome, phase, period = 'day' }) {
       alt=""
       style={{ top: `${lane.top}%`, height: `${lane.height}%`, animationDuration: `${lane.duration}s`, animationDelay: `${lane.delay}s`, '--drift-from': `${lane.from ?? -22}%` }}
     />)}
-    <div className="scene-water" style={{ '--water-left': `${config.water.left}%`, '--water-top': `${config.water.top}%` }} />
-    {config.lamp && <div className="scene-lamp" />}
+    {/* Water/lamp positions are set for the full 480-unit painting; a taller stage crops the
+        right side, so they're rescaled to the visible width (see viewW in GameScene). */}
+    <div className="scene-water" style={{ '--water-left': `${Math.min(95, Math.round((config.water.left * 480) / viewW))}%`, '--water-top': `${config.water.top}%` }} />
+    {config.lamp && <div className="scene-lamp" style={{ left: `${Math.round((10.5 / viewW) * 1000) / 10}%`, width: `${Math.round((48 / viewW) * 1000) / 10}%` }} />}
     {critters.map((index) => (config.critter === 'seagull'
       ? <div
         key={index}
