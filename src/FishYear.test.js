@@ -94,6 +94,25 @@ test('shows the server error message and keeps the modal open when logging fails
   expect(screen.getByRole('button', { name: /make it official/i })).toBeInTheDocument();
 });
 
+test('a rapid double-tap on the submit button only logs the catch once', async () => {
+  let resolveLog;
+  const logFishYearCatch = jest.fn(() => new Promise((resolve) => { resolveLog = resolve; }));
+  useAuth.mockReturnValue({ ...makeBaseAuth(), logFishYearCatch });
+  renderFishYear();
+  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+  await userEvent.click(screen.getByRole('button', { name: /log a catch/i }));
+  await userEvent.type(screen.getByRole('combobox'), 'Carp');
+  await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
+
+  const submitButton = screen.getByRole('button', { name: /make it official/i });
+  userEvent.click(submitButton);
+  userEvent.click(submitButton);
+  expect(logFishYearCatch).toHaveBeenCalledTimes(1);
+
+  resolveLog({ error: null, catchEntry: { id: 'fy-new', user_id: 'user-1', month: 'March', species: 'Carp', angler_name: 'Me', caught_at: '2026-03-15', photo_url: '' } });
+  await waitFor(() => expect(screen.queryByRole('button', { name: /make it official/i })).not.toBeInTheDocument());
+});
+
 test('passes the ?catch= query param through so the linked catch is highlighted and its comments open', async () => {
   useAuth.mockReturnValue({
     ...makeBaseAuth(),

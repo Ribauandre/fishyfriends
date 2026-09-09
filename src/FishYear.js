@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Participants from './components/Participants.tsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
@@ -23,6 +23,10 @@ export default function FishYear() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ species: '', date: new Date().toISOString().slice(0, 10), photoFile: null, dateFromPhoto: false });
+  // A ref alongside `saving` state: state updates aren't guaranteed to re-render (and disable
+  // the submit button) before a near-simultaneous second tap's handler starts, so the guard
+  // that actually stops a double submit has to be synchronous.
+  const savingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -43,8 +47,11 @@ export default function FishYear() {
 
   async function logCatch(event) {
     event.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true); setError('');
     const result = await logFishYearCatch({ year: FISH_YEAR, month: monthFromDate(form.date), species: form.species, caughtAt: form.date, file: form.photoFile });
+    savingRef.current = false;
     setSaving(false);
     if (result?.error) { setError(result.error.message); return; }
     setCatches((previous) => [...previous, result.catchEntry]);
