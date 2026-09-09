@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './components/FishIllustration';
+import GameScene from './components/game/GameScene';
+import NpcDialogue from './components/game/NpcDialogue';
+import speciesIcon from './utils/speciesOptions';
+import { shopkeeperLine, captainLine } from './utils/gameDialogue';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
@@ -18,7 +22,8 @@ const JERK_TICK_MS = 50;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [] };
 
 export default function FishingGame() {
-  const { getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure } = useAuth();
+  const { profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure } = useAuth();
+  const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,8 +116,9 @@ export default function FishingGame() {
     setLureBusy(true); setLureError('');
     const response = await purchaseLure(lureKey);
     setLureBusy(false);
-    if (response?.error) { setLureError(response.error.message); return; }
+    if (response?.error) { setLureError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
     if (response.gameProfile) setGameProfile(response.gameProfile);
+    setShopEvent({ type: 'lure', label: LURES[lureKey].label });
     setLure(lureKey);
   }
 
@@ -291,9 +297,16 @@ export default function FishingGame() {
     setUpgradeBusy(true); setUpgradeError('');
     const response = await purchaseUpgrade(trackKey);
     setUpgradeBusy(false);
-    if (response?.error) { setUpgradeError(response.error.message); return; }
+    if (response?.error) { setUpgradeError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
     if (response.gameProfile) setGameProfile(response.gameProfile);
+    setShopEvent({ type: 'upgrade', label: UPGRADE_TRACKS.find((track) => track.key === trackKey)?.label || 'gear' });
   }
+
+  // Real-life personal bests sit in the trophy case next to game catches, tagged so the two
+  // never get confused — the point is that the angler in the game is the actual person.
+  const realTrophies = personalBests.map((best) => ({
+    id: `pb-${best.id}`, species: best.species, icon: speciesIcon(best.species), sizeLabel: best.size_label, photoUrl: best.photo_url,
+  }));
 
   return <main className="content-shell game-page">
     <div className="page-intro">
@@ -311,6 +324,17 @@ export default function FishingGame() {
             <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
           </div>
         </div>
+
+        <GameScene
+          biome={biome}
+          phase={phase}
+          avatarUrl={profile?.avatar_url}
+          displayName={profile?.display_name}
+          species={pendingCatch?.species}
+          reel={reelDisplay}
+          zoneWidth={zoneWidthRef.current}
+          result={result}
+        />
 
         {phase === 'ready' && <div className="game-panel">
           <div className="biome-picker">
@@ -343,6 +367,7 @@ export default function FishingGame() {
           <p>{LURES[lure].blurb}</p>
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase })} />
           <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
@@ -402,11 +427,7 @@ export default function FishingGame() {
         </div>}
 
         {phase === 'reeling' && pendingCatch && <div className="game-panel">
-          <p>Hold to reel — keep the fish inside the zone.</p>
-          <div className="reel-bar">
-            <div className="reel-zone" style={{ left: `${reelDisplay.zonePos - zoneWidthRef.current / 2}%`, width: `${zoneWidthRef.current}%` }} />
-            <FishIllustration species={pendingCatch.species} className="reel-fish" style={{ left: `${reelDisplay.fishPos}%` }} />
-          </div>
+          <p>Hold to reel — keep the fish inside the glowing zone.</p>
           <div className="reel-meters">
             <div className="reel-meter"><span>Progress</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${reelDisplay.progress}%` }} /></div></div>
             <div className="reel-meter"><span>Line tension</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${Math.min(100, (reelDisplay.tension / tensionMaxRef.current) * 100)}%` }} /></div></div>
@@ -424,17 +445,18 @@ export default function FishingGame() {
 
         {phase === 'result' && result && <div className="game-panel game-result">
           {result.success ? <>
-            <FishIllustration species={result.species} className="game-result-fish" />
             <span className="status-badge rarity-tag" style={{ background: RARITY_INFO[result.rarity].color, color: RARITY_INFO[result.rarity].text }}>{RARITY_INFO[result.rarity].label.toUpperCase()}</span>
             <h3>{speciesLabel(result.species)} landed!</h3>
             <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
           </> : <h3>{result.message}</h3>}
+          {biome === 'offshore' && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result })} />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </section>
 
       <section className="table-card game-shop">
         <div className="section-heading"><div><span className="eyebrow">TACKLE SHOP</span><h2>Smooth out the fight</h2></div></div>
+        <NpcDialogue npc="shopkeeper" line={shopkeeperLine({ gameProfile, event: shopEvent })} />
         {upgradeError && <p className="form-error">{upgradeError}</p>}
         <div className="upgrade-grid">
           {UPGRADE_TRACKS.map((track) => {
@@ -452,8 +474,14 @@ export default function FishingGame() {
       </section>
 
       <section className="table-card game-trophy-case">
-        <div className="section-heading"><div><span className="eyebrow">TROPHY CASE</span><h2>Your Cast &amp; Catch log</h2></div></div>
-        {catches.length === 0 ? <p className="month-empty">No catches yet — cast a line above.</p> : <div className="trophy-grid">
+        <div className="section-heading"><div><span className="eyebrow">TROPHY CASE</span><h2>Real bests and game catches</h2></div></div>
+        {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line above, or log a real personal best on your profile.</p> : <div className="trophy-grid">
+          {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
+            {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}
+            <span className="rarity-tag is-real">Real PB</span>
+            <strong>{entry.species}</strong>
+            <span>{entry.sizeLabel || 'Logged for real'}</span>
+          </div>)}
           {catches.map((entry) => <div className="trophy-card" key={entry.id}>
             <FishIllustration species={entry.species} />
             <span className="rarity-tag" style={{ background: RARITY_INFO[entry.rarity]?.color, color: RARITY_INFO[entry.rarity]?.text }}>{RARITY_INFO[entry.rarity]?.label || entry.rarity}</span>

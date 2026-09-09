@@ -22,6 +22,8 @@ function makeGameProfile(overrides = {}) {
 
 function makeBaseAuth(overrides = {}) {
   return {
+    profile: { display_name: 'Andre', avatar_url: '' },
+    personalBests: [],
     getGameProfile: jest.fn().mockResolvedValue(makeGameProfile()),
     listMyGameCatches: jest.fn().mockResolvedValue([]),
     logGameCatch: jest.fn().mockResolvedValue({
@@ -69,7 +71,7 @@ test('shows a loading state, then the stage, shop and empty trophy case once dat
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
   expect(screen.getByText('100')).toBeInTheDocument();
-  expect(screen.getByText(/no catches yet/i)).toBeInTheDocument();
+  expect(screen.getByText(/nothing on the wall yet/i)).toBeInTheDocument();
   ['Rod', 'Line', 'Reel', 'Bait'].forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
 });
 
@@ -147,7 +149,7 @@ test('shows the server error when an upgrade purchase fails', async () => {
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
-  expect(await screen.findByText(/not enough tackle points yet/i)).toBeInTheDocument();
+  expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
 });
 
 test('chartering an offshore trip deducts tackle points before casting', async () => {
@@ -233,7 +235,7 @@ test('a failed lure purchase shows the error and keeps live bait tied on', async
   render(<FishingGame />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
-  expect(await screen.findByText(/not enough tackle points yet/i)).toBeInTheDocument();
+  expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
   expect(screen.getByText('LIVE BAIT')).toBeInTheDocument();
 });
 
@@ -289,6 +291,42 @@ test('crank bait: reaching the boat with no strike wastes the cast', async () =>
   await advance(80);
 
   expect(screen.getByText(/nothing followed/i)).toBeInTheDocument();
+});
+
+test('the angler on the stage is the signed-in person', async () => {
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  expect(document.querySelector('.game-scene[data-phase="ready"]')).toBeInTheDocument();
+  expect(screen.getByText('ANDRE')).toBeInTheDocument();
+});
+
+test('real personal bests hang in the trophy case, tagged apart from game catches', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    personalBests: [{ id: 'pb-1', species: 'Striped Bass', size_label: '34 in', photo_url: '' }],
+    listMyGameCatches: jest.fn().mockResolvedValue([{ id: 'gc-1', species: 'walleye', rarity: 'uncommon', size_label: '18.0 in', points_earned: 12 }]),
+  }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText('Striped Bass')).toBeInTheDocument();
+  expect(screen.getByText('Real PB')).toBeInTheDocument();
+  expect(screen.getByText('34 in')).toBeInTheDocument();
+  expect(document.querySelector('.trophy-card.is-real img')).toHaveAttribute('data-species', 'stripedbass');
+  expect(screen.getByText('Walleye')).toBeInTheDocument();
+  expect(screen.getByText('Uncommon')).toBeInTheDocument();
+});
+
+test('the shop owner reacts to a purchase and the captain pitches the charter', async () => {
+  const purchaseUpgrade = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 60, rod_level: 2 }) });
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseUpgrade }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText(/100 tackle points, huh/i)).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
+  expect(await screen.findByText(/rod will treat you right/i)).toBeInTheDocument();
+
+  expect(screen.getByText(/lake's stacked with bass/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  expect(screen.getByText(/50 points gets you past the reef/i)).toBeInTheDocument();
 });
 
 test('renders past catches in the trophy case', async () => {

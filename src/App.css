@@ -637,6 +637,27 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .trophy-card .fish-illustration { height: auto; width: 70px; }
 .trophy-card strong { font-size: 12px; }
 .trophy-card span:last-child { color: var(--muted); font-size: 10px; }
+.trophy-card.is-real { border-color: var(--coral); }
+.trophy-photo { border: 1px solid var(--line); height: 52px; object-fit: cover; width: 70px; }
+.rarity-tag.is-real { background: var(--coral); color: var(--deep); }
+
+/* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
+.game-scene { aspect-ratio: 480 / 220; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
+.game-scene-svg { display: block; height: 100%; width: 100%; }
+.game-scene .scene-zone { bottom: 0; top: 64%; }
+.game-scene .scene-fish { height: auto; left: 50%; margin-left: -7%; position: absolute; top: 66%; transition: left .08s linear; width: 14%; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
+.game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 14px rgba(227,251,20,.35)) drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; left: 16%; position: absolute; top: 2%; transform: rotate(-8deg); width: 24%; }
+.scene-splash { animation: scene-splash .6s ease-out both; transform-box: fill-box; transform-origin: center; }
+@keyframes scene-splash { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.6); } }
+
+.npc-dialogue { align-items: start; display: grid; gap: 12px; grid-template-columns: 64px 1fr; margin: 16px 0 0; text-align: left; width: min(420px, 100%); }
+.npc-portrait { box-shadow: 3px 4px 0 var(--deep); display: block; height: 64px; width: 64px; }
+.npc-bubble { background: rgba(3,8,11,.35); border: 1px solid var(--line); padding: 10px 12px; position: relative; }
+.npc-bubble:before { border: 7px solid transparent; border-right-color: var(--line); content: ''; left: -14px; position: absolute; top: 16px; }
+.npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-head); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.npc-bubble small { color: var(--muted); font-size: 10px; margin-left: 8px; }
+.npc-bubble p { color: var(--ink); font-size: 13px; line-height: 1.45; margin: 6px 0 0; }
+.game-shop .npc-dialogue { width: 100%; }
 
 @media (max-width: 500px) {
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
