@@ -522,15 +522,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .modal-close { color: var(--muted); }
 .navbar .profile-pill { color: var(--ink); }
 
-/* Personal bests, angler lookup, and comment threads */
-.personal-bests-panel { margin-top: 22px; }
-.best-form { border-top: 1px solid var(--line); display: grid; gap: 0 20px; grid-template-columns: repeat(4, 1fr); margin-top: 28px; padding-top: 22px; }
-.best-form label { color: var(--muted); display: block; font-size: 11px; font-weight: 800; margin-top: 0; }
-.best-form input, .best-form select { background: rgba(3,8,11,.35); border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; margin-top: 8px; outline: none; padding: 10px 8px; width: 100%; }
-.best-form input:focus, .best-form select:focus { border-color: var(--coral); }
-.best-form .form-error { grid-column: 1 / -1; }
-.best-form .button { grid-column: 1 / -1; justify-content: center; margin-top: 20px; width: 220px; }
-
+/* Angler lookup and comment threads */
 .angler-search { margin: 28px 0; }
 .angler-search input { background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); font-size: 14px; outline: none; padding: 14px 16px; width: 100%; }
 .angler-search input:focus { border-color: var(--coral); }
@@ -580,6 +572,5 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 @media (max-width: 800px) {
   .navbar { background: rgba(6,14,18,.98); box-shadow: 0 -12px 30px rgba(0,0,0,.25); }
-  .best-form { grid-template-columns: 1fr 1fr; }
   .anglers-grid { grid-template-columns: 1fr; }
 }

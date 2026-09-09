@@ -112,6 +112,7 @@ export default function Anglers() {
           : entry.personalBests.map((best) => (best.id === result.bestEntry.id ? result.bestEntry : best));
         return { ...entry, personalBests };
       }));
+      setShowForm(false);
     }
     return result;
   }
@@ -140,19 +141,12 @@ export default function Anglers() {
 
   return <main className="content-shell anglers-page">
     <div className="page-intro" data-tour="anglers-intro">
-      <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species — log yours below, then go pick a fight.</p></div>
+      <div>
+        <span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species — log yours, then go pick a fight.</p>
+        <button className="button button-primary" type="button" onClick={() => setShowForm(true)}>Log a personal best <span>＋</span></button>
+      </div>
       <FishIllustration species="bluegill" className="intro-sticker" />
     </div>
-    <section className={`table-card personal-bests-panel collapsible-section ${showForm ? 'is-open' : ''}`}>
-      <button type="button" className="section-heading collapsible-header" onClick={() => setShowForm((value) => !value)} aria-expanded={showForm}>
-        <div><span className="eyebrow">YOUR BESTS</span><span className="collapsible-header-title">Log a new personal best</span></div>
-        <div className="collapsible-header-right">
-          <span className="muted-label">{yourBests.length} logged</span>
-          <span className="expand-icon">{showForm ? '−' : '+'}</span>
-        </div>
-      </button>
-      {showForm && <PersonalBestForm onSave={handleSaveBest} />}
-    </section>
     <SpeciesChecklist personalBests={yourBests} fishYearCatches={yourFishYearCatches} />
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
     {!roster && <p className="month-empty">Rounding up the crew...</p>}
@@ -167,6 +161,15 @@ export default function Anglers() {
         highlightCommentId={highlightCommentId}
       />)}
       {filtered.length === 0 && <p className="month-empty">Nobody matches that. Try a different name or water.</p>}
+    </div>}
+    {showForm && <div className="catch-modal-backdrop" role="presentation" onClick={() => setShowForm(false)}>
+      <div className="catch-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="section-heading">
+          <div><span className="eyebrow">YOUR BESTS</span><h2>Log a new personal best</h2></div>
+          <button className="modal-close" type="button" onClick={() => setShowForm(false)} aria-label="Close log personal best form">×</button>
+        </div>
+        <PersonalBestForm onSave={handleSaveBest} />
+      </div>
     </div>}
   </main>;
 }
