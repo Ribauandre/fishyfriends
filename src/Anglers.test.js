@@ -170,31 +170,35 @@ test('also passes a ?comment= query param through so the specific comment is hig
   expect(screen.getByText('Nice fish!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
 });
 
-test('the log-a-personal-best form is collapsed by default, to keep the page from opening cluttered', async () => {
+test('opens the log-a-personal-best modal with fields in Photo, Date, Species, Size order, same as Fish Year\'s log-a-catch modal', async () => {
   renderAnglers();
   await screen.findByText('Andre');
-  expect(screen.getByText('Log a new personal best')).toBeInTheDocument();
   expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-  expect(screen.getByRole('button', { name: /log a new personal best/i })).toHaveAttribute('aria-expanded', 'false');
+  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
+  expect(screen.getByRole('heading', { name: /log a new personal best/i })).toBeInTheDocument();
+  const labels = screen.getAllByText(/^(Photo|Date|Species|Size)$/).map((el) => el.textContent);
+  expect(labels).toEqual(['Photo', 'Date', 'Species', 'Size']);
 });
 
-test('tapping the log-a-personal-best header expands it to show the form', async () => {
+test('closing the log-a-personal-best modal hides the form again', async () => {
   renderAnglers();
   await screen.findByText('Andre');
-  await userEvent.click(screen.getByRole('button', { name: /log a new personal best/i }));
-  expect(screen.getByRole('combobox')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
+  await userEvent.click(screen.getByRole('button', { name: /close log personal best form/i }));
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
 });
 
-test('logging a new personal best adds it to the current user\'s own card', async () => {
+test('logging a new personal best adds it to the current user\'s own card and closes the modal', async () => {
   const uploadPersonalBest = jest.fn().mockResolvedValue({ error: null, bestEntry: { id: 'pb-new', species: 'Carp', size_label: '', caught_at: '', photo_url: '' } });
   useAuth.mockReturnValue(makeBaseAuth({ uploadPersonalBest }));
   renderAnglers();
   await screen.findByText('Andre');
-  await userEvent.click(screen.getByRole('button', { name: /log a new personal best/i }));
+  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
   await userEvent.type(screen.getByRole('combobox'), 'Carp');
   await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
-  await userEvent.click(screen.getByRole('button', { name: /log personal best/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^log personal best/i }));
   await waitFor(() => expect(uploadPersonalBest).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument());
   await expandCard('Andre');
   const andreCard = screen.getByText('Andre').closest('.angler-card');
   expect(within(andreCard).getByText('Carp')).toBeInTheDocument();
