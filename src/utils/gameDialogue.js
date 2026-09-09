@@ -48,8 +48,9 @@ const NIGHT_TIPS = {
   canyon: 'Swordfish come up from the deep at night. This is the hour.',
 };
 
-export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', quests = {}, isRecord = false }) {
+export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', quests = {}, isRecord = false, champion = false, justWon = null }) {
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
+  if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
   if (phase === 'result' && result?.success && (biome === 'offshore' || biome === 'canyon')) return `A ${speciesLabel(result.species).toLowerCase()}. That's why you charter.`;
   if (phase === 'result' && result && !result.success && (biome === 'offshore' || biome === 'canyon')) return "Big water doesn't hand them over. We can go back out.";
@@ -69,5 +70,6 @@ export function captainLine({ biome, chartered, charterError, phase, result, per
   }
   if (proving.done && !questState(quests, 'canyon_sword').done && biome === 'bay') return "You've earned the trip. The Canyon's on the map when you're ready.";
   if (period === 'night' && NIGHT_TIPS[biome]) return NIGHT_TIPS[biome];
+  if (champion && phase === 'ready' && biome === 'river') return "Everybody on the dock can see that pennant. Defend it.";
   return BIOME_TIPS[biome] || 'Pick your water and I’ll tell you what’s biting.';
 }

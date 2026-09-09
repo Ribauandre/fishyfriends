@@ -17,6 +17,7 @@ import trophyicon from '../assets/props/trophyicon.png';
 import bell from '../assets/props/bell.png';
 import book from '../assets/props/book.png';
 import flag from '../assets/props/flag.png';
+import pennant from '../assets/props/pennant.png';
 
 export const GEAR_ICONS = { rod, line, reel, bait };
 export const LURE_ICONS = { livebait, jerkbait, crankbait };
@@ -27,6 +28,8 @@ export const COIN = coin;
 // The HUD's signpost buttons: the map for Travel, the tackle box for Sal's, a plaque for the case.
 export const HUD_ICONS = { map: mapicon, shop: tacklebox, almanac: book, trophies: trophyicon, sound: bell };
 export const DERBY_FLAG = flag;
+// The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
+export const GOLDEN_PENNANT = { src: pennant, frames: 3 };
 
 // Getting offshore (or back from it) means the charter boat; every other trip is the pickup.
 export function vehicleFor(fromBiome, toBiome) {

@@ -612,3 +612,29 @@ test('the dock shows who else is on the water, puts same-ground anglers on the s
   unmount();
   expect(leave).toHaveBeenCalledTimes(1);
 });
+
+test('topping last week\'s derby pays the Golden Pennant: a banner, a HUD chip, the pennant on the rod, and a ribbon in the case', async () => {
+  const claimDerbyWin = jest.fn().mockResolvedValue({ won: true, derby: { key: '2026-W24', species: 'walleye' }, sizeIn: 24.5, gameProfile: makeGameProfile({ derby_wins: ['2026-W24'] }) });
+  useAuth.mockReturnValue(makeBaseAuth({ claimDerbyWin }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(claimDerbyWin).toHaveBeenCalledWith(NOON());
+  expect(await screen.findByText(/you won last week's derby/i)).toBeInTheDocument();
+  expect(screen.getByText(/biggest walleye in the club at 24\.5 in/i)).toBeInTheDocument();
+  expect(screen.getByText(/pennant's yours till monday/i)).toBeInTheDocument();
+  expect(screen.getByText('Champion', { selector: '.hud-chip' })).toBeInTheDocument();
+  expect(document.querySelector('.scene-pennant')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(screen.getByRole('region', { name: /derby wins/i })).toHaveTextContent('2026-W24');
+  expect(screen.getByText(/you are the defending champion/i)).toBeInTheDocument();
+});
+
+test('no pennant for a week you did not win', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ claimDerbyWin: jest.fn().mockResolvedValue({ won: false }) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(screen.queryByText(/you won last week's derby/i)).toBeNull();
+  expect(screen.queryByText('Champion', { selector: '.hud-chip' })).toBeNull();
+  expect(document.querySelector('.scene-pennant')).toBeNull();
+});

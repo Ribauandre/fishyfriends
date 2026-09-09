@@ -924,6 +924,27 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .dock-crew-text strong { font-size: 11px; }
 .dock-crew-text small { color: var(--muted); font-size: 9px; }
 
+
+/* The derby prize: the Golden Pennant flies from the champion's rod tip for a week. */
+.scene-pennant { animation: pennant-flutter .6s steps(3, jump-none) infinite alternate; aspect-ratio: 1.55; background-repeat: no-repeat; filter: drop-shadow(1px 1px 0 rgba(3,8,11,.7)); pointer-events: none; position: absolute; transform: translate(0, -85%); width: 5%; z-index: 1; }
+@keyframes pennant-flutter { from { background-position-x: 0; } to { background-position-x: 100%; } }
+.scene-crew-tag.is-champion { color: #ffc93c; }
+.hud-chip.is-champion { color: #ffc93c; }
+.hud-chip.is-champion .hud-pennant { animation: pennant-flutter .6s steps(3, jump-none) infinite alternate; aspect-ratio: 1.55; background-repeat: no-repeat; display: inline-block; height: 13px; }
+.derby-win { align-items: center; background: linear-gradient(90deg, rgba(255,201,60,.18), rgba(3,8,11,.4)); border: 1px solid #ffc93c; display: flex; gap: 12px; padding: 10px 14px; text-align: left; width: min(460px, 100%); animation: overlay-rise .4s ease-out both; }
+.derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: pennant-flutter .6s steps(3, jump-none) infinite alternate; aspect-ratio: 1.55; background-repeat: no-repeat; display: inline-block; flex: none; height: 28px; }
+.derby-win strong { color: #ffc93c; display: block; font-family: var(--font-head); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+.derby-win span { color: var(--ink); font-size: 12px; }
+.derby-prize { align-items: center; color: var(--muted); display: flex; font-size: 11px; gap: 8px; margin: 6px 0 0; }
+.derby-prize strong { color: #ffc93c; }
+.derby-prize-flag { height: 20px; }
+.derby-ribbons ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 6px 0 0; padding: 0; }
+.derby-ribbon { align-items: center; background: linear-gradient(#6b4423, #4a2d14); border: 2px solid #ffc93c; display: inline-flex; gap: 8px; padding: 6px 10px; }
+.derby-ribbon-flag { height: 22px; }
+.derby-ribbon strong { color: #ffc93c; font-family: var(--font-head); font-size: 11px; }
+.derby-ribbon span { color: #e8d3a8; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .scene-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; } }
+
 @media (max-width: 800px) {
   .game-scene { aspect-ratio: 3 / 2; max-height: none; min-height: 0; }
 }

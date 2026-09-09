@@ -621,3 +621,47 @@ describe('the dock (presence)', () => {
     expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
   });
 });
+
+describe('the derby prize', () => {
+  const builderFor = (table) => {
+    const index = __mock.current.from.mock.calls.map(([name]) => name).lastIndexOf(table);
+    return __mock.current.from.mock.results[index].value;
+  };
+  const wednesday = new Date('2026-09-09T12:00:00Z');
+
+  test('claimDerbyWin pays the pennant to whoever topped last week\'s final board, once', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', derby_wins: [] }, error: null });
+    __mock.setResponse('profiles', { data: [], error: null });
+    __mock.setResponse('game_catches', { data: [
+      { id: 'a', user_id: 'user-2', angler_name: 'Kevin', size_in: '20.0', created_at: '2026-09-02T10:00:00Z' },
+      { id: 'b', user_id: 'user-1', angler_name: 'Andre', size_in: '26.5', created_at: '2026-09-03T10:00:00Z' },
+    ], error: null });
+    const outcome = await result.current.claimDerbyWin(wednesday);
+    expect(outcome.won).toBe(true);
+    expect(outcome.derby.key).toBe('2026-W36');
+    expect(outcome.sizeIn).toBe(26.5);
+    expect(builderFor('game_catches').gte).toHaveBeenCalledWith('created_at', '2026-08-31T00:00:00.000Z');
+    expect(builderFor('game_catches').lt).toHaveBeenCalledWith('created_at', '2026-09-07T00:00:00.000Z');
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ derby_wins: ['2026-W36'] }));
+
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', derby_wins: ['2026-W36'] }, error: null });
+    await expect(result.current.claimDerbyWin(wednesday)).resolves.toEqual(expect.objectContaining({ won: false, alreadyClaimed: true }));
+  });
+
+  test('claimDerbyWin gives nothing to the runner-up or on an empty week', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', derby_wins: [] }, error: null });
+    __mock.setResponse('profiles', { data: [], error: null });
+    __mock.setResponse('game_catches', { data: [
+      { id: 'a', user_id: 'user-2', angler_name: 'Kevin', size_in: '30.0', created_at: '2026-09-02T10:00:00Z' },
+      { id: 'b', user_id: 'user-1', angler_name: 'Andre', size_in: '26.5', created_at: '2026-09-03T10:00:00Z' },
+    ], error: null });
+    const lost = await result.current.claimDerbyWin(wednesday);
+    expect(lost.won).toBe(false);
+    expect(lost.winner.anglerName).toBe('Kevin');
+    expect(builderFor('game_profiles').update).not.toHaveBeenCalled();
+    __mock.setResponse('game_catches', { data: [], error: null });
+    await expect(result.current.claimDerbyWin(wednesday)).resolves.toEqual(expect.objectContaining({ won: false, winner: null }));
+  });
+});
