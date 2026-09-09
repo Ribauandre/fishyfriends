@@ -184,6 +184,9 @@ button { cursor: pointer; }
 .dock-notes { margin-top: 62px; }
 .section-heading { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 .section-heading h2 { font-size: 23px; letter-spacing: 0; margin: 8px 0 0; }
+.collapsible-header { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: inherit; cursor: pointer; font: inherit; padding: 0 0 18px; text-align: left; width: 100%; }
+.collapsible-header-right { align-items: center; display: flex; flex-shrink: 0; gap: 12px; }
+.collapsible-header-title { display: block; font-family: var(--font-display); font-size: 23px; letter-spacing: 0; margin: 8px 0 0; text-transform: uppercase; }
 .rule-index { color: var(--coral); font-size: 11px; font-weight: 900; letter-spacing: .12em; }
 .notes-board { display: grid; gap: 26px; grid-template-columns: 1fr 1fr; margin-top: 30px; }
 .note-card { background: var(--cream); border: 1px solid var(--line); box-shadow: 5px 6px 0 rgba(3,8,11,.85); color: var(--ink); display: block; padding: 22px 22px 20px; position: relative; }
@@ -224,6 +227,7 @@ button { cursor: pointer; }
 .year-board-footer strong { color: var(--mint); font-size: 12px; }
 .year-board-footer span { color: #9bb6b1; font-size: 11px; }
 .species-board .section-heading { margin-bottom: 8px; }
+.species-legend { margin-top: 16px; }
 .species-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); margin-top: 16px; }
 .species-cell { align-items: center; background: rgba(3,8,11,.28); border: 1px solid #386167; display: flex; flex-direction: column; gap: 6px; padding: 12px 6px; text-align: center; }
 .species-cell .fish-illustration { filter: grayscale(1); height: auto; opacity: .38; width: 60px; }
