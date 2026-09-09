@@ -361,3 +361,35 @@ test('renders past catches in the trophy case', async () => {
   expect(screen.getByText(/50\.0 in · \+150 pts/i)).toBeInTheDocument();
   expect(screen.getByText('Legendary')).toBeInTheDocument();
 });
+
+test('picking a new ground plays the trip on the stage, and casting cuts it short', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ charterBoat: jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) }) }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  expect(document.querySelector('.scene-travel')).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
+  await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
+  expect(document.querySelector('.scene-travel')).toHaveAttribute('data-vehicle', 'truck');
+  expect(screen.getByText('Bay', { selector: '.hud-chip' })).toBeInTheDocument();
+  await advance(2000);
+  expect(document.querySelector('.scene-travel')).toBeNull();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  expect(document.querySelector('.scene-travel')).toHaveAttribute('data-vehicle', 'boat');
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(document.querySelector('.scene-travel')).toBeNull();
+});
+
+test('the shop is a place: Sal, the shop interior, and gear icons on every upgrade', async () => {
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
+  const panel = document.querySelector('.game-overlay-panel');
+  expect(panel).toHaveClass('has-backdrop');
+  expect(panel.getAttribute('data-backdrop')).toContain('shop');
+  expect(document.querySelectorAll('.upgrade-icon').length).toBe(4);
+  expect(document.querySelectorAll('.lure-icon').length).toBe(3);
+});
