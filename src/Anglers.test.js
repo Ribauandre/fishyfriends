@@ -170,10 +170,18 @@ test('also passes a ?comment= query param through so the specific comment is hig
   expect(screen.getByText('Nice fish!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
 });
 
-test('shows a form for logging a new personal best, now that it lives here instead of on Profile', async () => {
+test('the log-a-personal-best form is collapsed by default, to keep the page from opening cluttered', async () => {
   renderAnglers();
   await screen.findByText('Andre');
-  expect(screen.getByRole('heading', { name: /log a new personal best/i })).toBeInTheDocument();
+  expect(screen.getByText('Log a new personal best')).toBeInTheDocument();
+  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /log a new personal best/i })).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('tapping the log-a-personal-best header expands it to show the form', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  await userEvent.click(screen.getByRole('button', { name: /log a new personal best/i }));
   expect(screen.getByRole('combobox')).toBeInTheDocument();
 });
 
@@ -182,6 +190,7 @@ test('logging a new personal best adds it to the current user\'s own card', asyn
   useAuth.mockReturnValue(makeBaseAuth({ uploadPersonalBest }));
   renderAnglers();
   await screen.findByText('Andre');
+  await userEvent.click(screen.getByRole('button', { name: /log a new personal best/i }));
   await userEvent.type(screen.getByRole('combobox'), 'Carp');
   await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
   await userEvent.click(screen.getByRole('button', { name: /log personal best/i }));
@@ -191,10 +200,17 @@ test('logging a new personal best adds it to the current user\'s own card', asyn
   expect(within(andreCard).getByText('Carp')).toBeInTheDocument();
 });
 
-test('shows a species checklist reflecting the current user\'s own personal bests', async () => {
+test('the species checklist is collapsed by default, showing only a caught-count summary', async () => {
   renderAnglers();
   await screen.findByText('Andre');
   expect(await screen.findByText(/species caught/i)).toBeInTheDocument();
+  expect(screen.queryByText('Striped Bass')).not.toBeInTheDocument();
+});
+
+test('expanding the species checklist reflects the current user\'s own personal bests', async () => {
+  renderAnglers();
+  await screen.findByText('Andre');
+  await userEvent.click(await screen.findByRole('button', { name: /species checklist/i }));
   expect(screen.getByText('Striped Bass').closest('.species-cell')).toHaveClass('is-caught');
 });
 
@@ -207,7 +223,7 @@ test('also credits the checklist for species logged as Fish Year catches, not ju
   }));
   renderAnglers();
   await screen.findByText('Andre');
-  await screen.findByText(/species caught/i);
+  await userEvent.click(await screen.findByRole('button', { name: /species checklist/i }));
   expect(screen.getByText('Carp').closest('.species-cell')).toHaveClass('is-caught');
   // Kevin's (user-2) Fish Year catch shouldn't count toward the current user's checklist.
   expect(screen.getByText('Bluegill').closest('.species-cell')).toHaveClass('is-missing');

@@ -89,6 +89,7 @@ export default function Anglers() {
   const [roster, setRoster] = useState(null);
   const [fishYearCatches, setFishYearCatches] = useState([]);
   const [query, setQuery] = useState('');
+  const [showForm, setShowForm] = useState(false);
   const [searchParams] = useSearchParams();
   const highlightBestId = searchParams.get('best');
   const highlightCommentId = searchParams.get('comment');
@@ -142,9 +143,15 @@ export default function Anglers() {
       <div><span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species — log yours below, then go pick a fight.</p></div>
       <FishIllustration species="bluegill" className="intro-sticker" />
     </div>
-    <section className="table-card personal-bests-panel">
-      <div className="section-heading"><div><span className="eyebrow">YOUR BESTS</span><h2>Log a new personal best</h2></div></div>
-      <PersonalBestForm onSave={handleSaveBest} />
+    <section className={`table-card personal-bests-panel collapsible-section ${showForm ? 'is-open' : ''}`}>
+      <button type="button" className="section-heading collapsible-header" onClick={() => setShowForm((value) => !value)} aria-expanded={showForm}>
+        <div><span className="eyebrow">YOUR BESTS</span><span className="collapsible-header-title">Log a new personal best</span></div>
+        <div className="collapsible-header-right">
+          <span className="muted-label">{yourBests.length} logged</span>
+          <span className="expand-icon">{showForm ? '−' : '+'}</span>
+        </div>
+      </button>
+      {showForm && <PersonalBestForm onSave={handleSaveBest} />}
     </section>
     <SpeciesChecklist personalBests={yourBests} fishYearCatches={yourFishYearCatches} />
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
