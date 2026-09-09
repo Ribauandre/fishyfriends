@@ -1,11 +1,12 @@
 {
   "files": {
-    "main.css": "/static/css/main.329b53f2.css",
-    "main.js": "/static/js/main.97efc77a.js",
+    "main.css": "/static/css/main.acf0eb4a.css",
+    "main.js": "/static/js/main.72da275f.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
     "static/media/flounder.png": "/static/media/flounder.f195b192379d6230aa1c.png",
+    "static/media/swordfish.png": "/static/media/swordfish.fa80cc8dd275b4f81b59.png",
     "static/media/weakfish.png": "/static/media/weakfish.4dec75037990fc6f93bc.png",
     "static/media/walleye.png": "/static/media/walleye.c8088c7a552f73bac8e1.png",
     "static/media/tautog.png": "/static/media/tautog.222baa8ee0e0f8a16ba9.png",
@@ -44,6 +45,7 @@
     "static/media/plank.png": "/static/media/plank.cd6b6c9747fd649cf48e.png",
     "static/media/shoreline.webp": "/static/media/shoreline.5e996d2d36acea569749.webp",
     "static/media/shop.webp": "/static/media/shop.1e26251ff5acb847ad54.webp",
+    "static/media/canyon.webp": "/static/media/canyon.aae390f6c234088215b5.webp",
     "static/media/boat.png": "/static/media/boat.c6bdd4cb66b6d81fbf9f.png",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "static/media/truck.png": "/static/media/truck.292f2893f3a8e39b2444.png",
@@ -58,16 +60,18 @@
     "static/media/livebait.png": "/static/media/livebait.11f2412961dddca06acf.png",
     "static/media/line.png": "/static/media/line.41daa5107d0716b3101a.png",
     "static/media/bait.png": "/static/media/bait.7476c4f2330f75a5fc24.png",
+    "static/media/book.png": "/static/media/book.b6c84298ae429071e939.png",
     "static/media/trophyicon.png": "/static/media/trophyicon.e563932d87caceeeb759.png",
     "static/media/seagull.png": "/static/media/seagull.97890dbe79338d5fa3a9.png",
+    "static/media/bell.png": "/static/media/bell.36de441bf44d1910ea77.png",
     "static/media/rod.png": "/static/media/rod.358dfd19441f04e51ae9.png",
     "index.html": "/index.html",
-    "main.329b53f2.css.map": "/static/css/main.329b53f2.css.map",
-    "main.97efc77a.js.map": "/static/js/main.97efc77a.js.map",
+    "main.acf0eb4a.css.map": "/static/css/main.acf0eb4a.css.map",
+    "main.72da275f.js.map": "/static/js/main.72da275f.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.329b53f2.css",
-    "static/js/main.97efc77a.js"
+    "static/css/main.acf0eb4a.css",
+    "static/js/main.72da275f.js"
   ]
 }
