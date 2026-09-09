@@ -82,6 +82,31 @@ const WATER_START = 172.8;
 const WATER_END_INSET = 9.6;
 const waterSpan = (viewW) => [WATER_START, viewW - WATER_END_INSET];
 
+// The camera. At rest the stage shows the whole painting; once the line is in the water it
+// pushes in toward the fight and pans right — the angler stays just inside the left edge, so
+// the bobber, the strike and the fish take up the screen instead of the dock. It's one CSS
+// transform on the world layer (backdrop, ambience, sprites, line, fish); the meters, callout
+// and tap surface stay in screen space on top. Everything is in scene units: x/y is the
+// top-left of the visible window, scale how much closer it is.
+const FIGHT_PHASES = new Set(['waiting', 'hookset', 'reeling']);
+const CAMERA_ZOOM = [1.15, 1.25];
+// Room kept on the angler's left for the tension meter (46 units out) plus a little air.
+const CAMERA_ANGLER_MARGIN = 58;
+const REST_CAMERA = { x: 0, y: 0, scale: 1 };
+function cameraFor(phase, layout, viewW) {
+  if (!FIGHT_PHASES.has(phase)) return REST_CAMERA;
+  const scale = round2(Math.max(CAMERA_ZOOM[0], Math.min(CAMERA_ZOOM[1], viewW / (viewW - layout.anglerX + CAMERA_ANGLER_MARGIN))));
+  const w = viewW / scale;
+  const h = VIEW_H / scale;
+  const x = round2(Math.max(0, Math.min(viewW - w, layout.anglerX - CAMERA_ANGLER_MARGIN)));
+  // Vertically the angler's hat stays where it was at rest (just under the HUD signage), so the
+  // push-in grows the water downward rather than lifting the angler into the signs.
+  const headY = layout.anglerY - (layout.spriteBoxH / 100) * VIEW_H - 6;
+  const y = round2(Math.max(0, Math.min(VIEW_H - h, headY * (1 - 1 / scale))));
+  return { x, y, scale };
+}
+const cameraTransform = ({ x, y, scale }, viewW) => `scale(${scale}) translate(${round2(-(x / viewW) * 100)}%, ${round2(-(y / VIEW_H) * 100)}%)`;
+
 // The burst around a landed fish. Rarity decides how many of these light up (see CSS).
 const SPARKLES = [
   { x: 22, y: 8, delay: 0 }, { x: 44, y: 4, delay: 0.12 }, { x: 50, y: 30, delay: 0.24 }, { x: 18, y: 34, delay: 0.3 },
@@ -170,14 +195,20 @@ export default function GameScene({
     ? { band: [55, 80], marker: lureDisplay.marker || 0, fill: lureDisplay.attraction || 0 }
     : { band: [(lureDisplay.bandCenter || 50) - 11, (lureDisplay.bandCenter || 50) + 11], marker: lureDisplay.speed || 0, fill: lureDisplay.attraction || 0 }) : null;
   const hold = Boolean(interaction?.onHoldStart);
-  // Meters go on the angler's left, over the deck, so they never sit on the rod arm.
-  const meterLeft = pct(layout.anglerX - 46, viewW);
-  const meterBottom = pct(VIEW_H - layout.anglerY, VIEW_H);
+  const camera = cameraFor(phase, layout, viewW);
+  const focused = camera !== REST_CAMERA;
+  // Meters go on the angler's left, over the deck, so they never sit on the rod arm. They sit
+  // outside the camera, so their spot is worked out in screen units; when the camera has
+  // pushed in past the angler's side (the boat), the meter parks at the stage's left edge.
+  const meterX = Math.max(8, (layout.anglerX - 46 - camera.x) * camera.scale);
+  const meterLeft = pct(meterX, viewW);
+  const meterBottom = pct(VIEW_H - Math.min(VIEW_H - 8, (layout.anglerY - camera.y) * camera.scale), VIEW_H);
   const crewSlots = layout.crew || [];
   const crewShown = others.slice(0, crewSlots.length);
   const crewExtra = others.length - crewShown.length;
 
-  return <div ref={stageRef} className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
+  return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
+    <div className="scene-world" data-camera={focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
     <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
     {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
     <div className={`scene-tint is-${period}`} aria-hidden="true" />
@@ -212,11 +243,6 @@ export default function GameScene({
     <AnglerSprite x={layout.anglerX} y={layout.anglerY} boxH={layout.spriteBoxH} phase={phase} current={current} className="is-you" viewW={viewW} />
     {champion && <Pennant tip={{ x: rodTipX, y: rodTipY }} viewW={viewW} />}
     {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pct(lureX, viewW), top: pct(strikeY, VIEW_H) }} />}
-
-    {phase === 'casting' && <div className="stage-meter is-cast" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
-      <span className="stage-meter-fill" ref={castFillRef} />
-      <span className="stage-meter-band" style={{ bottom: '40%', height: '20%' }} />
-    </div>}
     {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pct(lureX, viewW), top: pct(layout.waterY - 30, VIEW_H) }} aria-hidden="true">
       <span className="stage-gauge-track">
         <span className="stage-gauge-band" style={{ left: `${round2(gauge.band[0])}%`, width: `${round2(gauge.band[1] - gauge.band[0])}%` }} />
@@ -229,13 +255,19 @@ export default function GameScene({
     {phase === 'reeling' && reel && <>
       <div className="reel-zone scene-zone" style={{ left: `${waterLeft(reel.zonePos - zoneWidth / 2)}%`, width: `${waterWidth(zoneWidth)}%`, top: `${((layout.waterY + 12) / VIEW_H) * 100}%` }} />
       <FishIllustration species={species} className="reel-fish scene-fish" style={{ left: `${waterLeft(reel.fishPos)}%`, top: `${((fishY - 22) / VIEW_H) * 100}%` }} />
-      <div className="stage-meter is-tension" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
-        <span className="stage-meter-fill" style={{ height: `${round2(Math.min(100, tension))}%` }} />
-      </div>
       <div className="stage-progress" style={{ left: `${waterLeft(0)}%`, width: `${waterWidth(100)}%`, top: pct(layout.waterY - 8, VIEW_H) }} aria-hidden="true">
         <span style={{ width: `${round2(reel.progress || 0)}%` }} />
       </div>
     </>}
+    </div>
+
+    {phase === 'casting' && <div className="stage-meter is-cast" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
+      <span className="stage-meter-fill" ref={castFillRef} />
+      <span className="stage-meter-band" style={{ bottom: '40%', height: '20%' }} />
+    </div>}
+    {phase === 'reeling' && reel && <div className="stage-meter is-tension" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
+      <span className="stage-meter-fill" style={{ height: `${round2(Math.min(100, tension))}%` }} />
+    </div>}
     {callout && <p className={`stage-callout ${phase === 'hookset' ? 'is-alert' : ''}`} data-phase={phase}>{callout}</p>}
 
     {phase === 'result' && result?.success && <>

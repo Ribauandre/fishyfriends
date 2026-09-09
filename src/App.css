@@ -788,6 +788,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
 .game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
+/* The camera: the world layer carries everything painted in scene units and is what the camera
+   moves — a push-in and pan toward the fight while the line is out (see cameraFor). */
+.scene-world { inset: 0; position: absolute; transform-origin: 0 0; transition: transform .9s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
 .scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; object-position: left center; position: absolute; width: 100%; }
 .game-scene-svg { display: block; height: 100%; inset: 0; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: 8%; top: 57%; }
@@ -878,6 +881,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) {
   .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water:before, .scene-water:after, .scene-lamp, .scene-shadow, .travel-road, .game-loading-box { animation: none; }
   .scene-jump { display: none; }
+  .scene-world { transition: none; }
 }
 
 
