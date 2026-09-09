@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
 import { useAuth } from './context/AuthContext';
@@ -541,4 +541,41 @@ test('the bell toggles sound and remembers it for this device', async () => {
   expect(window.localStorage.getItem('cast-and-catch-muted')).toBe('1');
   await userEvent.click(screen.getByRole('button', { name: 'Sound off' }));
   expect(window.localStorage.getItem('cast-and-catch-muted')).toBe('0');
+});
+
+test('the whole round can be played by tapping and holding the stage itself', async () => {
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Cast a line' }));
+  expect(screen.getByText(/tap to stop the cast/i)).toHaveClass('stage-callout');
+  await userEvent.click(screen.getByRole('button', { name: 'Stop the cast' }));
+  expect(screen.getByText(/waiting for a bite/i)).toBeInTheDocument();
+  await advance(4000);
+  expect(screen.getByText(/fish on/i)).toHaveClass('is-alert');
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook now' }));
+  const surface = screen.getByRole('button', { name: 'Hold to reel in' });
+  fireEvent.pointerDown(surface);
+  expect(document.querySelector('.scene-sprite')).toHaveClass('is-looping');
+  fireEvent.pointerUp(surface);
+  expect(document.querySelector('.scene-sprite')).not.toHaveClass('is-looping');
+  // Nothing to tap once the round is over, or while an overlay is up.
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 10, tension: 9999 });
+  await advance(80);
+  expect(screen.getByText(/line snapped/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-action')).toBeNull();
+});
+
+test('a worked lure shows on the stage with its gauge, and twitching from the stage counts', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await reachWaiting();
+  expect(document.querySelector('.scene-lure')).toHaveAttribute('data-lure', 'jerkbait');
+  expect(document.querySelector('.stage-gauge')).toHaveClass('is-jerkbait');
+  twitchJerk.mockReturnValueOnce({ attraction: 100, hits: 5, misses: 0, lastTwitchOnBeat: true });
+  await userEvent.click(screen.getByRole('button', { name: 'Twitch the lure' }));
+  await act(async () => { await Promise.resolve(); });
+  expect(screen.getByText(/fish on/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-hook-ring')).toBeInTheDocument();
 });

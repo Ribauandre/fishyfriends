@@ -18,7 +18,7 @@ import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
-  INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_ZONE, JERK_TIME_LIMIT_MS, CRANK_TICK_MS, CRANK_BAND_WIDTH,
+  INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_TIME_LIMIT_MS, CRANK_TICK_MS,
   jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
 } from './utils/lurePhysics';
 import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
@@ -119,8 +119,9 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   // ---- Casting: a power meter you have to time a stop on. Landing it in the sweet spot
   // earns a small points bonus on whatever gets landed this round. ----
-  const castIndicatorRef = useRef(null);
+  const castFillRef = useRef(null);
   const castValueRef = useRef(0);
+  const [castPower, setCastPower] = useState(60);
   const castRafRef = useRef(null);
   const castStartRef = useRef(0);
 
@@ -131,7 +132,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       const elapsed = now - castStartRef.current;
       const value = 50 + 50 * Math.sin(elapsed / 380);
       castValueRef.current = value;
-      if (castIndicatorRef.current) castIndicatorRef.current.style.left = `${value}%`;
+      if (castFillRef.current) castFillRef.current.style.height = `${value}%`;
       castRafRef.current = requestAnimationFrame(tick);
     }
     if (typeof requestAnimationFrame === 'function') castRafRef.current = requestAnimationFrame(tick);
@@ -199,6 +200,7 @@ export default function FishingGame({ clock = () => new Date() }) {
   function stopCast() {
     const power = castValueRef.current;
     setPerfectCast(power >= CAST_SWEET_SPOT[0] && power <= CAST_SWEET_SPOT[1]);
+    setCastPower(power);
     setPhase('waiting');
   }
 
@@ -437,6 +439,29 @@ export default function FishingGame({ clock = () => new Date() }) {
   const shopQuests = questsFor('shopkeeper', quests);
   const captainClaimable = claimableQuests(quests).filter((quest) => quest.giver === 'captain');
   const almanacTotal = new Set(BIOME_LIST.flatMap((entry) => entry.species)).size;
+
+  // What tapping (or holding) the stage does right now, and the one line that says so. The
+  // dock repeats the same action as a labelled button so it also works by keyboard.
+  const lureInteraction = LURES[lure].interaction;
+  const stageInteraction = (() => {
+    if (overlay || travel) return null;
+    if (phase === 'ready') return castBusy ? null : { label: 'Cast a line', onTap: startCast };
+    if (phase === 'casting') return { label: 'Stop the cast', onTap: stopCast };
+    if (phase === 'waiting' && lureInteraction === 'wait') return { label: 'Strike early', onTap: strikeEarly };
+    if (phase === 'waiting' && lureInteraction === 'twitch') return { label: 'Twitch the lure', onTap: twitch };
+    if (phase === 'waiting' && lureInteraction === 'crank') return { label: 'Hold to crank the lure', onHoldStart: startCrank, onHoldEnd: stopCrank };
+    if (phase === 'hookset') return { label: 'Set the hook now', onTap: setHook };
+    if (phase === 'reeling') return { label: 'Hold to reel in', onHoldStart: startReel, onHoldEnd: stopReel };
+    return null;
+  })();
+  const perfectNote = perfectCast ? 'Perfect cast! ' : '';
+  const stageCallout = {
+    casting: 'Tap to stop the cast in the sweet spot.',
+    waiting: lureInteraction === 'wait' ? `${perfectNote}Waiting for a bite... tap to set the hook.` : lureInteraction === 'twitch' ? `${perfectNote}Twitch on the beat — tap when the marker hits the zone.` : `${perfectNote}Hold to crank — keep the speed in the band.`,
+    hookset: 'FISH ON! Tap to set the hook!',
+    reeling: 'Hold to reel — keep the fish in the glowing zone.',
+  }[phase] || '';
+  const tensionPct = phase === 'reeling' ? (reelDisplay.tension / tensionMaxRef.current) * 100 : 0;
   const almanacCaught = Object.keys(records).length;
 
   if (loading) return <main className="content-shell game-page">
@@ -458,6 +483,15 @@ export default function FishingGame({ clock = () => new Date() }) {
         holding={reelHolding}
         travel={travel}
         period={period}
+        interaction={stageInteraction}
+        castFillRef={castFillRef}
+        castDistance={castPower}
+        lure={lure}
+        lureDisplay={lureDisplay}
+        lureFeedback={lureFeedback}
+        hooksetWindowMs={hooksetWindowMs}
+        tension={tensionPct}
+        callout={stageCallout}
       />
       {/* The HUD lives on the stage itself, as signage in the world: a plank plate for the
           balance, plank tags for the current setup, and signpost buttons for the map, the shop,
@@ -487,7 +521,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         {phase === 'ready' && <div className="game-panel">
           <div className="dock-row">
             <button type="button" className="dock-ground" onClick={() => toggleOverlay('map')} aria-label={`Change fishing ground · currently ${biomeConfig.label}`}>
-              <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost}</small>
+              <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost} · {PERIOD_LABELS[period].toLowerCase()}</small>
             </button>
             <div className="lure-chips" role="group" aria-label="Lure">
               {LURE_LIST.map((lureOption) => {
@@ -524,44 +558,23 @@ export default function FishingGame({ clock = () => new Date() }) {
           <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
-        {phase === 'casting' && <div className="game-panel">
-          <p>Tap to stop the cast in the sweet spot.</p>
-          <div className="cast-meter">
-            <div className="cast-sweet-spot" style={{ left: `${CAST_SWEET_SPOT[0]}%`, width: `${CAST_SWEET_SPOT[1] - CAST_SWEET_SPOT[0]}%` }} />
-            <div className="cast-indicator" ref={castIndicatorRef} />
-          </div>
+        {phase === 'casting' && <div className="game-panel is-play">
+          <p>Stop it in the sweet spot for a bonus.</p>
           <button className="button button-primary" type="button" onClick={stopCast}>Cast! <span>⚓</span></button>
         </div>}
 
-        {phase === 'waiting' && LURES[lure].interaction === 'wait' && <div className="game-panel">
-          <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Waiting for a bite...</p>
+        {phase === 'waiting' && lureInteraction === 'wait' && <div className="game-panel is-play">
+          <p>Give it a minute. Striking before the bite loses the cast.</p>
           <button className="button button-quiet" type="button" onClick={strikeEarly}>Set the hook</button>
         </div>}
 
-        {phase === 'waiting' && LURES[lure].interaction === 'twitch' && lureDisplay && <div className="game-panel">
-          <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Twitch when the marker hits the zone.</p>
-          <div className="cast-meter">
-            <div className="cast-sweet-spot" style={{ left: `${JERK_ZONE[0]}%`, width: `${JERK_ZONE[1] - JERK_ZONE[0]}%` }} />
-            <div className="cast-indicator" style={{ left: `${lureDisplay.marker}%` }} />
-          </div>
-          <div className="reel-meters">
-            <div className="reel-meter"><span>Attraction</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${lureDisplay.attraction}%` }} /></div></div>
-            <div className="reel-meter"><span>Line out</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${lureDisplay.lineOut ?? 100}%` }} /></div></div>
-          </div>
-          <p className="lure-feedback">{lureFeedback || ' '}</p>
+        {phase === 'waiting' && lureInteraction === 'twitch' && lureDisplay && <div className="game-panel is-play">
+          <p>Attraction {Math.round(lureDisplay.attraction)}% · line out {Math.round(lureDisplay.lineOut ?? 100)}%</p>
           <button className="button button-primary game-hookset-button" type="button" onClick={twitch}>Twitch</button>
         </div>}
 
-        {phase === 'waiting' && LURES[lure].interaction === 'crank' && lureDisplay && <div className="game-panel">
-          <p className="game-waiting-text">{perfectCast ? 'Perfect cast! ' : ''}Hold to crank — keep the speed in the strike zone.</p>
-          <div className="cast-meter">
-            <div className="cast-sweet-spot" style={{ left: `${lureDisplay.bandCenter - CRANK_BAND_WIDTH / 2}%`, width: `${CRANK_BAND_WIDTH}%` }} />
-            <div className="cast-indicator" style={{ left: `${lureDisplay.speed}%` }} />
-          </div>
-          <div className="reel-meters">
-            <div className="reel-meter"><span>Attraction</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${lureDisplay.attraction}%` }} /></div></div>
-            <div className="reel-meter"><span>Line out</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${100 - lureDisplay.distance}%` }} /></div></div>
-          </div>
+        {phase === 'waiting' && lureInteraction === 'crank' && lureDisplay && <div className="game-panel is-play">
+          <p>Attraction {Math.round(lureDisplay.attraction)}% · {Math.round(100 - lureDisplay.distance)}% still out</p>
           <button
             className="button button-primary game-reel-button"
             type="button"
@@ -573,18 +586,13 @@ export default function FishingGame({ clock = () => new Date() }) {
           >Hold to crank</button>
         </div>}
 
-        {phase === 'hookset' && pendingCatch && <div className="game-panel">
-          <p className="game-alert">FISH ON! Set the hook now!</p>
-          <div className="hookset-bar"><div key={pendingCatch.species} className="hookset-bar-fill" style={{ animationDuration: `${hooksetWindowMs}ms` }} /></div>
+        {phase === 'hookset' && pendingCatch && <div className="game-panel is-play">
+          <p className="game-alert">Now!</p>
           <button className="button button-primary game-hookset-button" type="button" onClick={setHook}>Set the hook!</button>
         </div>}
 
-        {phase === 'reeling' && pendingCatch && <div className="game-panel">
-          <p>Hold to reel — keep the fish inside the glowing zone.</p>
-          <div className="reel-meters">
-            <div className="reel-meter"><span>Progress</span><div className="reel-meter-track"><div className="reel-meter-fill is-progress" style={{ width: `${reelDisplay.progress}%` }} /></div></div>
-            <div className="reel-meter"><span>Line tension</span><div className="reel-meter-track"><div className="reel-meter-fill is-tension" style={{ width: `${Math.min(100, (reelDisplay.tension / tensionMaxRef.current) * 100)}%` }} /></div></div>
-          </div>
+        {phase === 'reeling' && pendingCatch && <div className="game-panel is-play">
+          <p>Progress {Math.round(reelDisplay.progress)}% · tension {Math.round(tensionPct)}%</p>
           <button
             className="button button-primary game-reel-button"
             type="button"
