@@ -1,5 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import GameScene from './GameScene';
 
 test('puts the real angler on the dock with their name on the tag, idling until they cast', () => {
@@ -98,4 +99,59 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('canyon'));
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
+});
+
+test('the stage is the tap surface for the current phase, and the meters sit where the action is', async () => {
+  const onTap = jest.fn();
+  const { container, rerender } = render(<GameScene biome="river" phase="casting" displayName="Andre" interaction={{ label: 'Stop the cast', onTap }} callout="Tap to stop the cast in the sweet spot." />);
+  expect(container.querySelector('.stage-meter.is-cast')).toBeInTheDocument();
+  expect(screen.getByText(/tap to stop the cast/i)).toHaveClass('stage-callout');
+  await userEvent.click(screen.getByRole('button', { name: 'Stop the cast' }));
+  expect(onTap).toHaveBeenCalledTimes(1);
+
+  const onHoldStart = jest.fn(); const onHoldEnd = jest.fn();
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 40, zonePos: 45, progress: 30 }} zoneWidth={30} tension={55} interaction={{ label: 'Hold to reel in', onHoldStart, onHoldEnd }} />);
+  const surface = screen.getByRole('button', { name: 'Hold to reel in' });
+  expect(surface).toHaveClass('is-hold');
+  fireEvent.pointerDown(surface);
+  expect(onHoldStart).toHaveBeenCalledTimes(1);
+  fireEvent.pointerUp(surface);
+  expect(onHoldEnd).toHaveBeenCalledTimes(1);
+  expect(container.querySelector('.stage-meter.is-tension .stage-meter-fill').style.height).toBe('55%');
+  expect(container.querySelector('.stage-progress span').style.width).toBe('30%');
+
+  rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: false, message: 'Gone.' }} />);
+  expect(container.querySelector('.scene-action')).toBeNull();
+});
+
+test('a worked lure travels back toward the rod with its gauge over it, and the hookset ring lands on the strike', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="waiting" displayName="Andre" lure="jerkbait" lureDisplay={{ marker: 60, attraction: 40, lineOut: 100 }} lureFeedback="Nice twitch." />);
+  const lure = container.querySelector('.scene-lure');
+  expect(lure).toHaveAttribute('data-lure', 'jerkbait');
+  const farLeft = parseFloat(lure.style.left);
+  expect(container.querySelector('.scene-bobber')).toBeNull();
+  expect(container.querySelector('.stage-gauge')).toHaveClass('is-jerkbait');
+  expect(container.querySelector('.stage-gauge-marker').style.left).toBe('60%');
+  expect(container.querySelector('.stage-gauge-fill span').style.width).toBe('40%');
+  expect(screen.getByText('Nice twitch.')).toHaveClass('stage-feedback');
+
+  rerender(<GameScene biome="river" phase="waiting" displayName="Andre" lure="jerkbait" lureDisplay={{ marker: 10, attraction: 70, lineOut: 40 }} />);
+  expect(parseFloat(container.querySelector('.scene-lure').style.left)).toBeLessThan(farLeft);
+
+  rerender(<GameScene biome="river" phase="hookset" displayName="Andre" lure="jerkbait" lureDisplay={{ marker: 10, attraction: 100, lineOut: 40 }} hooksetWindowMs={700} />);
+  expect(container.querySelector('.stage-gauge')).toBeNull();
+  const ring = container.querySelector('.scene-hook-ring');
+  expect(ring.style.animationDuration).toBe('700ms');
+  expect(ring.style.left).toBe(container.querySelector('.scene-lure').style.left);
+
+  rerender(<GameScene biome="river" phase="waiting" displayName="Andre" lure="crankbait" lureDisplay={{ speed: 52, bandCenter: 50, attraction: 20, distance: 30 }} />);
+  expect(container.querySelector('.stage-gauge')).toHaveClass('is-crankbait');
+  expect(container.querySelector('.scene-lure')).toHaveClass('is-wobbling');
+});
+
+test('a harder cast lands the bobber further out', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={20} />);
+  const shortCast = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
+  rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={90} />);
+  expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeGreaterThan(shortCast);
 });
