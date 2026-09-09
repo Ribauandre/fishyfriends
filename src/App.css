@@ -418,6 +418,12 @@ button { cursor: pointer; }
 .mini-avatar img { height: 100%; object-fit: cover; width: 100%; }
 .catch-card .like-button { margin-top: 6px; }
 .catch-card .like-button span { font-size: 15px; }
+.catch-card-group { grid-column: 1 / -1; }
+.catch-card-group-header { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: flex; font: inherit; gap: 12px; padding: 14px; text-align: left; width: 100%; }
+.catch-card-group-header > div { flex: 1; min-width: 0; }
+.catch-card-group-header strong { display: block; font-size: 13px; }
+.catch-card-group-meta { color: var(--muted); display: block; font-size: 10px; margin-top: 2px; }
+.catch-card-group-detail { border-top: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); padding: 14px; }
 @media (max-width: 800px) {
   body { padding-bottom: env(safe-area-inset-bottom); }
   .page-wrapper { padding: 28px 16px 92px; }
@@ -480,6 +486,8 @@ button { cursor: pointer; }
   .catch-card-media img, .catch-card-placeholder { aspect-ratio: 1 / 1; }
   .catch-card-caption { align-self: end; grid-area: caption; min-width: 0; padding: 10px 10px 2px 0; }
   .catch-card-actions { grid-area: actions; min-width: 0; padding: 4px 10px 12px 0; }
+  .catch-card-group { display: block; }
+  .catch-card-group-detail { grid-template-columns: 1fr; }
   .month-card-detail { padding: 12px; }
 }
 

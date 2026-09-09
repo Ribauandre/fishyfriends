@@ -8,9 +8,42 @@ import speciesIcon from '../utils/speciesOptions';
 type Catch = { id: string; user_id: string; angler_name: string; angler_avatar_url?: string; month: string; species: string; caught_at: string | null; photo_url: string };
 const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// Groups a month's catches by angler (preserving first-appearance order) so a crew member
+// who logged several fish in the same month shows up as one bulked entry rather than
+// crowding the board with a card per catch.
+function groupByAngler(entries: Catch[]) {
+  const groups: Record<string, Catch[]> = {};
+  const order: string[] = [];
+  for (const entry of entries) {
+    if (!groups[entry.user_id]) { groups[entry.user_id] = []; order.push(entry.user_id); }
+    groups[entry.user_id].push(entry);
+  }
+  return order.map((userId) => groups[userId]);
+}
+
 function MonthDetail({ entries, currentUserId, onDelete, highlightId, highlightCommentId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null; highlightCommentId?: string | null }) {
+  const groups = React.useMemo(() => groupByAngler(entries), [entries]);
   if (!entries.length) return <div className="empty-state"><FishIllustration species="smallmouth" className="empty-state-sticker" /><p className="month-empty">No catches yet. Somebody's gotta break the ice.</p></div>;
-  return <div className="month-catches">{entries.map((entry) => <MonthCatch key={entry.id} entry={entry} currentUserId={currentUserId} onDelete={onDelete} highlighted={entry.id === highlightId} highlightCommentId={entry.id === highlightId ? highlightCommentId : null} />)}</div>;
+  return <div className="month-catches">{groups.map((group) => group.length === 1
+    ? <MonthCatch key={group[0].id} entry={group[0]} currentUserId={currentUserId} onDelete={onDelete} highlighted={group[0].id === highlightId} highlightCommentId={group[0].id === highlightId ? highlightCommentId : null} />
+    : <MonthCatchGroup key={group[0].user_id} entries={group} currentUserId={currentUserId} onDelete={onDelete} highlightId={highlightId} highlightCommentId={highlightCommentId} />)}</div>;
+}
+
+function MonthCatchGroup({ entries, currentUserId, onDelete, highlightId, highlightCommentId }: { entries: Catch[]; currentUserId?: string; onDelete: (id: string) => void; highlightId?: string | null; highlightCommentId?: string | null }) {
+  const containsHighlight = highlightId ? entries.some((entry) => entry.id === highlightId) : false;
+  const [open, setOpen] = React.useState(containsHighlight);
+  React.useEffect(() => { if (containsHighlight) setOpen(true); }, [containsHighlight]);
+  const [first] = entries;
+  return <div className="catch-card catch-card-group">
+    <button type="button" className="catch-card-group-header" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+      <span className="mini-avatar">{first.angler_avatar_url ? <img src={first.angler_avatar_url} alt="" /> : first.angler_name.slice(0, 1)}</span>
+      <div><strong>{first.angler_name}</strong><span className="catch-card-group-meta">{entries.length} fish logged this month</span></div>
+      <span className="expand-icon">{open ? '−' : '+'}</span>
+    </button>
+    {open && <div className="catch-card-group-detail reveal-in">
+      {entries.map((entry) => <MonthCatch key={entry.id} entry={entry} currentUserId={currentUserId} onDelete={onDelete} highlighted={entry.id === highlightId} highlightCommentId={entry.id === highlightId ? highlightCommentId : null} />)}
+    </div>}
+  </div>;
 }
 
 function MonthCatch({ entry, currentUserId, onDelete, highlighted, highlightCommentId }: { entry: Catch; currentUserId?: string; onDelete: (id: string) => void; highlighted?: boolean; highlightCommentId?: string | null }) {
