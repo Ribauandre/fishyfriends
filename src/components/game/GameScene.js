@@ -1,11 +1,13 @@
 import React from 'react';
 import FishIllustration from '../FishIllustration';
+import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 
-// The 2D stage for Cast & Catch: an SVG backdrop that swaps with the biome, the angler (the
-// real person — their avatar is the face) on a dock, beach, or the charter boat, and the line
+// The 2D stage for Cast & Catch: an SVG backdrop that swaps with the biome, the angler sprite
+// on a dock, beach, or the charter boat with the real person's name on a tag, and the line
 // out to a bobber or a fighting fish. The fish stays the site's PNG sticker art, laid over the
 // water as HTML rather than redrawn, per the repo rule that fish are never abstract glyphs.
-// Motion is event-driven only: the cast, the strike splash, and the fish's position.
+// Motion is event-driven only: the cast, the strike, reeling while the player holds, and the
+// celebration on a landed fish.
 const SCENES = {
   lake: { sky: ['#0a1f2e', '#123a47'], water: ['#0b3c46', '#06232a'], land: '#0f2b24', backdrop: 'hills', stand: 'dock' },
   river: { sky: ['#0b2230', '#154551'], water: ['#0d4650', '#082a30'], land: '#12301f', backdrop: 'trees', stand: 'dock' },
@@ -19,6 +21,7 @@ const SCENES = {
 const WATER_TOP = 140;
 const VIEW_W = 480;
 const VIEW_H = 220;
+const SPRITE_BOX_H = 64; // % of stage height
 
 function Backdrop({ kind, land }) {
   switch (kind) {
@@ -80,9 +83,7 @@ function Stand({ kind, land }) {
     </g>;
   }
   if (kind === 'beach') {
-    return <g>
-      <path d="M0 122 Q120 118 210 142 L0 150 Z" fill={land} stroke="#03080b" strokeWidth="2" />
-    </g>;
+    return <g><path d="M0 122 Q120 118 210 142 L0 150 Z" fill={land} stroke="#03080b" strokeWidth="2" /></g>;
   }
   return <g>
     {[28, 78, 128].map((x) => <rect key={x} x={x} y="126" width="8" height="40" fill="#0e1b1f" stroke="#03080b" strokeWidth="2" />)}
@@ -91,34 +92,48 @@ function Stand({ kind, land }) {
   </g>;
 }
 
-function Angler({ avatarUrl, initial, phase }) {
-  const rodBack = phase === 'casting';
-  const rodTip = rodBack ? { x: -34, y: -118 } : { x: 74, y: -112 };
-  return <g className="scene-angler">
-    <rect x="-9" y="-28" width="7" height="28" fill="#203f45" stroke="#03080b" strokeWidth="1.5" />
-    <rect x="2" y="-28" width="7" height="28" fill="#203f45" stroke="#03080b" strokeWidth="1.5" />
-    <rect x="-14" y="-62" width="28" height="36" rx="5" fill="#ff5a1f" stroke="#03080b" strokeWidth="2" />
-    <path d={`M12 -50 L${rodTip.x * 0.45} ${rodTip.y * 0.5 - 10}`} stroke="#ff5a1f" strokeWidth="6" strokeLinecap="round" />
-    <path d={`M12 -50 L${rodTip.x} ${rodTip.y}`} stroke="#e3fb14" strokeWidth="2.5" strokeLinecap="round" />
-    <clipPath id="scene-face"><circle cx="0" cy="-80" r="15" /></clipPath>
-    <circle cx="0" cy="-80" r="16" fill="#e3fb14" stroke="#03080b" strokeWidth="2" />
-    {avatarUrl
-      ? <image href={avatarUrl} x="-15" y="-95" width="30" height="30" preserveAspectRatio="xMidYMid slice" clipPath="url(#scene-face)" />
-      : <text x="0" y="-75" textAnchor="middle" fontSize="15" fontWeight="900" fill="#03080b" fontFamily="Oswald, Arial Narrow, sans-serif">{initial}</text>}
-    <path d="M-20 -90 Q0 -108 20 -90 L24 -88 Q0 -96 -24 -88 Z" fill="#172a2e" stroke="#03080b" strokeWidth="2" />
-  </g>;
+// Positions the sprite box so its feet anchor lands on (anglerX, anglerY) in viewBox units.
+function spriteLayout(anglerX, anglerY) {
+  const boxW = SPRITE_BOX_H * (VIEW_H / VIEW_W) * (SPRITE_FRAME.w / SPRITE_FRAME.h);
+  const left = (anglerX / VIEW_W) * 100 - boxW * (SPRITE_FRAME.feetX / SPRITE_FRAME.w);
+  const bottom = ((VIEW_H - anglerY) / VIEW_H) * 100 - SPRITE_BOX_H * (1 - SPRITE_FRAME.feetY / SPRITE_FRAME.h);
+  return { left: `${left}%`, bottom: `${bottom}%`, height: `${SPRITE_BOX_H}%`, width: `${boxW}%` };
 }
 
-export default function GameScene({ biome, phase, avatarUrl, displayName, species, reel, zoneWidth = 0, result }) {
+function AnglerSprite({ x, y, phase, result, holding }) {
+  const { action, frame = 0, play, durationMs, loop } = anglerAction({ phase, result, holding });
+  const sprite = ANGLER_SPRITES[action];
+  const frameStep = 100 / (sprite.frames - 1);
+  const style = {
+    ...spriteLayout(x, y),
+    backgroundImage: `url(${sprite.src})`,
+    backgroundSize: `${sprite.frames * 100}% 100%`,
+    backgroundPositionX: `${frame * frameStep}%`,
+  };
+  if (play) {
+    style['--sprite-end'] = `${(play - 1) * frameStep}%`;
+    style.animationDuration = `${durationMs}ms`;
+    // jump-none lands on exactly `play` positions (both ends included), one per frame.
+    style.animationTimingFunction = `steps(${play}, jump-none)`;
+  }
+  return <div
+    key={`${phase}-${action}-${play ? 'play' : 'hold'}`}
+    className={`scene-sprite ${play ? (loop ? 'is-looping' : 'is-playing') : ''}`}
+    data-action={action}
+    style={style}
+  />;
+}
+
+export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false }) {
   const scene = SCENES[biome] || SCENES.lake;
   const anglerX = scene.stand === 'boat' ? 100 : 88;
   const anglerY = scene.stand === 'boat' ? 120 : scene.stand === 'beach' ? 126 : 120;
-  const rodTipX = anglerX + (phase === 'casting' ? -34 : 74);
-  const rodTipY = anglerY + (phase === 'casting' ? -118 : -112);
+  const spriteScale = (SPRITE_BOX_H / 100) * VIEW_H / SPRITE_FRAME.h;
+  const rodTipX = anglerX + (SPRITE_FRAME.rodTipX - SPRITE_FRAME.feetX) * spriteScale;
+  const rodTipY = anglerY - (SPRITE_FRAME.feetY - SPRITE_FRAME.rodTipY) * spriteScale;
   const bobberX = 300;
   const fishX = reel ? (reel.fishPos / 100) * VIEW_W : bobberX;
   const lineOut = phase === 'waiting' || phase === 'hookset' || phase === 'reeling';
-  const initial = (displayName || 'A').slice(0, 1).toUpperCase();
 
   return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase}>
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
@@ -133,7 +148,6 @@ export default function GameScene({ biome, phase, avatarUrl, displayName, specie
       <rect x="0" y={WATER_TOP} width={VIEW_W} height={VIEW_H - WATER_TOP} fill="url(#scene-halftone)" />
       <path d={`M0 ${WATER_TOP} L${VIEW_W} ${WATER_TOP}`} stroke="#e3fb14" strokeWidth="1.5" opacity=".5" />
       <Stand kind={scene.stand} land={scene.land} />
-      <g transform={`translate(${anglerX} ${anglerY})`}><Angler avatarUrl={avatarUrl} initial={initial} phase={phase} /></g>
       {lineOut && <path
         className="scene-line"
         d={phase === 'reeling' ? `M${rodTipX} ${rodTipY} L${fishX} 178` : `M${rodTipX} ${rodTipY} Q${(rodTipX + bobberX) / 2} ${rodTipY - 30} ${bobberX} ${WATER_TOP + 4}`}
@@ -146,6 +160,7 @@ export default function GameScene({ biome, phase, avatarUrl, displayName, specie
       </g>}
       <text x={anglerX} y={anglerY + 16} textAnchor="middle" fontSize="9" fontWeight="700" fill="#e3fb14" fontFamily="Oswald, Arial Narrow, sans-serif" letterSpacing="1">{(displayName || 'YOU').toUpperCase()}</text>
     </svg>
+    <AnglerSprite x={anglerX} y={anglerY} phase={phase} result={result} holding={holding} />
     {phase === 'reeling' && reel && <>
       <div className="reel-zone scene-zone" style={{ left: `${reel.zonePos - zoneWidth / 2}%`, width: `${zoneWidth}%` }} />
       <FishIllustration species={species} className="reel-fish scene-fish" style={{ left: `${reel.fishPos}%` }} />

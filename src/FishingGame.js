@@ -272,8 +272,9 @@ export default function FishingGame() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, pendingCatch]);
 
-  function startReel() { holdingRef.current = true; }
-  function stopReel() { holdingRef.current = false; }
+  const [reelHolding, setReelHolding] = useState(false);
+  function startReel() { holdingRef.current = true; setReelHolding(true); }
+  function stopReel() { holdingRef.current = false; setReelHolding(false); }
 
   async function landFish() {
     let pointsEarned = Math.round(pointsFor(pendingCatch.rarity) * qualityPointsMultiplier(presentationQuality));
@@ -328,12 +329,12 @@ export default function FishingGame() {
         <GameScene
           biome={biome}
           phase={phase}
-          avatarUrl={profile?.avatar_url}
           displayName={profile?.display_name}
           species={pendingCatch?.species}
           reel={reelDisplay}
           zoneWidth={zoneWidthRef.current}
           result={result}
+          holding={reelHolding}
         />
 
         {phase === 'ready' && <div className="game-panel">

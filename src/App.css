@@ -647,6 +647,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene .scene-zone { bottom: 0; top: 64%; }
 .game-scene .scene-fish { height: auto; left: 50%; margin-left: -7%; position: absolute; top: 66%; transition: left .08s linear; width: 14%; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
 .game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 14px rgba(227,251,20,.35)) drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; left: 16%; position: absolute; top: 2%; transform: rotate(-8deg); width: 24%; }
+.game-scene .scene-trophy { left: 24%; top: 4%; }
+.scene-sprite { background-repeat: no-repeat; pointer-events: none; position: absolute; }
+.scene-sprite.is-playing { animation-fill-mode: forwards; animation-name: sprite-play; }
+.scene-sprite.is-looping { animation-iteration-count: infinite; animation-name: sprite-play; }
+@keyframes sprite-play { from { background-position-x: 0; } to { background-position-x: var(--sprite-end); } }
 .scene-splash { animation: scene-splash .6s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes scene-splash { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.6); } }
 
