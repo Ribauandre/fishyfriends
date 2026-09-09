@@ -331,16 +331,26 @@ export function AuthProvider({ children }) {
   }
 
   async function logFishYearCatch({ year, month, species, caughtAt, file: rawFile }) {
-    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+    const trimmedSpecies = species?.trim();
+    if (!trimmedSpecies) return { error: new Error('Name the species you caught.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
     const file = rawFile && await compressImage(rawFile);
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
 
+    // Catches the accidental double-submit (a slow upload gets re-tapped, or the form is
+    // reopened and filled out again) rather than a deliberate second fish of the same
+    // species — same angler, same species, same day already on the board reads as one
+    // catch entered twice. A transient failure here just skips the check, not the catch.
+    if (caughtAt) {
+      const { data: existing } = await supabase.from('fish_year_catches').select('id').eq('user_id', user.id).eq('year', year).eq('caught_at', caughtAt).ilike('species', trimmedSpecies).maybeSingle();
+      if (existing) return { error: new Error(`You already logged a ${trimmedSpecies} on ${caughtAt} — that catch's already on the board.`) };
+    }
+
     let photoUrl = '';
     if (file) {
       const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-      const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const slug = trimmedSpecies.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('fish-year-catches').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
       if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
@@ -349,7 +359,7 @@ export function AuthProvider({ children }) {
     }
 
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const row = { user_id: user.id, angler_name: authorName, angler_avatar_url: profile.avatar_url || '', year, month, species: species.trim(), caught_at: caughtAt || null, photo_url: photoUrl };
+    const row = { user_id: user.id, angler_name: authorName, angler_avatar_url: profile.avatar_url || '', year, month, species: trimmedSpecies, caught_at: caughtAt || null, photo_url: photoUrl };
     const { data, error } = await supabase.from('fish_year_catches').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     registerSpecies(species);

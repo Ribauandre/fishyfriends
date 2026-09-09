@@ -218,13 +218,38 @@ describe('listAnglers', () => {
 describe('logFishYearCatch / deleteFishYearCatch', () => {
   test('inserts a catch snapshotting the angler name and avatar', async () => {
     const result = await setupSignedIn();
-    __mock.setResponse('fish_year_catches', { data: { id: 'fy-1' }, error: null });
+    __mock.setResponse('fish_year_catches', [{ data: null, error: null }, { data: { id: 'fy-1' }, error: null }]);
     __mock.setResponse('custom_species', { data: null, error: null });
 
     const response = await result.current.logFishYearCatch({ year: 2026, month: 'June', species: 'Striped Bass', caughtAt: '2026-06-12' });
 
     expect(response.error).toBeNull();
     expect(response.catchEntry).toEqual({ id: 'fy-1' });
+  });
+
+  test('blocks logging the same species on the same day twice', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', { data: { id: 'fy-existing' }, error: null });
+
+    const response = await result.current.logFishYearCatch({ year: 2026, month: 'June', species: 'Striped Bass', caughtAt: '2026-06-12' });
+
+    expect(response.error.message).toMatch(/already logged a striped bass on 2026-06-12/i);
+    expect(__mock.current.storageUpload).not.toHaveBeenCalled();
+  });
+
+  test('checks for a duplicate scoped to the current angler, year, date, and species before inserting', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', [{ data: null, error: null }, { data: { id: 'fy-2' }, error: null }]);
+
+    const response = await result.current.logFishYearCatch({ year: 2026, month: 'June', species: 'Carp', caughtAt: '2026-06-12' });
+
+    expect(response.error).toBeNull();
+    const duplicateCheckIndex = __mock.current.fromCalls.indexOf('fish_year_catches');
+    const builder = __mock.current.from.mock.results[duplicateCheckIndex].value;
+    expect(builder.eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(builder.eq).toHaveBeenCalledWith('year', 2026);
+    expect(builder.eq).toHaveBeenCalledWith('caught_at', '2026-06-12');
+    expect(builder.ilike).toHaveBeenCalledWith('species', 'Carp');
   });
 
   test('deleteFishYearCatch reports an error from Supabase', async () => {

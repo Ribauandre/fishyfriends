@@ -1,6 +1,6 @@
 // A lightweight, chainable fake for the Supabase JS query builder, good enough to drive
-// every call shape AuthContext.js actually makes (select/eq/order/insert/update/delete/
-// upsert/maybeSingle/single, all eventually awaited). Configure what a table resolves to
+// every call shape AuthContext.js actually makes (select/eq/neq/ilike/order/insert/update/
+// delete/upsert/maybeSingle/single, all eventually awaited). Configure what a table resolves to
 // with setResponse(table, response); every method on the chain just returns the same
 // builder, and awaiting it resolves to whatever was configured for that table.
 export function createSupabaseMock() {
@@ -17,7 +17,7 @@ export function createSupabaseMock() {
 
   function makeBuilder(table) {
     const builder = {};
-    const chainMethods = ['select', 'eq', 'neq', 'order', 'limit', 'maybeSingle', 'single', 'insert', 'update', 'delete', 'upsert'];
+    const chainMethods = ['select', 'eq', 'neq', 'ilike', 'order', 'limit', 'maybeSingle', 'single', 'insert', 'update', 'delete', 'upsert'];
     chainMethods.forEach((method) => { builder[method] = jest.fn(() => builder); });
     builder.then = (resolve, reject) => Promise.resolve(resolveFor(table)).then(resolve, reject);
     builder.catch = (reject) => Promise.resolve(resolveFor(table)).catch(reject);
