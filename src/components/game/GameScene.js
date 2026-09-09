@@ -1,5 +1,7 @@
 import React from 'react';
 import FishIllustration from '../FishIllustration';
+import SceneAmbience from './SceneAmbience';
+import TravelTransition from './TravelTransition';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import riverArt from '../../assets/scenes/river.webp';
 import mountainlakeArt from '../../assets/scenes/mountainlake.webp';
@@ -13,7 +15,8 @@ import offshoreArt from '../../assets/scenes/offshore.webp';
 // person's name tag. The six shore biomes are painted around the same dock, so the angler
 // keeps one spot on the deck; offshore puts him on the charter's cockpit floor instead. The
 // fish stays the site's PNG sticker art, laid over the water as HTML rather than redrawn, per
-// the repo rule that fish are never abstract glyphs. Motion is event-driven only.
+// the repo rule that fish are never abstract glyphs. The angler, line and splash only move on
+// the player's actions; the world around them (SceneAmbience) is what keeps the stage alive.
 const VIEW_W = 480;
 const VIEW_H = 270;
 
@@ -33,6 +36,12 @@ const SCENES = {
 
 // The fish and catch zone live in the open water right of the dock/boat, not the whole stage.
 const WATER_X = [36, 98];
+
+// The burst around a landed fish. Rarity decides how many of these light up (see CSS).
+const SPARKLES = [
+  { x: 22, y: 8, delay: 0 }, { x: 44, y: 4, delay: 0.12 }, { x: 50, y: 30, delay: 0.24 }, { x: 18, y: 34, delay: 0.3 },
+  { x: 34, y: 42, delay: 0.42 }, { x: 12, y: 18, delay: 0.5 }, { x: 56, y: 16, delay: 0.58 }, { x: 40, y: 22, delay: 0.66 },
+];
 const round2 = (value) => Math.round(value * 100) / 100;
 const waterLeft = (pos) => round2(WATER_X[0] + (pos / 100) * (WATER_X[1] - WATER_X[0]));
 const waterWidth = (width) => round2((width / 100) * (WATER_X[1] - WATER_X[0]));
@@ -69,7 +78,7 @@ function AnglerSprite({ x, y, boxH, phase, current }) {
   />;
 }
 
-export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false }) {
+export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null }) {
   const scene = SCENES[biome] || SCENES.river;
   const layout = scene.layout;
   const current = anglerAction({ phase, result, holding });
@@ -83,6 +92,7 @@ export default function GameScene({ biome, phase, displayName, species, reel, zo
 
   return <div className={`game-scene is-${phase}`} data-biome={biome} data-phase={phase}>
     <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
+    <SceneAmbience biome={biome} phase={phase} />
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
       {lineOut && <path
         className="scene-line"
@@ -102,6 +112,12 @@ export default function GameScene({ biome, phase, displayName, species, reel, zo
       <div className="reel-zone scene-zone" style={{ left: `${waterLeft(reel.zonePos - zoneWidth / 2)}%`, width: `${waterWidth(zoneWidth)}%`, top: `${((layout.waterY + 12) / VIEW_H) * 100}%` }} />
       <FishIllustration species={species} className="reel-fish scene-fish" style={{ left: `${waterLeft(reel.fishPos)}%`, top: `${((fishY - 22) / VIEW_H) * 100}%` }} />
     </>}
-    {phase === 'result' && result?.success && <FishIllustration species={result.species} className="scene-trophy" />}
+    {phase === 'result' && result?.success && <>
+      <FishIllustration species={result.species} className="scene-trophy" />
+      <div className={`scene-sparkles is-${result.rarity || 'common'}`} aria-hidden="true">
+        {SPARKLES.map((sparkle, index) => <span key={index} style={{ left: `${sparkle.x}%`, top: `${sparkle.y}%`, animationDelay: `${sparkle.delay}s` }} />)}
+      </div>
+    </>}
+    {travel && <TravelTransition vehicle={travel.vehicle} toBiome={travel.to} />}
   </div>;
 }

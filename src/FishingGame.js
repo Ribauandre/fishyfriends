@@ -5,6 +5,10 @@ import GameOverlay from './components/game/GameOverlay';
 import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import BiomeMap from './components/game/BiomeMap';
+import { TRAVEL_MS } from './components/game/TravelTransition';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, vehicleFor } from './utils/gameProps';
+import shopBackdrop from './assets/scenes/shop.webp';
+import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine } from './utils/gameDialogue';
 import { useAuth } from './context/AuthContext';
@@ -38,6 +42,7 @@ export default function FishingGame() {
   const [phase, setPhase] = useState('ready');
   const [overlay, setOverlay] = useState(null);
   const [biome, setBiome] = useState('river');
+  const [travel, setTravel] = useState(null);
   const [chartered, setChartered] = useState(false);
   const [castBusy, setCastBusy] = useState(false);
   const [charterError, setCharterError] = useState('');
@@ -89,17 +94,26 @@ export default function FishingGame() {
 
   // Switching biomes ends any chartered trip in progress — heading back to a paid biome later
   // means chartering again, which is the point: most biomes are free, offshore costs a trip.
+  // The trip itself plays out on the stage (TravelTransition) while the new ground is already
+  // set underneath, so nothing waits on the animation.
+  const travelTimerRef = useRef(null);
   function selectBiome(nextBiome) {
     setOverlay(null);
     if (nextBiome === biome) return;
     if (BIOMES[biome].charterCost > 0) setChartered(false);
     setBiome(nextBiome);
     setCharterError('');
+    clearTimeout(travelTimerRef.current);
+    setTravel({ to: nextBiome, vehicle: vehicleFor(biome, nextBiome) });
+    travelTimerRef.current = setTimeout(() => setTravel(null), TRAVEL_MS);
   }
+  useEffect(() => () => clearTimeout(travelTimerRef.current), []);
 
   async function startCast() {
     setCharterError('');
     setOverlay(null);
+    clearTimeout(travelTimerRef.current);
+    setTravel(null);
     const biomeConfig = BIOMES[biome];
     if (biomeConfig.charterCost > 0 && !chartered) {
       setCastBusy(true);
@@ -324,7 +338,9 @@ export default function FishingGame() {
   const biomeConfig = BIOMES[biome];
   const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${biomeConfig.charterCost} pts`) : 'free';
 
-  if (loading) return <main className="content-shell game-page"><p className="month-empty">Loading your tackle box...</p></main>;
+  if (loading) return <main className="content-shell game-page">
+    <div className="game-loading"><img className="game-loading-box" src={TACKLE_BOX} alt="" /><p className="month-empty">Loading your tackle box...</p></div>
+  </main>;
 
   return <main className="content-shell game-page">
     <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
@@ -333,7 +349,7 @@ export default function FishingGame() {
         <PointsCounter value={gameProfile.tackle_points} />
         <div className="hud-chips" aria-label="Current setup">
           <span className="hud-chip">{biomeConfig.label}</span>
-          <span className="hud-chip">{LURES[lure].label}</span>
+          <span className="hud-chip has-icon"><img src={LURE_ICONS[lure]} alt="" />{LURES[lure].label}</span>
           <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
         </div>
         <nav className="hud-nav" aria-label="Game menu">
@@ -353,6 +369,7 @@ export default function FishingGame() {
         zoneWidth={zoneWidthRef.current}
         result={result}
         holding={reelHolding}
+        travel={travel}
       />
 
       <div className="game-dock">
@@ -372,8 +389,11 @@ export default function FishingGame() {
                   aria-pressed={lure === lureOption.key}
                   onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
                 >
-                  <strong>{lureOption.label}</strong>
-                  <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
+                  <img className="lure-icon" src={LURE_ICONS[lureOption.key]} alt="" />
+                  <span className="lure-chip-text">
+                    <strong>{lureOption.label}</strong>
+                    <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
+                  </span>
                 </button>;
               })}
             </div>
@@ -473,7 +493,7 @@ export default function FishingGame() {
         <p className="dock-hint">{biomeConfig.blurb}</p>
       </GameOverlay>}
 
-      {overlay === 'shop' && <GameOverlay eyebrow="Sal's Tackle" title="Tackle shop" onClose={() => setOverlay(null)}>
+      {overlay === 'shop' && <GameOverlay eyebrow="Sal's Tackle" title="Tackle shop" backdrop={shopBackdrop} onClose={() => setOverlay(null)}>
         <NpcDialogue npc="shopkeeper" line={shopkeeperLine({ gameProfile, event: shopEvent })} />
         {upgradeError && <p className="form-error">{upgradeError}</p>}
         <div className="upgrade-grid">
@@ -482,6 +502,7 @@ export default function FishingGame() {
             const maxed = level >= MAX_UPGRADE_LEVEL;
             const cost = upgradeCost(level);
             return <div className="upgrade-card" key={track.key}>
+              <img className="upgrade-icon" src={GEAR_ICONS[track.key]} alt="" />
               <strong>{track.label}</strong>
               <span className="upgrade-level">LV {level}{maxed ? ' · MAX' : ''}</span>
               <p>{track.blurb}</p>
@@ -492,7 +513,7 @@ export default function FishingGame() {
         <p className="dock-hint">Lures are on the dock — pick one there, or unlock it from its chip.</p>
       </GameOverlay>}
 
-      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game catches" onClose={() => setOverlay(null)}>
+      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game catches" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
         {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
             {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}

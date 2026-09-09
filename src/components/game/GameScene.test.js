@@ -61,3 +61,32 @@ test('celebrates a landed fish and holds it up, but just idles after a loss', ()
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'idle');
   expect(container.querySelector('.scene-trophy')).toBeNull();
 });
+
+test('a landed fish gets a burst sized to its rarity', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'bluegill', rarity: 'common' }} />);
+  expect(container.querySelector('.scene-sparkles')).toHaveClass('is-common');
+  rerender(<GameScene biome="offshore" phase="result" displayName="Andre" result={{ success: true, species: 'shark', rarity: 'legendary' }} />);
+  expect(container.querySelector('.scene-sparkles')).toHaveClass('is-legendary');
+  rerender(<GameScene biome="offshore" phase="result" displayName="Andre" result={{ success: false, message: 'Gone.' }} />);
+  expect(container.querySelector('.scene-sparkles')).toBeNull();
+});
+
+test('a trip between grounds drives across the stage in the right vehicle', () => {
+  const { container, rerender } = render(<GameScene biome="bay" phase="ready" displayName="Andre" travel={{ to: 'bay', vehicle: 'truck' }} />);
+  expect(container.querySelector('.scene-travel')).toHaveAttribute('data-vehicle', 'truck');
+  expect(screen.getByText('Bay')).toBeInTheDocument();
+  expect(screen.getByText(/heading to/i)).toBeInTheDocument();
+
+  rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" travel={{ to: 'offshore', vehicle: 'boat' }} />);
+  expect(container.querySelector('.scene-travel')).toHaveAttribute('data-vehicle', 'boat');
+  expect(screen.getByText(/running out to/i)).toBeInTheDocument();
+
+  rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" travel={null} />);
+  expect(container.querySelector('.scene-travel')).toBeNull();
+});
+
+test('the world around the angler is alive for the biome they are in', () => {
+  const { container } = render(<GameScene biome="shoreline" phase="ready" displayName="Andre" />);
+  expect(container.querySelector('.scene-ambience')).toHaveAttribute('data-critter', 'seagull');
+  expect(container.querySelector('.scene-water')).toBeInTheDocument();
+});

@@ -1,0 +1,46 @@
+#!/usr/bin/env node
+// Generates an image with OpenAI's Images API and writes it to disk. Dev-time art tooling
+// only — nothing in the app imports this. The API key comes from OPENAI_API_KEY in the
+// environment and is never read from or written to the repo.
+//
+//   OPENAI_API_KEY=... node scripts/generateImage.mjs --out src/assets/scenes/foo.png \
+//     [--size 1536x1024] [--quality medium] [--transparent] "prompt text"
+//
+// --transparent asks for a real alpha channel (sprites); omit it for backdrops.
+//
+// Behind an egress proxy (e.g. Claude Code on the web), Node's fetch does not read
+// HTTPS_PROXY on its own — run with NODE_USE_ENV_PROXY=1 (and NODE_EXTRA_CA_CERTS pointing at
+// the proxy's CA bundle) or the request never leaves the box.
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+
+const args = process.argv.slice(2);
+const option = (name, fallback) => { const i = args.indexOf(name); return i === -1 ? fallback : args[i + 1]; };
+const flag = (name) => args.includes(name);
+const prompt = args.filter((arg, i) => !arg.startsWith('--') && !['--out', '--size', '--quality'].includes(args[i - 1])).join(' ');
+const out = option('--out');
+if (!process.env.OPENAI_API_KEY) { console.error('OPENAI_API_KEY is not set.'); process.exit(1); }
+if (!out || !prompt) { console.error('Usage: generateImage.mjs --out <file.png> [--size WxH] [--quality low|medium|high] [--transparent] "prompt"'); process.exit(1); }
+
+const body = {
+  model: 'gpt-image-1',
+  prompt,
+  n: 1,
+  size: option('--size', '1024x1024'),
+  quality: option('--quality', 'medium'),
+  output_format: 'png',
+  ...(flag('--transparent') ? { background: 'transparent' } : {}),
+};
+
+const response = await fetch('https://api.openai.com/v1/images/generations', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify(body),
+});
+if (!response.ok) { console.error(`OpenAI ${response.status}: ${(await response.text()).slice(0, 600)}`); process.exit(1); }
+const json = await response.json();
+const b64 = json.data?.[0]?.b64_json;
+if (!b64) { console.error('No image returned.'); process.exit(1); }
+mkdirSync(dirname(out), { recursive: true });
+writeFileSync(out, Buffer.from(b64, 'base64'));
+console.log(`wrote ${out} (${Math.round(Buffer.byteLength(b64, 'base64') / 1024)} KB)`);
