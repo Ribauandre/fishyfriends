@@ -11,8 +11,10 @@ export const UPGRADE_TRACKS = [
   { key: 'bait', column: 'bait_level', label: 'Bait', blurb: 'Better odds at rarer fish.' },
 ];
 
+// Grows by a shrinking multiple each level (2x, 1.75x, 1.57x, ...) instead of a power curve's
+// steep early jump, so the first upgrade doesn't cost three times the second-to-last.
 export function upgradeCost(currentLevel) {
-  return Math.round(40 * Math.pow(currentLevel, 1.6));
+  return 40 + 30 * (currentLevel - 1) + 10 * (currentLevel - 1) ** 2;
 }
 
 // Effective, upgrade-adjusted difficulty modifiers layered on top of a rarity's base numbers.

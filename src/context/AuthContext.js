@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
+import { OFFSHORE_CHARTER_COST } from '../utils/gameBiomes';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
@@ -522,6 +523,20 @@ export function AuthProvider({ children }) {
     return { error: null, gameProfile: data };
   }
 
+  // Spends tackle points to charter a boat for an offshore trip — the epic/legendary species
+  // only spawn out there (see utils/gameBiomes.js). One charter covers however many casts the
+  // trip lasts; FishingGame only calls this again once the player has left and come back.
+  async function charterBoat() {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before chartering a boat.') };
+    const currentGameProfile = await getGameProfile();
+    if ((currentGameProfile?.tackle_points || 0) < OFFSHORE_CHARTER_COST) return { error: new Error('Not enough tackle points to charter a boat.') };
+    const nextPoints = currentGameProfile.tackle_points - OFFSHORE_CHARTER_COST;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data };
+  }
+
   async function submitBugReport({ body }) {
     if (!body?.trim()) return { error: new Error('Describe what went wrong first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before reporting a bug.') };
@@ -632,7 +647,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport,
-    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade,
+    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
 }

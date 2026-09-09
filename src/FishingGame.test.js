@@ -25,6 +25,7 @@ function makeBaseAuth(overrides = {}) {
       gameProfile: makeGameProfile({ tackle_points: 105 }),
     }),
     purchaseUpgrade: jest.fn(),
+    charterBoat: jest.fn(),
     ...overrides,
   };
 }
@@ -102,7 +103,7 @@ test('landing the fish logs the catch and shows the trophy result', async () => 
 
   expect(logGameCatch).toHaveBeenCalledWith(expect.objectContaining({ species: expect.any(String), rarity: expect.any(String) }));
   expect(await screen.findByText(/landed!/i)).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Cast again' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Back to the dock' })).toBeInTheDocument();
 });
 
 test('a snapped line ends the round without logging a catch', async () => {
@@ -139,6 +140,67 @@ test('shows the server error when an upgrade purchase fails', async () => {
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
   expect(await screen.findByText(/not enough tackle points yet/i)).toBeInTheDocument();
+});
+
+test('chartering an offshore trip deducts tackle points before casting', async () => {
+  const charterBoat = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) });
+  useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+  expect(charterBoat).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('50')).toBeInTheDocument();
+  expect(screen.getByText(/tap to stop the cast/i)).toBeInTheDocument();
+});
+
+test('declines to charter without enough points and stays on the dock', async () => {
+  const charterBoat = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points to charter a boat.') });
+  useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+  expect(await screen.findByText(/not enough tackle points to charter a boat/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
+});
+
+test('leaving offshore and coming back requires chartering again', async () => {
+  const charterBoat = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50 }) });
+  useAuth.mockReturnValue(makeBaseAuth({ charterBoat }));
+  render(<FishingGame />);
+  await act(async () => { await Promise.resolve(); });
+
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(charterBoat).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(screen.getByRole('button', { name: /^cast!/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
+
+  // Same trip, still chartered — casting again shouldn't charge a second time.
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); });
+  expect(charterBoat).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(screen.getByRole('button', { name: /^cast!/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
+
+  // Switching away and back to offshore ends the trip, so it charters again.
+  await userEvent.click(screen.getByRole('button', { name: /freshwater/i }));
+  await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(charterBoat).toHaveBeenCalledTimes(2);
 });
 
 test('renders past catches in the trophy case', async () => {

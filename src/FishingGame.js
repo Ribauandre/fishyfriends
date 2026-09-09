@@ -3,6 +3,7 @@ import FishIllustration from './components/FishIllustration';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
+import { BIOMES, BIOME_LIST } from './utils/gameBiomes';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 
 const CAST_SWEET_SPOT = [40, 60];
@@ -11,11 +12,15 @@ const REEL_TIME_LIMIT_MS = 16000;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1 };
 
 export default function FishingGame() {
-  const { getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade } = useAuth();
+  const { getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat } = useAuth();
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState('ready');
+  const [biome, setBiome] = useState('freshwater');
+  const [chartered, setChartered] = useState(false);
+  const [castBusy, setCastBusy] = useState(false);
+  const [charterError, setCharterError] = useState('');
   const [perfectCast, setPerfectCast] = useState(false);
   const [pendingCatch, setPendingCatch] = useState(null);
   const [result, setResult] = useState(null);
@@ -56,11 +61,36 @@ export default function FishingGame() {
     return () => { if (castRafRef.current) cancelAnimationFrame(castRafRef.current); };
   }, [phase]);
 
-  function startCast() {
+  // Switching biomes ends any offshore trip in progress — heading back out there later means
+  // chartering again, which is the point: freshwater/inshore are free, offshore costs a trip.
+  function selectBiome(nextBiome) {
+    if (nextBiome === biome) return;
+    if (biome === 'offshore') setChartered(false);
+    setBiome(nextBiome);
+    setCharterError('');
+  }
+
+  async function startCast() {
+    setCharterError('');
+    const biomeConfig = BIOMES[biome];
+    if (biomeConfig.charterCost > 0 && !chartered) {
+      setCastBusy(true);
+      const response = await charterBoat();
+      setCastBusy(false);
+      if (response?.error) { setCharterError(response.error.message); return; }
+      if (response.gameProfile) setGameProfile(response.gameProfile);
+      setChartered(true);
+    }
+    setPhase('casting');
+  }
+
+  // Back to the dock: lets the angler see their tackle points and switch biomes before the
+  // next trip, rather than snapping straight back into casting wherever they left off.
+  function returnToReady() {
     setResult(null);
     setPendingCatch(null);
     setPerfectCast(false);
-    setPhase('casting');
+    setPhase('ready');
   }
 
   function stopCast() {
@@ -77,7 +107,7 @@ export default function FishingGame() {
     if (phase !== 'waiting') return undefined;
     const delay = 1200 + Math.random() * 2600;
     biteTimeoutRef.current = setTimeout(() => {
-      setPendingCatch(rollSpecies(gameProfile.bait_level));
+      setPendingCatch(rollSpecies(gameProfile.bait_level, BIOMES[biome].speciesByRarity));
       setPhase('hookset');
     }, delay);
     return () => clearTimeout(biteTimeoutRef.current);
@@ -191,12 +221,27 @@ export default function FishingGame() {
       <section className="table-card game-stage">
         <div className="section-heading">
           <div><span className="eyebrow">TACKLE POINTS</span><h2>{gameProfile.tackle_points}</h2></div>
-          <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
+          <div className="game-status-badges">
+            <span className="status-badge-muted">{BIOMES[biome].label.toUpperCase()}</span>
+            <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
+          </div>
         </div>
 
         {phase === 'ready' && <div className="game-panel">
-          <p>Cast your line when you're ready.</p>
-          <button className="button button-primary" type="button" aria-label="Cast" onClick={startCast}>Cast <span>→</span></button>
+          <div className="biome-picker">
+            {BIOME_LIST.map((biomeOption) => <button
+              key={biomeOption.key}
+              type="button"
+              className={`biome-button ${biome === biomeOption.key ? 'is-active' : ''}`}
+              onClick={() => selectBiome(biomeOption.key)}
+            >
+              <strong>{biomeOption.label}</strong>
+              <span>{biomeOption.charterCost > 0 ? (chartered && biome === biomeOption.key ? 'Chartered for this trip' : `Charter · ${biomeOption.charterCost} pts`) : 'Free'}</span>
+            </button>)}
+          </div>
+          <p>{BIOMES[biome].blurb}</p>
+          {charterError && <p className="form-error">{charterError}</p>}
+          <button className="button button-primary" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
         {phase === 'casting' && <div className="game-panel">
@@ -247,7 +292,7 @@ export default function FishingGame() {
             <h3>{speciesLabel(result.species)} landed!</h3>
             <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
           </> : <h3>{result.message}</h3>}
-          <button className="button button-primary" type="button" aria-label="Cast again" onClick={startCast}>Cast again <span>→</span></button>
+          <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </section>
 
