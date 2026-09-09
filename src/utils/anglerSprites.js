@@ -7,14 +7,15 @@ import reel from '../assets/angler/reel.png';
 import fishon from '../assets/angler/fishon.png';
 import celebrate from '../assets/angler/celebrate.png';
 
-export const SPRITE_FRAME = { w: 255, h: 188, feetX: 82, feetY: 182, rodTipX: 200, rodTipY: 46 };
+export const SPRITE_FRAME = { w: 255, h: 188, feetX: 82, feetY: 182 };
 
+// rodTip is where the line leaves the rod for that strip's held pose, in frame pixels.
 export const ANGLER_SPRITES = {
-  idle: { src: idle, frames: 8 },
-  cast: { src: cast, frames: 6 },
-  reel: { src: reel, frames: 7 },
-  fishon: { src: fishon, frames: 6 },
-  celebrate: { src: celebrate, frames: 8 },
+  idle: { src: idle, frames: 8, rodTip: { x: 96, y: 30 } },
+  cast: { src: cast, frames: 6, rodTip: { x: 248, y: 64 } },
+  reel: { src: reel, frames: 7, rodTip: { x: 168, y: 56 } },
+  fishon: { src: fishon, frames: 6, rodTip: { x: 210, y: 42 } },
+  celebrate: { src: celebrate, frames: 8, rodTip: { x: 96, y: 30 } },
 };
 
 // What the angler is doing in each phase: which strip, how many frames to step through, and

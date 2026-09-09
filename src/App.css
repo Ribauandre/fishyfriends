@@ -642,10 +642,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .rarity-tag.is-real { background: var(--coral); color: var(--deep); }
 
 /* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
-.game-scene { aspect-ratio: 480 / 220; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
-.game-scene-svg { display: block; height: 100%; width: 100%; }
-.game-scene .scene-zone { bottom: 0; top: 64%; }
-.game-scene .scene-fish { height: auto; left: 50%; margin-left: -7%; position: absolute; top: 66%; transition: left .08s linear; width: 14%; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
+.game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
+.scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; position: absolute; width: 100%; }
+.game-scene-svg { display: block; height: 100%; inset: 0; position: absolute; width: 100%; }
+.game-scene .scene-zone { bottom: 8%; top: 57%; }
+.game-scene .scene-fish { height: auto; left: 50%; margin-left: -7%; position: absolute; top: 62%; transition: left .08s linear; width: 14%; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
 .game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 14px rgba(227,251,20,.35)) drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; left: 16%; position: absolute; top: 2%; transform: rotate(-8deg); width: 24%; }
 .game-scene .scene-trophy { left: 24%; top: 4%; }
 .scene-sprite { background-repeat: no-repeat; pointer-events: none; position: absolute; }

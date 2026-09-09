@@ -10,11 +10,15 @@ test('puts the real angler on the dock with their name on the tag, idling until 
   expect(sprite.className).not.toMatch(/is-playing|is-looping/);
 });
 
-test('swaps the stand for the charter boat offshore and keeps the dock elsewhere', () => {
-  const { container, rerender } = render(<GameScene biome="offshore" phase="ready" displayName="Andre" />);
+test('uses the painted backdrop where a biome has one and the drawn fallback where it does not', () => {
+  const { container, rerender } = render(<GameScene biome="mountainlake" phase="ready" displayName="Andre" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('mountainlake'));
+  expect(container.querySelector('.game-scene')).toHaveClass('is-painted');
+
+  rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" />);
+  expect(container.querySelector('.scene-backdrop')).toBeNull();
+  expect(container.querySelector('.game-scene')).toHaveClass('is-fallback');
   expect(container.querySelector('.game-scene')).toHaveAttribute('data-biome', 'offshore');
-  rerender(<GameScene biome="bay" phase="ready" displayName="Andre" />);
-  expect(container.querySelector('.game-scene')).toHaveAttribute('data-biome', 'bay');
 });
 
 test('plays the cast once, holds the rod out while waiting, and strikes on the bite', () => {
@@ -38,10 +42,11 @@ test('only loops the reel animation while the player is actually holding', () =>
   const reel = { fishPos: 40, zonePos: 45 };
   const { container, rerender } = render(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding={false} />);
   expect(container.querySelector('.scene-sprite')).not.toHaveClass('is-looping');
+  // Reel positions (0-100) are mapped into the open water right of the dock (36%-98%).
   const fish = container.querySelector('.scene-fish');
   expect(fish).toHaveAttribute('data-species', 'pike');
-  expect(fish.style.left).toBe('40%');
-  expect(container.querySelector('.scene-zone').style.width).toBe('30%');
+  expect(fish.style.left).toBe('60.8%');
+  expect(container.querySelector('.scene-zone').style.width).toBe('18.6%');
 
   rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding />);
   expect(container.querySelector('.scene-sprite')).toHaveClass('is-looping');
