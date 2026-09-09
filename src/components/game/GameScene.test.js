@@ -10,15 +10,16 @@ test('puts the real angler on the dock with their name on the tag, idling until 
   expect(sprite.className).not.toMatch(/is-playing|is-looping/);
 });
 
-test('uses the painted backdrop where a biome has one and the drawn fallback where it does not', () => {
+test('paints each biome with its own backdrop and puts the angler on the charter deck offshore', () => {
   const { container, rerender } = render(<GameScene biome="mountainlake" phase="ready" displayName="Andre" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('mountainlake'));
-  expect(container.querySelector('.game-scene')).toHaveClass('is-painted');
+  const dockFeet = container.querySelector('.scene-sprite').style.bottom;
 
   rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" />);
-  expect(container.querySelector('.scene-backdrop')).toBeNull();
-  expect(container.querySelector('.game-scene')).toHaveClass('is-fallback');
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('offshore'));
   expect(container.querySelector('.game-scene')).toHaveAttribute('data-biome', 'offshore');
+  // The cockpit floor sits lower in the frame than the dock deck.
+  expect(parseFloat(container.querySelector('.scene-sprite').style.bottom)).toBeLessThan(parseFloat(dockFeet));
 });
 
 test('plays the cast once, holds the rod out while waiting, and strikes on the bite', () => {
