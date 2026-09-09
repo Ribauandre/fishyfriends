@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Home from './Home';
@@ -17,6 +17,7 @@ function makeBaseAuth(overrides = {}) {
     profile: { display_name: 'Andre' },
     listRecentActivity: jest.fn().mockResolvedValue([]),
     subscribeToActivity: jest.fn(() => () => {}),
+    listFishYearCatches: jest.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -93,6 +94,29 @@ test('does not squash activity from different anglers, even when interleaved', a
   expect(await screen.findByText(/logged a bass for fish year/i)).toBeInTheDocument();
   expect(screen.getByText(/logged a trout for fish year/i)).toBeInTheDocument();
   expect(screen.queryByText(/and \d+ more/i)).not.toBeInTheDocument();
+});
+
+test('shows a season recap with crew-wide totals and the top species, not just the current user\'s', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listFishYearCatches: jest.fn().mockResolvedValue([
+      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Bass', angler_name: 'Me', caught_at: '2026-03-01', photo_url: '' },
+      { id: 'fy-2', user_id: 'someone-else', month: 'June', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-06-01', photo_url: '' },
+      { id: 'fy-3', user_id: 'someone-else', month: 'June', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-06-15', photo_url: '' },
+    ]),
+  }));
+  renderHome();
+  await waitFor(() => expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('3'));
+  expect(screen.getByText('months covered').previousSibling).toHaveTextContent('2');
+  expect(screen.getByText('anglers on the board').previousSibling).toHaveTextContent('2');
+  expect(screen.getByText('top species').previousSibling).toHaveTextContent('Bass');
+});
+
+test('shows a dash for top species in the season recap when nobody has logged a catch yet', async () => {
+  useAuth.mockReturnValue(makeBaseAuth());
+  renderHome();
+  expect(await screen.findByText('catches logged')).toBeInTheDocument();
+  expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('0');
+  expect(screen.getByText('top species').previousSibling).toHaveTextContent('—');
 });
 
 test('merges a live-pushed activity item into the feed without waiting for a refetch', async () => {

@@ -51,30 +51,6 @@ test('marks a month as caught only for the current user\'s own catches', async (
   expect(screen.getByText('Jun').closest('.year-month')).toHaveClass('is-missing');
 });
 
-test('shows a season recap with crew-wide totals and the top species, not just the current user\'s', async () => {
-  useAuth.mockReturnValue({
-    ...makeBaseAuth(),
-    listFishYearCatches: jest.fn().mockResolvedValue([
-      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Bass', angler_name: 'Me', caught_at: '2026-03-01', photo_url: '' },
-      { id: 'fy-2', user_id: 'someone-else', month: 'June', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-06-01', photo_url: '' },
-      { id: 'fy-3', user_id: 'someone-else', month: 'June', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-06-15', photo_url: '' },
-    ]),
-  });
-  renderFishYear();
-  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
-  expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('3');
-  expect(screen.getByText('months covered').previousSibling).toHaveTextContent('2');
-  expect(screen.getByText('anglers on the board').previousSibling).toHaveTextContent('2');
-  expect(screen.getByText('top species').previousSibling).toHaveTextContent('Bass');
-});
-
-test('shows a dash for top species when nobody has logged a catch yet', async () => {
-  renderFishYear();
-  await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
-  expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('0');
-  expect(screen.getByText('top species').previousSibling).toHaveTextContent('—');
-});
-
 test('opens the log-a-catch modal with fields in Photo, Date, Species order', async () => {
   renderFishYear();
   await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
