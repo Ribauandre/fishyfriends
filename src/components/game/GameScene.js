@@ -19,8 +19,8 @@ const VIEW_H = 270;
 
 // Where things sit (viewBox units): where the angler's feet go, the water surface the bobber
 // floats at, how far out the cast lands, and how tall the sprite box is (% of stage height).
-const DOCK_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spriteBoxH: 44 };
-const BOAT_LAYOUT = { anglerX: 100, anglerY: 173, waterY: 150, bobberX: 320, spriteBoxH: 44 };
+const DOCK_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spriteBoxH: 32 };
+const BOAT_LAYOUT = { anglerX: 100, anglerY: 173, waterY: 150, bobberX: 320, spriteBoxH: 32 };
 
 const SCENES = {
   river: { art: riverArt, layout: DOCK_LAYOUT },
