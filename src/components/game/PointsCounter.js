@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { COIN } from '../../utils/gameProps';
 
 // Tackle points in the HUD. Ticks from the old value to the new one and pops a +N / -N so a
 // landed fish or a purchase reads as an event rather than a number silently changing. Only
@@ -34,10 +35,7 @@ export default function PointsCounter({ value }) {
   }, [delta]);
 
   return <div className="hud-points" aria-live="polite" aria-label={`${value} tackle points`}>
-    <svg viewBox="0 0 20 20" className="hud-coin" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.5" fill="#e3fb14" stroke="#03080b" strokeWidth="2" />
-      <path d="M6 10.5 Q9 6 13.5 9.5 L12 11 Q9 8.5 6.5 12 Z" fill="#03080b" />
-    </svg>
+    <img className="hud-coin" src={COIN} alt="" />
     <strong key={value} className={delta === null ? '' : 'is-bumped'}>{shown}</strong>
     {delta !== null && <em key={`${value}-delta`} className={delta > 0 ? 'is-gain' : 'is-loss'}>{delta > 0 ? `+${delta}` : delta}</em>}
   </div>;

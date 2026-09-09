@@ -6,7 +6,7 @@ import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
@@ -344,22 +344,9 @@ export default function FishingGame() {
 
   return <main className="content-shell game-page">
     <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
-      <header className="game-hud">
-        <div className="hud-brand"><span className="eyebrow">CAST &amp; CATCH</span><strong>{profile?.display_name || 'You'}</strong></div>
-        <PointsCounter value={gameProfile.tackle_points} />
-        <div className="hud-chips" aria-label="Current setup">
-          <span className="hud-chip">{biomeConfig.label}</span>
-          <span className="hud-chip has-icon"><img src={LURE_ICONS[lure]} alt="" />{LURES[lure].label}</span>
-          <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
-        </div>
-        <nav className="hud-nav" aria-label="Game menu">
-          <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} onClick={() => toggleOverlay('map')}>Travel</button>
-          <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} onClick={() => toggleOverlay('shop')}>Shop</button>
-          <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} onClick={() => toggleOverlay('trophies')}>Trophies</button>
-        </nav>
-      </header>
 
       <div className="game-body">
+      <div className="game-stage">
       <GameScene
         biome={biome}
         phase={phase}
@@ -371,6 +358,26 @@ export default function FishingGame() {
         holding={reelHolding}
         travel={travel}
       />
+      {/* The HUD lives on the stage itself, as signage in the world: a plank plate for the
+          balance, plank tags for the current setup, and signpost buttons for the map, the shop
+          and the trophy case. It sits above the overlays so those buttons always work. */}
+      <header className="game-hud">
+        <div className="hud-plate">
+          <span className="hud-brand">CAST &amp; CATCH</span>
+          <PointsCounter value={gameProfile.tackle_points} />
+        </div>
+        <div className="hud-chips" aria-label="Current setup">
+          <span className="hud-chip">{biomeConfig.label}</span>
+          <span className="hud-chip has-icon"><img src={LURE_ICONS[lure]} alt="" />{LURES[lure].label}</span>
+          <span className="hud-chip">Bait LV {gameProfile.bait_level}</span>
+        </div>
+        <nav className="hud-nav" aria-label="Game menu">
+          <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} onClick={() => toggleOverlay('map')}><img src={HUD_ICONS.map} alt="" /><span>Travel</span></button>
+          <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} onClick={() => toggleOverlay('shop')}><img src={HUD_ICONS.shop} alt="" /><span>Shop</span></button>
+          <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} onClick={() => toggleOverlay('trophies')}><img src={HUD_ICONS.trophies} alt="" /><span>Trophies</span></button>
+        </nav>
+      </header>
+      </div>
 
       <div className="game-dock">
         {phase === 'ready' && <div className="game-panel">
