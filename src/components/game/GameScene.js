@@ -82,23 +82,33 @@ const WATER_START = 172.8;
 const WATER_END_INSET = 9.6;
 const waterSpan = (viewW) => [WATER_START, viewW - WATER_END_INSET];
 
-// The camera. At rest the stage shows the whole painting; once the line is in the water it
-// pushes in toward the fight and pans right — the angler stays just inside the left edge, so
-// the bobber, the strike and the fish take up the screen instead of the dock. It's one CSS
-// transform on the world layer (backdrop, ambience, sprites, line, fish); the meters, callout
-// and tap surface stay in screen space on top. Everything is in scene units: x/y is the
-// top-left of the visible window, scale how much closer it is.
+// The camera. At rest the stage shows the whole painting. Pressing Cast pushes in and centres
+// the angler and the water just past his rod, so the wind-up is the focus; once the line is in
+// the water the push-in pans right toward the fight — the angler stays just inside the left edge and the bobber,
+// the strike and the fish take up the screen instead of the dock. It's one CSS transform on
+// the world layer (backdrop, ambience, sprites, line, fish); the meters, callout and tap
+// surface stay in screen space on top. Everything is in scene units: x/y is the top-left of
+// the visible window, scale how much closer it is.
 const FIGHT_PHASES = new Set(['waiting', 'hookset', 'reeling']);
 const CAMERA_ZOOM = [1.15, 1.25];
+// The cast centres on a point just past the angler (his rod hand); the zoom is whatever gets
+// that near the middle of a wide stage, within limits.
+const CAST_FOCUS_OFFSET = 30;
+const CAST_ZOOM = [1.3, 1.4];
 // Room kept on the angler's left for the tension meter (46 units out) plus a little air.
 const CAMERA_ANGLER_MARGIN = 58;
 const REST_CAMERA = { x: 0, y: 0, scale: 1 };
 function cameraFor(phase, layout, viewW) {
-  if (!FIGHT_PHASES.has(phase)) return REST_CAMERA;
-  const scale = round2(Math.max(CAMERA_ZOOM[0], Math.min(CAMERA_ZOOM[1], viewW / (viewW - layout.anglerX + CAMERA_ANGLER_MARGIN))));
+  const casting = phase === 'casting';
+  if (!casting && !FIGHT_PHASES.has(phase)) return REST_CAMERA;
+  const focusX = layout.anglerX + CAST_FOCUS_OFFSET;
+  const scale = casting
+    ? round2(Math.max(CAST_ZOOM[0], Math.min(CAST_ZOOM[1], viewW / (2 * focusX))))
+    : round2(Math.max(CAMERA_ZOOM[0], Math.min(CAMERA_ZOOM[1], viewW / (viewW - layout.anglerX + CAMERA_ANGLER_MARGIN))));
   const w = viewW / scale;
   const h = VIEW_H / scale;
-  const x = round2(Math.max(0, Math.min(viewW - w, layout.anglerX - CAMERA_ANGLER_MARGIN)));
+  const wanted = casting ? focusX - w / 2 : Math.min(viewW - w, layout.anglerX - CAMERA_ANGLER_MARGIN);
+  const x = round2(Math.max(0, Math.min(viewW - w, wanted)));
   // Vertically the angler's hat stays where it was at rest (just under the HUD signage), so the
   // push-in grows the water downward rather than lifting the angler into the signs.
   const headY = layout.anglerY - (layout.spriteBoxH / 100) * VIEW_H - 6;
@@ -208,7 +218,7 @@ export default function GameScene({
   const crewExtra = others.length - crewShown.length;
 
   return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
-    <div className="scene-world" data-camera={focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
+    <div className="scene-world" data-camera={phase === 'casting' ? 'cast' : focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
     <img key={biome} className="scene-backdrop" src={scene.art} alt="" />
     {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
     <div className={`scene-tint is-${period}`} aria-hidden="true" />
