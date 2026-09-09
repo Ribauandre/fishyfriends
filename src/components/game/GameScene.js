@@ -1,7 +1,6 @@
 import React from 'react';
 import FishIllustration from '../FishIllustration';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
-import lakeArt from '../../assets/scenes/lake.webp';
 import riverArt from '../../assets/scenes/river.webp';
 import mountainlakeArt from '../../assets/scenes/mountainlake.webp';
 import swampArt from '../../assets/scenes/swamp.webp';
@@ -24,7 +23,6 @@ const DOCK_LAYOUT = { anglerX: 96, anglerY: 130, waterY: 142, bobberX: 300, spri
 const BOAT_LAYOUT = { anglerX: 100, anglerY: 173, waterY: 150, bobberX: 320, spriteBoxH: 44 };
 
 const SCENES = {
-  lake: { art: lakeArt, layout: DOCK_LAYOUT },
   river: { art: riverArt, layout: DOCK_LAYOUT },
   mountainlake: { art: mountainlakeArt, layout: DOCK_LAYOUT },
   swamp: { art: swampArt, layout: DOCK_LAYOUT },
@@ -72,7 +70,7 @@ function AnglerSprite({ x, y, boxH, phase, current }) {
 }
 
 export default function GameScene({ biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false }) {
-  const scene = SCENES[biome] || SCENES.lake;
+  const scene = SCENES[biome] || SCENES.river;
   const layout = scene.layout;
   const current = anglerAction({ phase, result, holding });
   const rodTip = ANGLER_SPRITES[current.action].rodTip;

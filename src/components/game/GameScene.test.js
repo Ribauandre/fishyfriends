@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import GameScene from './GameScene';
 
 test('puts the real angler on the dock with their name on the tag, idling until they cast', () => {
-  const { container } = render(<GameScene biome="lake" phase="ready" displayName="Andre" />);
+  const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" />);
   expect(screen.getByText('ANDRE')).toBeInTheDocument();
   const sprite = container.querySelector('.scene-sprite');
   expect(sprite).toHaveAttribute('data-action', 'idle');
@@ -54,10 +54,10 @@ test('only loops the reel animation while the player is actually holding', () =>
 });
 
 test('celebrates a landed fish and holds it up, but just idles after a loss', () => {
-  const { container, rerender } = render(<GameScene biome="lake" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
+  const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'celebrate');
   expect(container.querySelector('.scene-trophy')).toHaveAttribute('data-species', 'walleye');
-  rerender(<GameScene biome="lake" phase="result" displayName="Andre" result={{ success: false, message: 'The line snapped!' }} />);
+  rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: false, message: 'The line snapped!' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'idle');
   expect(container.querySelector('.scene-trophy')).toBeNull();
 });

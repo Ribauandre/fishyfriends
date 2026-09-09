@@ -581,6 +581,15 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    trailing digit needs extra clearance so the clip doesn't slice through it. */
 .game-bait-badge, .game-biome-badge { padding-right: 16px; padding-top: 8px; }
 .game-status-badges { align-items: flex-end; display: flex; flex-direction: column; gap: 6px; }
+.biome-map { border: 2px solid var(--line); box-shadow: var(--sticker-shadow); overflow: hidden; position: relative; width: 100%; }
+.biome-map-art { display: block; height: auto; width: 100%; }
+.map-hotspot { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; line-height: 1.1; min-height: 34px; padding: 4px 9px; position: absolute; text-align: center; transform: translate(-50%, -50%); }
+.map-hotspot strong { font-family: var(--font-head); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.map-hotspot span { font-size: 9px; font-weight: 700; white-space: nowrap; }
+.map-hotspot:hover { background: #fff2c6; }
+.map-hotspot.is-active { background: var(--mint); box-shadow: 0 0 0 3px rgba(227,251,20,.45), 2px 3px 0 rgba(3,8,11,.7); }
+.map-hotspot-shop { background: #1c2a2e; border-color: var(--mint); color: var(--mint); }
+.map-hotspot-shop:hover { background: #243a40; }
 .biome-picker { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); width: min(420px, 100%); }
 .biome-button { background: rgba(3,8,11,.28); border: 1px solid var(--line); color: var(--ink); display: flex; flex-direction: column; gap: 4px; padding: 12px; text-align: left; }
 .biome-button strong { font-size: 13px; }
@@ -667,4 +676,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 @media (max-width: 500px) {
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
+  .map-hotspot { min-height: 30px; padding: 3px 6px; }
+  .map-hotspot strong { font-size: 9px; }
+  .map-hotspot span { font-size: 8px; }
 }

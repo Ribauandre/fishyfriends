@@ -206,7 +206,7 @@ test('leaving offshore and coming back requires chartering again', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
 
   // Switching away and back to offshore ends the trip, so it charters again.
-  await userEvent.click(screen.getByRole('button', { name: /^lake/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^river/i }));
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -324,7 +324,7 @@ test('the shop owner reacts to a purchase and the captain pitches the charter', 
   await userEvent.click(screen.getAllByRole('button', { name: /upgrade/i })[0]);
   expect(await screen.findByText(/rod will treat you right/i)).toBeInTheDocument();
 
-  expect(screen.getByText(/lake's stacked with bass/i)).toBeInTheDocument();
+  expect(screen.getByText(/work the current seams/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /offshore/i }));
   expect(screen.getByText(/50 points gets you past the reef/i)).toBeInTheDocument();
 });

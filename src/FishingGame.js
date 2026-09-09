@@ -7,7 +7,8 @@ import { shopkeeperLine, captainLine } from './utils/gameDialogue';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, sizeLabelFor, RARITY_INFO } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
-import { BIOMES, BIOME_LIST } from './utils/gameBiomes';
+import { BIOMES } from './utils/gameBiomes';
+import BiomeMap from './components/game/BiomeMap';
 import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
@@ -28,7 +29,7 @@ export default function FishingGame() {
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState('ready');
-  const [biome, setBiome] = useState('lake');
+  const [biome, setBiome] = useState('river');
   const [chartered, setChartered] = useState(false);
   const [castBusy, setCastBusy] = useState(false);
   const [charterError, setCharterError] = useState('');
@@ -338,17 +339,12 @@ export default function FishingGame() {
         />
 
         {phase === 'ready' && <div className="game-panel">
-          <div className="biome-picker">
-            {BIOME_LIST.map((biomeOption) => <button
-              key={biomeOption.key}
-              type="button"
-              className={`biome-button ${biome === biomeOption.key ? 'is-active' : ''}`}
-              onClick={() => selectBiome(biomeOption.key)}
-            >
-              <strong>{biomeOption.label}</strong>
-              <span>{biomeOption.charterCost > 0 ? (chartered && biome === biomeOption.key ? 'Chartered for this trip' : `Charter · ${biomeOption.charterCost} pts`) : 'Free'}</span>
-            </button>)}
-          </div>
+          <BiomeMap
+            biome={biome}
+            chartered={chartered}
+            onSelect={selectBiome}
+            onShop={() => document.querySelector('.game-shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          />
           <p>{BIOMES[biome].blurb}</p>
           <div className="biome-picker lure-picker">
             {LURE_LIST.map((lureOption) => {

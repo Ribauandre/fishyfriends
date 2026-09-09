@@ -22,8 +22,7 @@ export function shopkeeperLine({ gameProfile, event }) {
 }
 
 const BIOME_TIPS = {
-  lake: "Lake's stacked with bass and walleye. The lake trout sit deep if you want a rare one.",
-  river: 'Work the current seams for smallmouth. Watch for snakeheads — nasty, but they count.',
+  river: 'Work the current seams for smallmouth and walleye. Watch for snakeheads — nasty, but they count.',
   mountainlake: "Trout water, top to bottom. Nothing else lives up there, and nothing else needs to.",
   swamp: "Bass and panfish in the weeds. Something bigger's in there too, if you're patient.",
   bay: 'Flounder on the bottom, stripers on the tide. Salmon push through when the rivers run.',
