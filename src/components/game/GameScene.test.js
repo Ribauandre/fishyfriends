@@ -232,11 +232,21 @@ test('the derby champion flies the golden pennant from the rod tip, and so does 
   expect(screen.getByText('SAM')).not.toHaveClass('is-champion');
 });
 
-test('the camera pushes in and pans right toward the fight once the line is out, and settles back after', () => {
-  const { container, rerender } = render(<GameScene biome="river" phase="casting" displayName="Andre" />);
+test('the camera centres the angler on the cast, pans right toward the fight once the line is out, and settles back after', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="ready" displayName="Andre" />);
   const world = () => container.querySelector('.scene-world');
   expect(world()).toHaveAttribute('data-camera', 'rest');
   expect(world().style.transform).toBe('scale(1) translate(0%, 0%)');
+
+  // Pressing Cast pushes in on the angler: he and the water past his rod sit in the middle of the window.
+  rerender(<GameScene biome="river" phase="casting" displayName="Andre" />);
+  expect(world()).toHaveAttribute('data-camera', 'cast');
+  const castScale = parseFloat(world().getAttribute('data-camera-scale'));
+  const castX = parseFloat(world().getAttribute('data-camera-x'));
+  expect(castScale).toBeGreaterThan(1.25);
+  expect(castX + 480 / castScale / 2).toBeCloseTo(175 + 30, 0);
+  // The power meter is still drawn beside him, in screen space.
+  expect(parseFloat(container.querySelector('.stage-meter.is-cast').style.left)).toBeGreaterThan(20);
 
   rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
   expect(world()).toHaveAttribute('data-camera', 'fight');
