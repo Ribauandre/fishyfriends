@@ -577,6 +577,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Cast & Catch minigame */
 .game-stage { margin-bottom: 24px; }
+/* The shared status-badge corner clip is sized for short labels like "LIVE" — this badge's
+   trailing digit needs extra clearance so the clip doesn't slice through it. */
+.game-bait-badge { padding-right: 16px; padding-top: 8px; }
 .game-panel { align-items: center; display: flex; flex-direction: column; gap: 18px; padding: 26px 10px 10px; text-align: center; }
 .game-panel > p { color: var(--muted); font-size: 13px; margin: 0; max-width: 380px; }
 .game-panel .button { justify-content: center; min-height: 56px; width: min(320px, 100%); }

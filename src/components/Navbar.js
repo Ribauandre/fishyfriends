@@ -23,7 +23,7 @@ export default function Navbar() {
           <span>04</span> Anglers
         </NavLink>
         <NavLink to="/fishing-game" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-          <span>05</span> Cast &amp; Catch
+          <span>05</span> Fishing
         </NavLink>
       </div>
       <div className="navbar-right">

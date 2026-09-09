@@ -191,7 +191,7 @@ export default function FishingGame() {
       <section className="table-card game-stage">
         <div className="section-heading">
           <div><span className="eyebrow">TACKLE POINTS</span><h2>{gameProfile.tackle_points}</h2></div>
-          <span className="status-badge-muted">BAIT LV {gameProfile.bait_level}</span>
+          <span className="status-badge-muted game-bait-badge">BAIT LV {gameProfile.bait_level}</span>
         </div>
 
         {phase === 'ready' && <div className="game-panel">
