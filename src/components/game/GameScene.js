@@ -189,7 +189,7 @@ export default function GameScene({
       <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
       {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
       <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
-      <SceneAmbience biome={biome} phase={phase} period={period} viewW={viewW} />
+      <SceneAmbience biome={biome} period={period} viewW={viewW} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
         {lineOut && <path
           className="scene-line"

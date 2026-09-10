@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import FishIllustration from '../FishIllustration';
-import { ambienceFor, nextJumpDelay, planJump, planShadows, planCurrent, planRings, planSurf, planMoss, planFireflies, JUMP_DURATION_MS } from '../../utils/sceneAmbience';
+import React from 'react';
+import { ambienceFor, planCurrent, planRings, planSurf, planMoss, planFireflies } from '../../utils/sceneAmbience';
 import { frameFor, layoutFor, stageX, stageY, pctX, pctY, pctW, pctH } from '../../utils/sceneLayout';
 import seagull from '../../assets/ambient/seagull.png';
 import dragonfly from '../../assets/ambient/dragonfly.png';
@@ -15,37 +14,12 @@ const SEAGULL_FRAMES = 3;
 // the per-ground plan — no two grounds move the same way, so the river runs, the lake rings
 // and mists, the swamp sways and blinks after dark, the beach breaks and the bay swells.
 // Clouds, gulls, dragonflies, the lamp, the water and all of those are pure CSS loops laid
-// out in painting units; the distant fish jump is a timer here so it stays random and
-// infrequent, and pauses during the hookset and the fight, when the real fish is the only thing that should
-// be splashing. Fish shadows cruise under the bobber only while a line is actually out.
-// Positions come from the painting (utils/sceneLayout.js) and are mapped to this stage's crop.
-export default function SceneAmbience({ biome, phase, period = 'day', viewW = 480 }) {
+// out in painting units and mapped to this stage's crop (utils/sceneLayout.js). Nothing here
+// is a fish: the only one on the water is the one the player is fighting.
+export default function SceneAmbience({ biome, period = 'day', viewW = 480 }) {
   const config = ambienceFor(biome);
   const layout = layoutFor(biome);
   const frame = frameFor(viewW, layout.crop);
-  const [jump, setJump] = useState(null);
-  const [shadows, setShadows] = useState([]);
-  const quiet = phase === 'hookset' || phase === 'reeling';
-
-  useEffect(() => {
-    if (quiet) { setJump(null); return undefined; }
-    let showTimer;
-    let hideTimer;
-    function schedule() {
-      showTimer = setTimeout(() => {
-        setJump({ ...planJump(biome, Math.random, frame.visibleRight), id: Date.now() });
-        hideTimer = setTimeout(() => { setJump(null); schedule(); }, JUMP_DURATION_MS);
-      }, nextJumpDelay(biome));
-    }
-    schedule();
-    return () => { clearTimeout(showTimer); clearTimeout(hideTimer); };
-  }, [biome, quiet, frame.visibleRight]);
-
-  useEffect(() => {
-    if (phase === 'waiting') setShadows(planShadows(biome));
-    else if (phase !== 'hookset') setShadows([]);
-  }, [phase, biome]);
-
   // Gulls roost after dark; the fresh-water bugs keep going (crickets take over the sound).
   const night = period === 'night';
   const gullCount = config.critter === 'seagull' && !night ? config.critters : 0;
@@ -127,15 +101,5 @@ export default function SceneAmbience({ biome, phase, period = 'day', viewW = 48
       alt=""
       style={{ left: pctX(stageX(spot.x, frame), frame), top: pctY(stageY(spot.y, frame)), width: pctW(17, frame), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
     />)}
-    {shadows.map((shadow, index) => <FishIllustration
-      key={`${shadow.species}-${index}`}
-      species={shadow.species}
-      className="scene-shadow"
-      style={{ left: pctX(stageX(shadow.x, frame), frame), top: pctY(stageY(shadow.y, frame)), width: pctW(shadow.width, frame), animationDuration: `${shadow.duration}s`, animationDelay: `${shadow.delay}s` }}
-    />)}
-    {jump && <div key={jump.id} className="scene-jump" data-species={jump.species} style={{ left: pctX(stageX(jump.x, frame), frame), top: pctY(stageY(jump.y, frame)), width: pctW(jump.width, frame) }}>
-      <FishIllustration species={jump.species} className="scene-jump-fish" />
-      <span className="scene-jump-splash" />
-    </div>}
   </div>;
 }
