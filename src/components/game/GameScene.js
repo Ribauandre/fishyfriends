@@ -3,7 +3,7 @@ import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
 import useAnglerSheets from './useAnglerSheets';
-import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
+import { LURE_ICONS, GOLDEN_PENNANT, DOCK_PROPS } from '../../utils/gameProps';
 import { LURES } from '../../utils/gameLures';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
@@ -100,6 +100,22 @@ function Pennant({ tip, frame }) {
   />;
 }
 
+// The dock's own gear, from the scene's `props`: each piece is placed by its centre and its
+// bottom in painting units, so it crops and scales with the painting. A `front` piece sits in
+// the near water, over the fish; the rest sit behind everything on the deck.
+function DockProps({ layout, frame, front }) {
+  const props = (layout.props || []).filter((prop) => Boolean(prop.front) === front);
+  if (!props.length) return null;
+  return props.map((prop) => <img
+    key={prop.art + prop.x}
+    className="scene-dock-prop"
+    data-prop={prop.art}
+    src={DOCK_PROPS[prop.art]}
+    alt=""
+    style={{ left: pctX(stageX(prop.x, frame), frame), top: pctY(stageY(prop.y, frame)), width: pctW(prop.w, frame) }}
+  />);
+}
+
 function crewAction(other) {
   const phase = other.phase || 'ready';
   return anglerAction({ phase, result: { success: phase === 'result' && Boolean(other.species) }, holding: phase === 'reeling' });
@@ -183,6 +199,7 @@ export default function GameScene({
       {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
       <div className={`scene-tint is-${period}`} aria-hidden="true" />
       <SceneAmbience biome={biome} phase={phase} period={period} viewW={viewW} />
+      <DockProps layout={layout} frame={frame} front={false} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
         {lineOut && <path
           className="scene-line"
@@ -217,6 +234,7 @@ export default function GameScene({
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
       <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} />
       {champion && <Pennant tip={rodTip} frame={frame} />}
+      <DockProps layout={layout} frame={frame} front />
       {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pctX(lureX, frame), top: pctY(surfaceY), width: pctW(24, frame) }} />}
       {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pctX(lureX, frame), top: pctY(surfaceY - 32) }} aria-hidden="true">
         <span className="stage-gauge-track">
