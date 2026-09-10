@@ -1,5 +1,5 @@
 import {
-  SCENE_LAYOUTS, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, waterSpan, landingX, reelX, cameraFor, REST_CAMERA, PAINT_H,
+  SCENE_LAYOUTS, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, waterSpan, landingX, reelX, cameraFor, castWindow, REST_CAMERA, PAINT_H,
 } from './sceneLayout';
 import { BIOMES } from './gameBiomes';
 import { DOCK_PROPS } from './gameProps';
@@ -53,14 +53,18 @@ test('casts land in the water that is actually on screen, weakest to strongest',
   const full = frameFor(480);
   expect(landingX(layout, 0, full)).toBe(layout.cast.min);
   expect(landingX(layout, 100, full)).toBe(layout.cast.max);
+  // A phone crops the painting hard on the deck, but the cast camera pans across the rest of
+  // it, so what can be fished is that window rather than the crop.
   const phone = frameFor(338);
-  expect(landingX(layout, 100, phone)).toBe(338 - 24);
+  const reach = castWindow(layout, phone)[1];
+  expect(reach).toBeGreaterThan(338);
+  expect(landingX(layout, 100, phone)).toBe(reach - 24);
   expect(landingX(layout, 50, phone)).toBeGreaterThan(layout.cast.min);
   const wide = frameFor(720);
   expect(landingX(layout, 0, wide)).toBe(layout.cast.min * 1.5);
   const [a, z] = waterSpan(layout, phone);
   expect(a).toBe(layout.water.x0);
-  expect(z).toBe(338 - 10);
+  expect(z).toBe(reach - 10);
   expect(reelX(layout, 0, phone)).toBe(a);
   expect(reelX(layout, 100, phone)).toBe(z);
 });
@@ -80,14 +84,15 @@ test('the camera rests on the whole painting and pans to the water on the cast, 
   // The fight keeps the same frame: no second move once the line is out.
   expect(cameraFor('waiting', angler, 480)).toEqual(cast);
   expect(cameraFor('reeling', angler, 480)).toEqual(cast);
-  // A wide stage needs less push to put the painting's edge at the frame's; a phone cannot
-  // reach the margin at all and stops at the most zoom allowed.
+  // A wide stage needs less push to put the painting's edge at the frame's. A phone crops the
+  // painting rather than shortening it, so the camera pans across the part of it the deck
+  // view never shows — past the stage's own right edge — rather than stopping there.
   const wide = cameraFor('casting', { ...angler, anglerX: 178 }, 702);
   expect(wide.scale).toBe(1.3);
   expect(wide.x).toBe(148);
   const phone = cameraFor('casting', angler, 300);
-  expect(phone.scale).toBe(1.5);
-  expect(300 - (phone.x + 300 / phone.scale)).toBeLessThan(2);
+  expect(phone.x).toBe(148);
+  expect(phone.x + 300 / phone.scale).toBeGreaterThan(300);
 });
 
 test("every ground's dock props name real art and stay inside the narrowest crop", () => {

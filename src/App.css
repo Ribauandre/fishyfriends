@@ -819,9 +819,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* The camera: the world layer carries everything painted in scene units and is what the camera
    moves — a push-in and pan toward the fight while the line is out (see cameraFor). */
 .scene-world { inset: 0; position: absolute; transform-origin: 0 0; transition: transform .9s cubic-bezier(.22, 1, .36, 1); will-change: transform; }
-.scene-backdrop { display: block; height: 100%; inset: 0; object-fit: cover; object-position: left center; position: absolute; width: 100%; }
-.scene-backdrop[data-crop="bottom"] { object-position: left bottom; }
-.game-scene-svg { display: block; height: 100%; inset: 0; position: absolute; width: 100%; }
+/* The painting is placed on the stage in painting units (GameScene's paintBox), not fitted by
+   the browser, so a narrow stage crops it with its own overflow and the camera can pan across
+   the rest. The tint is laid on the same box. */
+.scene-backdrop { display: block; object-fit: fill; position: absolute; }
+.game-scene-svg { display: block; height: 100%; inset: 0; overflow: visible; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: auto; }
 .game-scene .scene-fish { height: auto; position: absolute; transform: translate(-50%, -50%); transition: left .08s linear; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
 .game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 14px rgba(227,251,20,.35)) drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; left: 16%; position: absolute; top: 2%; transform: rotate(-8deg); width: 24%; }
@@ -916,7 +918,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 
 /* Cast & Catch — a world with a clock, a field guide, a derby, quests and a seventh ground. */
-.scene-tint { inset: 0; mix-blend-mode: multiply; opacity: 0; pointer-events: none; position: absolute; transition: opacity 1.2s ease; }
+.scene-tint { mix-blend-mode: multiply; opacity: 0; pointer-events: none; position: absolute; transition: opacity 1.2s ease; }
 .scene-tint.is-dawn { background: linear-gradient(rgba(255,205,150,1), rgba(255,235,200,1)); opacity: .45; }
 .scene-tint.is-dusk { background: linear-gradient(#ff9d5c, #b46a8c 55%, #5a4a8a); opacity: .6; }
 .scene-tint.is-night { background: linear-gradient(#14224f, #1a2b5e 60%, #0d1a3a); opacity: .82; }
