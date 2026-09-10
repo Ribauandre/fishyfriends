@@ -23,6 +23,8 @@ import nymph from '../assets/props/nymph.png';
 import streamer from '../assets/props/streamer.png';
 import flyrod from '../assets/props/flyrod.png';
 import outfit from '../assets/props/outfit.png';
+import crewicon from '../assets/props/crewicon.png';
+import questicon from '../assets/props/questicon.png';
 
 export const GEAR_ICONS = { rod, line, reel, bait };
 export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
@@ -34,6 +36,8 @@ export const COIN = coin;
 
 // The HUD's signpost buttons: the map for Travel, the tackle box for Sal's, a plaque for the case.
 export const HUD_ICONS = { map: mapicon, shop: tacklebox, outfit, almanac: book, trophies: trophyicon, sound: bell };
+// The deck's own signposts: who's on the water and Cap'n Ray's notice board.
+export const DOCK_ICONS = { crew: crewicon, quests: questicon };
 export const DERBY_FLAG = flag;
 // The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3 };
