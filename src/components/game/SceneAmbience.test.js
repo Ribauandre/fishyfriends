@@ -2,7 +2,7 @@ import React from 'react';
 import { render, act } from '@testing-library/react';
 import SceneAmbience from './SceneAmbience';
 import { BIOMES } from '../../utils/gameBiomes';
-import { JUMP_GAP_MS, JUMP_DURATION_MS, nextJumpDelay } from '../../utils/sceneAmbience';
+import { jumpGapFor, JUMP_DURATION_MS, nextJumpDelay } from '../../utils/sceneAmbience';
 
 beforeEach(() => {
   jest.useFakeTimers({ legacyFakeTimers: true });
@@ -42,7 +42,7 @@ test('a fish from the biome roster jumps in the distance now and then, then disa
   expect(container.querySelector('.scene-jump')).toBeNull();
 
   // Math.random is pinned to 0.5, so the first jump lands exactly this far in.
-  act(() => { jest.advanceTimersByTime(nextJumpDelay(() => 0.5)); });
+  act(() => { jest.advanceTimersByTime(nextJumpDelay('mountainlake', () => 0.5)); });
   const jump = container.querySelector('.scene-jump');
   expect(jump).toBeInTheDocument();
   expect(BIOMES.mountainlake.species).toContain(jump.getAttribute('data-species'));
@@ -54,7 +54,7 @@ test('a fish from the biome roster jumps in the distance now and then, then disa
 
 test('nothing jumps while a real fish is on the line', () => {
   const { container } = render(<SceneAmbience biome="river" phase="reeling" />);
-  act(() => { jest.advanceTimersByTime(JUMP_GAP_MS[1] * 2); });
+  act(() => { jest.advanceTimersByTime(jumpGapFor('river')[1] * 2); });
   expect(container.querySelector('.scene-jump')).toBeNull();
 });
 
@@ -72,6 +72,33 @@ test('fish shadows cruise under the bobber only while a line is out', () => {
 
   rerender(<SceneAmbience biome="bay" phase="reeling" />);
   expect(container.querySelector('.scene-shadow')).toBeNull();
+});
+
+test('each ground moves in its own way: the river runs, the lake rings, the beach breaks', () => {
+  const { container, rerender } = render(<SceneAmbience biome="river" phase="ready" />);
+  expect(container.querySelectorAll('.scene-current').length).toBe(6);
+  expect(container.querySelector('.scene-ring')).toBeNull();
+  expect(container.querySelector('.scene-surf')).toBeNull();
+
+  rerender(<SceneAmbience biome="mountainlake" phase="ready" />);
+  expect(container.querySelector('.scene-current')).toBeNull();
+  expect(container.querySelectorAll('.scene-ring').length).toBe(3);
+  expect(container.querySelector('.scene-mist')).toBeInTheDocument();
+
+  rerender(<SceneAmbience biome="shoreline" phase="ready" />);
+  expect(container.querySelectorAll('.scene-surf').length).toBe(3);
+  expect(container.querySelector('.scene-mist')).toBeNull();
+
+  rerender(<SceneAmbience biome="bay" phase="ready" />);
+  expect(container.querySelector('.scene-water')).toHaveClass('is-swell');
+  expect(container.querySelector('.scene-surf')).toBeNull();
+
+  // The swamp hangs moss all year and lights up only after dark.
+  rerender(<SceneAmbience biome="swamp" phase="ready" />);
+  expect(container.querySelectorAll('.scene-moss').length).toBe(7);
+  expect(container.querySelector('.scene-firefly')).toBeNull();
+  rerender(<SceneAmbience biome="swamp" phase="ready" period="night" />);
+  expect(container.querySelectorAll('.scene-firefly').length).toBe(8);
 });
 
 test('after dark the gulls roost, the stars come out, and the swamp bugs keep going', () => {
