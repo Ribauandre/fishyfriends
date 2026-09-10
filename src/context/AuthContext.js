@@ -680,6 +680,15 @@ export function AuthProvider({ children }) {
     return { error: null, report: data };
   }
 
+  // Only migration 0022's admin-scoped RLS policy makes this return more than the caller's own
+  // reports — everyone else still only ever sees their own rows via the reporter-only policy.
+  async function listBugReports() {
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase.from('bug_reports').select('*').order('created_at', { ascending: false });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
   // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
@@ -839,7 +848,7 @@ export function AuthProvider({ children }) {
     listRecentActivity,
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
-    submitBugReport,
+    submitBugReport, listBugReports,
     getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

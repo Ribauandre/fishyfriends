@@ -10,6 +10,7 @@ import AuthPage from './AuthPage';
 import Profile from './Profile';
 import Anglers from './Anglers';
 import FishingGame from './FishingGame';
+import AdminBugReports from './AdminBugReports';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -32,6 +33,7 @@ function App() {
       <Route path="/fish-year" element={<ProtectedRoute><FishYear /></ProtectedRoute>} />
       <Route path="/anglers" element={<ProtectedRoute><Anglers /></ProtectedRoute>} />
       <Route path="/fishing-game" element={<ProtectedRoute><FishingGame /></ProtectedRoute>} />
+      <Route path="/admin/bugs" element={<ProtectedRoute><AdminBugReports /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>
   );
 }

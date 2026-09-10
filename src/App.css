@@ -200,6 +200,13 @@ button { cursor: pointer; }
 .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .status-badge { background: var(--mint); border: 1px solid var(--deep); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
 .status-badge-muted { background: #172a2e; border: 1px solid var(--mint); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--mint); transform: rotate(-3deg); }
+.bug-report-list { display: flex; flex-direction: column; gap: 14px; }
+.bug-report-row { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+.bug-report-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.bug-report-row-meta { align-items: baseline; color: var(--muted); display: flex; flex-wrap: wrap; font-size: 11px; gap: 10px; margin-bottom: 6px; }
+.bug-report-row-meta strong { color: var(--ink); font-size: 13px; }
+.bug-report-page { color: var(--coral); }
+.bug-report-body { margin: 0; white-space: pre-wrap; }
 .activity-section { margin-top: 34px; }
 .activity-feed { display: flex; flex-direction: column; max-height: 480px; overflow-y: auto; }
 .activity-row { align-items: center; border-bottom: 1px solid var(--line); color: inherit; display: flex; gap: 14px; padding: 14px 4px; text-decoration: none; transition: background .15s ease-out; }

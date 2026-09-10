@@ -27,6 +27,7 @@ export default function Navbar() {
         </NavLink>
       </div>
       <div className="navbar-right">
+        {user.email === 'ribauandre@yahoo.com' && <NavLink to="/admin/bugs" className={({isActive}) => isActive ? 'nav-link admin-link active' : 'nav-link admin-link'} title="Bug reports">Bugs</NavLink>}
         <NotificationBell />
         <NavLink to="/profile" className="profile-pill"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span>↗</span></NavLink>
       </div>
