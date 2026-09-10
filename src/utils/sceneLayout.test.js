@@ -2,6 +2,7 @@ import {
   SCENE_LAYOUTS, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, waterSpan, landingX, reelX, cameraFor, REST_CAMERA, PAINT_H,
 } from './sceneLayout';
 import { BIOMES } from './gameBiomes';
+import { DOCK_PROPS } from './gameProps';
 
 test('every ground has a layout whose water is right of (or above) where the angler stands', () => {
   Object.keys(BIOMES).forEach((biome) => {
@@ -75,4 +76,24 @@ test('the camera rests on the whole painting, pushes in on the cast and pans to 
   expect(fight.x).toBeGreaterThan(0);
   expect(fight.x).toBeLessThan(angler.anglerX - 40);
   expect(fight.y + PAINT_H / fight.scale).toBeLessThanOrEqual(PAINT_H);
+});
+
+test("every ground's dock props name real art and stay inside the narrowest crop", () => {
+  // A phone fits the painting to the stage's height and crops its right side, so a prop past
+  // what the narrowest stage can show would be half a buoy at the edge.
+  const narrow = frameFor(viewWidthFor(390, 320)).visibleRight;
+  expect(narrow).toBeLessThan(360);
+  Object.keys(BIOMES).forEach((biome) => {
+    layoutFor(biome).props.forEach((prop) => {
+      expect(DOCK_PROPS[prop.art]).toBeDefined();
+      expect(prop.x - prop.w / 2).toBeGreaterThan(0);
+      expect(prop.x + prop.w / 2).toBeLessThan(narrow);
+      expect(prop.y).toBeGreaterThan(0);
+      expect(prop.y).toBeLessThanOrEqual(PAINT_H);
+    });
+  });
+  // The pieces that float sit in the water, and the ones that don't sit on the dock.
+  const bay = layoutFor('bay').props;
+  expect(bay.find((prop) => prop.art === 'buoy').front).toBe(true);
+  expect(bay.find((prop) => prop.art === 'gull').front).toBeUndefined();
 });

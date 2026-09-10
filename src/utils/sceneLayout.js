@@ -27,15 +27,22 @@ const DOCK = {
   sky: [],
   gulls: null,
   dragonflies: [],
+  // The dock's loose gear (art in gameProps.DOCK_PROPS): x is the piece's centre, y its
+  // bottom, w its width, all painting units. `front` puts it in the near water, in front of
+  // the fish. The deck itself is spoken for — the angler stands at 178 and the crew fill the
+  // rest — so nothing goes on it: pieces perch on the far post (its cap is at y 107) or float
+  // in the near water, which is empty in every painting — and stay inside x 300, so a phone,
+  // which crops the painting's right side, still shows them whole.
+  props: [{ art: 'rocks', x: 288, y: 228, w: 42, front: true }],
   tagAbove: false,
 };
 
 export const SCENE_LAYOUTS = {
   river: { ...DOCK, sky: [{ y0: 3, y1: 20, from: 235 }], dragonflies: [{ x: 24, y: 206 }] },
-  mountainlake: { ...DOCK, sky: [{ y0: 3, y1: 22, from: 100 }, { y0: 24, y1: 34, from: 330 }], dragonflies: [{ x: 30, y: 200 }] },
-  swamp: { ...DOCK, dragonflies: [{ x: 30, y: 212 }, { x: 330, y: 226 }] },
-  bay: { ...DOCK, sky: [{ y0: 4, y1: 24, from: -22 }, { y0: 22, y1: 44, from: -22 }], gulls: { y0: 10, y1: 45 } },
-  shoreline: { ...DOCK, sky: [{ y0: 4, y1: 26, from: -22 }, { y0: 24, y1: 48, from: -22 }], gulls: { y0: 10, y1: 45 } },
+  mountainlake: { ...DOCK, sky: [{ y0: 3, y1: 22, from: 100 }, { y0: 24, y1: 34, from: 330 }], dragonflies: [{ x: 30, y: 200 }], props: [{ art: 'buoy', x: 276, y: 224, w: 22, front: true }] },
+  swamp: { ...DOCK, dragonflies: [{ x: 30, y: 212 }, { x: 330, y: 226 }], props: [{ art: 'rocks', x: 278, y: 230, w: 42, front: true }] },
+  bay: { ...DOCK, sky: [{ y0: 4, y1: 24, from: -22 }, { y0: 22, y1: 44, from: -22 }], gulls: { y0: 10, y1: 45 }, props: [{ art: 'gull', x: 220, y: 111, w: 11 }, { art: 'buoy', x: 282, y: 224, w: 24, front: true }] },
+  shoreline: { ...DOCK, sky: [{ y0: 4, y1: 26, from: -22 }, { y0: 24, y1: 48, from: -22 }], gulls: { y0: 10, y1: 45 }, props: [{ art: 'gull', x: 220, y: 111, w: 11 }, { art: 'buoy', x: 268, y: 204, w: 20, front: true }] },
   // The charter: the angler stands on the cockpit floor by the transom; the cooler is the crew's spot.
   offshore: {
     crop: 'center',
@@ -50,6 +57,7 @@ export const SCENE_LAYOUTS = {
     sky: [{ y0: 8, y1: 38, from: -22 }, { y0: 36, y1: 62, from: -22 }],
     gulls: { y0: 15, y1: 60 },
     dragonflies: [],
+    props: [],
     tagAbove: false,
   },
   // The Canyon at dusk, from the charter's open stern cockpit: the deck fills the lower left
@@ -69,6 +77,7 @@ export const SCENE_LAYOUTS = {
     sky: [{ y0: 8, y1: 30, from: -22 }, { y0: 28, y1: 42, from: -22 }],
     gulls: { y0: 12, y1: 42 },
     dragonflies: [],
+    props: [],
     tagAbove: false,
   },
 };
