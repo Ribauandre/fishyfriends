@@ -12,7 +12,7 @@ function scene() {
     for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) { const i = (y * W + x) * 4; pixels.set([...rgb, 255], i); mask[i] = part; }
   };
   fill(10, 4, 29, 14, PART.hat, PART_BASE[PART.hat]);
-  fill(31, 11, 34, 14, PART.hat, PART_BASE[PART.hat]);
+  fill(30, 11, 34, 14, PART.hat, PART_BASE[PART.hat]);
   fill(16, 15, 29, 21, PART.skin, PART_BASE[PART.skin]);
   fill(14, 22, 29, 28, PART.beard, PART_BASE[PART.beard]);
   fill(8, 29, 31, 39, PART.jacket, [60, 70, 50]);
@@ -74,9 +74,11 @@ test('hair is the crown in the hair colour, with a highlight and a darker hairli
 
 test('long hair hangs down the back of the neck in the open, with its own line', () => {
   const px = paint({ hat: 'hat_none', hairstyle: 'long', hair: 'red' });
-  expect(px(9, 20).a).toBe(255);
-  expect(near(px(9, 20), HAIR_COLORS.red.rgb, 90)).toBe(true);
-  expect(near(px(8, 20), OUTLINE, 6)).toBe(true);
+  expect(px(13, 20).a).toBe(255);
+  expect(near(px(13, 20), HAIR_COLORS.red.rgb, 90)).toBe(true);
+  expect(near(px(10, 20), OUTLINE, 6)).toBe(true);
+  // It tapers away from the head: the far edge is open.
+  expect(px(8, 20).a).toBe(0);
   // The face is never painted over.
   expect(near(px(20, 18), PART_BASE[PART.skin], 2)).toBe(true);
 });
@@ -125,6 +127,26 @@ test('the beard is cut down to a jaw of the skin, keeping what a style keeps and
   // A kept beard is dyed to the hair colour.
   const grey = paint({ hair: 'grey' });
   expect(near(grey(27, 25), HAIR_COLORS.grey.rgb, 60)).toBe(true);
+});
+
+test('every frame of a strip is sculpted where its own anchors say, not where the first frame\'s do', () => {
+  const one = scene();
+  const pixels = new Uint8ClampedArray(W * 2 * H * 4);
+  const mask = new Uint8ClampedArray(W * 2 * H * 4);
+  // The same head twice, the second one a frame along and four pixels to the right.
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+    const from = (y * W + x) * 4;
+    [[x, 0], [x + 4, W]].forEach(([tx, ox]) => { if (tx < W) { const to = (y * W * 2 + ox + tx) * 4; pixels.set(one.pixels.slice(from, from + 4), to); mask[to] = one.mask[from]; } });
+  }
+  const moved = (box) => ({ ...box, x0: box.x0 + 4, x1: box.x1 + 4 });
+  const second = { hat: moved(FRAME.hat), face: moved(FRAME.face), beard: moved(FRAME.beard) };
+  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'hat_none', hairstyle: 'bald' }, Object.keys(WARDROBE)) });
+  const px = (x, y) => { const i = (y * W * 2 + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  // Both peaks are gone and both crowns are scalp.
+  expect(px(33, 12).a).toBe(0);
+  expect(px(W + 37, 12).a).toBe(0);
+  expect(near(px(20, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  expect(near(px(W + 24, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
 });
 
 test('a frame with no anchors is only dyed', () => {

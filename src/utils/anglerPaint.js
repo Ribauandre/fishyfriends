@@ -67,7 +67,9 @@ function domeShade(u, v, dir) {
 
 function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
   if (!frame || !frame.hat) return;
-  const { hat, face, beard } = frame;
+  // The anchors are in the frame's own pixels; the strip's start puts them in the strip's.
+  const shift = (box) => (box ? { ...box, x0: box.x0 + x0, x1: box.x1 + x0 } : null);
+  let hat = shift(frame.hat); const face = shift(frame.face); const beard = shift(frame.beard);
   const { head, skin, hair } = palette;
   const facing = facingOf(frame);
   const dir = facing === 'right' ? 1 : facing === 'left' ? -1 : 0;
@@ -78,21 +80,72 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
   const put = (x, y, rgb) => { if (!inside(x, y)) return; const i = at(x, y); pixels[i] = rgb[0]; pixels[i + 1] = rgb[1]; pixels[i + 2] = rgb[2]; pixels[i + 3] = 255; };
   const erase = (x, y) => { if (inside(x, y)) pixels[at(x, y) + 3] = 0; };
   const key = (x, y) => y * width + x;
-  const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-  // The crown: the cap and its panel, plus the line work inside the cap's box, which is the
-  // cap's own seams and edge and has to be repainted with it.
-  const crown = new Set();
+  // The crown: the cap and its panel. The box is only where to look — inside it, the mask can
+  // call a piece of the cap rod where the backswing lays the rod across it, and call a held
+  // fish's scales cap — so the crown is the one connected run of cap-ish pixels with the most
+  // cap in it, connected across the one-pixel seams the cap is drawn with (the panel's edge,
+  // the rod's), plus the line work drawn against it, and the box is measured again from that.
+  const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const AROUND = [...NEIGHBOURS, [1, 1], [-1, 1], [1, -1], [-1, -1]];
+  const capish = (part) => part === PART.hat || part === PART.panel || part === PART.rod;
+  // The box grows a little: the mask's box holds only what it called cap, and a cap pixel it
+  // called something else can sit just outside.
+  hat = { x0: hat.x0 - 3, y0: Math.max(0, hat.y0 - 2), x1: hat.x1 + 3, y1: hat.y1 + 1 };
+  const inBox = (x, y) => x >= Math.max(x0, hat.x0) && x <= Math.min(x1 - 1, hat.x1) && y >= hat.y0 && y <= hat.y1;
+  const seen = new Set();
+  let crown = new Set(); let best = -1;
   for (let y = hat.y0; y <= hat.y1; y += 1) for (let x = Math.max(x0, hat.x0); x <= Math.min(x1 - 1, hat.x1); x += 1) {
-    const part = partAt(x, y);
-    if (part === PART.hat || part === PART.panel || (part === PART.outline && alphaAt(x, y) > 0)) crown.add(key(x, y));
+    if (seen.has(key(x, y)) || !capish(partAt(x, y)) || alphaAt(x, y) === 0) continue;
+    const run = new Set(); const stack = [[x, y]]; seen.add(key(x, y)); let cap = 0;
+    while (stack.length) {
+      const [qx, qy] = stack.pop(); run.add(key(qx, qy)); if (partAt(qx, qy) !== PART.rod) cap += 1;
+      for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) { const nx = qx + dx; const ny = qy + dy; if (inBox(nx, ny) && !seen.has(key(nx, ny)) && capish(partAt(nx, ny)) && alphaAt(nx, ny) > 0) { seen.add(key(nx, ny)); stack.push([nx, ny]); } }
+    }
+    // Scored by how much cap sits over the beard: a held fish, cap-green and to the side,
+    // has plenty of it but none where the head is.
+    let score = cap;
+    if (beard) { score = 0; run.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (partAt(x, y) !== PART.rod && x >= beard.x0 - 10 && x <= beard.x1 + 10 && y <= beard.y0 + 6) score += 1; }); }
+    if (score > best) { best = score; crown = run; }
+  }
+  if (best < 12) return;
+  // Whatever the mask called a blotch inside the cap — a fold read as jacket, a shadow as rod —
+  // is cap too, if the cap surrounds it in its row and its column; and along the crown's
+  // upper edge, where the hood cannot be, anything touching the cap that was called jacket or
+  // rod is the cap's own edge.
+  const capTop = hat.y0 + (hat.y1 - hat.y0 + 1) * 0.7;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const grown = [];
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y > capTop) return; AROUND.forEach(([dx, dy]) => { const nx = x + dx; const ny = y + dy; const part = partAt(nx, ny); if (inBox(nx, ny) && !crown.has(key(nx, ny)) && alphaAt(nx, ny) > 0 && (part === PART.jacket || part === PART.rod)) grown.push(key(nx, ny)); }); });
+    grown.forEach((k) => crown.add(k));
+  }
+  {
+    const cols = new Map(); const rws = new Map();
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; const c = cols.get(x) || [Infinity, -Infinity]; cols.set(x, [Math.min(c[0], y), Math.max(c[1], y)]); const r = rws.get(y) || [Infinity, -Infinity]; rws.set(y, [Math.min(r[0], x), Math.max(r[1], x)]); });
+    for (let y = hat.y0; y <= hat.y1; y += 1) for (let x = Math.max(x0, hat.x0); x <= Math.min(x1 - 1, hat.x1); x += 1) {
+      if (crown.has(key(x, y)) || alphaAt(x, y) === 0) continue;
+      const part = partAt(x, y);
+      if (part === PART.skin || part === PART.beard || part === PART.boots || part === PART.waders) continue;
+      const c = cols.get(x); const r = rws.get(y);
+      if (c && r && c[0] < y && c[1] > y && r[0] < x && r[1] > x) crown.add(key(x, y));
+    }
+  }
+  for (let pass = 0; pass < 2; pass += 1) {
+    const grown = [];
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; AROUND.forEach(([dx, dy]) => { const nx = x + dx; const ny = y + dy; if (inBox(nx, ny) && !crown.has(key(nx, ny)) && partAt(nx, ny) === PART.outline && alphaAt(nx, ny) > 0) grown.push(key(nx, ny)); }); });
+    grown.forEach((k) => crown.add(k));
+  }
+  {
+    let bx0 = Infinity; let by0 = Infinity; let bx1 = -Infinity; let by1 = -Infinity;
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y); });
+    hat = { x0: bx0, y0: by0, x1: bx1, y1: by1 };
   }
   const hatH = hat.y1 - hat.y0 + 1;
 
-  // The head's width, read across the crown's middle rows — a brim is whatever the cap has
-  // past that, low down.
+  // The head's width, read across the crown's upper rows, above where the peak starts — a
+  // brim is whatever the cap has past that, low down.
   let hx0 = Infinity; let hx1 = -Infinity;
-  crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y >= hat.y0 + hatH * 0.25 && y <= hat.y0 + hatH * 0.55) { hx0 = Math.min(hx0, x); hx1 = Math.max(hx1, x); } });
+  crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y >= hat.y0 + hatH * 0.18 && y <= hat.y0 + hatH * 0.4) { hx0 = Math.min(hx0, x); hx1 = Math.max(hx1, x); } });
   if (!Number.isFinite(hx0)) return;
   const brim = new Set();
   if (facing !== 'back') {
@@ -136,7 +189,7 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       let shade = domeShade(u, v, dir);
       let rgb = base;
       // Skin does not shine like cloth; a cowboy hat's crown is dented on top.
-      if (head.crown === 'scalp') shade = Math.min(shade, 1.06);
+      if (head.crown === 'scalp') shade = Math.min(shade, 1.0) * 0.94;
       if (kind === 'cowboy' && v < 0.28 && Math.abs(u) < 0.3) shade *= 0.84;
       if (head.crown === 'hair' && v > 0.1 && v < 0.26 && (dir === 0 ? Math.abs(u) < 0.5 : u * dir > -0.2)) shade *= 1.22;
       if (kind === 'beanie' && v > 0.66) { rgb = y === by0 + Math.round(bh * 0.66) ? shaded(base, 1.2) : shaded(base, 0.84); shade = 1; }
@@ -195,15 +248,20 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
           : facing === 'front' ? [[hx0 - Math.round(headW * 0.08), hx0 + Math.round(headW * 0.18)], [hx1 - Math.round(headW * 0.18), hx1 + Math.round(headW * 0.08)]]
             : [[hx0, hx1]];
       const fill = new Set();
-      spans.forEach(([sx0, sx1]) => {
+      spans.forEach(([sx0, sx1], index) => {
+        // The edge against the head is where the hair hangs from; it tapers away from it
+        // toward the ends, and the top corner is cut so it rounds off the crown.
+        const inner = facing === 'right' || (facing === 'front' && index === 0) ? sx1 : facing === 'left' || facing === 'front' ? sx0 : (sx0 + sx1) / 2;
+        const half = facing === 'back' ? (sx1 - sx0) / 2 : sx1 - sx0;
         for (let y = yTop; y <= yBot; y += 1) for (let x = sx0; x <= sx1; x += 1) {
           if (!inside(x, y) || sculpted.has(key(x, y))) continue;
           const part = partAt(x, y);
           const open = alphaAt(x, y) === 0 || part === PART.beard || (facing === 'back' && (part === PART.jacket || part === PART.skin));
           if (!open) continue;
-          // Rounded off at the bottom corners.
           const v = (y - yTop) / Math.max(1, yBot - yTop);
-          if (v > 0.85 && (x === sx0 || x === sx1)) continue;
+          const out = Math.abs(x - inner) / Math.max(1, half);
+          if (out > 1 - (facing === 'back' ? 0.3 : 0.45) * v) continue;
+          if (v < 0.12 && out > 0.55) continue;
           put(x, y, shaded(hair, 0.9 - 0.2 * v));
           fill.add(key(x, y));
         }
