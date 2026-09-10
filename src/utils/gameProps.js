@@ -22,6 +22,7 @@ import dryfly from '../assets/props/dryfly.png';
 import nymph from '../assets/props/nymph.png';
 import streamer from '../assets/props/streamer.png';
 import flyrod from '../assets/props/flyrod.png';
+import outfit from '../assets/props/outfit.png';
 
 export const GEAR_ICONS = { rod, line, reel, bait };
 export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
@@ -32,7 +33,7 @@ export const TACKLE_BOX = tacklebox;
 export const COIN = coin;
 
 // The HUD's signpost buttons: the map for Travel, the tackle box for Sal's, a plaque for the case.
-export const HUD_ICONS = { map: mapicon, shop: tacklebox, almanac: book, trophies: trophyicon, sound: bell };
+export const HUD_ICONS = { map: mapicon, shop: tacklebox, outfit, almanac: book, trophies: trophyicon, sound: bell };
 export const DERBY_FLAG = flag;
 // The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3 };

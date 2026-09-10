@@ -1,4 +1,4 @@
-import { shopkeeperLine, captainLine } from './gameDialogue';
+import { shopkeeperLine, captainLine, outfitterLine } from './gameDialogue';
 
 describe('shopkeeperLine', () => {
   const profile = { tackle_points: 120, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1 };
@@ -90,5 +90,16 @@ describe('the world talks back', () => {
     const done = { ...profile, quests: { sals_wall: { progress: 1, done: true, claimed: false } } };
     expect(shopkeeperLine({ gameProfile: done, event: null })).toMatch(/is that my bass/i);
     expect(shopkeeperLine({ gameProfile: done, event: { type: 'quest', points: 75 } })).toMatch(/75 points, as promised/i);
+  });
+});
+
+describe('outfitterLine', () => {
+  test('Marina reacts to the sale, the change, a failure, and otherwise your balance', () => {
+    expect(outfitterLine({ gameProfile: { tackle_points: 100, wardrobe: [] }, event: { type: 'buy', label: 'Red cap' } })).toMatch(/the red cap — good choice/i);
+    expect(outfitterLine({ gameProfile: { tackle_points: 100 }, event: { type: 'look' } })).toMatch(/looking sharp/i);
+    expect(outfitterLine({ gameProfile: { tackle_points: 100 }, event: { type: 'error', message: 'Not enough tackle points yet.' } })).toMatch(/not enough tackle points yet/i);
+    expect(outfitterLine({ gameProfile: { tackle_points: 10, wardrobe: [] } })).toMatch(/on the house/i);
+    expect(outfitterLine({ gameProfile: { tackle_points: 100, wardrobe: [] } })).toMatch(/100 points/i);
+    expect(outfitterLine({ gameProfile: { tackle_points: 100, wardrobe: ['a', 'b', 'c', 'd', 'e', 'f'] } })).toMatch(/cleaned out/i);
   });
 });

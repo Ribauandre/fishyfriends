@@ -10,7 +10,21 @@ import { QUEST_BY_KEY, questState, claimableQuests } from './gameQuests';
 export const NPCS = {
   shopkeeper: { name: 'Sal', title: "Runs Sal's Tackle" },
   captain: { name: "Cap'n Ray", title: 'Reel Life Charters' },
+  outfitter: { name: 'Marina', title: "Marina's Outfitters" },
 };
+
+// Marina runs the apparel racks: she reacts to what you just bought or changed, and otherwise
+// sizes up your balance.
+export function outfitterLine({ gameProfile, event }) {
+  if (event?.type === 'error') return `${event.message} No harm in looking, though.`;
+  if (event?.type === 'buy') return `The ${event.label.toLowerCase()} — good choice. It's yours; wear it out if you like.`;
+  if (event?.type === 'look') return "There we go. Looking sharp.";
+  const points = gameProfile?.tackle_points || 0;
+  const owned = (gameProfile?.wardrobe || []).length;
+  if (owned >= 6) return "You've about cleaned out my racks. Try a combination on.";
+  if (points < 40) return "Skin, beard, hair — those are on the house. The racks take tackle points; go land a few.";
+  return `Hats, rods, boots and waders on the racks, ${points} points in your pocket. Try something on.`;
+}
 
 export function shopkeeperLine({ gameProfile, event, personalBests = [], bounties = [] }) {
   if (event?.type === 'error') return `${event.message} Don't take it personal.`;

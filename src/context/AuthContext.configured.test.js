@@ -586,6 +586,21 @@ describe('Cast & Catch world', () => {
     expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ owned_lures: ['dryfly'], tackle_points: 20 }));
   });
 
+  test('apparel is bought once with points and the look only keeps what is owned', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 100, wardrobe: [], look: {} }, error: null });
+    await expectError(result.current.purchaseApparel('cap_green'), /already own/i);
+    await expectError(result.current.purchaseApparel('hat_cowboy'), /not enough tackle points/i);
+    await expectError(result.current.purchaseApparel('nothing'), /unknown item/i);
+    await result.current.purchaseApparel('cap_red');
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ wardrobe: ['cap_red'], tackle_points: 60 }));
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60, wardrobe: ['cap_red'], look: {} }, error: null });
+    await expectError(result.current.purchaseApparel('cap_red'), /already own/i);
+    const saved = await result.current.saveLook({ skin: 'deep', hat: 'cap_red', rod: 'rod_gold', beard: 'goatee' });
+    expect(saved.look).toEqual({ skin: 'deep', beard: 'goatee', hair: 'auburn', hat: 'cap_red', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' });
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ look: saved.look }));
+  });
+
   test('listDerbyLeaders ranks the week\'s catches one row per angler with avatars from profiles', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('game_catches', { data: [

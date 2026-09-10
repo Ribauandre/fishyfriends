@@ -8,6 +8,7 @@ import { isNewRecord, speciesLabel, sizeLabel } from '../utils/gameSpecies';
 import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
 import { rankDerby, previousDerby } from '../utils/gameDerby';
 import { LURES, FLY_ROD } from '../utils/gameLures';
+import { WARDROBE, normalizeLook } from '../utils/anglerLook';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
@@ -482,7 +483,7 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], fly_rod: false, records: {}, quests: {}, bounties_claimed: [], derby_wins: [] };
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], fly_rod: false, records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
   const FISH_YEAR_BOUNTY_POINTS = 15;
 
   // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
@@ -670,6 +671,33 @@ export function AuthProvider({ children }) {
     return { error: null, gameProfile: data };
   }
 
+  // Marina's Outfitters: an apparel item is bought once with tackle points (wardrobe on the
+  // profile); the look is what's worn, validated against what's owned before it's saved.
+  async function purchaseApparel(itemKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before shopping.') };
+    const item = WARDROBE[itemKey];
+    if (!item) return { error: new Error('Unknown item.') };
+    const currentGameProfile = await getGameProfile();
+    const owned = currentGameProfile?.wardrobe || [];
+    if (item.cost === 0 || owned.includes(itemKey)) return { error: new Error('You already own that.') };
+    if ((currentGameProfile?.tackle_points || 0) < item.cost) return { error: new Error('Not enough tackle points yet.') };
+    const nextPoints = currentGameProfile.tackle_points - item.cost;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ wardrobe: [...owned, itemKey], tackle_points: nextPoints, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data };
+  }
+
+  async function saveLook(look) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before changing your look.') };
+    const currentGameProfile = await getGameProfile();
+    const safe = normalizeLook(look, currentGameProfile?.wardrobe || []);
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ look: safe, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data, look: safe };
+  }
+
   async function submitBugReport({ body }) {
     if (!body?.trim()) return { error: new Error('Describe what went wrong first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before reporting a bug.') };
@@ -849,7 +877,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
-    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
+    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
