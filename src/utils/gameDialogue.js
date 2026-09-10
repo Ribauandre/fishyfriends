@@ -23,7 +23,7 @@ export function outfitterLine({ gameProfile, event }) {
   const owned = (gameProfile?.wardrobe || []).length;
   if (owned >= 6) return "You've about cleaned out my racks. Try a combination on.";
   if (points < 40) return "Skin, beard, hair — those are on the house. The racks take tackle points; go land a few.";
-  return `Hats, rods, boots and waders on the racks, ${points} points in your pocket. Try something on.`;
+  return `Hats, vests, trousers, boots and rods on the racks, ${points} points in your pocket. Try something on.`;
 }
 
 export function shopkeeperLine({ gameProfile, event, personalBests = [], bounties = [] }) {

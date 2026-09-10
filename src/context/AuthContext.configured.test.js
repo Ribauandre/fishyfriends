@@ -572,7 +572,7 @@ describe('Cast & Catch world', () => {
     __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60, wardrobe: ['cap_red'], look: {} }, error: null });
     await expectError(result.current.purchaseApparel('cap_red'), /already own/i);
     const saved = await result.current.saveLook({ skin: 'deep', hat: 'cap_red', rod: 'rod_gold', beard: 'goatee' });
-    expect(saved.look).toEqual({ skin: 'deep', hairstyle: 'short', hair: 'auburn', beard: 'goatee', hat: 'cap_red', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' });
+    expect(saved.look).toEqual({ skin: 'deep', hairstyle: 'bald', hair: 'auburn', beard: 'goatee', hat: 'cap_red', vest: 'vest_olive', pants: 'pants_blue', boots: 'boots_brown', rod: 'rod_graphite' });
     expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ look: saved.look }));
   });
 
