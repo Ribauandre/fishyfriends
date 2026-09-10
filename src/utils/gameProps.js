@@ -25,14 +25,16 @@ import flyrod from '../assets/props/flyrod.png';
 import outfit from '../assets/props/outfit.png';
 import crewicon from '../assets/props/crewicon.png';
 import questicon from '../assets/props/questicon.png';
-import dockGull from '../assets/props/dock/gull.png';
 import dockBuoy from '../assets/props/dock/buoy.png';
 import dockRocks from '../assets/props/dock/rocks.png';
+import dockLamppost from '../assets/props/dock/lamppost.png';
+import dockBarrel from '../assets/props/dock/barrel.png';
+import dockCrate from '../assets/props/dock/crate.png';
 
 // The dock's own gear, set out by SCENE_LAYOUTS[biome].props: cut from art/dock-parts.png by
 // scripts/dockSlice.mjs, which writes every piece on that sheet — only the ones a scene
 // actually places are kept here, so nothing unused is bundled.
-export const DOCK_PROPS = { gull: dockGull, buoy: dockBuoy, rocks: dockRocks };
+export const DOCK_PROPS = { buoy: dockBuoy, rocks: dockRocks, lamppost: dockLamppost, barrel: dockBarrel, crate: dockCrate };
 
 export const GEAR_ICONS = { rod, line, reel, bait };
 export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
