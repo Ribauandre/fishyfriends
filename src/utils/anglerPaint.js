@@ -110,13 +110,21 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       const top = Math.min(...[...crown].map((k) => Math.floor(k / width)));
       [...crown].forEach((k) => { const y = Math.floor(k / width); if (y < top + 2 && !brim.has(k)) { crown.delete(k); erase(k - y * width, y); } });
     }
+    const base = head.crown === 'scalp' ? skin : head.crown === 'hair' ? hair : head.hat.rgb;
+    const trim = head.hat?.trim || null;
+    // A cowboy hat's crown stands taller than a cap's, a beanie's a little.
+    if (kind === 'cowboy' || kind === 'beanie') {
+      const top = Math.min(...[...crown].filter((k) => !brim.has(k)).map((k) => Math.floor(k / width)));
+      let tx0 = Infinity; let tx1 = -Infinity;
+      crown.forEach((k) => { const y = Math.floor(k / width); if (y === top) { tx0 = Math.min(tx0, k - y * width); tx1 = Math.max(tx1, k - y * width); } });
+      const raise = kind === 'cowboy' ? 3 : 1; const inset = kind === 'cowboy' ? 2 : 1;
+      for (let y = top - raise; y < top; y += 1) for (let x = tx0 + inset; x <= tx1 - inset; x += 1) if (inside(x, y)) { crown.add(key(x, y)); put(x, y, base); }
+    }
     const rows = new Map();
     let by0 = Infinity; let by1 = -Infinity;
     crown.forEach((k) => { if (brim.has(k)) return; const y = Math.floor(k / width); const x = k - y * width; const row = rows.get(y) || [Infinity, -Infinity]; rows.set(y, [Math.min(row[0], x), Math.max(row[1], x)]); by0 = Math.min(by0, y); by1 = Math.max(by1, y); });
     if (!rows.size) return;
     const bh = by1 - by0 + 1;
-    const base = head.crown === 'scalp' ? skin : head.crown === 'hair' ? hair : head.hat.rgb;
-    const trim = head.hat?.trim || null;
 
     // The dome.
     crown.forEach((k) => {
@@ -127,6 +135,9 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       const v = (y - by0) / bh;
       let shade = domeShade(u, v, dir);
       let rgb = base;
+      // Skin does not shine like cloth; a cowboy hat's crown is dented on top.
+      if (head.crown === 'scalp') shade = Math.min(shade, 1.06);
+      if (kind === 'cowboy' && v < 0.28 && Math.abs(u) < 0.3) shade *= 0.84;
       if (head.crown === 'hair' && v > 0.1 && v < 0.26 && (dir === 0 ? Math.abs(u) < 0.5 : u * dir > -0.2)) shade *= 1.22;
       if (kind === 'beanie' && v > 0.66) { rgb = y === by0 + Math.round(bh * 0.66) ? shaded(base, 1.2) : shaded(base, 0.84); shade = 1; }
       if ((kind === 'straw' && v > 0.74) || (kind === 'cowboy' && v > 0.78)) { rgb = trim; shade = 0.95; }
@@ -145,8 +156,8 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       for (let dy = -3; dy <= 3; dy += 1) for (let dx = -3; dx <= 3; dx += 1) if (dx * dx + dy * dy <= 10) add(cx + dx, cy + dy, shaded(trim, 1 - 0.06 * (dy + 3)));
     }
     if (kind === 'bucket' || kind === 'straw' || kind === 'cowboy') {
-      const reach = kind === 'bucket' ? 3 : kind === 'straw' ? 7 : 6;
-      const lift = kind === 'cowboy' ? 2 : kind === 'straw' ? 1 : 0;
+      const reach = kind === 'bucket' ? 4 : kind === 'straw' ? 7 : 8;
+      const lift = kind === 'cowboy' ? 3 : kind === 'straw' ? 1 : 0;
       for (let x = bottom[0] - reach; x <= bottom[1] + reach; x += 1) {
         const out = Math.max(0, Math.max(bottom[0] - x, x - bottom[1]));
         const up = lift && out > reach - 3 ? lift - (reach - out) : 0;
