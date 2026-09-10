@@ -244,6 +244,7 @@ export default function GameScene({
       className={`scene-action ${hold ? 'is-hold' : ''}`}
       aria-label={interaction.label}
       onClick={hold ? undefined : interaction.onTap}
+      onContextMenu={(event) => event.preventDefault()}
       onPointerDown={hold ? interaction.onHoldStart : undefined}
       onPointerUp={hold ? interaction.onHoldEnd : undefined}
       onPointerLeave={hold ? interaction.onHoldEnd : undefined}

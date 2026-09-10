@@ -125,6 +125,8 @@ test('the stage is the tap surface for the current phase, and the meters sit whe
   expect(onHoldStart).toHaveBeenCalledTimes(1);
   fireEvent.pointerUp(surface);
   expect(onHoldEnd).toHaveBeenCalledTimes(1);
+  // A phone's long press must not turn into a text-selection callout over the stage.
+  expect(fireEvent.contextMenu(surface)).toBe(false);
   expect(container.querySelector('.stage-meter.is-tension .stage-meter-fill').style.height).toBe('55%');
   expect(container.querySelector('.stage-progress span').style.width).toBe('30%');
 
