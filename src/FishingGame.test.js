@@ -426,7 +426,7 @@ test("Marina's sells apparel for points and the free look changes save straight 
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
   expect(screen.getByText(/hats, rods, boots and waders on the racks/i)).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: 'Your angler' })).toHaveAttribute('data-look', expect.stringContaining('medium|full|auburn|cap_green'));
+  expect(screen.getByRole('img', { name: 'Your angler' })).toHaveAttribute('data-look', expect.stringContaining('medium|short|auburn|full|cap_green'));
 
   await userEvent.click(screen.getByRole('button', { name: 'Deep skin' }));
   expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ skin: 'deep' }));

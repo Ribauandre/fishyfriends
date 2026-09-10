@@ -976,7 +976,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    skin, beard and hair) and the racks, one card per item, worn or bought with a tap. */
 .outfit-fitting { display: grid; gap: 14px; grid-template-columns: 150px 1fr; margin: 0 0 14px; }
 .outfit-preview { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; justify-content: center; padding: 8px 4px 6px; }
-.angler-preview { background-repeat: no-repeat; height: 150px; width: 125px; }
+.angler-preview { background-position: center bottom; background-repeat: no-repeat; height: 150px; width: 180px; }
+.angler-preview.is-small { height: 60px; width: 72px; }
 .outfit-you { display: flex; flex-direction: column; gap: 10px; }
 .outfit-group { background: rgba(3,8,11,.5); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -996,8 +997,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .rack-item.is-worn > span:last-child { color: var(--mint); }
 .rack-item:disabled { cursor: default; }
 .rack-item:not(:disabled):hover { border-color: var(--mint); }
-.rack-swatch { align-items: center; background: rgba(3,8,11,.35); border: 1px solid var(--line); display: flex; height: 34px; justify-content: center; width: 48px; }
-.rack-swatch img { height: 30px; width: auto; }
+.rack-swatch { align-items: center; background: rgba(3,8,11,.35); border: 1px solid var(--line); display: flex; height: 62px; justify-content: center; overflow: hidden; width: 74px; }
 @media (max-width: 500px) { .outfit-fitting { grid-template-columns: 1fr; } .outfit-preview { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 6px 10px; } }
 
 /* The fly rod: the rise ring the accuracy cast aims at, and the fly-shop card at Sal's. */
