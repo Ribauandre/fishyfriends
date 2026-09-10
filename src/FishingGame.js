@@ -13,8 +13,7 @@ import outfitterBackdrop from './assets/scenes/outfitter.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
-import { SKIN_TONES, BEARD_STYLES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
-import { HAT_ART } from './utils/anglerPaint';
+import { SKIN_TONES, HAIR_STYLES, HAIR_COLORS, BEARD_STYLES, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
@@ -898,13 +897,19 @@ export default function FishingGame({ clock = () => new Date() }) {
                 {Object.entries(SKIN_TONES).map(([key, tone]) => <button key={key} type="button" className={`swatch ${look.skin === key ? 'is-on' : ''}`} style={{ background: `rgb(${tone.rgb.join(',')})` }} aria-label={`${tone.label} skin`} aria-pressed={look.skin === key} disabled={outfitBusy} onClick={() => handleLook({ skin: key })} />)}
               </div>
             </section>
+            <section className="outfit-group" aria-label="Hair">
+              <span className="eyebrow">HAIR</span>
+              <div className="outfit-chips">
+                {Object.entries(HAIR_STYLES).map(([key, style]) => <button key={key} type="button" className={`outfit-chip ${look.hairstyle === key ? 'is-on' : ''}`} aria-label={`${style.label} hair`} aria-pressed={look.hairstyle === key} disabled={outfitBusy} onClick={() => handleLook({ hairstyle: key })}>{style.label}</button>)}
+              </div>
+              <div className="swatches">
+                {Object.entries(HAIR_COLORS).map(([key, color]) => <button key={key} type="button" className={`swatch ${look.hair === key ? 'is-on' : ''}`} style={{ background: `rgb(${color.rgb.join(',')})` }} aria-label={`${color.label} hair`} aria-pressed={look.hair === key} disabled={outfitBusy} onClick={() => handleLook({ hair: key })} />)}
+              </div>
+            </section>
             <section className="outfit-group" aria-label="Facial hair">
               <span className="eyebrow">FACIAL HAIR</span>
               <div className="outfit-chips">
                 {Object.entries(BEARD_STYLES).map(([key, style]) => <button key={key} type="button" className={`outfit-chip ${look.beard === key ? 'is-on' : ''}`} aria-pressed={look.beard === key} disabled={outfitBusy} onClick={() => handleLook({ beard: key })}>{style.label}</button>)}
-              </div>
-              <div className="swatches">
-                {Object.entries(HAIR_COLORS).map(([key, color]) => <button key={key} type="button" className={`swatch ${look.hair === key ? 'is-on' : ''}`} style={{ background: `rgb(${color.rgb.join(',')})` }} aria-label={`${color.label} hair`} aria-pressed={look.hair === key} disabled={outfitBusy} onClick={() => handleLook({ hair: key })} />)}
               </div>
             </section>
           </div>
@@ -925,7 +930,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                 aria-label={`${item.label} · ${status}`}
                 onClick={() => (owned ? handleLook({ [slot]: item.key }) : handleApparelPurchase(item.key, slot, item.label))}
               >
-                <span className="rack-swatch" style={item.tint ? { background: `rgb(${item.tint.join(',')})` } : undefined}>{item.overlay && <img src={HAT_ART[item.overlay]} alt="" />}</span>
+                <span className="rack-swatch"><AnglerPreview look={{ ...look, [slot]: item.key }} small label="" /></span>
                 <strong>{item.label}</strong>
                 <span>{status}</span>
               </button>;
