@@ -1,125 +1,158 @@
-import { tintPixel, jawPixel, paintPixels, placeOn, PLACEMENTS, renderAngler, renderStill, canPaint } from './anglerPaint';
-import { PART, PART_BASE, paletteFor, SKIN_TONES, HAIR_COLORS, WARDROBE } from './anglerLook';
+import { tintPixel, facingOf, frontness, paintPixels, OUTLINE } from './anglerPaint';
+import { PART, PART_BASE, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor } from './anglerLook';
 
-// A three-frame strip, one pixel per part per frame, plus a cap brim pixel past the face.
-function makeStrip() {
-  const frameWidth = 12; const width = 36; const height = 4;
-  const pixels = new Uint8ClampedArray(width * height * 4);
-  const mask = new Uint8ClampedArray(width * height * 4);
-  const put = (x, y, part, rgb) => { const i = (y * width + x) * 4; pixels.set([...rgb, 255], i); mask[i] = part; };
-  for (let f = 0; f < 3; f += 1) {
-    const o = f * frameWidth;
-    put(o + 1, 0, PART.hat, PART_BASE[PART.hat]);
-    put(o + 2, 0, PART.panel, PART_BASE[PART.panel]);
-    put(o + 9, 2, PART.hat, [30, 70, 60]); // brim: past the face, low on the cap
-    put(o + 3, 1, PART.skin, PART_BASE[PART.skin]);
-    put(o + 4, 2, PART.beard, PART_BASE[PART.beard]);
-    put(o + 5, 2, PART.beard, [40, 20, 10]);
-    put(o + 6, 3, PART.jacket, [86, 83, 50]);
-    put(o + 7, 3, PART.waders, PART_BASE[PART.waders]);
-    put(o + 8, 3, PART.boots, PART_BASE[PART.boots]);
-    put(o + 10, 1, PART.rod, PART_BASE[PART.rod]);
-    put(o + 11, 1, PART.outline, [0, 0, 0]);
-  }
-  const anchors = [0, 1, 2].map(() => ({ hat: { x0: 1, y0: 0, x1: 9, y1: 2 }, beard: { x0: 4, y0: 2, x1: 5, y1: 2 }, face: { x0: 2, y0: 1, x1: 5, y1: 2 } }));
-  const at = (x, y) => Array.from(pixels.slice((y * width + x) * 4, (y * width + x) * 4 + 4));
-  return { pixels, mask, width, height, frameWidth, anchors, at };
+// A tiny frame in profile, facing right: a cap with a peak past the face, a face, a beard
+// whose back two columns are the nape, and a jacket. Everything else is open.
+const W = 40; const H = 40;
+const FRAME = { hat: { x0: 10, y0: 4, x1: 34, y1: 14 }, face: { x0: 16, y0: 15, x1: 29, y1: 21 }, beard: { x0: 14, y0: 22, x1: 29, y1: 28 } };
+function scene() {
+  const pixels = new Uint8ClampedArray(W * H * 4);
+  const mask = new Uint8ClampedArray(W * H * 4);
+  const fill = (x0, y0, x1, y1, part, rgb) => {
+    for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) { const i = (y * W + x) * 4; pixels.set([...rgb, 255], i); mask[i] = part; }
+  };
+  fill(10, 4, 29, 14, PART.hat, PART_BASE[PART.hat]);
+  fill(30, 11, 34, 14, PART.hat, PART_BASE[PART.hat]);
+  fill(16, 15, 29, 21, PART.skin, PART_BASE[PART.skin]);
+  fill(14, 22, 29, 28, PART.beard, PART_BASE[PART.beard]);
+  fill(8, 29, 31, 39, PART.jacket, [60, 70, 50]);
+  return { pixels, mask };
 }
+function paint(look, frame = FRAME) {
+  const { pixels, mask } = scene();
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [frame], palette: paletteFor(look, Object.keys(WARDROBE)) });
+  return (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+}
+const near = (px, rgb, tolerance = 60) => Math.abs(px.r - rgb[0]) <= tolerance && Math.abs(px.g - rgb[1]) <= tolerance && Math.abs(px.b - rgb[2]) <= tolerance;
 
-test('tinting keeps the shading: highlights stay lighter than folds', () => {
-  const base = [220, 103, 38];
-  const light = tintPixel([245, 185, 140], base, [86, 52, 34]);
-  const dark = tintPixel([160, 70, 30], base, [86, 52, 34]);
-  expect(light[0]).toBeGreaterThan(dark[0]);
-  expect(tintPixel(base, base, [100, 50, 25])).toEqual([100, 50, 25]);
-  // Nothing blows out or goes negative.
-  tintPixel([255, 255, 255], [10, 10, 10], [200, 200, 200]).forEach((v) => expect(v).toBeLessThanOrEqual(255));
+test('tintPixel keeps a pixel\'s shading relative to its part\'s mid-tone', () => {
+  expect(tintPixel([220, 103, 38], PART_BASE[PART.skin], [86, 52, 34])).toEqual([86, 52, 34]);
+  const dark = tintPixel([110, 52, 19], PART_BASE[PART.skin], [86, 52, 34]);
+  expect(dark[0]).toBeLessThan(86);
 });
 
-test('jaw pixels are near-flat skin, a touch darker than the cheek', () => {
-  const skin = [220, 103, 38];
-  const fromLight = jawPixel([130, 65, 35], skin);
-  const fromDark = jawPixel([40, 20, 10], skin);
-  fromLight.forEach((v, i) => expect(v).toBeLessThanOrEqual(skin[i]));
-  expect(fromLight[0] - fromDark[0]).toBeLessThan(30);
+test('a frame\'s facing and a column\'s frontness come from the anchors', () => {
+  expect(facingOf(FRAME)).toBe('right');
+  expect(facingOf({ ...FRAME, face: { x0: 10, y0: 15, x1: 33, y1: 21 } })).toBe('front');
+  expect(facingOf({ ...FRAME, face: { x0: 11, y0: 15, x1: 22, y1: 21 } })).toBe('left');
+  expect(facingOf({ hat: FRAME.hat, face: null, beard: null })).toBe('back');
+  expect(frontness(29, FRAME.face, 'right')).toBe(1);
+  expect(frontness(14, FRAME.face, 'right')).toBeLessThan(0);
+  expect(frontness(16, FRAME.face, 'left')).toBe(1);
+  expect(frontness(22.5, { x0: 16, x1: 29 }, 'front')).toBeCloseTo(1, 5);
 });
 
-test('the stock look leaves every pixel as drawn', () => {
-  const strip = makeStrip();
-  const before = Array.from(strip.pixels);
-  paintPixels({ ...strip, palette: paletteFor({}) });
-  expect(Array.from(strip.pixels)).toEqual(before);
+test('a cap is dyed in place, peak and all', () => {
+  const px = paint({ hat: 'cap_red' });
+  expect(px(20, 9).r).toBeGreaterThan(px(20, 9).g);
+  expect(px(33, 12).a).toBe(255);
+  expect(px(33, 12).r).toBeGreaterThan(px(33, 12).g);
 });
 
-test('dyes land on their parts and nothing else', () => {
-  const strip = makeStrip();
-  paintPixels({ ...strip, palette: paletteFor({ skin: 'deep', hair: 'grey', hat: 'cap_red', rod: 'rod_red', boots: 'boots_yellow', waders: 'waders_navy' }) });
-  expect(strip.at(3, 1).slice(0, 3)).toEqual(SKIN_TONES.deep.rgb);
-  expect(strip.at(4, 2).slice(0, 3)).toEqual(HAIR_COLORS.grey.rgb);
-  expect(strip.at(1, 0).slice(0, 3)).toEqual(WARDROBE.cap_red.tint);
-  expect(strip.at(2, 0).slice(0, 3)).toEqual(PART_BASE[PART.panel]);
-  expect(strip.at(7, 3).slice(0, 3)).toEqual(WARDROBE.waders_navy.tint);
-  expect(strip.at(8, 3).slice(0, 3)).toEqual(WARDROBE.boots_yellow.tint);
-  expect(strip.at(10, 1).slice(0, 3)).toEqual(WARDROBE.rod_red.tint);
-  expect(strip.at(6, 3).slice(0, 3)).toEqual([86, 83, 50]);
-  expect(strip.at(11, 1)).toEqual([0, 0, 0, 255]);
-  // Every frame got the same treatment.
-  expect(strip.at(12 + 3, 1).slice(0, 3)).toEqual(SKIN_TONES.deep.rgb);
-  expect(strip.at(24 + 1, 0).slice(0, 3)).toEqual(WARDROBE.cap_red.tint);
+test('a bare head loses the peak and the cap\'s extra height and becomes a shaded scalp', () => {
+  const px = paint({ hat: 'hat_none', hairstyle: 'bald' });
+  expect(px(33, 12).a).toBe(0);
+  expect(px(20, 4).a).toBe(0);
+  expect(px(20, 5).a).toBe(0);
+  expect(near(px(20, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  // Lit from the top, darker down the back.
+  expect(px(20, 7).r).toBeGreaterThan(px(20, 13).r);
+  // The silhouette gets the art's line back.
+  expect(near(px(10, 9), OUTLINE, 6)).toBe(true);
+  // With no hair, the nape is skin too.
+  expect(near(px(14, 25), SKIN_TONES.medium.rgb, 80)).toBe(true);
 });
 
-test('a clean shave turns the beard into jaw; stubble dithers it', () => {
-  const shaved = makeStrip();
-  paintPixels({ ...shaved, palette: paletteFor({ beard: 'none' }) });
-  const jaw = shaved.at(4, 2).slice(0, 3);
-  expect(jaw[0]).toBeGreaterThan(150);
-  expect(jaw[0]).toBeLessThanOrEqual(220);
-  expect(Math.abs(shaved.at(4, 2)[0] - shaved.at(5, 2)[0])).toBeLessThan(30);
-
-  const stubble = makeStrip();
-  paintPixels({ ...stubble, palette: paletteFor({ beard: 'stubble', hair: 'black' }) });
-  // (x + y) even pixels carry the stubble mix, odd ones plain jaw.
-  expect(stubble.at(4, 2)[0]).toBeLessThan(stubble.at(5, 2)[0]);
-  // A full beard in another colour is a dye, not a shave.
-  const bearded = makeStrip();
-  paintPixels({ ...bearded, palette: paletteFor({ beard: 'full', hair: 'blond' }) });
-  expect(bearded.at(4, 2).slice(0, 3)).toEqual(HAIR_COLORS.blond.rgb);
+test('hair is the crown in the hair colour, with a highlight and a darker hairline', () => {
+  const px = paint({ hat: 'hat_none', hairstyle: 'short', hair: 'blond' });
+  expect(near(px(20, 10), HAIR_COLORS.blond.rgb, 80)).toBe(true);
+  expect(px(20, 7).r).toBeGreaterThan(px(20, 10).r);
+  // The row against the face is darker hair, not a line.
+  expect(px(20, 14).r).toBeLessThan(px(20, 12).r);
+  expect(px(20, 14).r).toBeGreaterThan(OUTLINE[0] + 20);
 });
 
-test('other hats turn the cap into hair underneath; a bare head loses the brim', () => {
-  const cowboy = makeStrip();
-  paintPixels({ ...cowboy, palette: paletteFor({ hat: 'hat_cowboy', hair: 'blond' }) });
-  expect(cowboy.at(1, 0).slice(0, 3)).toEqual(HAIR_COLORS.blond.rgb);
-  expect(cowboy.at(9, 2)[3]).toBe(255);
-
-  const bare = makeStrip();
-  paintPixels({ ...bare, palette: paletteFor({ hat: 'hat_none', hair: 'blond' }) });
-  expect(bare.at(1, 0).slice(0, 3)).toEqual(HAIR_COLORS.blond.rgb);
-  expect(bare.at(9, 2)[3]).toBe(0);
-
-  const bald = makeStrip();
-  paintPixels({ ...bald, palette: paletteFor({ hat: 'hat_none', hairstyle: 'bald', skin: 'fair' }) });
-  expect(bald.at(1, 0).slice(0, 3)).toEqual(SKIN_TONES.fair.rgb);
+test('long hair hangs down the back of the neck in the open, with its own line', () => {
+  const px = paint({ hat: 'hat_none', hairstyle: 'long', hair: 'red' });
+  expect(px(13, 20).a).toBe(255);
+  expect(near(px(13, 20), HAIR_COLORS.red.rgb, 90)).toBe(true);
+  expect(near(px(10, 20), OUTLINE, 6)).toBe(true);
+  // It tapers away from the head: the far edge is open.
+  expect(px(8, 20).a).toBe(0);
+  // The face is never painted over.
+  expect(near(px(20, 18), PART_BASE[PART.skin], 2)).toBe(true);
 });
 
-test('drawings are placed against the cap or beard box and scale with it', () => {
-  const frame = { hat: { x0: 60, y0: 1, x1: 99, y1: 34 }, beard: { x0: 57, y0: 36, x1: 102, y1: 57 }, face: { x0: 57, y0: 15, x1: 102, y1: 57 } };
-  const hat = placeOn(frame, 'hat', 1.25);
-  expect(hat.w).toBeCloseTo(40 * PLACEMENTS.hat.w, 5);
-  expect(hat.h).toBeCloseTo(hat.w / 1.25, 5);
-  expect(hat.y + hat.h).toBeCloseTo(1 + 34 * PLACEMENTS.hat.bottom, 5);
-  expect(hat.x + hat.w / 2).toBeCloseTo(80 + 40 * PLACEMENTS.hat.cx, 5);
-  const goatee = placeOn(frame, 'beard_goatee', 1);
-  expect(goatee.y).toBeCloseTo(36 + 22 * PLACEMENTS.beard_goatee.top, 5);
-  expect(goatee.w).toBeLessThan(46);
-  // Back-view frames have no beard box, so nothing is placed there.
-  expect(placeOn({ hat: frame.hat, beard: null }, 'beard_mustache', 2)).toBeNull();
-  expect(placeOn({ hat: null }, 'hat', 1)).toBeNull();
+test('a beanie is the crown in its colour, banded, with a pompom above the head', () => {
+  const px = paint({ hat: 'hat_beanie' });
+  const { rgb, trim } = WARDROBE.hat_beanie;
+  expect(near(px(20, 7), rgb, 70)).toBe(true);
+  expect(px(20, 2).a).toBe(255);
+  expect(near(px(20, 2), trim, 60)).toBe(true);
+  // The cap's peak is gone.
+  expect(px(33, 12).a).toBe(0);
 });
 
-test('without a canvas nothing is painted and the stock art stands in', async () => {
-  expect(canPaint()).toBe(false);
-  expect(await renderAngler({ skin: 'fair' })).toBeNull();
-  expect(await renderStill({ skin: 'fair' })).toBeNull();
-  expect(await renderAngler({})).toBeNull();
+test('a straw hat adds a wide brim past the head', () => {
+  const px = paint({ hat: 'hat_straw' });
+  expect(px(4, 15).a).toBe(255);
+  // Lined top and bottom, straw between.
+  expect(near(px(5, 15), OUTLINE, 6)).toBe(true);
+  expect(near(px(5, 16), WARDROBE.hat_straw.rgb, 80)).toBe(true);
+  // The band round the crown is the trim colour.
+  expect(near(px(20, 13), WARDROBE.hat_straw.trim, 60)).toBe(true);
+});
+
+test('a visor keeps the cap\'s peak in its own colour on the hairstyle\'s crown', () => {
+  const px = paint({ hat: 'hat_visor', hairstyle: 'bald' });
+  expect(px(33, 12).a).toBe(255);
+  expect(px(33, 12).r).toBeGreaterThan(150);
+  expect(near(px(20, 8), SKIN_TONES.medium.rgb, 70)).toBe(true);
+});
+
+test('the beard is cut down to a jaw of the skin, keeping what a style keeps and the nape', () => {
+  const clean = paint({ beard: 'none' });
+  expect(near(clean(27, 25), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  expect(near(clean(14, 25), PART_BASE[PART.beard], 2)).toBe(true);
+  expect(near(clean(29, 25), OUTLINE, 6)).toBe(true);
+  const goatee = paint({ beard: 'goatee' });
+  expect(near(goatee(27, 27), PART_BASE[PART.beard], 2)).toBe(true);
+  expect(near(goatee(18, 27), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  expect(near(goatee(26, 23), PART_BASE[PART.beard], 2)).toBe(true);
+  const mustache = paint({ beard: 'mustache' });
+  expect(near(mustache(26, 23), PART_BASE[PART.beard], 2)).toBe(true);
+  expect(near(mustache(27, 27), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  const stubble = paint({ beard: 'stubble' });
+  expect(stubble(26, 26).g).toBeLessThan(clean(26, 26).g);
+  // A kept beard is dyed to the hair colour.
+  const grey = paint({ hair: 'grey' });
+  expect(near(grey(27, 25), HAIR_COLORS.grey.rgb, 60)).toBe(true);
+});
+
+test('every frame of a strip is sculpted where its own anchors say, not where the first frame\'s do', () => {
+  const one = scene();
+  const pixels = new Uint8ClampedArray(W * 2 * H * 4);
+  const mask = new Uint8ClampedArray(W * 2 * H * 4);
+  // The same head twice, the second one a frame along and four pixels to the right.
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+    const from = (y * W + x) * 4;
+    [[x, 0], [x + 4, W]].forEach(([tx, ox]) => { if (tx < W) { const to = (y * W * 2 + ox + tx) * 4; pixels.set(one.pixels.slice(from, from + 4), to); mask[to] = one.mask[from]; } });
+  }
+  const moved = (box) => ({ ...box, x0: box.x0 + 4, x1: box.x1 + 4 });
+  const second = { hat: moved(FRAME.hat), face: moved(FRAME.face), beard: moved(FRAME.beard) };
+  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'hat_none', hairstyle: 'bald' }, Object.keys(WARDROBE)) });
+  const px = (x, y) => { const i = (y * W * 2 + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  // Both peaks are gone and both crowns are scalp.
+  expect(px(33, 12).a).toBe(0);
+  expect(px(W + 37, 12).a).toBe(0);
+  expect(near(px(20, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  expect(near(px(W + 24, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
+});
+
+test('a frame with no anchors is only dyed', () => {
+  const { pixels, mask } = scene();
+  const before = pixels.slice();
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [], palette: paletteFor({ skin: 'deep', hat: 'hat_none' }) });
+  expect(pixels[(18 * W + 20) * 4]).toBeLessThan(before[(18 * W + 20) * 4]);
+  expect(pixels[(9 * W + 20) * 4 + 3]).toBe(255);
 });
