@@ -557,6 +557,9 @@ export default function FishingGame({ clock = () => new Date() }) {
     id: `pb-${best.id}`, species: best.species, icon: speciesIcon(best.species), sizeLabel: best.size_label, photoUrl: best.photo_url,
   }));
 
+  // Picking a lure from the tray ties it on and closes the tray; an unlock keeps it open so the
+  // purchase is seen landing.
+  const tieOn = (key) => { setLure(key); setOverlay(null); };
   const toggleOverlay = (name) => { wakeAudio(); sfx.tap(); setOverlay((current) => (current === name ? null : name)); };
   const biomeConfig = BIOMES[biome];
   const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${biomeConfig.charterCost} pts`) : 'free';
@@ -773,7 +776,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               className={`lure-chip ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
               disabled={lureBusy}
               aria-pressed={lure === lureOption.key}
-              onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
+              onClick={() => (owned ? tieOn(lureOption.key) : handleLurePurchase(lureOption.key))}
             >
               <img className="lure-icon" src={LURE_ICONS[lureOption.key]} alt="" />
               <span className="lure-chip-text">

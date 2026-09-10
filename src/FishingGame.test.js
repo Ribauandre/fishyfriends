@@ -274,7 +274,6 @@ test('jerk bait: twitching on the beat fills attraction and triggers the bite', 
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   expect(screen.getByRole('button', { name: 'Twitch' })).toBeInTheDocument();
@@ -293,7 +292,6 @@ test('jerk bait: running out of retrieve with no bite wastes the cast', async ()
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   await advance(16000);
   expect(screen.getByText(/no takers/i)).toBeInTheDocument();
@@ -305,7 +303,6 @@ test('crank bait: a retrieve held in the strike zone triggers the bite', async (
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   expect(screen.getByRole('button', { name: 'Hold to crank' })).toBeInTheDocument();
@@ -322,7 +319,6 @@ test('crank bait: reaching the boat with no strike wastes the cast', async () =>
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   stepCrank.mockReturnValueOnce({ speed: 80, bandCenter: 40, attraction: 10, distance: 100, inBandTicks: 0, ticks: 30 });
@@ -362,6 +358,9 @@ test('flies stay in the truck off trout water: the chips vanish on the bay and l
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /nymph owned/i }));
   expect(screen.getByText('Nymph', { selector: '.hud-chip' })).toBeInTheDocument();
+  // Picking closes the tray; the hatch note is there when it's reopened.
+  expect(screen.queryByRole('dialog', { name: 'Lures' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.getByText(/the hatch is on for this fly/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
@@ -378,6 +377,8 @@ test('the fly: cast to the rise, mend the drift, and a clean drift brings the ta
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /dry fly owned/i }));
+  expect(screen.queryByRole('dialog', { name: 'Lures' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.getByText(/off-hatch for this fly/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
@@ -405,7 +406,6 @@ test('the fly: letting the drag set spooks the fish and spends the cast', async 
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /streamer owned/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   // CRA resets mock implementations between tests, so script the tick: drag has topped out.
   stepDrift.mockReturnValue({ drag: 100, drift: 45, attraction: 10, mends: 0, cleanMends: 0, ticks: 70, cleanTicks: 55, accuracy: 0, clean: false });
@@ -724,7 +724,6 @@ test('a worked lure shows on the stage with its gauge, and twitching from the st
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
-  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   expect(document.querySelector('.scene-lure')).toHaveAttribute('data-lure', 'jerkbait');
   expect(document.querySelector('.stage-gauge')).toHaveClass('is-jerkbait');
