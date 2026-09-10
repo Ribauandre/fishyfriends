@@ -1,0 +1,7 @@
+{
+  "idle": { "frames": 7, "w": 250, "h": 150, "feetX": 80, "feetY": 144 },
+  "cast": { "frames": 6, "w": 250, "h": 150, "feetX": 80, "feetY": 144 },
+  "reel": { "frames": 7, "w": 250, "h": 150, "feetX": 80, "feetY": 144 },
+  "fishon": { "frames": 6, "w": 250, "h": 150, "feetX": 80, "feetY": 144 },
+  "celebrate": { "frames": 8, "w": 250, "h": 150, "feetX": 80, "feetY": 144 }
+}

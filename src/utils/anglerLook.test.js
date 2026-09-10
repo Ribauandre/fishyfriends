@@ -1,6 +1,6 @@
 import {
-  WARDROBE, WARDROBE_LIST, SLOTS, DEFAULT_LOOK, SKIN_TONES, HAIR_COLORS, HAIR_STYLES, BEARD_STYLES,
-  isOwned, normalizeLook, lookKey, isDefaultLook, paletteFor, shade, mix, itemsFor,
+  WARDROBE, WARDROBE_LIST, SLOTS, DEFAULT_LOOK, SKIN_TONES, HAIR_COLORS, HAIR_STYLES, BEARD_STYLES, PART,
+  isOwned, normalizeLook, lookKey, isDefaultLook, paletteFor, itemsFor,
 } from './anglerLook';
 
 test('every rack has a free default and everything else costs points', () => {
@@ -11,8 +11,8 @@ test('every rack has a free default and everything else costs points', () => {
     expect(WARDROBE[DEFAULT_LOOK[slot]].cost).toBe(0);
   });
   WARDROBE_LIST.forEach((item) => { expect(item.cost).toBeGreaterThanOrEqual(0); expect(SLOTS).toContain(item.slot); });
-  // Every hat has a style the renderer knows, and only the bare head has no colour.
-  itemsFor('hat').forEach((hat) => { expect(typeof hat.style).toBe('string'); expect(hat.tint === null).toBe(hat.style === 'none'); });
+  // A hat is either the art's cap in a colour, a drawing worn over it, or no hat at all.
+  itemsFor('hat').forEach((hat) => { expect(Boolean(hat.tint) || Boolean(hat.overlay) || hat.key === 'hat_none').toBe(true); });
 });
 
 test('the free choices are all real options', () => {
@@ -46,28 +46,64 @@ test('lookKey names every choice and isDefaultLook spots the stock angler', () =
   expect(isDefaultLook({ skin: 'fair' })).toBe(false);
 });
 
-test('shade and mix stay inside 0-255 and preserve the hue', () => {
-  expect(shade([200, 100, 50], 0.5)).toEqual([100, 50, 25]);
-  expect(shade([200, 100, 50], 1.5)).toEqual([255, 150, 75]);
-  expect(mix([0, 0, 0], [100, 200, 50], 0.5)).toEqual([50, 100, 25]);
+test('the stock look leaves the art alone', () => {
+  const pal = paletteFor({});
+  Object.values(pal.targets).forEach((target) => expect(target).toBeNull());
+  expect(pal.capOff).toBe(false);
+  expect(pal.bareHead).toBe(false);
+  expect(pal.hairCrown).toBeNull();
+  expect(pal.beardOverlay).toBeNull();
+  expect(pal.hatOverlay).toBeNull();
 });
 
-test('the palette follows the look: skin, hair, hat style and every rack colour', () => {
-  const pal = paletteFor({ skin: 'deep', hair: 'blond', hairstyle: 'long', beard: 'goatee', hat: 'hat_straw', rod: 'rod_red', boots: 'boots_yellow', waders: 'waders_navy' });
-  expect(pal.skin.base).toEqual(SKIN_TONES.deep.rgb);
-  expect(pal.hair.base).toEqual(HAIR_COLORS.blond.rgb);
-  expect(pal.hairstyle).toBe('long');
-  expect(pal.beard).toBe('goatee');
-  expect(pal.hatStyle).toBe('straw');
-  expect(pal.hat.base).toEqual(WARDROBE.hat_straw.tint);
-  expect(pal.rod.base).toEqual(WARDROBE.rod_red.tint);
-  expect(pal.boots.base).toEqual(WARDROBE.boots_yellow.tint);
-  expect(pal.waders.base).toEqual(WARDROBE.waders_navy.tint);
-  // Shading tones bracket the base colour.
-  expect(pal.skin.shade[0]).toBeLessThan(pal.skin.base[0]);
-  expect(pal.waders.light[2]).toBeGreaterThan(pal.waders.base[2]);
-  // A bare head has no hat colour at all, and unowned picks are ignored by the palette too.
-  expect(paletteFor({ hat: 'hat_none' }).hat).toBeNull();
-  expect(paletteFor({ hat: 'hat_none' }).hatStyle).toBe('none');
-  expect(paletteFor({ skin: 'nope' }).skin.base).toEqual(SKIN_TONES.medium.rgb);
+test('the paint plan follows the look: dyes for skin, cap and racks, hair for the beard', () => {
+  const pal = paletteFor({ skin: 'deep', hair: 'blond', hat: 'cap_red', rod: 'rod_red', boots: 'boots_yellow', waders: 'waders_navy' });
+  expect(pal.targets[PART.skin]).toEqual(SKIN_TONES.deep.rgb);
+  expect(pal.targets[PART.beard]).toEqual(HAIR_COLORS.blond.rgb);
+  expect(pal.targets[PART.hat]).toEqual(WARDROBE.cap_red.tint);
+  expect(pal.targets[PART.panel]).toBeNull();
+  expect(pal.targets[PART.rod]).toEqual(WARDROBE.rod_red.tint);
+  expect(pal.targets[PART.boots]).toEqual(WARDROBE.boots_yellow.tint);
+  expect(pal.targets[PART.waders]).toEqual(WARDROBE.waders_navy.tint);
+  expect(pal.capOff).toBe(false);
+});
+
+test('facial hair other than the full beard turns the art beard into jaw and picks a drawing', () => {
+  const goatee = paletteFor({ beard: 'goatee', skin: 'fair' });
+  expect(goatee.targets[PART.beard]).toEqual(SKIN_TONES.fair.rgb);
+  expect(goatee.beardOverlay).toBe('beard_goatee');
+  expect(goatee.stubble).toBe(false);
+  const stubble = paletteFor({ beard: 'stubble' });
+  expect(stubble.targets[PART.beard]).toEqual(SKIN_TONES.medium.rgb);
+  expect(stubble.stubble).toBe(true);
+  expect(stubble.beardOverlay).toBeNull();
+  expect(paletteFor({ beard: 'none' }).beardOverlay).toBeNull();
+  expect(paletteFor({ beard: 'mustache' }).beardOverlay).toBe('beard_mustache');
+});
+
+test('other hats go over the cap with the cap turned to hair; a bare head loses the brim and gets a haircut', () => {
+  const cowboy = paletteFor({ hat: 'hat_cowboy', hair: 'grey' });
+  expect(cowboy.hatOverlay).toBe('cowboy');
+  expect(cowboy.capOff).toBe(true);
+  expect(cowboy.targets[PART.hat]).toEqual(HAIR_COLORS.grey.rgb);
+  expect(cowboy.targets[PART.panel]).toEqual(HAIR_COLORS.grey.rgb);
+  expect(cowboy.hairCrown).toBeNull();
+  expect(cowboy.bareHead).toBe(false);
+
+  const bare = paletteFor({ hat: 'hat_none', hairstyle: 'long' });
+  expect(bare.bareHead).toBe(true);
+  expect(bare.hairCrown).toBe('hair_short');
+  expect(bare.hairBack).toBe('hair_long');
+  expect(bare.hatOverlay).toBeNull();
+
+  // Bald and hatless: the cap becomes scalp and nothing is drawn on top.
+  const bald = paletteFor({ hat: 'hat_none', hairstyle: 'bald', skin: 'brown' });
+  expect(bald.targets[PART.hat]).toEqual(SKIN_TONES.brown.rgb);
+  expect(bald.hairCrown).toBeNull();
+  expect(bald.hairBack).toBeNull();
+
+  // A visor shows the hair on top; a bucket hat keeps the long hair behind.
+  expect(paletteFor({ hat: 'hat_visor' }).hairCrown).toBe('hair_short');
+  expect(paletteFor({ hat: 'hat_bucket', hairstyle: 'long' }).hairBack).toBe('hair_long');
+  expect(paletteFor({ hat: 'cap_navy', hairstyle: 'long' }).hairBack).toBeNull();
 });
