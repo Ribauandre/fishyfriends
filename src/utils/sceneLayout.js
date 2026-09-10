@@ -52,23 +52,24 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
   },
-  // The Canyon is painted from inside the cockpit at dusk: the only deck to stand on is at the
-  // bottom beside the fighting chair, and the water is the strip above the gunwale. A wide
-  // stage keeps the bottom of this painting (the deck) rather than its middle.
+  // The Canyon at dusk, from the charter's open stern cockpit: the deck fills the lower left
+  // (cooler at x 75-180), the gunwale corner is at (295, 180) and the water runs from the
+  // transom to the headland on the horizon (y 88). A wide stage keeps the bottom of this
+  // painting, so the deck and the horizon both stay in shot and only high sky is cropped.
   canyon: {
     crop: 'bottom',
-    angler: { x: 185, y: 258 },
-    crew: [-95],
+    angler: { x: 215, y: 250 },
+    crew: [-170],
     spriteH: 86,
-    cast: { min: 265, max: 400, y: 128 },
-    water: { x0: 245, x1: 460, y0: 100, y1: 158 },
-    fishY: 132,
-    sparkle: { x0: 240, y0: 92, x1: 480, y1: 190 },
+    cast: { min: 320, max: 440, y: 168 },
+    water: { x0: 302, x1: 470, y0: 96, y1: 258 },
+    fishY: 190,
+    sparkle: { x0: 300, y0: 92, x1: 480, y1: 270 },
     lamp: null,
-    sky: [{ y0: 6, y1: 26, from: -22 }],
-    gulls: { y0: 10, y1: 40 },
+    sky: [{ y0: 8, y1: 30, from: -22 }, { y0: 28, y1: 42, from: -22 }],
+    gulls: { y0: 12, y1: 42 },
     dragonflies: [],
-    tagAbove: true,
+    tagAbove: false,
   },
 };
 

@@ -51,7 +51,7 @@ export function planJump(biome, random = Math.random, visibleRight = 480) {
   const { water } = ambienceFor(biome);
   const roster = BIOMES[biome]?.species || BIOMES.river.species;
   const species = roster[Math.min(roster.length - 1, Math.floor(random() * roster.length))];
-  const right = Math.max(water.x0 + 30, Math.min(water.x1, visibleRight) - 16);
+  const right = Math.max(water.x0 + 12, Math.min(water.x1, visibleRight) - 16);
   const x = Math.round(water.x0 + 12 + random() * (right - water.x0 - 12));
   const y = Math.round(water.y0 + 4 + random() * Math.min(24, (water.y1 - water.y0) * 0.4));
   return { species, x, y, width: 18 + Math.round(random() * 8) };
