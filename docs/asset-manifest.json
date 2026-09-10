@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.0523bd20.css",
-    "main.js": "/static/js/main.31c99176.js",
+    "main.css": "/static/css/main.e16f6245.css",
+    "main.js": "/static/js/main.5f0f76a0.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
@@ -45,7 +45,7 @@
     "static/media/plank.png": "/static/media/plank.cd6b6c9747fd649cf48e.png",
     "static/media/shoreline.webp": "/static/media/shoreline.5e996d2d36acea569749.webp",
     "static/media/shop.webp": "/static/media/shop.1e26251ff5acb847ad54.webp",
-    "static/media/canyon.webp": "/static/media/canyon.aae390f6c234088215b5.webp",
+    "static/media/canyon.webp": "/static/media/canyon.15741e5b7bb4dd83da06.webp",
     "static/media/boat.png": "/static/media/boat.c6bdd4cb66b6d81fbf9f.png",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "static/media/truck.png": "/static/media/truck.292f2893f3a8e39b2444.png",
@@ -72,12 +72,12 @@
     "static/media/rod.png": "/static/media/rod.358dfd19441f04e51ae9.png",
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
-    "main.0523bd20.css.map": "/static/css/main.0523bd20.css.map",
-    "main.31c99176.js.map": "/static/js/main.31c99176.js.map",
+    "main.e16f6245.css.map": "/static/css/main.e16f6245.css.map",
+    "main.5f0f76a0.js.map": "/static/js/main.5f0f76a0.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.0523bd20.css",
-    "static/js/main.31c99176.js"
+    "static/css/main.e16f6245.css",
+    "static/js/main.5f0f76a0.js"
   ]
 }
