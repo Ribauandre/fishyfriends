@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
+import DockPlatform from './DockPlatform';
 import TravelTransition from './TravelTransition';
 import useAnglerSheets from './useAnglerSheets';
 import { LURE_ICONS, GOLDEN_PENNANT, DOCK_PROPS } from '../../utils/gameProps';
@@ -196,6 +197,8 @@ export default function GameScene({
   return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
     <div className="scene-world" data-camera={phase === 'casting' ? 'cast' : focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
       <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} />
+      {/* The dock is a sprite laid on the painting, not part of it, so it takes the tint too. */}
+      <DockPlatform dock={layout.dock} frame={frame} />
       {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
       <div className={`scene-tint is-${period}`} aria-hidden="true" />
       <SceneAmbience biome={biome} phase={phase} period={period} viewW={viewW} />

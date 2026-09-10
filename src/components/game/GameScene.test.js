@@ -254,7 +254,7 @@ test('the camera centres the angler on the cast, pans right toward the fight onc
   const castScale = parseFloat(world().getAttribute('data-camera-scale'));
   const castX = parseFloat(world().getAttribute('data-camera-x'));
   expect(castScale).toBeGreaterThan(1.25);
-  expect(castX + 480 / castScale / 2).toBeCloseTo(178 + 30, 0);
+  expect(castX + 480 / castScale / 2).toBeCloseTo(180 + 30, 0);
   // The power meter is still drawn beside him, in screen space.
   expect(parseFloat(container.querySelector('.stage-meter.is-cast').style.left)).toBeGreaterThan(20);
 

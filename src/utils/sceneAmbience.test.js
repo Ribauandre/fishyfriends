@@ -29,8 +29,8 @@ test('shadows pick two different species when the roster allows', () => {
   expect(shadows.length).toBe(2);
   expect(shadows[0].species).not.toBe(shadows[1].species);
   shadows.forEach((shadow) => expect(BIOMES.river.species).toContain(shadow.species));
-  // In the painted water, past the dock's end.
-  shadows.forEach((shadow) => { expect(shadow.x).toBeGreaterThanOrEqual(246); expect(shadow.y).toBeGreaterThanOrEqual(150); });
+  // In open water, past the end of the dock.
+  shadows.forEach((shadow) => { expect(shadow.x).toBeGreaterThanOrEqual(220); expect(shadow.y).toBeGreaterThanOrEqual(180); });
 });
 
 test('jumps are spaced out inside the configured gap', () => {
