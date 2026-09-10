@@ -65,17 +65,29 @@ test('casts land in the water that is actually on screen, weakest to strongest',
   expect(reelX(layout, 100, phone)).toBe(z);
 });
 
-test('the camera rests on the whole painting, pushes in on the cast and pans to the fight', () => {
-  const angler = { anglerX: 178, anglerY: 136, spriteH: 86 };
+test('the camera rests on the whole painting and pans to the water on the cast, where it stays for the fight', () => {
+  const angler = { anglerX: 178, anglerY: 136, spriteH: 92 };
   expect(cameraFor('ready', angler, 480)).toBe(REST_CAMERA);
   const cast = cameraFor('casting', angler, 480);
-  expect(cast.scale).toBeGreaterThan(1.25);
-  expect(cast.x + 480 / cast.scale / 2).toBeCloseTo(178 + 30, 0);
-  const fight = cameraFor('reeling', angler, 480);
-  expect(fight.scale).toBeGreaterThan(1);
-  expect(fight.x).toBeGreaterThan(0);
-  expect(fight.x).toBeLessThan(angler.anglerX - 40);
-  expect(fight.y + PAINT_H / fight.scale).toBeLessThanOrEqual(PAINT_H);
+  // The angler sits just inside the left edge and the painting's right edge is the frame's.
+  expect(cast.x).toBe(178 - 30);
+  // The zoom is rounded, so the painting's edge lands within a unit of the frame's.
+  expect(480 - (cast.x + 480 / cast.scale)).toBeLessThan(2);
+  expect(cast.scale).toBeGreaterThanOrEqual(1.3);
+  // His hat is just under the top, so the frame below him is water.
+  expect(cast.y).toBe(136 - 92 - 6 - 8);
+  expect(cast.y + PAINT_H / cast.scale).toBeLessThanOrEqual(PAINT_H);
+  // The fight keeps the same frame: no second move once the line is out.
+  expect(cameraFor('waiting', angler, 480)).toEqual(cast);
+  expect(cameraFor('reeling', angler, 480)).toEqual(cast);
+  // A wide stage needs less push to put the painting's edge at the frame's; a phone cannot
+  // reach the margin at all and stops at the most zoom allowed.
+  const wide = cameraFor('casting', { ...angler, anglerX: 178 }, 702);
+  expect(wide.scale).toBe(1.3);
+  expect(wide.x).toBe(148);
+  const phone = cameraFor('casting', angler, 300);
+  expect(phone.scale).toBe(1.5);
+  expect(300 - (phone.x + 300 / phone.scale)).toBeLessThan(2);
 });
 
 test("every ground's dock props name real art and stay inside the narrowest crop", () => {

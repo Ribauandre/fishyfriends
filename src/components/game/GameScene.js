@@ -182,7 +182,10 @@ export default function GameScene({
   // the stage's edge when the push-in has moved past his side).
   const camera = cameraFor(phase, { anglerX: feet.x, anglerY: feet.y, spriteH }, viewW);
   const focused = camera !== REST_CAMERA;
-  const meterLeft = pctX(Math.max(8, (feet.x - 46 - camera.x) * camera.scale), frame);
+  // The meters stand beside the angler, in screen space: to his left when the camera leaves
+  // room there, otherwise just past his front foot, so they never sit on him.
+  const meterAtBack = (feet.x - 46 - camera.x) * camera.scale;
+  const meterLeft = pctX(meterAtBack >= 8 ? meterAtBack : (feet.x + 30 - camera.x) * camera.scale, frame);
   const meterBottom = pctY(PAINT_H - Math.min(PAINT_H - 8, (feet.y - camera.y) * camera.scale));
 
   // Other club members on this ground stand along the deck behind the player, in whatever

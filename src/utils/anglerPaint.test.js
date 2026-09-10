@@ -52,8 +52,10 @@ test('a cap is dyed in place, peak and all', () => {
 test('a bare head loses the peak and the cap\'s extra height and becomes a shaded scalp', () => {
   const px = paint({ hat: 'hat_none', hairstyle: 'bald' });
   expect(px(33, 12).a).toBe(0);
+  // The top row goes and the next loses its ends, so the head rounds off.
   expect(px(20, 4).a).toBe(0);
-  expect(px(20, 5).a).toBe(0);
+  expect(px(10, 5).a).toBe(0);
+  expect(px(20, 5).a).toBe(255);
   expect(near(px(20, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
   // Lit from the top, darker down the back.
   expect(px(20, 7).r).toBeGreaterThan(px(20, 13).r);
