@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, act } from '@testing-library/react';
 import GameScene from './GameScene';
+import { layoutFor } from '../../utils/sceneLayout';
 
 // A stage wider than the painting (a desktop window): the backdrop is fitted to the width,
 // so everything painted into the scene — the dock's end, the angler's spot, the water — sits
@@ -17,16 +18,19 @@ test('on a wide stage the angler, the water and the cast follow the stretched pa
     const viewW = Number(scene.getAttribute('data-view-w'));
     expect(viewW).toBeGreaterThan(480);
     const k = viewW / 480;
-    // The weakest cast lands past the painted dock's end (~240 painting units), not on the planks.
+    // The weakest cast lands past the painted dock's end (240 painting units), not on the planks.
+    const river = layoutFor('river');
     const bobberX = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
-    expect(bobberX).toBeGreaterThanOrEqual(230 * k - 1);
+    expect(bobberX).toBeCloseTo(river.cast.min * k, 0);
+    expect(bobberX).toBeGreaterThan(240 * k);
     expect(parseFloat(container.querySelector('.scene-rise circle').getAttribute('cx'))).toBeCloseTo(bobberX, 0);
-    // The angler stands at 175 painting units: the same share of the stage as on a 16:9 one.
+    // The angler stands at his painted spot, scaled with the painting, and is drawn to scale with it.
     const tag = container.querySelector('text');
-    expect(parseFloat(tag.getAttribute('x'))).toBeCloseTo(175 * k, 0);
+    expect(parseFloat(tag.getAttribute('x'))).toBeCloseTo(river.angler.x * k, 0);
+    expect(parseFloat(container.querySelector('.scene-sprite.is-you').style.height)).toBeCloseTo((river.spriteH * k / 270) * 100, 0);
     rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 0, zonePos: 50 }} zoneWidth={20} />);
     // Reel position 0 is the start of the water, which is past the dock too.
-    expect(parseFloat(container.querySelector('.scene-fish').style.left)).toBeCloseTo((172.8 * k) / viewW * 100, 0);
+    expect(parseFloat(container.querySelector('.scene-fish').style.left)).toBeCloseTo((river.water.x0 * k) / viewW * 100, 0);
   } finally {
     rect.mockRestore();
     global.ResizeObserver = original;
