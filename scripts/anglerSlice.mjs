@@ -1,18 +1,28 @@
-// Slices a ChatGPT-made angler sprite sheet into the strips the game animates
+// Slices the angler sprite sheet into the strips the game animates
 // (src/assets/angler/{idle,cast,reel,fishon,celebrate}.png) and writes strips.json beside
-// them (frame counts and box) for scripts/anglerMasks.mjs.
+// them (frame count and box) for scripts/anglerMasks.mjs and utils/anglerSprites.js.
 //
-//   node scripts/anglerSlice.mjs path/to/sheet.png
+//   node scripts/anglerSlice.mjs [art/angler-sheet.png]
 //
-// The sheet is the one the art was first made as: six labelled rows — IDLE, WALK, CAST,
-// REEL, FISH ON, CELEBRATE — of evenly spaced frames on a white or fake-checkerboard
-// background. The background is flood-filled away from the edges, the label column on the
-// left is dropped, rows become bands, tall opaque column runs find each body (rods are too
-// thin to count), and every pixel component is handed to the frame whose body it overlaps
-// (a cast rod reaching into the next frame's column still belongs to its caster). Frames are
-// composed into a fixed box with the feet on one spot so actions swap without the figure
-// hopping. WALK is sliced but not kept: the game has no walk. Needs Playwright with Chromium
-// (project or global install via NODE_PATH; PLAYWRIGHT_CHROMIUM to point at a binary).
+// The sheet (art/angler-sheet.png, made in the ChatGPT app) is the bald, clean-shaven,
+// hatless angler on a transparent background, six unlabelled rows of unevenly spaced frames:
+// STAND, WALK, CAST, REEL, CATCH, HURT. Nothing is on a grid, so nothing is measured off one:
+// rows are the bands of the alpha channel's row profile, and each frame in a row is one
+// connected component of it — which keeps a rod arcing over the next figure's head with the
+// figure it belongs to, and drops the loose lure and line fragments (the bits with no body
+// height) on the floor. A component is composed into a fixed box with its feet on one spot so
+// actions can swap without the figure hopping.
+//
+// The game's five actions are cut from those rows:
+//   idle      = REEL 1-7        (rod at the ready; the STAND row's hands are empty)
+//   cast      = CAST 1-8        (the last frame, line away, is held while waiting)
+//   fishon    = CATCH 1-3       (the strike: the rod loads and he leans back)
+//   reel      = CATCH 3,4,5,4   (the pump: braced, hauling, braced)
+//   celebrate = CATCH 6, twice, the second raised a few pixels for a hop
+// The STAND and WALK rows are sliced but not written: the game stands with a rod, never walks.
+//
+// Needs Playwright with Chromium (project or global install via NODE_PATH;
+// PLAYWRIGHT_CHROMIUM=/path/to/chromium to point at a binary).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -27,120 +37,109 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const sheet = process.argv[2];
-if (!sheet) { console.error('usage: node scripts/anglerSlice.mjs <sheet.png>'); process.exit(1); }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const sheet = process.argv[2] ? path.resolve(process.argv[2]) : path.join(root, 'art', 'angler-sheet.png');
 const out = path.join(root, 'src', 'assets', 'angler');
 mkdirSync(out, { recursive: true });
 
-// The frame box in sheet pixels (for a ~1250px sheet) and the scale to the strip. 333×200 at
-// 0.75 is the 250×150 box the stage has always used, feet at (80, 144).
-const ROWS = ['idle', 'walk', 'cast', 'reel', 'fishon', 'celebrate'];
-const KEEP = ['idle', 'cast', 'reel', 'fishon', 'celebrate'];
-const BOX = { frameW: 333, frameH: 200, feetX: 107, scale: 0.75 };
+// The rows the sheet has, top to bottom, and the box every frame is composed into: the feet
+// land on (feetX, feetY), leaving room to the right and above for the rod's longest arc.
+const ROWS = ['stand', 'walk', 'cast', 'reel', 'catch', 'hurt'];
+const BOX = { w: 352, h: 192, feetX: 60, feetY: 186, bodyH: 128 };
+// [row, frame index, lift in pixels].
+const ACTIONS = {
+  idle: [['reel', 0], ['reel', 1], ['reel', 2], ['reel', 3], ['reel', 4], ['reel', 5], ['reel', 6]],
+  cast: [['cast', 0], ['cast', 1], ['cast', 2], ['cast', 3], ['cast', 4], ['cast', 5], ['cast', 6], ['cast', 7]],
+  fishon: [['catch', 0], ['catch', 1], ['catch', 2]],
+  reel: [['catch', 2], ['catch', 3], ['catch', 4], ['catch', 3]],
+  celebrate: [['catch', 5], ['catch', 5, -4]],
+};
+// Alpha at or above this is the character; below it is the sheet's glow.
+const ALPHA = 180;
 
+const data = `data:image/png;base64,${readFileSync(sheet).toString('base64')}`;
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage();
-const data = readFileSync(sheet).toString('base64');
-const report = await page.evaluate(async ({ data, rows, box }) => {
-  const img = new Image(); img.src = `data:image/png;base64,${data}`; await img.decode();
+const report = await page.evaluate(async ({ data: src, rows, box, actions, alpha }) => {
+  const img = new Image(); img.src = src; await img.decode();
   const W = img.width; const H = img.height;
-  const unit = W / 1254; // the box is specified for the original 1254px sheet
-  const frameW = box.frameW * unit; const frameH = box.frameH * unit; const feetX = box.feetX * unit; const scale = box.scale / unit;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
-  const id = ctx.getImageData(0, 0, W, H); const px = id.data;
-  // Background: light, unsaturated pixels reachable from the edges (white or a checkerboard).
-  const isLight = (i) => { const r = px[i]; const g = px[i + 1]; const b = px[i + 2]; return r > 190 && g > 190 && b > 190 && (Math.max(r, g, b) - Math.min(r, g, b)) < 16; };
-  const bg = new Uint8Array(W * H); const stack = [];
-  const push = (x, y) => { const p = y * W + x; if (bg[p] || !isLight(p * 4)) return; bg[p] = 1; stack.push(p); };
-  for (let x = 0; x < W; x += 1) { push(x, 0); push(x, H - 1); }
-  for (let y = 0; y < H; y += 1) { push(0, y); push(W - 1, y); }
-  while (stack.length) { const p = stack.pop(); const x = p % W; const y = (p / W) | 0; if (x > 0) push(x - 1, y); if (x < W - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < H - 1) push(x, y + 1); }
-  const CUT = Math.round(W * 0.116); // the row labels
-  for (let p = 0; p < W * H; p += 1) if (bg[p] || (p % W) < CUT) px[p * 4 + 3] = 0;
-  ctx.putImageData(id, 0, 0);
-  const op = (x, y) => px[(y * W + x) * 4 + 3] > 40;
-  const rowHas = new Array(H).fill(false);
-  for (let y = 0; y < H; y += 1) for (let x = CUT; x < W; x += 1) if (op(x, y)) { rowHas[y] = true; break; }
-  const bands = []; let s = null; let g = 0;
+  const ctx = c.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, W, H).data;
+  const on = (x, y) => x >= 0 && x < W && y >= 0 && y < H && px[(y * W + x) * 4 + 3] >= alpha;
+
+  // Rows: the bands of the alpha row profile, with the thin gaps between them ignored.
+  const bands = []; let start = -1; let gap = 0;
   for (let y = 0; y <= H; y += 1) {
-    const has = y < H && rowHas[y];
-    if (has) { if (s === null) s = y; g = 0; } else if (s !== null) { g += 1; if (g > 6) { bands.push([s, y - g]); s = null; g = 0; } }
+    let n = 0; if (y < H) for (let x = 0; x < W; x += 1) if (on(x, y)) n += 1;
+    if (n > 2) { if (start < 0) start = y; gap = 0; } else if (start >= 0) { gap += 1; if (gap >= 8 || y === H) { bands.push([start, y - gap]); start = -1; } }
   }
-  if (s !== null) bands.push([s, H - 1]);
-  const strips = {}; const notes = [];
-  bands.filter(([y0, y1]) => y1 - y0 > 40).forEach((band, bi) => {
-    const name = rows[bi]; if (!name) return;
-    const [y0, y1] = band; const bh = y1 - y0 + 1;
-    // Bodies: tall opaque column runs (rods are thin).
-    const colCount = new Array(W).fill(0);
-    for (let x = CUT; x < W; x += 1) for (let y = y0; y <= y1; y += 1) if (op(x, y)) colCount[x] += 1;
-    const bodies = []; let cs = null; let cg = 0;
-    for (let x = 0; x <= W; x += 1) {
-      const has = x < W && colCount[x] > 34 * unit;
-      if (has) { if (cs === null) cs = x; cg = 0; } else if (cs !== null) { cg += 1; if (cg > 10 * unit) { bodies.push([cs, x - cg]); cs = null; cg = 0; } }
-    }
-    if (cs !== null) bodies.push([cs, W - 1]);
-    // Components within the band.
-    const lab = new Int32Array(W * bh).fill(-1); const comps = [];
-    for (let y = y0; y <= y1; y += 1) for (let x = CUT; x < W; x += 1) {
-      const li = (y - y0) * W + x; if (lab[li] !== -1 || !op(x, y)) continue;
-      const idx = comps.length; const pixels = []; const st = [li]; lab[li] = idx;
-      while (st.length) {
-        const q = st.pop(); pixels.push(q); const qx = q % W; const qy = (q / W) | 0;
+  if (bands.length !== rows.length) return { error: `expected ${rows.length} rows, found ${bands.length}: ${JSON.stringify(bands)}` };
+
+  // Frames: the connected components of a row. The rod and line stay attached to their own
+  // figure even where they cross into the next frame's columns; loose fragments (a cast lure
+  // in flight) have no body height and are dropped.
+  const sheetRows = {};
+  bands.forEach(([y0, y1], row) => {
+    const bandH = y1 - y0 + 1;
+    const seen = new Uint8Array(W * H);
+    const found = [];
+    for (let y = y0; y <= y1; y += 1) for (let x = 0; x < W; x += 1) {
+      const i = y * W + x;
+      if (seen[i] || !on(x, y)) continue;
+      const pixels = []; const stack = [i]; seen[i] = 1;
+      let minX = x; let maxX = x; let minY = y; let maxY = y;
+      while (stack.length) {
+        const q = stack.pop(); pixels.push(q);
+        const qy = Math.floor(q / W); const qx = q - qy * W;
+        if (qx < minX) minX = qx; if (qx > maxX) maxX = qx; if (qy < minY) minY = qy; if (qy > maxY) maxY = qy;
         for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
           const nx = qx + dx; const ny = qy + dy;
-          if (nx < CUT || nx >= W || ny < 0 || ny >= bh) continue;
-          const nl = ny * W + nx; if (lab[nl] === -1 && op(nx, ny + y0)) { lab[nl] = idx; st.push(nl); }
+          if (nx < 0 || nx >= W || ny < y0 || ny > y1) continue;
+          const n = ny * W + nx;
+          if (!seen[n] && on(nx, ny)) { seen[n] = 1; stack.push(n); }
         }
       }
-      comps.push(pixels);
+      if (maxY - minY + 1 < bandH * 0.55) continue;
+      // The feet: where the bottom few rows of the figure sit.
+      let sum = 0; let n = 0;
+      for (const q of pixels) { const qy = Math.floor(q / W); if (qy > maxY - 6) { sum += q - qy * W; n += 1; } }
+      found.push({ pixels, minX, maxX, minY, maxY, feetX: Math.round(sum / n), feetY: maxY });
     }
-    const nF = bodies.length; const framePixels = Array.from({ length: nF }, () => []);
-    const mids = bodies.slice(0, -1).map((b, i) => (b[1] + bodies[i + 1][0]) / 2);
-    const frameOfX = (x) => { let f = 0; while (f < mids.length && x > mids[f]) f += 1; return f; };
-    const bodyBoxCount = (pixels, j) => { const [bx0, bx1] = bodies[j]; let n = 0; for (const q of pixels) { const qx = q % W; const qy = (q / W) | 0; if (qx >= bx0 && qx <= bx1 && qy > bh * 0.35) n += 1; } return n; };
-    comps.forEach((pixels) => {
-      const owners = []; for (let j = 0; j < nF; j += 1) if (bodyBoxCount(pixels, j) > 150 * unit * unit) owners.push(j);
-      if (owners.length === 1) framePixels[owners[0]].push(...pixels);
-      else if (owners.length === 0) { let sx = 0; for (const q of pixels) sx += q % W; framePixels[frameOfX(sx / pixels.length)].push(...pixels); }
-      else for (const q of pixels) framePixels[frameOfX(q % W)].push(q);
-    });
-    const fw = Math.round(frameW * scale); const fh = Math.round(frameH * scale);
-    const strip = document.createElement('canvas'); strip.width = fw * nF; strip.height = fh;
-    const sctx = strip.getContext('2d'); sctx.imageSmoothingQuality = 'high';
-    framePixels.forEach((pixels, fi) => {
-      if (!pixels.length) return;
-      const fc = document.createElement('canvas'); fc.width = W; fc.height = bh;
-      const fctx = fc.getContext('2d'); const fid = fctx.createImageData(W, bh);
-      let bottom = 0; let minX = W; let maxX = 0; let minY = bh;
-      for (const q of pixels) {
-        const qx = q % W; const qy = (q / W) | 0; const si = ((qy + y0) * W + qx) * 4; const di = q * 4;
-        fid.data[di] = px[si]; fid.data[di + 1] = px[si + 1]; fid.data[di + 2] = px[si + 2]; fid.data[di + 3] = px[si + 3];
-        if (qy > bottom) bottom = qy; if (qy < minY) minY = qy; if (qx < minX) minX = qx; if (qx > maxX) maxX = qx;
-      }
-      fctx.putImageData(fid, 0, 0);
-      const [bx0, bx1] = bodies[fi]; let sum = 0; let n = 0;
-      for (const q of pixels) { const qx = q % W; const qy = (q / W) | 0; if (qy >= bottom - 18 * unit && qx >= bx0 && qx <= bx1) { sum += qx; n += 1; } }
-      const feet = n ? sum / n : (bx0 + bx1) / 2;
-      const dx = feetX - feet; const dy = frameH - 8 * unit - bottom;
-      sctx.drawImage(fc, minX, minY, maxX - minX + 1, bottom - minY + 1, Math.round((fi * frameW + minX + dx) * scale), Math.round((minY + dy) * scale), Math.round((maxX - minX + 1) * scale), Math.round((bottom - minY + 1) * scale));
-    });
-    strips[name] = { url: strip.toDataURL('image/png'), frames: nF, w: fw, h: fh, feetX: Math.round(feetX * scale), feetY: Math.round((frameH - 8 * unit) * scale) };
-    notes.push(`${name}: ${nF} frames, ${comps.length} components`);
+    sheetRows[rows[row]] = found.sort((a, b) => a.minX - b.minX);
   });
-  return { strips, notes };
-}, { data, rows: ROWS, box: BOX });
+
+  const strips = {};
+  Object.entries(actions).forEach(([action, picks]) => {
+    const strip = document.createElement('canvas'); strip.width = box.w * picks.length; strip.height = box.h;
+    const sctx = strip.getContext('2d');
+    const image = sctx.createImageData(strip.width, strip.height);
+    picks.forEach(([row, index, lift = 0], slot) => {
+      const frame = sheetRows[row]?.[index]; if (!frame) return;
+      const ox = slot * box.w + box.feetX - frame.feetX;
+      const oy = box.feetY + lift - frame.feetY;
+      for (const q of frame.pixels) {
+        const qy = Math.floor(q / W); const qx = q - qy * W;
+        const tx = qx + ox; const ty = qy + oy;
+        if (tx < 0 || ty < 0 || tx >= strip.width || ty >= strip.height) continue;
+        const s = q * 4; const t = (ty * strip.width + tx) * 4;
+        image.data[t] = px[s]; image.data[t + 1] = px[s + 1]; image.data[t + 2] = px[s + 2]; image.data[t + 3] = 255;
+      }
+    });
+    sctx.putImageData(image, 0, 0);
+    strips[action] = { url: strip.toDataURL('image/png'), frames: picks.length };
+  });
+  return { strips, rows: bands, counts: Object.fromEntries(Object.entries(sheetRows).map(([k, v]) => [k, v.length])) };
+}, { data, rows: ROWS, box: BOX, actions: ACTIONS, alpha: ALPHA });
 await browser.close();
-report.notes.forEach((note) => console.log(note));
+if (report.error) { console.error(report.error); process.exit(1); }
+console.log(`rows ${JSON.stringify(report.rows)}`);
+console.log(`frames per row ${JSON.stringify(report.counts)}`);
 const meta = {};
-for (const name of KEEP) {
-  const strip = report.strips[name];
-  if (!strip) { console.error(`no ${name} row found`); process.exitCode = 1; continue; }
-  writeFileSync(path.join(out, `${name}.png`), Buffer.from(strip.url.split(',')[1], 'base64'));
-  meta[name] = { frames: strip.frames, w: strip.w, h: strip.h, feetX: strip.feetX, feetY: strip.feetY };
-  console.log(`wrote src/assets/angler/${name}.png (${strip.frames} frames of ${strip.w}x${strip.h})`);
+for (const [action, strip] of Object.entries(report.strips)) {
+  writeFileSync(path.join(out, `${action}.png`), Buffer.from(strip.url.split(',')[1], 'base64'));
+  meta[action] = { frames: strip.frames };
+  console.log(`wrote src/assets/angler/${action}.png (${strip.frames} frames)`);
 }
-writeFileSync(path.join(out, 'strips.json'), `${JSON.stringify(meta, null, 2)}\n`);
+writeFileSync(path.join(out, 'strips.json'), `${JSON.stringify({ box: BOX, actions: meta }, null, 2)}\n`);
 console.log('wrote src/assets/angler/strips.json');
