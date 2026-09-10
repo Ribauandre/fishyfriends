@@ -293,6 +293,7 @@ test('crank bait: a retrieve held in the strike zone triggers the bite', async (
   await reachWaiting();
 
   expect(screen.getByRole('button', { name: 'Hold to crank' })).toBeInTheDocument();
+  expect(fireEvent.contextMenu(screen.getByRole('button', { name: 'Hold to crank' }))).toBe(false);
   stepCrank.mockReturnValueOnce({ speed: 55, bandCenter: 55, attraction: 100, distance: 20, inBandTicks: 30, ticks: 30 });
   await advance(80);
 

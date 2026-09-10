@@ -366,6 +366,9 @@ export default function FishingGame({ clock = () => new Date() }) {
     if (nextState.attraction >= 100) triggerBite(jerkQuality(nextState));
   }
 
+  // A long press on a phone would otherwise open the text-selection callout mid-fight.
+  function swallowLongPress(event) { event.preventDefault(); }
+
   function startCrank() { crankHoldingRef.current = true; }
   function stopCrank() { crankHoldingRef.current = false; }
 
@@ -722,6 +725,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <button
             className="button button-primary game-reel-button"
             type="button"
+            onContextMenu={swallowLongPress}
             onPointerDown={startCrank}
             onPointerUp={stopCrank}
             onPointerLeave={stopCrank}
@@ -740,6 +744,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <button
             className="button button-primary game-reel-button"
             type="button"
+            onContextMenu={swallowLongPress}
             onPointerDown={startReel}
             onPointerUp={stopReel}
             onPointerLeave={stopReel}
