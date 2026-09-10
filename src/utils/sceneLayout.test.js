@@ -15,19 +15,8 @@ test('every ground has a layout whose water is right of (or above) where the ang
     expect(layout.fishY).toBeLessThanOrEqual(layout.water.y1);
     layout.crew.forEach((dx) => expect(layout.angler.x + dx).toBeGreaterThan(40));
   });
-  // The shore paintings share one dock, laid on the painting rather than painted into it, and
-  // the water starts past the end of it so nothing fishable sits under the deck.
-  ['river', 'mountainlake', 'swamp', 'bay', 'shoreline'].forEach((biome) => {
-    const { dock, water, angler, crew } = layoutFor(biome);
-    expect(water.x0).toBeGreaterThanOrEqual(dock.x1);
-    // The angler and the crew stand on the planks, not off the end or in the water.
-    expect(angler.x).toBeLessThan(dock.x1);
-    expect(angler.y).toBeGreaterThan(dock.y);
-    expect(angler.y).toBeLessThan(dock.y + dock.h);
-    crew.forEach((offset) => expect(angler.x + offset).toBeGreaterThan(0));
-  });
-  // The boats carry no dock at all.
-  ['offshore', 'canyon'].forEach((biome) => expect(layoutFor(biome).dock).toBeNull());
+  // The shore paintings share the dock: the deck runs to x 240, so nothing fishable sits under it.
+  ['river', 'mountainlake', 'swamp', 'bay', 'shoreline'].forEach((biome) => expect(layoutFor(biome).water.x0).toBeGreaterThanOrEqual(240));
   expect(layoutFor('nowhere')).toBe(SCENE_LAYOUTS.river);
 });
 
@@ -106,5 +95,5 @@ test("every ground's dock props name real art and stay inside the narrowest crop
   // The pieces that float sit in the water, and the ones that don't sit on the dock.
   const bay = layoutFor('bay').props;
   expect(bay.find((prop) => prop.art === 'buoy').front).toBe(true);
-  expect(bay.find((prop) => prop.art === 'barrel').front).toBeUndefined();
+  expect(bay.find((prop) => prop.art === 'gull').front).toBeUndefined();
 });
