@@ -111,15 +111,20 @@ export default function FishingGame({ clock = () => new Date() }) {
   // they're on the same ground; the dock strip lists all of them. ----
   const dockRef = useRef(null);
   const presenceRef = useRef(null);
+  const joinDockRef = useRef(joinDock);
+  joinDockRef.current = joinDock;
   const champion = isChampion(gameProfile.derby_wins, clock());
   const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch, champion };
   presenceRef.current = presence;
+  // Join once per visit. joinDock is a fresh function on every provider render (a token
+  // refresh, a tab coming back into focus), and leaving + rejoining on each of those is what
+  // used to knock presence out — so the join keys on `loading` only and reads joinDock via a ref.
   useEffect(() => {
-    if (loading || !joinDock) return undefined;
-    dockRef.current = joinDock(presenceRef.current, setCrew);
+    if (loading || !joinDockRef.current) return undefined;
+    dockRef.current = joinDockRef.current(presenceRef.current, setCrew);
     return () => { dockRef.current?.leave(); dockRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, joinDock]);
+  }, [loading]);
   useEffect(() => {
     if (!loading && dockRef.current) dockRef.current.update(presenceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -650,8 +655,12 @@ export default function FishingGame({ clock = () => new Date() }) {
             </div>
           </div>
           <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}{flyOn && (hatchMatch(lure, period) ? ' The hatch is on for this fly.' : ' Off-hatch for this fly right now — it still works, just slower.')}</p>
-          {crew.length > 0 && <div className="dock-crew" role="group" aria-label="On the water now">
+          <div className="dock-crew" role="group" aria-label="On the water now">
             <span className="dock-crew-label">On the water</span>
+            <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
+              <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
+              <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
+            </span>
             {crew.map((other) => {
               const here = other.biome === biome;
               const ground = BIOMES[other.biome]?.label || 'somewhere';
@@ -669,7 +678,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                 <span className="dock-crew-text"><strong>{other.name}</strong><small>{doing} · {ground}</small></span>
               </button>;
             })}
-          </div>}
+          </div>
           {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}

@@ -46,11 +46,15 @@ export function createSupabaseMock() {
   // first track() fires. emitPresenceSync(state) replaces the state and runs the sync handler.
   const presenceHandlers = new Map();
   let presenceState = {};
+  // `channels` is the creation log (tests index into it); getChannels() is what the real client
+  // reports — the ones not yet removed — and removeChannel resolves like the real one does.
   const channels = [];
-  const removeChannel = jest.fn();
+  const removeChannel = jest.fn(async (chan) => { if (chan) chan.removed = true; return 'ok'; });
+  const getChannels = jest.fn(() => channels.filter((chan) => !chan.removed));
   const channel = jest.fn((name, options) => {
     const chan = {
       name,
+      topic: `realtime:${name}`,
       options,
       on: jest.fn((event, filter, callback) => {
         if (event === 'presence') presenceHandlers.set(filter?.event || 'sync', callback);
@@ -72,6 +76,7 @@ export function createSupabaseMock() {
     storage,
     channel,
     removeChannel,
+    getChannels,
     setResponse(table, response) { responses.set(table, response); },
     fromCalls,
     storageUpload,

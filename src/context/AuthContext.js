@@ -784,10 +784,20 @@ export function AuthProvider({ children }) {
   // keyed by user id, carrying where they are and what they're doing. Nothing is stored —
   // Presence is in-memory on the Realtime server and vanishes when the tab closes — so this is
   // the one piece of the game that is deliberately not a table. onSync gets everyone but you.
+  //
+  // The Realtime client hands back the *existing* channel for a topic, and subscribing to one
+  // that is still leaving is a silent no-op (no status callback, no track — presence just goes
+  // dark). A rejoin straight after a leave (StrictMode, a remount, a provider re-render) hits
+  // exactly that, so a stale channel on this topic is removed and awaited before a fresh one
+  // is opened; the handle queues the latest payload until then.
+  const DOCK_TOPIC = 'cast-and-catch-dock';
   function joinDock(initial, onSync) {
     if (!isSupabaseConfigured || !user) return { update: () => {}, leave: () => {} };
-    const channel = supabase.channel('cast-and-catch-dock', { config: { presence: { key: user.id } } });
+    let channel = null;
+    let latest = initial;
+    let left = false;
     const sync = () => {
+      if (!channel) return;
       const state = channel.presenceState() || {};
       const others = Object.entries(state)
         .filter(([key]) => key !== user.id)
@@ -795,12 +805,20 @@ export function AuthProvider({ children }) {
         .filter((entry) => entry.name);
       onSync(others);
     };
-    channel.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') await channel.track({ ...initial, at: Date.now() });
-    });
+    const open = () => {
+      if (left) return;
+      channel = supabase.channel(DOCK_TOPIC, { config: { presence: { key: user.id } } });
+      channel.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
+        // Fires again after a reconnect, so what we're doing is re-announced then too.
+        if (status === 'SUBSCRIBED' && channel) await channel.track({ ...latest, at: Date.now() });
+      });
+    };
+    const stale = (typeof supabase.getChannels === 'function' ? supabase.getChannels() : []).filter((existing) => existing.topic === `realtime:${DOCK_TOPIC}`);
+    if (stale.length === 0) open();
+    else Promise.all(stale.map((existing) => supabase.removeChannel(existing))).then(open, open);
     return {
-      update: (payload) => channel.track({ ...payload, at: Date.now() }),
-      leave: () => supabase.removeChannel(channel),
+      update: (payload) => { latest = payload; if (channel) channel.track({ ...payload, at: Date.now() }); },
+      leave: () => { left = true; if (channel) supabase.removeChannel(channel); channel = null; },
     };
   }
 

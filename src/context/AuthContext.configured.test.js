@@ -659,6 +659,27 @@ describe('the dock (presence)', () => {
     dock.leave();
     expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
   });
+
+  test('rejoining straight after leaving waits for the old channel to go and subscribes a fresh one', async () => {
+    const result = await setupSignedIn();
+    const first = result.current.joinDock({ name: 'Andre', biome: 'river', phase: 'ready' }, jest.fn());
+    const oldChan = __mock.current.channels[__mock.current.channels.length - 1];
+    await act(async () => { await Promise.resolve(); });
+    first.leave();
+    // A leave is asynchronous in the real client; the topic is still registered here.
+    oldChan.removed = false;
+    const onSync = jest.fn();
+    const second = result.current.joinDock({ name: 'Andre', biome: 'bay', phase: 'ready' }, onSync);
+    second.update({ name: 'Andre', biome: 'bay', phase: 'casting' });
+    expect(__mock.current.removeChannel).toHaveBeenLastCalledWith(oldChan);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    const newChan = __mock.current.channels[__mock.current.channels.length - 1];
+    expect(newChan).not.toBe(oldChan);
+    expect(newChan.subscribe).toHaveBeenCalledTimes(1);
+    // The payload queued before the channel existed is what gets announced.
+    expect(newChan.track).toHaveBeenCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
+    expect(oldChan.subscribe).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('the derby prize', () => {
