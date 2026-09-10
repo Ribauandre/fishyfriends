@@ -60,7 +60,8 @@ export function frontness(x, face, facing) {
 
 // A dome's light: brightest at the top and the front, falling away down the sides.
 function domeShade(u, v, dir) {
-  return Math.max(0.62, Math.min(1.24, 1.14 - 0.4 * v + (dir === 0 ? -0.1 * Math.abs(u) : 0.1 * dir * u)));
+  const round = 1 - 0.34 * u * u;
+  return Math.max(0.55, Math.min(1.3, (1.2 - 0.42 * v) * round + (dir === 0 ? 0 : 0.12 * dir * u)));
 }
 
 // ---- The sculpting, one frame at a time ----
@@ -81,58 +82,119 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
   const erase = (x, y) => { if (inside(x, y)) pixels[at(x, y) + 3] = 0; };
   const key = (x, y) => y * width + x;
 
-  // The crown: the cap and its panel. The box is only where to look — inside it, the mask can
-  // call a piece of the cap rod where the backswing lays the rod across it, and call a held
-  // fish's scales cap — so the crown is the one connected run of cap-ish pixels with the most
-  // cap in it, connected across the one-pixel seams the cap is drawn with (the panel's edge,
-  // the rod's), plus the line work drawn against it, and the box is measured again from that.
+  // The crown: the cap, found on the head rather than from the mask's box. The mask cannot be
+  // asked which pixels are the cap — it breaks the cap into hat, panel, a shadow it reads as
+  // rod and the line work between them, and the box it hands over is only what it called cap,
+  // which in the back views is a ring around a crown it called rod. So the search runs over
+  // the whole head (the hat and face boxes together, with the headroom above them) and takes
+  // the largest run of pixels that are the cap's own colours — hat, panel, or a rod-labelled
+  // patch too fat to be a rod, since the real rod does cross the head in the backswing and is
+  // thin however it lies. Line work joins the run afterwards, a step at a time, so the
+  // outline around the head cannot carry the run off down the body.
   const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const AROUND = [...NEIGHBOURS, [1, 1], [-1, 1], [1, -1], [-1, -1]];
-  const capish = (part) => part === PART.hat || part === PART.panel || part === PART.rod;
-  // The box grows a little: the mask's box holds only what it called cap, and a cap pixel it
-  // called something else can sit just outside.
-  hat = { x0: hat.x0 - 3, y0: Math.max(0, hat.y0 - 2), x1: hat.x1 + 3, y1: hat.y1 + 1 };
-  const inBox = (x, y) => x >= Math.max(x0, hat.x0) && x <= Math.min(x1 - 1, hat.x1) && y >= hat.y0 && y <= hat.y1;
-  const seen = new Set();
-  let crown = new Set(); let best = -1;
-  for (let y = hat.y0; y <= hat.y1; y += 1) for (let x = Math.max(x0, hat.x0); x <= Math.min(x1 - 1, hat.x1); x += 1) {
-    if (seen.has(key(x, y)) || !capish(partAt(x, y)) || alphaAt(x, y) === 0) continue;
-    const run = new Set(); const stack = [[x, y]]; seen.add(key(x, y)); let cap = 0;
-    while (stack.length) {
-      const [qx, qy] = stack.pop(); run.add(key(qx, qy)); if (partAt(qx, qy) !== PART.rod) cap += 1;
-      for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) { const nx = qx + dx; const ny = qy + dy; if (inBox(nx, ny) && !seen.has(key(nx, ny)) && capish(partAt(nx, ny)) && alphaAt(nx, ny) > 0) { seen.add(key(nx, ny)); stack.push([nx, ny]); } }
-    }
-    // Scored by how much cap sits over the beard: a held fish, cap-green and to the side,
-    // has plenty of it but none where the head is.
-    let score = cap;
-    if (beard) { score = 0; run.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (partAt(x, y) !== PART.rod && x >= beard.x0 - 10 && x <= beard.x1 + 10 && y <= beard.y0 + 6) score += 1; }); }
-    if (score > best) { best = score; crown = run; }
-  }
-  if (best < 12) return;
-  // Whatever the mask called a blotch inside the cap — a fold read as jacket, a shadow as rod —
-  // is cap too, if the cap surrounds it in its row and its column; and along the crown's
-  // upper edge, where the hood cannot be, anything touching the cap that was called jacket or
-  // rod is the cap's own edge.
-  const capTop = hat.y0 + (hat.y1 - hat.y0 + 1) * 0.7;
-  for (let pass = 0; pass < 2; pass += 1) {
-    const grown = [];
-    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y > capTop) return; AROUND.forEach(([dx, dy]) => { const nx = x + dx; const ny = y + dy; const part = partAt(nx, ny); if (inBox(nx, ny) && !crown.has(key(nx, ny)) && alphaAt(nx, ny) > 0 && (part === PART.jacket || part === PART.rod)) grown.push(key(nx, ny)); }); });
-    grown.forEach((k) => crown.add(k));
-  }
+  // Wide of both boxes, since neither is the cap's real extent — in profile the mask's box can
+  // miss the whole back of the skull. Nothing but the head is up here, and what else reaches
+  // in (the raised hand, the rod) is not the cap's colours.
+  const REACH = 18;
+  const region = {
+    x0: Math.max(x0, Math.min(hat.x0, face ? face.x0 : hat.x0) - REACH),
+    y0: 0,
+    x1: Math.min(x1 - 1, Math.max(hat.x1, face ? face.x1 : hat.x1) + REACH),
+    // The cap stops at the jaw: the beard's top is the ear line, and the hood and the collar
+    // are below it. Without a beard, halfway down the face.
+    y1: beard ? beard.y0 - 2 : (face ? face.y0 + Math.round((face.y1 - face.y0) * 0.5) : hat.y1 + 10),
+  };
+  const inRegion = (x, y) => x >= region.x0 && x <= region.x1 && y >= region.y0 && y <= region.y1;
+  // Rod-labelled runs on the head, kept only where they are too fat to be a rod.
+  const fatRod = new Set();
   {
-    const cols = new Map(); const rws = new Map();
-    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; const c = cols.get(x) || [Infinity, -Infinity]; cols.set(x, [Math.min(c[0], y), Math.max(c[1], y)]); const r = rws.get(y) || [Infinity, -Infinity]; rws.set(y, [Math.min(r[0], x), Math.max(r[1], x)]); });
-    for (let y = hat.y0; y <= hat.y1; y += 1) for (let x = Math.max(x0, hat.x0); x <= Math.min(x1 - 1, hat.x1); x += 1) {
-      if (crown.has(key(x, y)) || alphaAt(x, y) === 0) continue;
-      const part = partAt(x, y);
-      if (part === PART.skin || part === PART.beard || part === PART.boots || part === PART.waders) continue;
-      const c = cols.get(x); const r = rws.get(y);
-      if (c && r && c[0] < y && c[1] > y && r[0] < x && r[1] > x) crown.add(key(x, y));
+    const seenRod = new Set();
+    for (let y = region.y0; y <= region.y1; y += 1) for (let x = region.x0; x <= region.x1; x += 1) {
+      if (seenRod.has(key(x, y)) || partAt(x, y) !== PART.rod || alphaAt(x, y) === 0) continue;
+      const run = []; const stack = [[x, y]]; seenRod.add(key(x, y));
+      let rx0 = x; let rx1 = x; let ry0 = y; let ry1 = y;
+      while (stack.length) {
+        const [qx, qy] = stack.pop(); run.push(key(qx, qy));
+        if (qx < rx0) rx0 = qx; if (qx > rx1) rx1 = qx; if (qy < ry0) ry0 = qy; if (qy > ry1) ry1 = qy;
+        AROUND.forEach(([dx, dy]) => { const nx = qx + dx; const ny = qy + dy; if (inRegion(nx, ny) && !seenRod.has(key(nx, ny)) && partAt(nx, ny) === PART.rod && alphaAt(nx, ny) > 0) { seenRod.add(key(nx, ny)); stack.push([nx, ny]); } });
+      }
+      if (run.length / Math.max(rx1 - rx0 + 1, ry1 - ry0 + 1) >= 3) run.forEach((k) => fatRod.add(k));
     }
   }
+  // What the cap is: the top of the head. The mask cannot say — from behind, the crown is
+  // painted the same olive as the jacket and it labels most of it jacket or rod — so the cap
+  // is read off the silhouette instead. Down each column of the head, from the first pixel
+  // there is, everything as far as the first skin or beard is the cap: the forehead ends it
+  // from the front, the neck from behind, and a peak that juts over open air ends at the air.
+  // Only columns whose top is up where the head's top is are walked, which leaves the hood
+  // and the shoulders behind it out, and a column has to gather a few pixels to count, which
+  // leaves out the rod crossing above.
+  const capSeed = new Set();
+  {
+    const tops = new Map();
+    let headTop = Infinity;
+    for (let x = region.x0; x <= region.x1; x += 1) {
+      for (let y = region.y0; y <= region.y1; y += 1) if (alphaAt(x, y) > 0) { tops.set(x, y); headTop = Math.min(headTop, y); break; }
+    }
+    const reach = Math.max(8, (face ? face.y0 : region.y1) - headTop);
+    tops.forEach((top, x) => {
+      if (top > headTop + reach) return;
+      const run = [];
+      for (let y = top; y <= region.y1; y += 1) {
+        if (alphaAt(x, y) === 0) break;
+        const part = partAt(x, y);
+        if (part === PART.skin || part === PART.beard || part === PART.waders || part === PART.boots) break;
+        // A rod lying across the cap is not the cap, but it does not end it either.
+        if (part === PART.rod && !fatRod.has(key(x, y))) continue;
+        run.push(y);
+      }
+      if (run.length >= 4) run.forEach((y) => capSeed.add(key(x, y)));
+    });
+  }
+  const capAt = (x, y) => capSeed.has(key(x, y));
+  const seen = new Set();
+  const runs = [];
+  for (let y = region.y0; y <= region.y1; y += 1) for (let x = region.x0; x <= region.x1; x += 1) {
+    if (seen.has(key(x, y)) || !capAt(x, y)) continue;
+    const run = new Set(); const stack = [[x, y]]; seen.add(key(x, y));
+    let bx0 = x; let by0 = y; let bx1 = x; let by1 = y;
+    while (stack.length) {
+      const [qx, qy] = stack.pop(); run.add(key(qx, qy));
+      if (qx < bx0) bx0 = qx; if (qx > bx1) bx1 = qx; if (qy < by0) by0 = qy; if (qy > by1) by1 = qy;
+      // Two pixels of reach, to step over the seams the cap is drawn with.
+      for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) { const nx = qx + dx; const ny = qy + dy; if (!seen.has(key(nx, ny)) && capAt(nx, ny)) { seen.add(key(nx, ny)); stack.push([nx, ny]); } }
+    }
+    // Scored by how much of it sits over the head: a held fish, cap-green and to the side,
+    // has plenty of cap in it but none where the face is.
+    let score = run.size;
+    if (beard) { score = 0; run.forEach((k) => { const y2 = Math.floor(k / width); const x2 = k - y2 * width; if (x2 >= beard.x0 - 10 && x2 <= beard.x1 + 10 && y2 <= beard.y0 + 6) score += 1; }); }
+    runs.push({ run, score, box: { x0: bx0, y0: by0, x1: bx1, y1: by1 } });
+  }
+  // The cap comes apart into several runs — the art draws seams between its panels that are
+  // thicker than the reach above — so the crown is the best-placed run together with every
+  // other one that lies against it. A fish held out at arm's length is nowhere near.
+  const first = runs.reduce((a, b) => (b.score > (a ? a.score : -1) ? b : a), null);
+  if (!first || first.score < 12) return;
+  const crown = new Set(first.run);
+  let box = { ...first.box };
+  const NEAR = 5;
+  const merged = new Set([first]);
+  for (let pass = 0; pass < runs.length; pass += 1) {
+    let grew = false;
+    for (const r of runs) {
+      if (merged.has(r)) continue;
+      if (r.box.x0 > box.x1 + NEAR || r.box.x1 < box.x0 - NEAR || r.box.y0 > box.y1 + NEAR || r.box.y1 < box.y0 - NEAR) continue;
+      merged.add(r); grew = true;
+      r.run.forEach((k) => crown.add(k));
+      box = { x0: Math.min(box.x0, r.box.x0), y0: Math.min(box.y0, r.box.y0), x1: Math.max(box.x1, r.box.x1), y1: Math.max(box.y1, r.box.y1) };
+    }
+    if (!grew) break;
+  }
+  // The line work drawn against the cap is the cap's, one step at a time.
   for (let pass = 0; pass < 2; pass += 1) {
     const grown = [];
-    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; AROUND.forEach(([dx, dy]) => { const nx = x + dx; const ny = y + dy; if (inBox(nx, ny) && !crown.has(key(nx, ny)) && partAt(nx, ny) === PART.outline && alphaAt(nx, ny) > 0) grown.push(key(nx, ny)); }); });
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; AROUND.forEach(([dx, dy]) => { const nx = x + dx; const ny = y + dy; if (inRegion(nx, ny) && !crown.has(key(nx, ny)) && partAt(nx, ny) === PART.outline && alphaAt(nx, ny) > 0) grown.push(key(nx, ny)); }); });
     grown.forEach((k) => crown.add(k));
   }
   {
@@ -142,19 +204,31 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
   }
   const hatH = hat.y1 - hat.y0 + 1;
 
-  // The head's width, read across the crown's upper rows, above where the peak starts — a
-  // brim is whatever the cap has past that, low down.
+  // The skull reaches the top of the cap; the peak does not. So a column of the crown belongs
+  // to the head where its highest pixel is near the crown's top, and the peak is what stands
+  // in the columns either side of those — which finds it whichever way the head is turned.
+  // A cap seen from behind has no peak to find, and every column of a cap seen head-on has
+  // skull above it, so neither loses anything here.
+  const colTop = new Map();
+  crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; colTop.set(x, Math.min(colTop.get(x) ?? Infinity, y)); });
   let hx0 = Infinity; let hx1 = -Infinity;
-  crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y >= hat.y0 + hatH * 0.18 && y <= hat.y0 + hatH * 0.4) { hx0 = Math.min(hx0, x); hx1 = Math.max(hx1, x); } });
+  colTop.forEach((top, x) => { if (top <= hat.y0 + hatH * 0.3) { hx0 = Math.min(hx0, x); hx1 = Math.max(hx1, x); } });
   if (!Number.isFinite(hx0)) return;
   const brim = new Set();
   if (facing !== 'back') {
-    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y > hat.y0 + hatH * 0.45 && (x > hx1 + 1 || x < hx0 - 1)) brim.add(k); });
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (x < hx0 || x > hx1) brim.add(k); });
   }
 
   if (head.crown === 'cap') {
+    // Every pixel of the crown takes the dye, whatever the mask called it, measured against
+    // the panel where it is light and the cap where it is dark; the line work stays black.
     const tint = palette.targets[PART.hat];
-    if (tint) crown.forEach((k) => { if (mask[k * 4] === PART.hat || mask[k * 4] === PART.panel) { const i = k * 4; const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[mask[i]], tint); pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2]; } });
+    if (tint) crown.forEach((k) => {
+      const i = k * 4; const lum = luminance(pixels[i], pixels[i + 1], pixels[i + 2]);
+      if (lum < 26) return;
+      const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[lum > 120 ? PART.panel : PART.hat], tint);
+      pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
+    });
   } else {
     const kind = head.hat?.kind || null;
     // The brim goes, unless it is a visor's; the cap's own top is a little taller than a head.
@@ -168,7 +242,7 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       [...crown].forEach((k) => {
         const y = Math.floor(k / width); const x = k - y * width; if (brim.has(k)) return;
         const [ex0, ex1] = ends.get(y);
-        const trim = y === top ? Infinity : y === top + 1 ? 2 : y === top + 2 ? 1 : 0;
+        const trim = y === top ? Infinity : y === top + 1 ? 3 : y === top + 2 ? 2 : y === top + 3 ? 1 : 0;
         if (x - ex0 < trim || ex1 - x < trim) { crown.delete(k); erase(x, y); }
       });
     }

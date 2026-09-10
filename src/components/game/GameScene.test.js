@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GameScene from './GameScene';
-import { layoutFor, frameFor, landingX, reelX, waterSpan } from '../../utils/sceneLayout';
+import { layoutFor, frameFor, landingX, reelX, waterSpan, castWindow } from '../../utils/sceneLayout';
 
 const FULL = frameFor(480);
 
@@ -210,8 +210,11 @@ test('a taller stage keeps the scene on the painting: positions follow the visib
     const scene = container.querySelector('.game-scene');
     expect(scene).toHaveAttribute('data-view-w', '360');
     expect(container.querySelector('.game-scene-svg')).toHaveAttribute('viewBox', '0 0 360 270');
-    // The hardest cast still lands inside the visible water.
-    expect(parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'))).toBeLessThanOrEqual(360 - 24);
+    // The hardest cast lands inside the water the cast camera shows, which on a stage this
+    // narrow reaches past the painting the deck view crops to.
+    const bobber = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
+    expect(bobber).toBeGreaterThan(360 - 24);
+    expect(bobber).toBeLessThanOrEqual(castWindow(layoutFor('river'), frameFor(360))[1] - 24);
     // The angler's feet keep the same unit position, so as a share of a narrower stage he sits further right.
     const you = container.querySelector('.scene-sprite.is-you');
     const leftNarrow = parseFloat(you.style.left);

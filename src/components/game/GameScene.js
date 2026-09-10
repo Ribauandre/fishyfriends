@@ -9,7 +9,7 @@ import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import { lookKey } from '../../utils/anglerLook';
 import {
-  PAINT_H, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, pctX, pctY, pctW, pctH,
+  PAINT_H, PAINT_W, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, pctX, pctY, pctW, pctH,
   waterSpan, landingX as landingFor, reelX, cameraFor, cameraTransform, REST_CAMERA,
 } from '../../utils/sceneLayout';
 import riverArt from '../../assets/scenes/river.webp';
@@ -181,6 +181,10 @@ export default function GameScene({
   // The camera, and the meters that sit outside it in screen space beside the angler (or at
   // the stage's edge when the push-in has moved past his side).
   const camera = cameraFor(phase, { anglerX: feet.x, anglerY: feet.y, spriteH }, viewW);
+  // The painting's own box in stage units. It is laid out like everything else on the stage
+  // rather than fitted by the browser, so a narrow stage — which crops the painting's right
+  // rather than shrinking it — still has the rest of it there for the camera to pan across.
+  const paintBox = { left: 0, top: pctY(-frame.cropTop * frame.k), width: pctX(stageX(PAINT_W, frame), frame), height: pctY(stageLen(PAINT_H, frame)) };
   const focused = camera !== REST_CAMERA;
   // The meters stand beside the angler, in screen space: to his left when the camera leaves
   // room there, otherwise just past his front foot, so they never sit on him.
@@ -198,9 +202,9 @@ export default function GameScene({
 
   return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
     <div className="scene-world" data-camera={phase === 'casting' ? 'cast' : focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
-      <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} />
+      <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
       {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
-      <div className={`scene-tint is-${period}`} aria-hidden="true" />
+      <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
       <SceneAmbience biome={biome} phase={phase} period={period} viewW={viewW} />
       <DockProps layout={layout} frame={frame} front={false} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>

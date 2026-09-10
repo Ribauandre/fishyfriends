@@ -151,6 +151,21 @@ test('every frame of a strip is sculpted where its own anchors say, not where th
   expect(near(px(W + 24, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
 });
 
+test('the cap is taken off the head, not off the mask, so a mislabelled patch of it still goes', () => {
+  // The mask gets the cap wrong in the real art: from behind it calls the crown rod, and the
+  // peak jacket. Relabel two patches of the cap that way and a bare head must still be bare.
+  const { pixels, mask } = scene();
+  const relabel = (x0, y0, x1, y1, part) => { for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) mask[(y * W + x) * 4] = part; };
+  relabel(14, 5, 25, 12, PART.rod);
+  relabel(30, 11, 34, 14, PART.jacket);
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ hat: 'hat_none', hairstyle: 'bald' }, Object.keys(WARDROBE)) });
+  const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  // The peak the mask called jacket is gone, and the crown it called rod is skin.
+  expect(px(33, 12).a).toBe(0);
+  expect(near(px(20, 9), SKIN_TONES.medium.rgb, 70)).toBe(true);
+  expect(near(px(20, 9), PART_BASE[PART.hat], 30)).toBe(false);
+});
+
 test('a frame with no anchors is only dyed', () => {
   const { pixels, mask } = scene();
   const before = pixels.slice();
