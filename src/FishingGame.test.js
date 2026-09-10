@@ -240,6 +240,11 @@ test('unlocking a lure spends tackle points and ties it on', async () => {
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
 
+  // The deck only shows what's tied on; the tray behind the signpost holds the lures.
+  expect(screen.queryByRole('button', { name: /jerk bait/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Lures · Live bait tied on' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
+  expect(document.querySelectorAll('.lure-icon').length).toBe(3);
   expect(screen.getByRole('button', { name: /jerk bait unlock · 60 pts/i })).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
@@ -248,6 +253,8 @@ test('unlocking a lure spends tackle points and ties it on', async () => {
   expect(screen.getByLabelText('40 tackle points')).toBeInTheDocument();
   expect(screen.getByText('Jerk bait', { selector: '.hud-chip' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /jerk bait owned/i })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
+  expect(screen.getByRole('button', { name: 'Lures · Jerk bait tied on' })).toBeInTheDocument();
 });
 
 test('a failed lure purchase shows the error and keeps live bait tied on', async () => {
@@ -255,6 +262,7 @@ test('a failed lure purchase shows the error and keeps live bait tied on', async
   useAuth.mockReturnValue(makeBaseAuth({ purchaseLure }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
   expect(await screen.findByText(/not enough tackle points yet/i, { selector: '.form-error' })).toBeInTheDocument();
   expect(screen.getByText('Live bait', { selector: '.hud-chip' })).toBeInTheDocument();
@@ -264,7 +272,9 @@ test('jerk bait: twitching on the beat fills attraction and triggers the bite', 
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   expect(screen.getByRole('button', { name: 'Twitch' })).toBeInTheDocument();
@@ -281,7 +291,9 @@ test('jerk bait: running out of retrieve with no bite wastes the cast', async ()
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   await advance(16000);
   expect(screen.getByText(/no takers/i)).toBeInTheDocument();
@@ -291,7 +303,9 @@ test('crank bait: a retrieve held in the strike zone triggers the bite', async (
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   expect(screen.getByRole('button', { name: 'Hold to crank' })).toBeInTheDocument();
@@ -306,7 +320,9 @@ test('crank bait: reaching the boat with no strike wastes the cast', async () =>
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['crankbait'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /crank bait/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
 
   stepCrank.mockReturnValueOnce({ speed: 80, bandCenter: 40, attraction: 10, distance: 100, inBandTicks: 0, ticks: 30 });
@@ -321,7 +337,8 @@ test('the fly rod is bought at Sal\'s, then the flies show on the dock at the ri
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ tackle_points: 150 })), purchaseFlyRod }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
-  // Without the rod the dock points at Sal's instead of showing flies.
+  // Without the rod the tray points at Sal's instead of showing flies.
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.queryByRole('button', { name: /dry fly/i })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /fly rod at sal's/i }));
   expect(screen.getByRole('button', { name: /buy · 120 pts/i })).toBeInTheDocument();
@@ -331,6 +348,7 @@ test('the fly rod is bought at Sal\'s, then the flies show on the dock at the ri
   expect(screen.getByText(/match the hatch/i)).toBeInTheDocument();
   expect(screen.getByText(/owned · flies are on the dock/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /close tackle shop/i }));
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.getByRole('button', { name: /dry fly unlock · 40 pts/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /nymph unlock · 50 pts/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /streamer unlock · 70 pts/i })).toBeInTheDocument();
@@ -341,12 +359,15 @@ test('flies stay in the truck off trout water: the chips vanish on the bay and l
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['nymph'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /nymph owned/i }));
   expect(screen.getByText('Nymph', { selector: '.hud-chip' })).toBeInTheDocument();
   expect(screen.getByText(/the hatch is on for this fly/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
   await advance(2000);
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.queryByRole('button', { name: /nymph/i })).not.toBeInTheDocument();
   expect(screen.getByText('Live bait', { selector: '.hud-chip' })).toBeInTheDocument();
 });
@@ -355,8 +376,10 @@ test('the fly: cast to the rise, mend the drift, and a clean drift brings the ta
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['dryfly'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /dry fly owned/i }));
   expect(screen.getByText(/off-hatch for this fly/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
   // Math.random is pinned at 0.5: the trout rises at meter position 50, so the band sits 42-58.
   expect(screen.getByText(/stop the cast on the rise/i)).toBeInTheDocument();
@@ -380,7 +403,9 @@ test('the fly: letting the drag set spooks the fish and spends the cast', async 
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['streamer'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /streamer owned/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   // CRA resets mock implementations between tests, so script the tick: drag has topped out.
   stepDrift.mockReturnValue({ drag: 100, drift: 45, attraction: 10, mends: 0, cleanMends: 0, ticks: 70, cleanTicks: 55, accuracy: 0, clean: false });
@@ -519,7 +544,6 @@ test('the shop is a place: Sal, the shop interior, and gear icons on every upgra
   expect(panel).toHaveClass('has-backdrop');
   expect(panel.getAttribute('data-backdrop')).toContain('shop');
   expect(document.querySelectorAll('.upgrade-icon').length).toBe(4);
-  expect(document.querySelectorAll('.lure-icon').length).toBe(3);
 });
 
 // ---- The world: clock, almanac, derby, quests, bounties, sound ----
@@ -613,8 +637,12 @@ test("Cap'n Ray tracks the proving quest on the dock and it completes on the thi
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
   await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
-  expect(screen.getByText('2 / 3')).toBeInTheDocument();
   expect(screen.getByText(/1 more from the bay/i)).toBeInTheDocument();
+  expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Quests · 1 on the board' }));
+  expect(screen.getByRole('list', { name: /cap'n ray's quests/i })).toBeInTheDocument();
+  expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Close quests' }));
   await reachWaiting();
   await advance(4000);
   await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
@@ -694,7 +722,9 @@ test('a worked lure shows on the stage with its gauge, and twitching from the st
   useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ owned_lures: ['jerkbait'] })) }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   await userEvent.click(screen.getByRole('button', { name: /jerk bait/i }));
+  await userEvent.click(screen.getByRole('button', { name: 'Close lures' }));
   await reachWaiting();
   expect(document.querySelector('.scene-lure')).toHaveAttribute('data-lure', 'jerkbait');
   expect(document.querySelector('.stage-gauge')).toHaveClass('is-jerkbait');
@@ -713,7 +743,9 @@ test('the dock shows who else is on the water, puts same-ground anglers on the s
   const { unmount } = render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   expect(joinDock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Andre', biome: 'river', phase: 'ready' }), expect.any(Function));
-  // Alone, the strip still shows you, so it's clear the dock is live.
+  // Alone, the signpost says so and the roster behind it still shows you, so it's clear the dock is live.
+  expect(screen.queryByRole('group', { name: /on the water now/i })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'On the water · just you' }));
   expect(screen.getByRole('group', { name: /on the water now/i })).toBeInTheDocument();
   expect(screen.getByLabelText(/you · river · nobody else out right now/i)).toBeInTheDocument();
 
@@ -723,6 +755,7 @@ test('the dock shows who else is on the water, puts same-ground anglers on the s
   ]); });
   expect(screen.getByRole('group', { name: /on the water now/i })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Kevin · fighting one · River' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'On the water · 2 others out' })).toHaveAttribute('aria-pressed', 'true');
   expect(document.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
   expect(screen.getByText('KEVIN')).toBeInTheDocument();
 

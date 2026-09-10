@@ -7,7 +7,7 @@ import NpcDialogue from './components/game/NpcDialogue';
 import AnglerPreview from './components/game/AnglerPreview';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import outfitterBackdrop from './assets/scenes/outfitter.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
@@ -661,60 +661,24 @@ export default function FishingGame({ clock = () => new Date() }) {
 
       <div className="game-dock">
         {phase === 'ready' && <div className="game-panel is-ready">
+          {/* The deck is kept clear: the ground sign, three signposts (the tackle tray, who's on the
+              water, the notice board) that open in-frame, the captain, and the Cast sign. */}
           <div className="dock-row">
             <button type="button" className="dock-ground" onClick={() => toggleOverlay('map')} aria-label={`Change fishing ground · currently ${biomeConfig.label}`}>
               <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost} · {PERIOD_LABELS[period].toLowerCase()}</small>
             </button>
-            <div className="lure-chips" role="group" aria-label="Lure">
-              {luresFor(biome, gameProfile).map((lureOption) => {
-                const owned = lureOwned(gameProfile, lureOption.key);
-                return <button
-                  key={lureOption.key}
-                  type="button"
-                  className={`lure-chip ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
-                  disabled={lureBusy}
-                  aria-pressed={lure === lureOption.key}
-                  onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
-                >
-                  <img className="lure-icon" src={LURE_ICONS[lureOption.key]} alt="" />
-                  <span className="lure-chip-text">
-                    <strong>{lureOption.label}</strong>
-                    <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
-                  </span>
-                </button>;
-              })}
-              {BIOMES[biome].flyWater && !hasFlyRod(gameProfile) && <button type="button" className="lure-chip is-locked lure-chip-flyrod" onClick={() => setOverlay('shop')}>
-                <img className="fly-rod-icon" src={FLY_ROD_ICON} alt="" />
-                <span className="lure-chip-text"><strong>Fly rod</strong><span>At Sal's · {FLY_ROD.cost} pts</span></span>
-              </button>}
-            </div>
+            <nav className="dock-icons" aria-label="Dock">
+              <button type="button" className={`dock-icon ${overlay === 'lures' ? 'is-open' : ''}`} aria-pressed={overlay === 'lures'} aria-label={`Lures · ${LURES[lure].label} tied on`} onClick={() => toggleOverlay('lures')}>
+                <img src={LURE_ICONS[lure]} alt="" /><span aria-hidden="true">Lures</span>
+              </button>
+              <button type="button" className={`dock-icon ${overlay === 'crew' ? 'is-open' : ''}`} aria-pressed={overlay === 'crew'} aria-label={`On the water · ${crew.length === 0 ? 'just you' : `${crew.length} other${crew.length === 1 ? '' : 's'} out`}`} onClick={() => toggleOverlay('crew')}>
+                <img src={DOCK_ICONS.crew} alt="" />{crew.length > 0 && <small className="dock-icon-badge" aria-hidden="true">{crew.length}</small>}<span aria-hidden="true">Crew</span>
+              </button>
+              <button type="button" className={`dock-icon ${overlay === 'quests' ? 'is-open' : ''} ${derby.grounds.includes(biome) ? 'is-derby' : ''}`} aria-pressed={overlay === 'quests'} aria-label={`Quests · ${captainClaimable.length > 0 ? `${captainClaimable.length} to turn in` : `${captainQuests.length} on the board`}`} onClick={() => toggleOverlay('quests')}>
+                <img src={DOCK_ICONS.quests} alt="" />{captainClaimable.length > 0 && <small className="dock-icon-badge is-claim" aria-hidden="true">{captainClaimable.length}</small>}<span aria-hidden="true">Quests</span>
+              </button>
+            </nav>
           </div>
-          <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}{flyOn && (hatchMatch(lure, period) ? ' The hatch is on for this fly.' : ' Off-hatch for this fly right now — it still works, just slower.')}</p>
-          <div className="dock-crew" role="group" aria-label="On the water now">
-            <span className="dock-crew-label">On the water</span>
-            <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
-              <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
-              <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
-            </span>
-            {crew.map((other) => {
-              const here = other.biome === biome;
-              const ground = BIOMES[other.biome]?.label || 'somewhere';
-              const doing = { casting: 'casting', waiting: 'waiting on a bite', hookset: 'fish on!', reeling: 'fighting one', result: other.species ? `landed a ${String(other.species).toLowerCase()}` : 'between casts' }[other.phase] || 'on the dock';
-              const canGo = !here && biomeUnlocked(other.biome, quests) && phase === 'ready';
-              return <button
-                key={other.userId}
-                type="button"
-                className={`dock-crew-chip ${here ? 'is-here' : ''}`}
-                disabled={!canGo}
-                aria-label={`${other.name} · ${doing} · ${ground}${canGo ? ' · travel there' : ''}`}
-                onClick={() => selectBiome(other.biome)}
-              >
-                <span className="mini-avatar">{other.avatarUrl ? <img src={other.avatarUrl} alt="" /> : String(other.name || 'A').slice(0, 1).toUpperCase()}</span>
-                <span className="dock-crew-text"><strong>{other.name}</strong><small>{doing} · {ground}</small></span>
-              </button>;
-            })}
-          </div>
-          {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
           {lureError && <p className="form-error">{lureError}</p>}
           {charterError && <p className="form-error">{charterError}</p>}
           {derbyWin && <div className="derby-win" role="status">
@@ -722,13 +686,6 @@ export default function FishingGame({ clock = () => new Date() }) {
             <div><strong>You won last week's derby!</strong><span>Biggest {speciesLabel(derbyWin.species).toLowerCase()} in the club{derbyWin.sizeIn ? ` at ${sizeLabel(derbyWin.sizeIn)}` : ''}. The Golden Pennant flies from your rod all week.</span></div>
           </div>}
           <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests, champion, justWon: derbyWin, flyRod: hasFlyRod(gameProfile), lure })} compact />
-          {captainQuests.length > 0 && <ul className="quest-list is-compact" aria-label="Cap'n Ray's quests">
-            {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
-              <span className="quest-title">{quest.title}</span>
-              <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
-              {captainClaimable.some((candidate) => candidate.key === quest.key) && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
-            </li>)}
-          </ul>}
           <button className="button button-primary dock-cast" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
@@ -804,6 +761,73 @@ export default function FishingGame({ clock = () => new Date() }) {
       {overlay === 'map' && <GameOverlay eyebrow="Travel" title="Fishing grounds" onClose={() => setOverlay(null)}>
         <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} />
         <p className="dock-hint">{biomeConfig.blurb}</p>
+      </GameOverlay>}
+
+      {overlay === 'lures' && <GameOverlay eyebrow="Tackle tray" title="Lures" onClose={() => setOverlay(null)}>
+        <div className="lure-chips" role="group" aria-label="Lure">
+          {luresFor(biome, gameProfile).map((lureOption) => {
+            const owned = lureOwned(gameProfile, lureOption.key);
+            return <button
+              key={lureOption.key}
+              type="button"
+              className={`lure-chip ${lure === lureOption.key ? 'is-active' : ''} ${owned ? '' : 'is-locked'}`}
+              disabled={lureBusy}
+              aria-pressed={lure === lureOption.key}
+              onClick={() => (owned ? setLure(lureOption.key) : handleLurePurchase(lureOption.key))}
+            >
+              <img className="lure-icon" src={LURE_ICONS[lureOption.key]} alt="" />
+              <span className="lure-chip-text">
+                <strong>{lureOption.label}</strong>
+                <span>{owned ? (lureOption.cost > 0 ? 'Owned' : 'Free') : `Unlock · ${lureOption.cost} pts`}</span>
+              </span>
+            </button>;
+          })}
+          {BIOMES[biome].flyWater && !hasFlyRod(gameProfile) && <button type="button" className="lure-chip is-locked lure-chip-flyrod" onClick={() => setOverlay('shop')}>
+            <img className="fly-rod-icon" src={FLY_ROD_ICON} alt="" />
+            <span className="lure-chip-text"><strong>Fly rod</strong><span>At Sal's · {FLY_ROD.cost} pts</span></span>
+          </button>}
+        </div>
+        <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}{flyOn && (hatchMatch(lure, period) ? ' The hatch is on for this fly.' : ' Off-hatch for this fly right now — it still works, just slower.')}</p>
+      </GameOverlay>}
+
+      {overlay === 'crew' && <GameOverlay eyebrow="Who's out" title="On the water" onClose={() => setOverlay(null)}>
+        <div className="dock-crew" role="group" aria-label="On the water now">
+          <span className="dock-crew-label">On the water</span>
+          <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
+            <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
+            <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
+          </span>
+          {crew.map((other) => {
+            const here = other.biome === biome;
+            const ground = BIOMES[other.biome]?.label || 'somewhere';
+            const doing = { casting: 'casting', waiting: 'waiting on a bite', hookset: 'fish on!', reeling: 'fighting one', result: other.species ? `landed a ${String(other.species).toLowerCase()}` : 'between casts' }[other.phase] || 'on the dock';
+            const canGo = !here && biomeUnlocked(other.biome, quests) && phase === 'ready';
+            return <button
+              key={other.userId}
+              type="button"
+              className={`dock-crew-chip ${here ? 'is-here' : ''}`}
+              disabled={!canGo}
+              aria-label={`${other.name} · ${doing} · ${ground}${canGo ? ' · travel there' : ''}`}
+              onClick={() => selectBiome(other.biome)}
+            >
+              <span className="mini-avatar">{other.avatarUrl ? <img src={other.avatarUrl} alt="" /> : String(other.name || 'A').slice(0, 1).toUpperCase()}</span>
+              <span className="dock-crew-text"><strong>{other.name}</strong><small>{doing} · {ground}</small></span>
+            </button>;
+          })}
+        </div>
+        <p className="dock-hint">Anglers on your ground stand on the dock with you. Tap a friend on another ground to head over.</p>
+      </GameOverlay>}
+
+      {overlay === 'quests' && <GameOverlay eyebrow="Cap'n Ray's board" title="Quests" onClose={() => setOverlay(null)}>
+        {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
+        {captainQuests.length > 0 && <ul className="quest-list" aria-label="Cap'n Ray's quests">
+          {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
+            <span className="quest-title">{quest.title}</span>
+            <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
+            {captainClaimable.some((candidate) => candidate.key === quest.key) && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
+          </li>)}
+        </ul>}
+        {captainQuests.length === 0 && <p className="dock-hint">Nothing on the board right now. Sal has his own asks at the shop.</p>}
       </GameOverlay>}
 
       {overlay === 'shop' && <GameOverlay eyebrow="Sal's Tackle" title="Tackle shop" backdrop={shopBackdrop} onClose={() => setOverlay(null)}>
