@@ -148,3 +148,10 @@ test('submitBugReport fails closed once a description is given', async () => {
   await waitFor(async () => { response = await result.current.submitBugReport({ body: 'The like button does nothing.' }); });
   expect(response.error.message).toMatch(/sign in before reporting/i);
 });
+
+test('listBugReports fails closed to an empty list', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.listBugReports(); });
+  expect(response).toEqual([]);
+});

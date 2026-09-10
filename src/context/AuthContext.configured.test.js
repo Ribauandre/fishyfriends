@@ -725,3 +725,25 @@ describe('the derby prize', () => {
     await expect(result.current.claimDerbyWin(wednesday)).resolves.toEqual(expect.objectContaining({ won: false, winner: null }));
   });
 });
+
+describe('listBugReports', () => {
+  test('returns the reports Supabase provides', async () => {
+    const result = await setupSignedIn();
+    const rows = [{ id: 'br-1', angler_name: 'Andre', body: 'Broken thing' }];
+    __mock.setResponse('bug_reports', { data: rows, error: null });
+
+    const reports = await result.current.listBugReports();
+
+    expect(reports).toEqual(rows);
+    expect(__mock.current.from).toHaveBeenCalledWith('bug_reports');
+  });
+
+  test('falls back to an empty list on a Supabase error', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('bug_reports', { data: null, error: { message: 'select failed' } });
+
+    const reports = await result.current.listBugReports();
+
+    expect(reports).toEqual([]);
+  });
+});
