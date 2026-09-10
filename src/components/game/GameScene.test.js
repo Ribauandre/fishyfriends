@@ -2,6 +2,9 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GameScene from './GameScene';
+import { layoutFor, frameFor, landingX, reelX, waterSpan } from '../../utils/sceneLayout';
+
+const FULL = frameFor(480);
 
 test('puts the real angler on the dock with their name on the tag, idling until they cast', () => {
   const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" />);
@@ -44,11 +47,16 @@ test('only loops the reel animation while the player is actually holding', () =>
   const reel = { fishPos: 40, zonePos: 45 };
   const { container, rerender } = render(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding={false} />);
   expect(container.querySelector('.scene-sprite')).not.toHaveClass('is-looping');
-  // Reel positions (0-100) are mapped into the open water right of the dock (36%-98%).
+  // Reel positions (0-100) are mapped into the painted water right of the dock, never under it.
   const fish = container.querySelector('.scene-fish');
   expect(fish).toHaveAttribute('data-species', 'pike');
-  expect(fish.style.left).toBe('60.8%');
-  expect(container.querySelector('.scene-zone').style.width).toBe('18.6%');
+  const river = layoutFor('river');
+  expect(parseFloat(fish.style.left)).toBeCloseTo((reelX(river, 40, FULL) / 480) * 100, 1);
+  expect(parseFloat(fish.style.left)).toBeGreaterThan((river.water.x0 / 480) * 100);
+  const [a, z] = waterSpan(river, FULL);
+  expect(parseFloat(container.querySelector('.scene-zone').style.width)).toBeCloseTo((0.3 * (z - a) / 480) * 100, 1);
+  // The zone is the painted water, not the whole stage.
+  expect(parseFloat(container.querySelector('.scene-zone').style.top)).toBeCloseTo((river.water.y0 / 270) * 100, 1);
 
   rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding />);
   expect(container.querySelector('.scene-sprite')).toHaveClass('is-looping');
@@ -165,16 +173,16 @@ test('club members on the same ground stand on the deck in their own pose, with 
     { userId: 'u5', name: 'Lee', biome: 'river', phase: 'ready' },
   ];
   const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" others={others} now={now} />);
+  // The dock has room for two behind the player (the crate and barrel take the rest); the others are counted.
   const crew = container.querySelectorAll('.scene-sprite.is-crew');
-  expect(crew.length).toBe(3);
+  expect(crew.length).toBe(2);
   expect(crew[0]).toHaveAttribute('data-action', 'reel');
   expect(crew[0]).toHaveClass('is-looping');
   expect(crew[1]).toHaveAttribute('data-action', 'celebrate');
-  expect(crew[2]).toHaveAttribute('data-action', 'cast');
   expect(screen.getByText('KEVIN')).toHaveClass('scene-crew-tag');
   expect(screen.getByText('Landed a walleye!')).toHaveClass('scene-crew-bubble');
   expect(screen.queryByText(/landed a carp/i)).toBeNull();
-  expect(screen.getByText('+1 more')).toBeInTheDocument();
+  expect(screen.getByText('+2 more')).toBeInTheDocument();
   expect(container.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-action', 'idle');
   // Crew stand behind the player, further left along the deck.
   const you = parseFloat(container.querySelector('.scene-sprite.is-you').style.left);
@@ -244,7 +252,7 @@ test('the camera centres the angler on the cast, pans right toward the fight onc
   const castScale = parseFloat(world().getAttribute('data-camera-scale'));
   const castX = parseFloat(world().getAttribute('data-camera-x'));
   expect(castScale).toBeGreaterThan(1.25);
-  expect(castX + 480 / castScale / 2).toBeCloseTo(175 + 30, 0);
+  expect(castX + 480 / castScale / 2).toBeCloseTo(178 + 30, 0);
   // The power meter is still drawn beside him, in screen space.
   expect(parseFloat(container.querySelector('.stage-meter.is-cast').style.left)).toBeGreaterThan(20);
 
@@ -259,7 +267,7 @@ test('the camera centres the angler on the cast, pans right toward the fight onc
   // The bobber lands inside the visible window, and the angler is still in shot.
   const bobberX = parseFloat(container.querySelector('.scene-bobber').getAttribute('cx'));
   expect(bobberX).toBeLessThan(x + 480 / scale);
-  expect(x).toBeLessThan(175);
+  expect(x).toBeLessThan(178);
 
   // The tension meter is drawn outside the camera, so it stays on screen where the angler now is.
   rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 40, zonePos: 45, progress: 30 }} zoneWidth={30} tension={55} />);
@@ -279,7 +287,7 @@ test('on the boat the camera never pushes past the angler: he stays at the left 
   const world = container.querySelector('.scene-world');
   const x = parseFloat(world.getAttribute('data-camera-x'));
   expect(x).toBeGreaterThan(0);
-  expect(x).toBeLessThan(100 - 40);
+  expect(x).toBeLessThan(92 - 40);
   // The meter keeps its spot on the angler's left, still on screen.
   const meterLeft = parseFloat(container.querySelector('.stage-meter.is-tension').style.left);
   expect(meterLeft).toBeGreaterThan(0);
@@ -294,14 +302,14 @@ test('the fly rod aims at the rise: the ring sits where the fly will land and th
   const ring = container.querySelector('.scene-rise');
   expect(ring).toHaveAttribute('data-rise', '60');
   const ringX = parseFloat(ring.querySelector('circle').getAttribute('cx'));
-  // Same spot a cast of that power lands: bobberX - 70 + 60 * 1.2 on the dock layout.
-  expect(ringX).toBe(300 - 70 + 72);
+  // Same spot a cast of that power lands.
+  expect(ringX).toBe(landingX(layoutFor('mountainlake'), 60, FULL));
 
   // On the drift the fly moves down the run from where it landed, with the drag gauge over it.
   rerender(<GameScene biome="mountainlake" phase="waiting" displayName="Andre" lure="dryfly" castDistance={60} rise={60} lureDisplay={{ drag: 50, drift: 50, attraction: 30 }} />);
   const fly = container.querySelector('.scene-lure');
   expect(fly).toHaveAttribute('data-lure', 'dryfly');
-  expect(parseFloat(fly.style.left)).toBeGreaterThan((302 / 480) * 100);
+  expect(parseFloat(fly.style.left)).toBeGreaterThan((landingX(layoutFor('mountainlake'), 60, FULL) / 480) * 100);
   expect(container.querySelector('.stage-gauge')).toHaveClass('is-dryfly');
   expect(container.querySelector('.stage-gauge-marker').style.left).toBe('50%');
 
