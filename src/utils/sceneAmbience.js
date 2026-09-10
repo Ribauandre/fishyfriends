@@ -21,17 +21,17 @@ const CRITTERS = {
 };
 const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2 };
 
-// The water each ground moves in, and how often it shows you a fish. `sparkle` is how much of
-// the shimmer layer to run: a river's broken surface catches little of it, a bay's swell a
-// lot. Everything else is a named effect the planners below lay out in painting units.
+// The water each ground moves in. `sparkle` is how much of the shimmer layer to run: a
+// river's broken surface catches little of it, a bay's swell a lot. Everything else is a
+// named effect the planners below lay out in painting units.
 const SCENES = {
-  river: { current: { lines: 6, seconds: 13, band: [0.04, 0.5] }, sparkle: 0.2, jump: [4500, 10000] },
-  mountainlake: { rings: { count: 3, seconds: 10 }, mist: { y: 0.02, height: 9, seconds: 26 }, sparkle: 0.42, jump: [9000, 19000] },
-  swamp: { moss: { count: 7, seconds: 6, y: 14 }, fireflies: { count: 8, seconds: 15 }, rings: { count: 2, seconds: 15 }, sparkle: 0.14, jump: [11000, 23000] },
-  shoreline: { surf: { count: 3, seconds: 6.5 }, sparkle: 0.28, jump: [8000, 17000] },
-  bay: { swell: { seconds: 9 }, sparkle: 0.44, jump: [7000, 15000] },
-  offshore: { swell: { seconds: 6.5 }, sparkle: 0.4, jump: [6000, 13000] },
-  canyon: { current: { lines: 4, seconds: 19, band: [0.08, 0.42] }, sparkle: 0.24, jump: [8000, 16000] },
+  river: { current: { lines: 6, seconds: 13, band: [0.04, 0.5] }, sparkle: 0.2 },
+  mountainlake: { rings: { count: 3, seconds: 10 }, mist: { y: 0.02, height: 9, seconds: 26 }, sparkle: 0.42 },
+  swamp: { moss: { count: 7, seconds: 6, y: 14 }, fireflies: { count: 8, seconds: 15 }, rings: { count: 2, seconds: 15 }, sparkle: 0.14 },
+  shoreline: { surf: { count: 3, seconds: 6.5 }, sparkle: 0.28 },
+  bay: { swell: { seconds: 9 }, sparkle: 0.44 },
+  offshore: { swell: { seconds: 6.5 }, sparkle: 0.4 },
+  canyon: { current: { lines: 4, seconds: 19, band: [0.08, 0.42] }, sparkle: 0.24 },
 };
 
 const round2 = (value) => Math.round(value * 100) / 100;
@@ -146,43 +146,4 @@ export function planFireflies(biome) {
       delay: round2(-spec.seconds * t),
     };
   });
-}
-
-// A distant jump every so often; long enough apart that it reads as a sighting, not a loop.
-// A running river shows you fish more often than a still swamp does.
-export const JUMP_GAP_MS = [7000, 15000];
-export const JUMP_DURATION_MS = 1300;
-
-export const jumpGapFor = (biome) => ambienceFor(biome).effects.jump || JUMP_GAP_MS;
-
-export function nextJumpDelay(biome, random = Math.random) {
-  const [from, to] = jumpGapFor(biome);
-  return Math.round(from + random() * (to - from));
-}
-
-// Where and what the next jump is: a species from the biome's own roster, out in the far
-// part of the fishable water (its upper band), sized small because it's far away. Painting
-// units; `visibleRight` keeps it on a narrow stage.
-export function planJump(biome, random = Math.random, visibleRight = 480) {
-  const { water } = ambienceFor(biome);
-  const roster = BIOMES[biome]?.species || BIOMES.river.species;
-  const species = roster[Math.min(roster.length - 1, Math.floor(random() * roster.length))];
-  const right = Math.max(water.x0 + 12, Math.min(water.x1, visibleRight) - 16);
-  const x = Math.round(water.x0 + 12 + random() * (right - water.x0 - 12));
-  const y = Math.round(water.y0 + 4 + random() * Math.min(24, (water.y1 - water.y0) * 0.4));
-  return { species, x, y, width: 18 + Math.round(random() * 8) };
-}
-
-// Fish shadows cruising under the bobber while you wait — two of the biome's species,
-// different ones when the roster allows, so the same shape isn't circling twice. Painting units.
-export function planShadows(biome, random = Math.random) {
-  const { water } = ambienceFor(biome);
-  const roster = BIOMES[biome]?.species || BIOMES.river.species;
-  const first = Math.floor(random() * roster.length);
-  const second = roster.length > 1 ? (first + 1 + Math.floor(random() * (roster.length - 1))) % roster.length : first;
-  const span = water.y1 - water.y0;
-  return [
-    { species: roster[first], x: water.x0 + 12, y: water.y0 + span * 0.3, width: 36, duration: 11, delay: -3 },
-    { species: roster[second], x: water.x0 + 58, y: water.y0 + span * 0.6, width: 30, duration: 14, delay: -9 },
-  ];
 }
