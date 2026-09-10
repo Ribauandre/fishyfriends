@@ -663,7 +663,9 @@ test('the dock shows who else is on the water, puts same-ground anglers on the s
   const { unmount } = render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   expect(joinDock).toHaveBeenCalledWith(expect.objectContaining({ name: 'Andre', biome: 'river', phase: 'ready' }), expect.any(Function));
-  expect(screen.queryByRole('group', { name: /on the water now/i })).toBeNull();
+  // Alone, the strip still shows you, so it's clear the dock is live.
+  expect(screen.getByRole('group', { name: /on the water now/i })).toBeInTheDocument();
+  expect(screen.getByLabelText(/you · river · nobody else out right now/i)).toBeInTheDocument();
 
   await act(async () => { sync([
     { userId: 'u2', name: 'Kevin', biome: 'river', phase: 'reeling', species: 'pike' },
@@ -686,6 +688,22 @@ test('the dock shows who else is on the water, puts same-ground anglers on the s
   expect(update).toHaveBeenLastCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
   unmount();
   expect(leave).toHaveBeenCalledTimes(1);
+});
+
+test('the dock is joined once per visit, not again every time the provider re-renders', async () => {
+  const leave = jest.fn();
+  const joinDock = jest.fn(() => ({ update: jest.fn(), leave }));
+  useAuth.mockReturnValue(makeBaseAuth({ joinDock }));
+  const { rerender } = render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  expect(joinDock).toHaveBeenCalledTimes(1);
+  // A token refresh or a focus change gives the provider a new joinDock function.
+  const joinDockAgain = jest.fn(() => ({ update: jest.fn(), leave: jest.fn() }));
+  useAuth.mockReturnValue(makeBaseAuth({ joinDock: joinDockAgain }));
+  rerender(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  expect(joinDockAgain).not.toHaveBeenCalled();
+  expect(leave).not.toHaveBeenCalled();
 });
 
 test('topping last week\'s derby pays the Golden Pennant: a banner, a HUD chip, the pennant on the rod, and a ribbon in the case', async () => {

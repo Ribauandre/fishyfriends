@@ -981,6 +981,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .dock-crew-chip { align-items: center; background: rgba(3,8,11,.3); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: inline-flex; gap: 7px; padding: 4px 9px 4px 5px; text-align: left; }
 .dock-crew-chip .mini-avatar { height: 22px; width: 22px; font-size: 10px; }
 .dock-crew-chip.is-here { border-color: var(--mint); }
+.dock-crew-chip.is-you { cursor: default; }
+.dock-crew-chip.is-you strong { color: var(--mint); }
 .dock-crew-chip:disabled { cursor: default; opacity: .8; }
 .dock-crew-chip:not(:disabled):hover { border-color: var(--mint); }
 .dock-crew-text { display: flex; flex-direction: column; line-height: 1.15; }
