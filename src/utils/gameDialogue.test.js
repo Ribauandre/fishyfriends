@@ -14,6 +14,7 @@ describe('shopkeeperLine', () => {
   test('reacts to what you just bought', () => {
     expect(shopkeeperLine({ gameProfile: profile, event: { type: 'upgrade', label: 'Rod' } })).toMatch(/rod will treat you right/i);
     expect(shopkeeperLine({ gameProfile: profile, event: { type: 'lure', label: 'Jerk bait' } })).toMatch(/jerk bait takes practice/i);
+    expect(shopkeeperLine({ gameProfile: profile, event: { type: 'flyrod' } })).toMatch(/match the hatch/i);
   });
 
   test('repeats a failed purchase back to you', () => {
@@ -42,6 +43,15 @@ describe('captainLine', () => {
   test('gives a species tip for free water', () => {
     expect(captainLine({ biome: 'shoreline', chartered: false, phase: 'ready' })).toMatch(/fluke/i);
     expect(captainLine({ biome: 'mountainlake', chartered: false, phase: 'ready' })).toMatch(/trout/i);
+  });
+
+  test('reads the hatch for anyone carrying the fly rod on trout water', () => {
+    expect(captainLine({ biome: 'mountainlake', phase: 'ready', period: 'dusk', flyRod: true })).toMatch(/evening hatch/i);
+    expect(captainLine({ biome: 'river', phase: 'ready', period: 'day', flyRod: true, lure: 'nymph' })).toMatch(/nymph/i);
+    // Live bait by day on the river: the usual river tip, the hatch is not the story.
+    expect(captainLine({ biome: 'river', phase: 'ready', period: 'day', flyRod: true, lure: 'livebait' })).toMatch(/smallmouth/i);
+    expect(captainLine({ biome: 'bay', phase: 'ready', period: 'dusk', flyRod: true })).not.toMatch(/hatch/i);
+    expect(captainLine({ biome: 'mountainlake', phase: 'ready', period: 'dusk', flyRod: false })).toMatch(/trout water/i);
   });
 
   test('comments on an offshore landing by species', () => {

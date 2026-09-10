@@ -3,6 +3,8 @@ import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
 import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
+import { LURES } from '../../utils/gameLures';
+import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import riverArt from '../../assets/scenes/river.webp';
 import mountainlakeArt from '../../assets/scenes/mountainlake.webp';
@@ -48,8 +50,16 @@ const SCENES = {
   canyon: { art: canyonArt, layout: CANYON_LAYOUT },
 };
 
+// On a stage wider than 16:9 the painting is fitted to the width (object-fit: cover), so one
+// painting unit is viewW / 480 stage units across; narrower stages crop the painting's right
+// side and the two scales agree. Horizontal anchors painted into the scene (the dock's end,
+// the angler's spot, where the water starts) go through this; vertical ones stay in stage
+// units, since the wide crop trims sky and shallows evenly and the deck keeps its height.
+const paintScale = (viewW) => Math.max(1, viewW / VIEW_W);
+const paintX = (x, viewW) => x * paintScale(viewW);
+
 // How far a cast lands: power 0-100 from the meter maps to a spot around the layout's default.
-const landingFor = (layout, power, viewW) => Math.min(viewW - 24, Math.round(layout.bobberX - 70 + Math.max(0, Math.min(100, power)) * 1.2));
+const landingFor = (layout, power, viewW) => Math.min(viewW - 24, Math.round(paintX(layout.bobberX - 70 + Math.max(0, Math.min(100, power)) * 1.2, viewW)));
 const pct = (value, of) => `${round2((value / of) * 100)}%`;
 
 // Other club members on this ground (Realtime presence, see joinDock in AuthContext) stand
@@ -80,7 +90,7 @@ function crewAction(other) {
 // in units, from just past the dock's end to a hair inside the visible right edge.
 const WATER_START = 172.8;
 const WATER_END_INSET = 9.6;
-const waterSpan = (viewW) => [WATER_START, viewW - WATER_END_INSET];
+const waterSpan = (viewW) => [paintX(WATER_START, viewW), viewW - WATER_END_INSET];
 
 // The camera. At rest the stage shows the whole painting. Pressing Cast pushes in and centres
 // the angler and the water just past his rod, so the wind-up is the focus; once the line is in
@@ -99,6 +109,7 @@ const CAST_ZOOM = [1.3, 1.4];
 const CAMERA_ANGLER_MARGIN = 58;
 const REST_CAMERA = { x: 0, y: 0, scale: 1 };
 function cameraFor(phase, layout, viewW) {
+  // `layout` here is already in stage units (see GameScene: anglerX is paintX'd).
   const casting = phase === 'casting';
   if (!casting && !FIGHT_PHASES.has(phase)) return REST_CAMERA;
   const focusX = layout.anglerX + CAST_FOCUS_OFFSET;
@@ -167,11 +178,13 @@ export default function GameScene({
   biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day',
   interaction = null, castFillRef = null, castDistance = 60, lure = 'livebait', lureDisplay = null, lureFeedback = '',
   hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false,
+  castBand = [40, 60], rise = null,
 }) {
   const scene = SCENES[biome] || SCENES.river;
-  const layout = scene.layout;
   const stageRef = useRef(null);
   const [viewW, setViewW] = useState(VIEW_W);
+  // The layout's painted x anchors, in this stage's units.
+  const layout = { ...scene.layout, anglerX: paintX(scene.layout.anglerX, viewW), crew: (scene.layout.crew || []).map((dx) => paintX(dx, viewW)) };
   useEffect(() => {
     const node = stageRef.current;
     if (!node || typeof ResizeObserver !== 'function') return undefined;
@@ -196,14 +209,21 @@ export default function GameScene({
   const fishY = layout.waterY + 60;
   const lineOut = phase === 'waiting' || phase === 'hookset' || phase === 'reeling';
   const working = lure !== 'livebait' && lureDisplay && (phase === 'waiting' || phase === 'hookset');
-  // A worked lure travels back from where it landed toward the rod as line comes in.
+  const drifting = working && LURES[lure]?.interaction === 'drift';
+  // A worked lure travels back from where it landed toward the rod as line comes in; a fly
+  // goes the other way, drifting down the run from where it landed.
   const retrieve = working ? (lure === 'jerkbait' ? (lureDisplay.lineOut ?? 100) : 100 - (lureDisplay.distance || 0)) : 100;
-  const lureX = working ? rodTipX + (landingX - rodTipX) * (retrieve / 100) : landingX;
+  const driftRun = Math.max(0, Math.min(paintX(70, viewW), viewW - 20 - landingX));
+  const lureX = !working ? landingX : drifting ? landingX + ((lureDisplay.drift || 0) / 100) * driftRun : rodTipX + (landingX - rodTipX) * (retrieve / 100);
+  // Where the trout is rising: the target ring for the fly rod's accuracy cast.
+  const riseX = rise === null || rise === undefined ? null : landingFor(layout, rise, viewW);
   const strikeX = working ? lureX : landingX;
   const strikeY = layout.waterY + 2;
   const gauge = phase === 'waiting' && working ? (lure === 'jerkbait'
     ? { band: [55, 80], marker: lureDisplay.marker || 0, fill: lureDisplay.attraction || 0 }
-    : { band: [(lureDisplay.bandCenter || 50) - 11, (lureDisplay.bandCenter || 50) + 11], marker: lureDisplay.speed || 0, fill: lureDisplay.attraction || 0 }) : null;
+    : drifting
+      ? { band: MEND_ZONE, marker: lureDisplay.drag || 0, fill: lureDisplay.attraction || 0 }
+      : { band: [(lureDisplay.bandCenter || 50) - 11, (lureDisplay.bandCenter || 50) + 11], marker: lureDisplay.speed || 0, fill: lureDisplay.attraction || 0 }) : null;
   const hold = Boolean(interaction?.onHoldStart);
   const camera = cameraFor(phase, layout, viewW);
   const focused = camera !== REST_CAMERA;
@@ -229,6 +249,10 @@ export default function GameScene({
         d={phase === 'reeling' ? `M${rodTipX} ${rodTipY} L${fishX} ${fishY}` : `M${rodTipX} ${rodTipY} Q${(rodTipX + strikeX) / 2} ${rodTipY - 30} ${strikeX} ${strikeY + 2}`}
         stroke={phase === 'reeling' && tension > 70 ? '#ff5a1f' : '#e7f4ef'} strokeWidth={phase === 'reeling' ? 1.2 + tension / 60 : 1.2} fill="none" opacity=".85"
       />}
+      {riseX !== null && <g className="scene-rise" data-rise={rise}>
+        <circle cx={riseX} cy={strikeY} r="4" fill="none" stroke="#e7f4ef" strokeWidth="1" />
+        <circle className="scene-rise-ring" cx={riseX} cy={strikeY} r="9" fill="none" stroke="#e3fb14" strokeWidth="1.2" />
+      </g>}
       {phase === 'waiting' && !working && <circle className="scene-ripple" cx={landingX} cy={strikeY} r="12" fill="none" stroke="#e7f4ef" strokeWidth="1.2" />}
       {(phase === 'waiting' || phase === 'hookset') && !working && <circle className="scene-bobber" cx={landingX} cy={strikeY} r="5" fill="#ff5a1f" stroke="#03080b" strokeWidth="1.5" />}
       {phase === 'hookset' && <g className="scene-splash">
@@ -273,7 +297,7 @@ export default function GameScene({
 
     {phase === 'casting' && <div className="stage-meter is-cast" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
       <span className="stage-meter-fill" ref={castFillRef} />
-      <span className="stage-meter-band" style={{ bottom: '40%', height: '20%' }} />
+      <span className="stage-meter-band" style={{ bottom: `${castBand[0]}%`, height: `${castBand[1] - castBand[0]}%` }} />
     </div>}
     {phase === 'reeling' && reel && <div className="stage-meter is-tension" style={{ left: meterLeft, bottom: meterBottom }} aria-hidden="true">
       <span className="stage-meter-fill" style={{ height: `${round2(Math.min(100, tension))}%` }} />

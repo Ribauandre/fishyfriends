@@ -1,6 +1,8 @@
 import {
   INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_ZONE, JERK_SWEEP_MS, CRANK_BAND_WIDTH,
   jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
+  MEND_ZONE, RISE_TOLERANCE, DRIFT_TICK_MS, DRIFT_RUN_MS,
+  castAccuracy, startDrift, stepDrift, mendLine, driftSpooked, driftDone, driftQuality,
 } from './lurePhysics';
 
 describe('jerk bait', () => {
@@ -73,5 +75,82 @@ describe('crank bait', () => {
 
   test('quality is the share of ticks spent in the band', () => {
     expect(crankQuality({ ...INITIAL_CRANK_STATE, inBandTicks: 30, ticks: 40 })).toBe(0.75);
+  });
+});
+
+describe('the fly: accuracy cast and drift', () => {
+  test('accuracy is 1 on the rise and falls to 0 a tolerance away', () => {
+    expect(castAccuracy(50, 50)).toBe(1);
+    expect(castAccuracy(50 + RISE_TOLERANCE / 2, 50)).toBeCloseTo(0.5);
+    expect(castAccuracy(50 + RISE_TOLERANCE, 50)).toBe(0);
+    expect(castAccuracy(0, 100)).toBe(0);
+  });
+
+  test('a close cast starts the drift with attraction already built', () => {
+    expect(startDrift(1).attraction).toBe(35);
+    expect(startDrift(0).attraction).toBe(0);
+    expect(startDrift(0.5).accuracy).toBe(0.5);
+  });
+
+  test('drag builds every tick, attraction climbs while the drift is clean and bleeds once it drags', () => {
+    let state = startDrift(0);
+    state = stepDrift(state);
+    expect(state.drag).toBeCloseTo(1.4);
+    expect(state.attraction).toBeCloseTo(1);
+    expect(state.clean).toBe(true);
+    const dragging = stepDrift({ ...startDrift(0), drag: MEND_ZONE[1] + 5, attraction: 20 });
+    expect(dragging.clean).toBe(false);
+    expect(dragging.attraction).toBeCloseTo(18.5);
+  });
+
+  test('matching the hatch builds attraction half again as fast', () => {
+    expect(stepDrift(startDrift(0), { hatch: true }).attraction).toBeCloseTo(1.5);
+  });
+
+  test('a mend in the band resets the drag; late costs attraction; early does nothing', () => {
+    const clean = mendLine({ ...startDrift(0), drag: (MEND_ZONE[0] + MEND_ZONE[1]) / 2, attraction: 40 });
+    expect(clean.drag).toBe(0);
+    expect(clean.lastMendClean).toBe(true);
+    expect(clean.cleanMends).toBe(1);
+    const late = mendLine({ ...startDrift(0), drag: MEND_ZONE[1] + 10, attraction: 40 });
+    expect(late.drag).toBe(20);
+    expect(late.attraction).toBe(25);
+    expect(late.lastMendLate).toBe(true);
+    const early = mendLine({ ...startDrift(0), drag: 10, attraction: 40 });
+    expect(early.drag).toBe(10);
+    expect(early.attraction).toBe(40);
+    expect(early.lastMendClean).toBe(false);
+    expect(early.mends).toBe(1);
+  });
+
+  test('never mending skates the fly before the run is drifted through', () => {
+    let state = startDrift(1);
+    let ticks = 0;
+    while (!driftSpooked(state) && !driftDone(state) && state.attraction < 100) { state = stepDrift(state); ticks += 1; }
+    expect(driftSpooked(state)).toBe(true);
+    expect(driftDone(state)).toBe(false);
+    expect(ticks * DRIFT_TICK_MS).toBeLessThan(DRIFT_RUN_MS);
+  });
+
+  test('a clean mend whenever the drag enters the band gets the bite before the run ends', () => {
+    let state = startDrift(0.5);
+    let ticks = 0;
+    while (state.attraction < 100 && !driftDone(state) && !driftSpooked(state)) {
+      if (state.drag >= MEND_ZONE[0]) state = mendLine(state);
+      state = stepDrift(state);
+      ticks += 1;
+    }
+    expect(state.attraction).toBe(100);
+    expect(driftSpooked(state)).toBe(false);
+    expect(ticks * DRIFT_TICK_MS).toBeLessThan(DRIFT_RUN_MS);
+  });
+
+  test('quality blends the cast, the mends and the clean share of the drift, plus the hatch', () => {
+    const perfect = { ...startDrift(1), mends: 2, cleanMends: 2, ticks: 10, cleanTicks: 10 };
+    expect(driftQuality(perfect)).toBeCloseTo(1);
+    expect(driftQuality(perfect, { hatch: true })).toBe(1);
+    const sloppy = { ...startDrift(0), mends: 2, cleanMends: 0, ticks: 10, cleanTicks: 5 };
+    expect(driftQuality(sloppy)).toBeCloseTo(0.15);
+    expect(driftQuality(sloppy, { hatch: true })).toBeCloseTo(0.3);
   });
 });

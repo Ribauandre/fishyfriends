@@ -16,6 +16,7 @@ export function shopkeeperLine({ gameProfile, event, personalBests = [], bountie
   if (event?.type === 'error') return `${event.message} Don't take it personal.`;
   if (event?.type === 'upgrade') return `That ${event.label.toLowerCase()} will treat you right. Anything else?`;
   if (event?.type === 'lure') return `Good eye. The ${event.label.toLowerCase()} takes practice, but it pulls the big ones.`;
+  if (event?.type === 'flyrod') return "A fly rod. Now you're an angler. The flies are on the dock at the river and the lake — match the hatch and mend that drift.";
   if (event?.type === 'quest') return `${event.points} points, as promised. She's going right over the counter.`;
   if (event?.type === 'bounty') return `${event.count === 1 ? 'One real fish' : `${event.count} real fish`} on the books — ${event.points} points. Keep logging them.`;
   const quests = gameProfile?.quests || {};
@@ -48,7 +49,15 @@ const NIGHT_TIPS = {
   canyon: 'Swordfish come up from the deep at night. This is the hour.',
 };
 
-export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', quests = {}, isRecord = false, champion = false, justWon = null }) {
+// What's hatching, for anyone carrying the fly rod on trout water.
+const HATCH_TIPS = {
+  dawn: 'Morning rise. Tie on a dry and put it right on the ring.',
+  day: 'Nothing on top in this light — drift a nymph through the seams.',
+  dusk: "Evening hatch is on. Dry fly, and mend before it drags.",
+  night: 'Big browns hunt after dark. Swim a streamer, slow.',
+};
+
+export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', quests = {}, isRecord = false, champion = false, justWon = null, flyRod = false, lure = 'livebait' }) {
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
   if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
@@ -69,6 +78,7 @@ export function captainLine({ biome, chartered, charterError, phase, result, per
     return left === 3 ? "Land three fish out here and I'll show you where the shelf drops off." : `${left} more from the bay and I'll run you out to the shelf.`;
   }
   if (proving.done && !questState(quests, 'canyon_sword').done && biome === 'bay') return "You've earned the trip. The Canyon's on the map when you're ready.";
+  if (flyRod && BIOMES[biome]?.flyWater && phase === 'ready' && (period !== 'day' || lure !== 'livebait')) return HATCH_TIPS[period] || HATCH_TIPS.day;
   if (period === 'night' && NIGHT_TIPS[biome]) return NIGHT_TIPS[biome];
   if (champion && phase === 'ready' && biome === 'river') return "Everybody on the dock can see that pennant. Defend it.";
   return BIOME_TIPS[biome] || 'Pick your water and I’ll tell you what’s biting.';

@@ -1,4 +1,5 @@
 // Where an angler can fish in Cast & Catch — the six grounds on the map plus the charter.
+// `flyWater` marks the trout water where the fly rod comes out (see utils/gameLures.js).
 // Each species lives in one or more biomes (a few, like flounder, show up in more than one —
 // a fish doesn't care about our biome boundaries any more than a real one does) rather than
 // each species belonging to exactly one place. Species rarity itself lives in
@@ -16,6 +17,7 @@ export const BIOMES = {
     label: 'River',
     blurb: 'Moving water — current-loving fish, and the odd invasive surprise.',
     charterCost: 0,
+    flyWater: true,
     species: ['smallmouth', 'pike', 'walleye', 'yellowperch', 'catfish', 'carp', 'chainpickerel', 'browntrout', 'rainbowtrout', 'trout', 'snakehead'],
   },
   mountainlake: {
@@ -23,6 +25,7 @@ export const BIOMES = {
     label: 'Mountain Lake',
     blurb: 'Cold, clear, high up — trout country.',
     charterCost: 0,
+    flyWater: true,
     species: ['brooktrout', 'rainbowtrout', 'browntrout', 'laketrout', 'trout'],
   },
   swamp: {

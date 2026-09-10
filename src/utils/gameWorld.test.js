@@ -1,5 +1,6 @@
 import { rollSpecies, rollSize, isNewRecord, sizeLabel, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
+import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
 // A random source that returns the given values in order (and the last one forever after).
 const sequence = (...values) => { let i = 0; return () => values[Math.min(i++, values.length - 1)]; };
@@ -45,4 +46,46 @@ test('the canyon is the only locked ground, costs more, and is the only swordfis
   expect(BIOMES.canyon.charterCost).toBeGreaterThan(BIOMES.offshore.charterCost);
   const swordfishWaters = Object.values(BIOMES).filter((biome) => biome.species.includes('swordfish')).map((biome) => biome.key);
   expect(swordfishWaters).toEqual(['canyon']);
+});
+
+test('the fly box only opens on trout water, and only with the fly rod', () => {
+  expect(FLIES.map((fly) => fly.key)).toEqual(['dryfly', 'nymph', 'streamer']);
+  expect(FLY_ROD.cost).toBeGreaterThan(0);
+  expect(BIOMES.river.flyWater).toBe(true);
+  expect(BIOMES.mountainlake.flyWater).toBe(true);
+  expect(BIOMES.bay.flyWater).toBeUndefined();
+  expect(luresFor('river', { fly_rod: false }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait']);
+  expect(luresFor('river', { fly_rod: true }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait', 'dryfly', 'nymph', 'streamer']);
+  expect(luresFor('bay', { fly_rod: true }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait']);
+  expect(lureAllowedOn('dryfly', 'bay')).toBe(false);
+  expect(lureAllowedOn('dryfly', 'mountainlake')).toBe(true);
+  expect(lureAllowedOn('crankbait', 'bay')).toBe(true);
+  expect(isFly('nymph')).toBe(true);
+  expect(isFly('jerkbait')).toBe(false);
+});
+
+test('each fly matches the hatch at its own hours, and the streamer is tied for the big browns', () => {
+  expect(hatchMatch('dryfly', 'dusk')).toBe(true);
+  expect(hatchMatch('dryfly', 'day')).toBe(false);
+  expect(hatchMatch('nymph', 'day')).toBe(true);
+  expect(hatchMatch('streamer', 'night')).toBe(true);
+  expect(hatchMatch('streamer', 'dawn')).toBe(false);
+  expect(hatchMatch('livebait', 'day')).toBe(false);
+  expect(LURES.streamer.favors).toEqual(['browntrout', 'laketrout']);
+});
+
+test('a lure\'s favoured species roll heavier within their tier', () => {
+  // Mountain lake uncommons: brooktrout, rainbowtrout, browntrout — weight 1 each, browntrout x2.5 on a streamer.
+  const uncommons = BIOMES.mountainlake.species.filter((species) => rarityOf(species) === 'uncommon');
+  expect(uncommons).toEqual(['brooktrout', 'rainbowtrout', 'browntrout']);
+  const tierPick = 0.6; // 54 of 90: the uncommon tier at bait level 1 (common 46 / uncommon 28 / rare 16)
+  const plain = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 3) });
+  const favored = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 4.5), favor: ['browntrout'] });
+  expect(plain.rarity).toBe('uncommon');
+  expect(favored.rarity).toBe('uncommon');
+  expect(plain.species).toBe('browntrout');
+  expect(favored.species).toBe('browntrout');
+  // Same 2.2 into the pool, but with the extra weight on the first fish the pick lands on it instead.
+  const shifted = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 4.5), favor: ['brooktrout'] });
+  expect(shifted.species).toBe('brooktrout');
 });

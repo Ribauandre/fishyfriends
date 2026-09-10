@@ -18,9 +18,15 @@ import bell from '../assets/props/bell.png';
 import book from '../assets/props/book.png';
 import flag from '../assets/props/flag.png';
 import pennant from '../assets/props/pennant.png';
+import dryfly from '../assets/props/dryfly.png';
+import nymph from '../assets/props/nymph.png';
+import streamer from '../assets/props/streamer.png';
+import flyrod from '../assets/props/flyrod.png';
 
 export const GEAR_ICONS = { rod, line, reel, bait };
-export const LURE_ICONS = { livebait, jerkbait, crankbait };
+export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
+// The fly rod on Sal's wall.
+export const FLY_ROD_ICON = flyrod;
 export const VEHICLES = { truck, boat };
 export const TACKLE_BOX = tacklebox;
 export const COIN = coin;

@@ -285,3 +285,28 @@ test('on the boat the camera never pushes past the angler: he stays at the left 
   expect(meterLeft).toBeGreaterThan(0);
   expect(meterLeft).toBeLessThan(6);
 });
+
+test('the fly rod aims at the rise: the ring sits where the fly will land and the meter band moves to it', () => {
+  const { container, rerender } = render(<GameScene biome="mountainlake" phase="casting" displayName="Andre" lure="dryfly" castBand={[52, 68]} rise={60} interaction={{ label: 'Stop the cast', onTap: () => {} }} />);
+  const band = container.querySelector('.stage-meter-band');
+  expect(band.style.bottom).toBe('52%');
+  expect(band.style.height).toBe('16%');
+  const ring = container.querySelector('.scene-rise');
+  expect(ring).toHaveAttribute('data-rise', '60');
+  const ringX = parseFloat(ring.querySelector('circle').getAttribute('cx'));
+  // Same spot a cast of that power lands: bobberX - 70 + 60 * 1.2 on the dock layout.
+  expect(ringX).toBe(300 - 70 + 72);
+
+  // On the drift the fly moves down the run from where it landed, with the drag gauge over it.
+  rerender(<GameScene biome="mountainlake" phase="waiting" displayName="Andre" lure="dryfly" castDistance={60} rise={60} lureDisplay={{ drag: 50, drift: 50, attraction: 30 }} />);
+  const fly = container.querySelector('.scene-lure');
+  expect(fly).toHaveAttribute('data-lure', 'dryfly');
+  expect(parseFloat(fly.style.left)).toBeGreaterThan((302 / 480) * 100);
+  expect(container.querySelector('.stage-gauge')).toHaveClass('is-dryfly');
+  expect(container.querySelector('.stage-gauge-marker').style.left).toBe('50%');
+
+  // No ring, no gauge, once the fish is on.
+  rerender(<GameScene biome="mountainlake" phase="reeling" displayName="Andre" lure="dryfly" species="browntrout" reel={{ fishPos: 40, zonePos: 45 }} zoneWidth={30} />);
+  expect(container.querySelector('.scene-rise')).toBeNull();
+  expect(container.querySelector('.stage-gauge')).toBeNull();
+});
