@@ -6,7 +6,7 @@ import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, GOLDEN_PENNANT, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
@@ -15,11 +15,12 @@ import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
-import { LURES, LURE_LIST, lureOwned, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
+import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
   INITIAL_JERK_STATE, INITIAL_CRANK_STATE, JERK_TIME_LIMIT_MS, CRANK_TICK_MS,
   jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
+  DRIFT_TICK_MS, castAccuracy, startDrift, stepDrift, mendLine, driftSpooked, driftDone, driftQuality,
 } from './utils/lurePhysics';
 import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
@@ -40,7 +41,7 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 // leaving the screen. `clock` is injectable so the harness and tests can pick the hour.
 export default function FishingGame({ clock = () => new Date() }) {
   const {
-    profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure,
+    profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
@@ -61,6 +62,11 @@ export default function FishingGame({ clock = () => new Date() }) {
   const [lureFeedback, setLureFeedback] = useState('');
   const [presentationQuality, setPresentationQuality] = useState(0);
   const [perfectCast, setPerfectCast] = useState(false);
+  // The fly rod's accuracy cast: where the trout is rising (meter position) and how close the
+  // fly landed to it (0-1), which seeds the drift's attraction.
+  const [rise, setRise] = useState(50);
+  const [castAccuracyScore, setCastAccuracyScore] = useState(0);
+  const [flyRodBusy, setFlyRodBusy] = useState(false);
   const [pendingCatch, setPendingCatch] = useState(null);
   const [result, setResult] = useState(null);
   const [reelDisplay, setReelDisplay] = useState({ fishPos: 50, zonePos: 50, progress: 0, tension: 0 });
@@ -177,6 +183,8 @@ export default function FishingGame({ clock = () => new Date() }) {
     setOverlay(null);
     if (nextBiome === biome || !biomeUnlocked(nextBiome, gameProfile.quests)) return;
     if (BIOMES[biome].charterCost > 0) setChartered(false);
+    // The fly rod stays in the truck off trout water.
+    if (!lureAllowedOn(lure, nextBiome)) setLure('livebait');
     setBiome(nextBiome);
     setCharterError('');
     clearTimeout(travelTimerRef.current);
@@ -202,6 +210,8 @@ export default function FishingGame({ clock = () => new Date() }) {
       if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
       setChartered(true);
     }
+    // A fly is cast to a rising fish: the meter's sweet spot moves to wherever it's rising.
+    if (isFly(lure)) setRise(Math.round(20 + Math.random() * 60));
     setPhase('casting');
   }
 
@@ -228,9 +238,25 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   function stopCast() {
     const power = castValueRef.current;
-    setPerfectCast(power >= CAST_SWEET_SPOT[0] && power <= CAST_SWEET_SPOT[1]);
+    if (isFly(lure)) {
+      const accuracy = castAccuracy(power, rise);
+      setCastAccuracyScore(accuracy);
+      setPerfectCast(accuracy >= 0.8);
+    } else {
+      setCastAccuracyScore(0);
+      setPerfectCast(power >= CAST_SWEET_SPOT[0] && power <= CAST_SWEET_SPOT[1]);
+    }
     setCastPower(power);
     setPhase('waiting');
+  }
+
+  async function handleFlyRodPurchase() {
+    setFlyRodBusy(true);
+    const response = await purchaseFlyRod();
+    setFlyRodBusy(false);
+    if (response?.error) { setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    setShopEvent({ type: 'flyrod' });
   }
 
   // ---- Waiting for a bite. How this plays depends on the lure: live bait is a random delay
@@ -244,11 +270,12 @@ export default function FishingGame({ clock = () => new Date() }) {
   const jerkMarkerRef = useRef(0);
   const crankStateRef = useRef(INITIAL_CRANK_STATE);
   const crankHoldingRef = useRef(false);
+  const driftStateRef = useRef(startDrift(0));
 
-  function triggerBite(quality) {
+  function triggerBite(quality, favor = []) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
-    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period }));
+    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, favor }));
     setPhase('hookset');
   }
 
@@ -278,6 +305,28 @@ export default function FishingGame({ clock = () => new Date() }) {
           finishRound({ success: false, message: 'Worked it all the way back — no takers.' });
         }
       }, JERK_TICK_MS);
+      return () => clearInterval(lureIntervalRef.current);
+    }
+
+    if (interaction === 'drift') {
+      const hatch = hatchMatch(lure, period);
+      driftStateRef.current = startDrift(castAccuracyScore);
+      setLureDisplay({ ...driftStateRef.current, hatch });
+      lureIntervalRef.current = setInterval(() => {
+        const nextState = stepDrift(driftStateRef.current, { hatch });
+        driftStateRef.current = nextState;
+        setLureDisplay({ ...nextState, hatch });
+        if (nextState.attraction >= 100) { triggerBite(driftQuality(nextState, { hatch }), LURES[lure].favors || []); return; }
+        if (driftSpooked(nextState)) {
+          clearInterval(lureIntervalRef.current);
+          finishRound({ success: false, message: 'Drag set in — the fly skated across the surface and the fish spooked.' });
+          return;
+        }
+        if (driftDone(nextState)) {
+          clearInterval(lureIntervalRef.current);
+          finishRound({ success: false, message: 'Drifted the whole run — nothing rose to it.' });
+        }
+      }, DRIFT_TICK_MS);
       return () => clearInterval(lureIntervalRef.current);
     }
 
@@ -314,6 +363,16 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   function startCrank() { crankHoldingRef.current = true; }
   function stopCrank() { crankHoldingRef.current = false; }
+
+  // A mend throws a loop of line upstream so the fly drifts drag-free again — timed to the
+  // drag band, like the twitch is timed to the beat.
+  function mend() {
+    const nextState = mendLine(driftStateRef.current);
+    driftStateRef.current = nextState;
+    setLureFeedback(nextState.lastMendClean ? 'Clean mend.' : nextState.lastMendLate ? 'Late — it was already dragging.' : 'Too early — nothing to mend yet.');
+    setLureDisplay((previous) => ({ ...previous, ...nextState }));
+    sfx.tap();
+  }
 
   // ---- Hookset: a short, rarity-scaled window (widened by the rod level) to react in. ----
   const hooksetTimeoutRef = useRef(null);
@@ -480,14 +539,22 @@ export default function FishingGame({ clock = () => new Date() }) {
     if (phase === 'waiting' && lureInteraction === 'wait') return { label: 'Strike early', onTap: strikeEarly };
     if (phase === 'waiting' && lureInteraction === 'twitch') return { label: 'Twitch the lure', onTap: twitch };
     if (phase === 'waiting' && lureInteraction === 'crank') return { label: 'Hold to crank the lure', onHoldStart: startCrank, onHoldEnd: stopCrank };
+    if (phase === 'waiting' && lureInteraction === 'drift') return { label: 'Mend the line', onTap: mend };
     if (phase === 'hookset') return { label: 'Set the hook now', onTap: setHook };
     if (phase === 'reeling') return { label: 'Hold to reel in', onHoldStart: startReel, onHoldEnd: stopReel };
     return null;
   })();
-  const perfectNote = perfectCast ? 'Perfect cast! ' : '';
+  const flyOn = isFly(lure);
+  const perfectNote = perfectCast ? (flyOn ? 'Right on the rise! ' : 'Perfect cast! ') : '';
+  const waitingCallout = {
+    wait: `${perfectNote}Waiting for a bite... tap to set the hook.`,
+    twitch: `${perfectNote}Twitch on the beat — tap when the marker hits the zone.`,
+    crank: `${perfectNote}Hold to crank — keep the speed in the band.`,
+    drift: `${perfectNote}Mend when the drag climbs into the band — keep the fly drifting clean.`,
+  }[lureInteraction];
   const stageCallout = {
-    casting: 'Tap to stop the cast in the sweet spot.',
-    waiting: lureInteraction === 'wait' ? `${perfectNote}Waiting for a bite... tap to set the hook.` : lureInteraction === 'twitch' ? `${perfectNote}Twitch on the beat — tap when the marker hits the zone.` : `${perfectNote}Hold to crank — keep the speed in the band.`,
+    casting: flyOn ? 'Tap to stop the cast on the rise.' : 'Tap to stop the cast in the sweet spot.',
+    waiting: waitingCallout,
     hookset: 'FISH ON! Tap to set the hook!',
     reeling: 'Hold to reel — keep the fish in the glowing zone.',
   }[phase] || '';
@@ -519,6 +586,8 @@ export default function FishingGame({ clock = () => new Date() }) {
         lure={lure}
         lureDisplay={lureDisplay}
         lureFeedback={lureFeedback}
+        castBand={flyOn ? [Math.max(0, rise - 8), Math.min(100, rise + 8)] : CAST_SWEET_SPOT}
+        rise={flyOn && (phase === 'casting' || phase === 'waiting') ? rise : null}
         hooksetWindowMs={hooksetWindowMs}
         tension={tensionPct}
         callout={stageCallout}
@@ -557,7 +626,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <span>Fishing</span><strong>{biomeConfig.label}</strong><small>{groundCost} · {PERIOD_LABELS[period].toLowerCase()}</small>
             </button>
             <div className="lure-chips" role="group" aria-label="Lure">
-              {LURE_LIST.map((lureOption) => {
+              {luresFor(biome, gameProfile).map((lureOption) => {
                 const owned = lureOwned(gameProfile, lureOption.key);
                 return <button
                   key={lureOption.key}
@@ -574,9 +643,13 @@ export default function FishingGame({ clock = () => new Date() }) {
                   </span>
                 </button>;
               })}
+              {BIOMES[biome].flyWater && !hasFlyRod(gameProfile) && <button type="button" className="lure-chip is-locked lure-chip-flyrod" onClick={() => setOverlay('shop')}>
+                <img className="fly-rod-icon" src={FLY_ROD_ICON} alt="" />
+                <span className="lure-chip-text"><strong>Fly rod</strong><span>At Sal's · {FLY_ROD.cost} pts</span></span>
+              </button>}
             </div>
           </div>
-          <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}</p>
+          <p className="dock-hint">{biomeConfig.blurb} {LURES[lure].blurb}{flyOn && (hatchMatch(lure, period) ? ' The hatch is on for this fly.' : ' Off-hatch for this fly right now — it still works, just slower.')}</p>
           {crew.length > 0 && <div className="dock-crew" role="group" aria-label="On the water now">
             <span className="dock-crew-label">On the water</span>
             {crew.map((other) => {
@@ -604,7 +677,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <span className="derby-win-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} />
             <div><strong>You won last week's derby!</strong><span>Biggest {speciesLabel(derbyWin.species).toLowerCase()} in the club{derbyWin.sizeIn ? ` at ${sizeLabel(derbyWin.sizeIn)}` : ''}. The Golden Pennant flies from your rod all week.</span></div>
           </div>}
-          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests, champion, justWon: derbyWin })} compact />
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests, champion, justWon: derbyWin, flyRod: hasFlyRod(gameProfile), lure })} compact />
           {captainQuests.length > 0 && <ul className="quest-list is-compact" aria-label="Cap'n Ray's quests">
             {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
               <span className="quest-title">{quest.title}</span>
@@ -628,6 +701,11 @@ export default function FishingGame({ clock = () => new Date() }) {
         {phase === 'waiting' && lureInteraction === 'twitch' && lureDisplay && <div className="game-panel is-play">
           <p>Attraction {Math.round(lureDisplay.attraction)}% · line out {Math.round(lureDisplay.lineOut ?? 100)}%</p>
           <button className="button button-primary game-hookset-button" type="button" onClick={twitch}>Twitch</button>
+        </div>}
+
+        {phase === 'waiting' && lureInteraction === 'drift' && lureDisplay && <div className="game-panel is-play">
+          <p>Drag {Math.round(lureDisplay.drag)}% · attraction {Math.round(lureDisplay.attraction)}%{lureDisplay.hatch ? ' · hatch on' : ''}</p>
+          <button className="button button-primary game-hookset-button" type="button" onClick={mend}>Mend</button>
         </div>}
 
         {phase === 'waiting' && lureInteraction === 'crank' && lureDisplay && <div className="game-panel is-play">
@@ -711,6 +789,17 @@ export default function FishingGame({ clock = () => new Date() }) {
                 {state.done && !state.claimed && <button type="button" className="button button-quiet" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
               </div>;
             })}
+          </section>
+          <section className="shop-board" aria-label="Fly shop">
+            <span className="eyebrow">FLY SHOP</span>
+            <div className={`quest-card fly-rod-card ${gameProfile.fly_rod ? 'is-done' : ''}`}>
+              <img className="fly-rod-icon" src={FLY_ROD_ICON} alt="" />
+              <strong>{FLY_ROD.label}</strong>
+              <p>{FLY_ROD.blurb}</p>
+              {gameProfile.fly_rod
+                ? <span className="quest-progress">Owned · flies are on the dock at the river and the lake</span>
+                : <button type="button" className="button button-quiet" disabled={flyRodBusy} onClick={handleFlyRodPurchase}>Buy · {FLY_ROD.cost} pts</button>}
+            </div>
           </section>
           <section className="shop-board" aria-label="Bounty board">
             <span className="eyebrow">BOUNTY BOARD</span>

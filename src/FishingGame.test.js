@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
 import { useAuth } from './context/AuthContext';
 import { stepReel } from './utils/reelPhysics';
-import { twitchJerk, stepCrank } from './utils/lurePhysics';
+import { twitchJerk, stepCrank, stepDrift, mendLine } from './utils/lurePhysics';
 
 jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }));
 jest.mock('./utils/reelPhysics', () => {
@@ -13,7 +13,7 @@ jest.mock('./utils/reelPhysics', () => {
 });
 jest.mock('./utils/lurePhysics', () => {
   const actual = jest.requireActual('./utils/lurePhysics');
-  return { ...actual, twitchJerk: jest.fn(actual.twitchJerk), stepCrank: jest.fn(actual.stepCrank) };
+  return { ...actual, twitchJerk: jest.fn(actual.twitchJerk), stepCrank: jest.fn(actual.stepCrank), stepDrift: jest.fn(actual.stepDrift), mendLine: jest.fn(actual.mendLine) };
 });
 
 // A fixed daytime clock so the dock, the captain and the derby don't depend on when CI runs.
@@ -37,6 +37,7 @@ function makeBaseAuth(overrides = {}) {
     purchaseUpgrade: jest.fn(),
     charterBoat: jest.fn(),
     purchaseLure: jest.fn(),
+    purchaseFlyRod: jest.fn(),
     ...overrides,
   };
 }
@@ -309,6 +310,80 @@ test('crank bait: reaching the boat with no strike wastes the cast', async () =>
   await advance(80);
 
   expect(screen.getByText(/nothing followed/i)).toBeInTheDocument();
+});
+
+// ---- The fly rod ----
+test('the fly rod is bought at Sal\'s, then the flies show on the dock at the river', async () => {
+  const purchaseFlyRod = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 30, fly_rod: true }) });
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ tackle_points: 150 })), purchaseFlyRod }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  // Without the rod the dock points at Sal's instead of showing flies.
+  expect(screen.queryByRole('button', { name: /dry fly/i })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /fly rod at sal's/i }));
+  expect(screen.getByRole('button', { name: /buy · 120 pts/i })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /buy · 120 pts/i }));
+  await act(async () => { await Promise.resolve(); });
+  expect(purchaseFlyRod).toHaveBeenCalledTimes(1);
+  expect(screen.getByText(/match the hatch/i)).toBeInTheDocument();
+  expect(screen.getByText(/owned · flies are on the dock/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /close tackle shop/i }));
+  expect(screen.getByRole('button', { name: /dry fly unlock · 40 pts/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /nymph unlock · 50 pts/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /streamer unlock · 70 pts/i })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /fly rod at sal's/i })).not.toBeInTheDocument();
+});
+
+test('flies stay in the truck off trout water: the chips vanish on the bay and live bait goes back on', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['nymph'] })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /nymph owned/i }));
+  expect(screen.getByText('Nymph', { selector: '.hud-chip' })).toBeInTheDocument();
+  expect(screen.getByText(/the hatch is on for this fly/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Travel' }));
+  await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
+  await advance(2000);
+  expect(screen.queryByRole('button', { name: /nymph/i })).not.toBeInTheDocument();
+  expect(screen.getByText('Live bait', { selector: '.hud-chip' })).toBeInTheDocument();
+});
+
+test('the fly: cast to the rise, mend the drift, and a clean drift brings the take', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['dryfly'] })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /dry fly owned/i }));
+  expect(screen.getByText(/off-hatch for this fly/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Cast' }));
+  // Math.random is pinned at 0.5: the trout rises at meter position 50, so the band sits 42-58.
+  expect(screen.getByText(/stop the cast on the rise/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-rise')).toHaveAttribute('data-rise', '50');
+  expect(document.querySelector('.stage-meter-band').style.bottom).toBe('42%');
+  await userEvent.click(screen.getByRole('button', { name: /^cast!/i }));
+
+  expect(screen.getByRole('button', { name: 'Mend' })).toBeInTheDocument();
+  expect(screen.getByText(/mend when the drag climbs/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-lure')).toHaveAttribute('data-lure', 'dryfly');
+  mendLine.mockReturnValueOnce({ drag: 0, drift: 20, attraction: 40, mends: 1, cleanMends: 1, ticks: 10, cleanTicks: 10, lastMendClean: true, accuracy: 0 });
+  await userEvent.click(screen.getByRole('button', { name: 'Mend' }));
+  expect(screen.getByText('Clean mend.')).toBeInTheDocument();
+
+  stepDrift.mockReturnValueOnce({ drag: 10, drift: 30, attraction: 100, mends: 1, cleanMends: 1, ticks: 12, cleanTicks: 12, accuracy: 0, clean: true });
+  await advance(80);
+  expect(screen.getByText(/fish on/i)).toBeInTheDocument();
+});
+
+test('the fly: letting the drag set spooks the fish and spends the cast', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(makeGameProfile({ fly_rod: true, owned_lures: ['streamer'] })) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: /streamer owned/i }));
+  await reachWaiting();
+  // CRA resets mock implementations between tests, so script the tick: drag has topped out.
+  stepDrift.mockReturnValue({ drag: 100, drift: 45, attraction: 10, mends: 0, cleanMends: 0, ticks: 70, cleanTicks: 55, accuracy: 0, clean: false });
+  await advance(80);
+  expect(screen.getByText(/drag set in/i)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Mend' })).not.toBeInTheDocument();
 });
 
 test('the angler on the stage is the signed-in person', async () => {

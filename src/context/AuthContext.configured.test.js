@@ -547,6 +547,20 @@ describe('Cast & Catch world', () => {
     await expectError(result.current.charterBoat('canyon'), /not enough tackle points/i);
   });
 
+  test('the fly rod is bought once and flies need it first', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 150, owned_lures: [], fly_rod: false }, error: null });
+    await expectError(result.current.purchaseLure('dryfly'), /need the fly rod/i);
+    await result.current.purchaseFlyRod();
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ fly_rod: true, tackle_points: 30 }));
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 30, owned_lures: [], fly_rod: true }, error: null });
+    await expectError(result.current.purchaseFlyRod(), /already own/i);
+    await expectError(result.current.purchaseLure('dryfly'), /not enough tackle points/i);
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60, owned_lures: [], fly_rod: true }, error: null });
+    await result.current.purchaseLure('dryfly');
+    expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ owned_lures: ['dryfly'], tackle_points: 20 }));
+  });
+
   test('listDerbyLeaders ranks the week\'s catches one row per angler with avatars from profiles', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('game_catches', { data: [

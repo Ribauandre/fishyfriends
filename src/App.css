@@ -592,6 +592,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .game-dock .game-panel.is-ready > .npc-dialogue, .game-dock .game-panel.is-ready > .quest-list, .game-dock .game-panel.is-ready > .derby-win, .game-dock .game-panel.is-ready > .dock-cast, .game-dock .game-panel.is-ready > .form-error { grid-column: 2; }
   .game-dock .game-panel.is-ready > .dock-cast { margin-top: 4px; width: 100%; }
   .game-dock .game-panel.is-ready > .dock-crew { justify-content: flex-start; }
+  /* Six chips once the fly box is open: keep the deck short enough that Cast stays in view. */
+  .game-dock .game-panel.is-ready { gap: 8px 24px; }
+  .game-dock .game-panel.is-ready > p.dock-hint { max-width: none; }
+  .game-dock .lure-chip { min-width: 0; padding: 4px 8px; }
+  .game-dock .lure-chips { gap: 4px 6px; }
 }
 .game-page .game-scene { aspect-ratio: auto; height: 100%; margin-top: 0; max-height: none; min-height: 0; }
 .game-page .game-dock { flex: 1; min-height: 0; overflow-y: auto; }
@@ -845,6 +850,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water:before, .scene-water:after, .scene-lamp, .scene-shadow, .travel-road, .game-loading-box { animation: none; }
   .scene-jump { display: none; }
   .scene-world { transition: none; }
+  .scene-rise-ring { animation: none; }
 }
 
 
@@ -949,6 +955,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .stage-gauge-fill span { background: var(--mint); display: block; height: 100%; transition: width .08s linear; }
 .stage-feedback { animation: feedback-rise 1.1s ease-out both; color: var(--mint); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .06em; position: absolute; text-align: center; text-shadow: 1px 1px 0 #03080b, -1px -1px 0 #03080b, 1px -1px 0 #03080b, -1px 1px 0 #03080b; text-transform: uppercase; top: -16px; white-space: nowrap; width: 100%; }
 @keyframes feedback-rise { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-12px); } }
+/* The fly rod: the rise ring the accuracy cast aims at, and the fly-shop card at Sal's. */
+.scene-rise-ring { animation: rise-ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes rise-ring { 0% { opacity: .95; transform: scale(.4); } 100% { opacity: 0; transform: scale(1.8); } }
+.fly-rod-icon { display: block; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); height: 40px; margin-bottom: 4px; width: auto; }
+.lure-chip-flyrod .fly-rod-icon { flex: none; height: 26px; margin: 0; }
+.game-dock .lure-chip-flyrod strong { color: var(--coral); }
+.fly-rod-card.is-done { border-color: var(--mint); }
 .scene-hook-ring { animation: hook-ring linear forwards; border: 3px solid var(--coral); border-radius: 50%; box-shadow: 0 0 10px rgba(255,90,31,.6); height: 12%; pointer-events: none; position: absolute; transform: translate(-50%, -50%) scale(2.6); width: 6.75%; z-index: 1; }
 @keyframes hook-ring { from { opacity: 1; transform: translate(-50%, -50%) scale(2.6); } to { opacity: .3; transform: translate(-50%, -50%) scale(.6); } }
 .stage-callout { background: rgba(3,8,11,.72); border: 1px solid var(--line); bottom: 4%; color: var(--ink); font-size: 12px; font-weight: 700; left: 50%; margin: 0; max-width: 90%; padding: 6px 12px; pointer-events: none; position: absolute; text-align: center; transform: translateX(-50%); white-space: nowrap; z-index: 1; }

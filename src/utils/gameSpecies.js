@@ -77,7 +77,12 @@ export function difficultyFor(rarity) { return RARITY_DIFFICULTY[rarity] || RARI
 // more shots at a big fish, it doesn't help you land one once it's on the line.
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 
-export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', random = Math.random } = {}) {
+// `favor` lists species the lure is made for (a streamer and the big browns): they roll at a
+// multiple of their weight within whichever tier comes up, so the lure steers what bites
+// without changing how hard any fish fights.
+export const FAVOR_WEIGHT = 2.5;
+
+export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', random = Math.random, favor = [] } = {}) {
   const speciesByRarity = {};
   biomeSpecies.forEach((species) => {
     const rarity = rarityOf(species);
@@ -98,7 +103,7 @@ export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', random = 
     roll -= weights[i];
   }
   const pool = speciesByRarity[chosenTier];
-  const poolWeights = pool.map((species) => speciesWeight(species, period));
+  const poolWeights = pool.map((species) => speciesWeight(species, period) * (favor.includes(species) ? FAVOR_WEIGHT : 1));
   let pick = random() * poolWeights.reduce((sum, w) => sum + w, 0);
   let species = pool[pool.length - 1];
   for (let i = 0; i < pool.length; i += 1) {
