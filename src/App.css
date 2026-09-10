@@ -864,6 +864,25 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-water:before { animation-duration: 24s; }
 .scene-water:after { animation-direction: reverse; animation-duration: 37s; background-size: 74px 40px; opacity: .6; }
 @keyframes water-sparkle { from { background-position: 0 0; } to { background-position: 224px 28px; } }
+
+/* Each ground moves in its own way (utils/sceneAmbience.js plans them in painting units).
+   The river and the canyon run, the mountain lake rings and mists, the swamp sways and — after
+   dark — blinks, the beach breaks, and the bay and the charter grounds ride the swell. */
+.scene-water.is-swell { animation: swell-lift ease-in-out infinite; }
+@keyframes swell-lift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); } }
+.scene-current { animation: current-run linear infinite; background: linear-gradient(90deg, transparent, rgba(240,252,255,.95) 45%, rgba(240,252,255,.6) 62%, transparent); left: -22%; mix-blend-mode: screen; position: absolute; }
+@keyframes current-run { 0% { left: -22%; } 100% { left: 104%; } }
+.scene-ring { animation: ring-open ease-out infinite; border: 1px solid rgba(240,252,255,.85); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
+@keyframes ring-open { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.16); } 12% { opacity: .8; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+.scene-mist { animation: mist-drift ease-in-out infinite alternate; background: linear-gradient(90deg, transparent, rgba(255,255,255,.3) 35%, rgba(255,255,255,.38) 60%, transparent); left: 0; mix-blend-mode: screen; position: absolute; right: 0; }
+@keyframes mist-drift { from { opacity: .45; transform: translateX(-5%); } to { opacity: .85; transform: translateX(5%); } }
+.scene-surf { animation: surf-roll ease-out infinite; background: radial-gradient(closest-side, rgba(255,255,255,.9), rgba(255,255,255,.28) 62%, transparent); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
+@keyframes surf-roll { 0% { opacity: 0; transform: translate(7%, -34%) scaleX(.82); } 20% { opacity: .95; } 68% { opacity: .5; } 100% { opacity: 0; transform: translate(-11%, 44%) scaleX(1.14); } }
+.scene-moss { animation: moss-sway ease-in-out infinite alternate; background: linear-gradient(rgba(186,198,132,.85), rgba(128,148,86,.1)); position: absolute; transform-origin: 50% 0; }
+@keyframes moss-sway { from { transform: rotate(-2.6deg); } to { transform: rotate(2.6deg); } }
+.scene-firefly { animation-iteration-count: infinite, infinite; animation-name: firefly-drift, firefly-glow; animation-timing-function: ease-in-out, ease-in-out; background: radial-gradient(closest-side, rgba(226,255,140,.95), rgba(180,255,80,.35) 55%, transparent); border-radius: 50%; position: absolute; }
+@keyframes firefly-drift { 0% { transform: translate(0, 0); } 25% { transform: translate(190%, -140%); } 50% { transform: translate(340%, 30%); } 75% { transform: translate(130%, 160%); } 100% { transform: translate(0, 0); } }
+@keyframes firefly-glow { 0%, 100% { opacity: .12; } 45% { opacity: 1; } 62% { opacity: .28; } }
 .scene-lamp { animation: lamp-flicker 3.4s ease-in-out infinite; background: radial-gradient(closest-side, rgba(255,198,90,.62), rgba(255,170,60,.2) 55%, transparent); mix-blend-mode: screen; position: absolute; }
 @keyframes lamp-flicker { 0%, 100% { opacity: .55; } 38% { opacity: .9; } 52% { opacity: .62; } 70% { opacity: .82; } }
 .game-scene .scene-shadow { animation: shadow-cruise ease-in-out infinite; filter: brightness(0) opacity(.34) blur(.5px); height: auto; position: absolute; }
@@ -910,7 +929,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes box-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water:before, .scene-water:after, .scene-lamp, .scene-shadow, .travel-road, .game-loading-box { animation: none; }
+  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water, .scene-water:before, .scene-water:after, .scene-lamp, .scene-shadow, .scene-current, .scene-ring, .scene-mist, .scene-surf, .scene-moss, .scene-firefly, .travel-road, .game-loading-box { animation: none; }
   .scene-jump { display: none; }
   .scene-world { transition: none; }
   .scene-rise-ring, .scene-bobber, .game-panel, .stage-meter, .stage-callout { animation: none; }

@@ -1,5 +1,5 @@
 // Prop art for Cast & Catch: the tackle shop's gear and lure icons, the vehicles that carry
-// the angler between grounds, the tackle box, and the dock's own gear in assets/props/dock. All pixel-art renders in the same style
+// the angler between grounds, and the tackle box. All pixel-art renders in the same style
 // as the backdrops, processed to transparent PNGs; nothing here is drawn in code.
 import rod from '../assets/props/rod.png';
 import line from '../assets/props/line.png';
@@ -25,14 +25,7 @@ import flyrod from '../assets/props/flyrod.png';
 import outfit from '../assets/props/outfit.png';
 import crewicon from '../assets/props/crewicon.png';
 import questicon from '../assets/props/questicon.png';
-import dockGull from '../assets/props/dock/gull.png';
-import dockBuoy from '../assets/props/dock/buoy.png';
-import dockRocks from '../assets/props/dock/rocks.png';
 
-// The dock's own gear, set out by SCENE_LAYOUTS[biome].props: cut from art/dock-parts.png by
-// scripts/dockSlice.mjs, which writes every piece on that sheet — only the ones a scene
-// actually places are kept here, so nothing unused is bundled.
-export const DOCK_PROPS = { gull: dockGull, buoy: dockBuoy, rocks: dockRocks };
 
 export const GEAR_ICONS = { rod, line, reel, bait };
 export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
