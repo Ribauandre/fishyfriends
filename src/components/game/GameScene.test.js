@@ -320,3 +320,13 @@ test('the fly rod aims at the rise: the ring sits where the fly will land and th
   expect(container.querySelector('.scene-rise')).toBeNull();
   expect(container.querySelector('.stage-gauge')).toBeNull();
 });
+
+test('the angler wears the look he is given, and so does the crew (stock art where there is no canvas)', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready', look: { hat: 'cap_red', skin: 'deep' } }];
+  const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" look={{ skin: 'fair', boots: 'boots_yellow' }} others={others} />);
+  const you = container.querySelector('.scene-sprite.is-you');
+  expect(you.getAttribute('data-look')).toContain('fair');
+  expect(you).toHaveAttribute('data-painted', 'no');
+  expect(you.style.backgroundImage).toContain('idle');
+  expect(container.querySelector('.scene-sprite.is-crew').getAttribute('data-look')).toContain('cap_red');
+});

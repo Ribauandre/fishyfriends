@@ -38,6 +38,8 @@ function makeBaseAuth(overrides = {}) {
     charterBoat: jest.fn(),
     purchaseLure: jest.fn(),
     purchaseFlyRod: jest.fn(),
+    purchaseApparel: jest.fn(),
+    saveLook: jest.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
 }
@@ -385,6 +387,53 @@ test('the fly: letting the drag set spooks the fish and spends the cast', async 
   await advance(80);
   expect(screen.getByText(/drag set in/i)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Mend' })).not.toBeInTheDocument();
+});
+
+// ---- Marina's Outfitters ----
+test("Marina's sells apparel for points and the free look changes save straight away", async () => {
+  const purchaseApparel = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 60, wardrobe: ['cap_red'] }) });
+  const saveLook = jest.fn().mockImplementation(async (look) => {
+    const bought = purchaseApparel.mock.calls.length > 0;
+    return { error: null, look, gameProfile: makeGameProfile({ tackle_points: bought ? 60 : 100, wardrobe: bought ? ['cap_red'] : [], look }) };
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseApparel, saveLook }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
+  expect(screen.getByText(/hats, rods, boots and waders on the racks/i)).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Your angler' })).toHaveAttribute('data-look', expect.stringContaining('medium|full|auburn|cap_green'));
+
+  await userEvent.click(screen.getByRole('button', { name: 'Deep skin' }));
+  expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ skin: 'deep' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Clean shaven' }));
+  expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ skin: 'deep', beard: 'none' }));
+  expect(await screen.findByText(/looking sharp/i)).toBeInTheDocument();
+
+  // A rack item is bought, then worn; the stock cap goes back to "owned".
+  expect(screen.getByRole('button', { name: 'Club cap · Wearing' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Red cap · 40 pts' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(purchaseApparel).toHaveBeenCalledWith('cap_red');
+  expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ hat: 'cap_red' }));
+  expect(await screen.findByRole('button', { name: 'Red cap · Wearing' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Club cap · Owned' })).toBeEnabled();
+  expect(screen.getByText(/the red cap — good choice/i)).toBeInTheDocument();
+  expect(screen.getByLabelText('60 tackle points')).toBeInTheDocument();
+  // The stage wears it too (stock art in jsdom, but the look is on the sprite).
+  expect(document.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-look', expect.stringContaining('cap_red'));
+});
+
+test('a failed purchase is repeated back by Marina and nothing is worn', async () => {
+  const purchaseApparel = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points yet.') });
+  const saveLook = jest.fn();
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseApparel, saveLook }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cowboy hat · 120 pts' }));
+  expect(await screen.findByText(/not enough tackle points yet\. no harm in looking/i)).toBeInTheDocument();
+  expect(saveLook).not.toHaveBeenCalled();
 });
 
 test('the angler on the stage is the signed-in person', async () => {

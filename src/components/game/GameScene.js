@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
+import useAnglerSheets from './useAnglerSheets';
 import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
 import { LURES } from '../../utils/gameLures';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
+import { lookKey } from '../../utils/anglerLook';
 import {
   PAINT_H, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, pctX, pctY, pctW, pctH,
   waterSpan, landingX as landingFor, reelX, cameraFor, cameraTransform, REST_CAMERA,
@@ -57,13 +59,14 @@ function spriteStyle(feet, boxH, viewW) {
   return { left: `${round2((left / viewW) * 100)}%`, bottom: pctY(bottom), height: pctY(boxH), width: `${round2((boxW / viewW) * 100)}%` };
 }
 
-function AnglerSprite({ feet, boxH, phase, current, className = '', viewW }) {
+// `sheets` are the strips repainted for a look (useAnglerSheets); without them the stock art shows.
+function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheets = null, look = null }) {
   const { action, frame = 0, play, durationMs, loop } = current;
   const sprite = ANGLER_SPRITES[action];
   const frameStep = 100 / (sprite.frames - 1);
   const style = {
     ...spriteStyle(feet, boxH, viewW),
-    backgroundImage: `url(${sprite.src})`,
+    backgroundImage: `url(${sheets?.[action] || sprite.src})`,
     backgroundSize: `${sprite.frames * 100}% 100%`,
     backgroundPositionX: `${frame * frameStep}%`,
   };
@@ -77,8 +80,16 @@ function AnglerSprite({ feet, boxH, phase, current, className = '', viewW }) {
     key={`${phase}-${action}-${play ? 'play' : 'hold'}`}
     className={`scene-sprite ${className} ${play ? (loop ? 'is-looping' : 'is-playing') : ''}`}
     data-action={action}
+    data-look={look ? lookKey(look) : undefined}
+    data-painted={sheets ? 'yes' : 'no'}
     style={style}
   />;
+}
+
+// A club member's sprite in their own look (each needs its own paint job, so its own hook).
+function CrewSprite({ look, ...props }) {
+  const sheets = useAnglerSheets(look);
+  return <AnglerSprite {...props} sheets={sheets} look={look} />;
 }
 
 function Pennant({ tip, frame }) {
@@ -103,8 +114,9 @@ export default function GameScene({
   biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day',
   interaction = null, castFillRef = null, castDistance = 60, lure = 'livebait', lureDisplay = null, lureFeedback = '',
   hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false,
-  castBand = [40, 60], rise = null,
+  castBand = [40, 60], rise = null, look = null,
 }) {
+  const sheets = useAnglerSheets(look);
   const layout = layoutFor(biome);
   const art = ART[biome] || ART.river;
   const stageRef = useRef(null);
@@ -196,14 +208,14 @@ export default function GameScene({
         const recent = other.lastCatch && now() - other.lastCatch.at < RECENT_CATCH_MS;
         const crewTagY = layout.tagAbove ? crewFeet.y - crewH - 4 : crewFeet.y + 8;
         return <React.Fragment key={other.userId}>
-          <AnglerSprite feet={crewFeet} boxH={crewH} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} />
+          <CrewSprite look={other.look || null} feet={crewFeet} boxH={crewH} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} />
           {other.champion && <Pennant tip={rodTipFor(crewFeet, crewH, action.action)} frame={frame} />}
           <span className={`scene-crew-tag ${other.champion ? 'is-champion' : ''}`} data-user={other.userId} style={{ left: pctX(crewFeet.x, frame), top: pctY(crewTagY) }}>{(other.name || 'Angler').toUpperCase()}</span>
           {recent && <span className="scene-crew-bubble" style={{ left: pctX(crewFeet.x, frame), top: pctY(crewFeet.y - crewH - 14) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
         </React.Fragment>;
       })}
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
-      <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} />
+      <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} />
       {champion && <Pennant tip={rodTip} frame={frame} />}
       {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pctX(lureX, frame), top: pctY(surfaceY), width: pctW(24, frame) }} />}
       {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pctX(lureX, frame), top: pctY(surfaceY - 32) }} aria-hidden="true">

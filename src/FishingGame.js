@@ -4,13 +4,17 @@ import GameScene from './components/game/GameScene';
 import GameOverlay from './components/game/GameOverlay';
 import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
+import AnglerPreview from './components/game/AnglerPreview';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
 import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
+import outfitterBackdrop from './assets/scenes/outfitter.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
-import { shopkeeperLine, captainLine } from './utils/gameDialogue';
+import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
+import { SKIN_TONES, BEARD_STYLES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
+import { HAT_ART } from './utils/anglerPaint';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
@@ -32,7 +36,7 @@ const REEL_TICK_MS = 80;
 const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
 const REEL_SOUND_MS = 110;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [] };
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
 // and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
@@ -42,7 +46,7 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 export default function FishingGame({ clock = () => new Date() }) {
   const {
     profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
-    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
+    claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin, purchaseApparel, saveLook,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
@@ -67,6 +71,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   const [rise, setRise] = useState(50);
   const [castAccuracyScore, setCastAccuracyScore] = useState(0);
   const [flyRodBusy, setFlyRodBusy] = useState(false);
+  const [outfitBusy, setOutfitBusy] = useState(false);
+  const [outfitEvent, setOutfitEvent] = useState(null);
   const [pendingCatch, setPendingCatch] = useState(null);
   const [result, setResult] = useState(null);
   const [reelDisplay, setReelDisplay] = useState({ fishPos: 50, zonePos: 50, progress: 0, tension: 0 });
@@ -114,7 +120,9 @@ export default function FishingGame({ clock = () => new Date() }) {
   const joinDockRef = useRef(joinDock);
   joinDockRef.current = joinDock;
   const champion = isChampion(gameProfile.derby_wins, clock());
-  const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch, champion };
+  const wardrobe = gameProfile.wardrobe || [];
+  const look = normalizeLook(gameProfile.look, wardrobe);
+  const presence = { name: profile?.display_name || 'Angler', avatarUrl: profile?.avatar_url || '', biome, phase, species: pendingCatch?.species || result?.species || null, lastCatch, champion, look };
   presenceRef.current = presence;
   // Join once per visit. joinDock is a fresh function on every provider render (a token
   // refresh, a tab coming back into focus), and leaving + rejoining on each of those is what
@@ -128,7 +136,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   useEffect(() => {
     if (!loading && dockRef.current) dockRef.current.update(presenceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [biome, phase, presence.species, lastCatch, loading, champion]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [biome, phase, presence.species, lastCatch, loading, champion, gameProfile.look]);
 
   // ---- Time of day follows the real clock; re-tint exactly at the next boundary. ----
   useEffect(() => {
@@ -253,6 +262,27 @@ export default function FishingGame({ clock = () => new Date() }) {
     }
     setCastPower(power);
     setPhase('waiting');
+  }
+
+  // Marina's: free changes save straight to the look; a rack item is bought, then worn.
+  async function handleLook(patch) {
+    const response = await saveLook({ ...look, ...patch });
+    if (response?.error) { setOutfitEvent({ type: 'error', message: response.error.message }); return false; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    setOutfitEvent({ type: 'look' });
+    sfx.tap();
+    return true;
+  }
+
+  async function handleApparelPurchase(itemKey, slot, label) {
+    setOutfitBusy(true);
+    const response = await purchaseApparel(itemKey);
+    if (response?.error) { setOutfitBusy(false); setOutfitEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    const worn = await saveLook({ ...look, [slot]: itemKey });
+    if (worn?.gameProfile) setGameProfile((current) => ({ ...current, ...worn.gameProfile }));
+    setOutfitBusy(false);
+    setOutfitEvent({ type: 'buy', label });
   }
 
   async function handleFlyRodPurchase() {
@@ -594,6 +624,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         lure={lure}
         lureDisplay={lureDisplay}
         lureFeedback={lureFeedback}
+        look={look}
         castBand={flyOn ? [Math.max(0, rise - 8), Math.min(100, rise + 8)] : CAST_SWEET_SPOT}
         rise={flyOn && (phase === 'casting' || phase === 'waiting') ? rise : null}
         hooksetWindowMs={hooksetWindowMs}
@@ -620,6 +651,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         <nav className="hud-nav" aria-label="Game menu">
           <button type="button" className={`hud-button ${overlay === 'map' ? 'is-open' : ''}`} disabled={phase !== 'ready'} aria-pressed={overlay === 'map'} aria-label="Travel" onClick={() => toggleOverlay('map')}><img src={HUD_ICONS.map} alt="" /><span aria-hidden="true">Travel</span></button>
           <button type="button" className={`hud-button ${overlay === 'shop' ? 'is-open' : ''}`} aria-pressed={overlay === 'shop'} aria-label="Shop" onClick={() => toggleOverlay('shop')}><img src={HUD_ICONS.shop} alt="" /><span aria-hidden="true">Shop</span></button>
+          <button type="button" className={`hud-button ${overlay === 'outfitter' ? 'is-open' : ''}`} aria-pressed={overlay === 'outfitter'} aria-label="Outfit" onClick={() => toggleOverlay('outfitter')}><img src={HUD_ICONS.outfit} alt="" /><span aria-hidden="true">Outfit</span></button>
           <button type="button" className={`hud-button ${overlay === 'almanac' ? 'is-open' : ''}`} aria-pressed={overlay === 'almanac'} aria-label="Almanac" onClick={() => toggleOverlay('almanac')}><img src={HUD_ICONS.almanac} alt="" /><span aria-hidden="true">Almanac</span></button>
           <button type="button" className={`hud-button ${overlay === 'trophies' ? 'is-open' : ''}`} aria-pressed={overlay === 'trophies'} aria-label="Trophies" onClick={() => toggleOverlay('trophies')}><img src={HUD_ICONS.trophies} alt="" /><span aria-hidden="true">Trophies</span></button>
           <button type="button" className={`hud-button hud-button-sound ${muted ? 'is-muted' : ''}`} aria-label={muted ? 'Sound off' : 'Sound on'} aria-pressed={!muted} onClick={handleSoundToggle}><img src={HUD_ICONS.sound} alt="" /><span aria-hidden="true">{muted ? 'Muted' : 'Sound'}</span></button>
@@ -826,6 +858,53 @@ export default function FishingGame({ clock = () => new Date() }) {
           </section>
         </div>
         <p className="dock-hint">Lures are on the dock — pick one there, or unlock it from its chip.</p>
+      </GameOverlay>}
+
+      {overlay === 'outfitter' && <GameOverlay eyebrow="Marina's Outfitters" title="Apparel" backdrop={outfitterBackdrop} onClose={() => setOverlay(null)}>
+        <NpcDialogue npc="outfitter" line={outfitterLine({ gameProfile, event: outfitEvent })} />
+        <div className="outfit-fitting">
+          <div className="outfit-preview"><AnglerPreview look={look} /><span className="eyebrow">YOU</span></div>
+          <div className="outfit-you">
+            <section className="outfit-group" aria-label="Skin tone">
+              <span className="eyebrow">SKIN</span>
+              <div className="swatches">
+                {Object.entries(SKIN_TONES).map(([key, tone]) => <button key={key} type="button" className={`swatch ${look.skin === key ? 'is-on' : ''}`} style={{ background: `rgb(${tone.rgb.join(',')})` }} aria-label={`${tone.label} skin`} aria-pressed={look.skin === key} disabled={outfitBusy} onClick={() => handleLook({ skin: key })} />)}
+              </div>
+            </section>
+            <section className="outfit-group" aria-label="Facial hair">
+              <span className="eyebrow">FACIAL HAIR</span>
+              <div className="outfit-chips">
+                {Object.entries(BEARD_STYLES).map(([key, style]) => <button key={key} type="button" className={`outfit-chip ${look.beard === key ? 'is-on' : ''}`} aria-pressed={look.beard === key} disabled={outfitBusy} onClick={() => handleLook({ beard: key })}>{style.label}</button>)}
+              </div>
+              <div className="swatches">
+                {Object.entries(HAIR_COLORS).map(([key, color]) => <button key={key} type="button" className={`swatch ${look.hair === key ? 'is-on' : ''}`} style={{ background: `rgb(${color.rgb.join(',')})` }} aria-label={`${color.label} hair`} aria-pressed={look.hair === key} disabled={outfitBusy} onClick={() => handleLook({ hair: key })} />)}
+              </div>
+            </section>
+          </div>
+        </div>
+        {SLOTS.map((slot) => <section key={slot} className="outfit-rack" aria-label={SLOT_LABELS[slot]}>
+          <span className="eyebrow">{SLOT_LABELS[slot].toUpperCase()}</span>
+          <div className="rack-items">
+            {itemsFor(slot).map((item) => {
+              const owned = isOwned(item.key, wardrobe);
+              const worn = look[slot] === item.key;
+              const status = worn ? 'Wearing' : owned ? 'Owned' : `${item.cost} pts`;
+              return <button
+                key={item.key}
+                type="button"
+                className={`rack-item ${worn ? 'is-worn' : ''} ${owned ? '' : 'is-locked'}`}
+                disabled={outfitBusy || worn}
+                aria-pressed={worn}
+                aria-label={`${item.label} · ${status}`}
+                onClick={() => (owned ? handleLook({ [slot]: item.key }) : handleApparelPurchase(item.key, slot, item.label))}
+              >
+                <span className="rack-swatch" style={item.tint ? { background: `rgb(${item.tint.join(',')})` } : undefined}>{item.overlay && <img src={HAT_ART[item.overlay]} alt="" />}</span>
+                <strong>{item.label}</strong>
+                <span>{status}</span>
+              </button>;
+            })}
+          </div>
+        </section>)}
       </GameOverlay>}
 
       {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
