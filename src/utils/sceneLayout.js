@@ -136,25 +136,26 @@ export function reelX(layout, pos, frame) {
 // much closer it is. Vertically the angler's hat keeps its resting height, so the push-in
 // grows the water downward instead of lifting him into the signage.
 export const FIGHT_PHASES = new Set(['waiting', 'hookset', 'reeling']);
-const CAMERA_ZOOM = [1.15, 1.25];
-const CAST_FOCUS_OFFSET = 30;
-const CAST_ZOOM = [1.3, 1.4];
-const CAMERA_ANGLER_MARGIN = 58;
+// Pressing Cast pans the camera to the water: the world is pushed in until the angler can sit
+// just inside the left edge with everything else water, and it stays there while the line is
+// out (waiting/hookset/reeling). The push is what a painting 480 wide allows — the camera can
+// go no further right than the painting's edge, so the zoom is whatever puts that edge at the
+// right of the frame with the angler at the margin, within limits: a wide stage needs less, a
+// phone's crop cannot show much water whatever the camera does. Vertically the angler's hat
+// sits just under the top edge, so the frame is his rod and the water below it.
+const CAMERA_ZOOM = [1.3, 1.5];
+const CAMERA_ANGLER_MARGIN = 30;
+const CAMERA_HEADROOM = 8;
 export const REST_CAMERA = { x: 0, y: 0, scale: 1 };
 
 export function cameraFor(phase, { anglerX, anglerY, spriteH }, viewW) {
-  const casting = phase === 'casting';
-  if (!casting && !FIGHT_PHASES.has(phase)) return REST_CAMERA;
-  const focusX = anglerX + CAST_FOCUS_OFFSET;
-  const scale = casting
-    ? round2(Math.max(CAST_ZOOM[0], Math.min(CAST_ZOOM[1], viewW / (2 * focusX))))
-    : round2(Math.max(CAMERA_ZOOM[0], Math.min(CAMERA_ZOOM[1], viewW / (viewW - anglerX + CAMERA_ANGLER_MARGIN))));
+  if (phase !== 'casting' && !FIGHT_PHASES.has(phase)) return REST_CAMERA;
+  const scale = round2(Math.max(CAMERA_ZOOM[0], Math.min(CAMERA_ZOOM[1], viewW / (viewW - anglerX + CAMERA_ANGLER_MARGIN))));
   const w = viewW / scale;
   const h = PAINT_H / scale;
-  const wanted = casting ? focusX - w / 2 : Math.min(viewW - w, anglerX - CAMERA_ANGLER_MARGIN);
-  const x = round2(Math.max(0, Math.min(viewW - w, wanted)));
+  const x = round2(Math.max(0, Math.min(viewW - w, anglerX - CAMERA_ANGLER_MARGIN)));
   const headY = anglerY - spriteH - 6;
-  const y = round2(Math.max(0, Math.min(PAINT_H - h, headY * (1 - 1 / scale))));
+  const y = round2(Math.max(0, Math.min(PAINT_H - h, headY - CAMERA_HEADROOM)));
   return { x, y, scale };
 }
 

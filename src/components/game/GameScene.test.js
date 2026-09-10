@@ -242,21 +242,25 @@ test('the derby champion flies the golden pennant from the rod tip, and so does 
   expect(screen.getByText('SAM')).not.toHaveClass('is-champion');
 });
 
-test('the camera centres the angler on the cast, pans right toward the fight once the line is out, and settles back after', () => {
+test('the camera pans to the water on the cast, holds there for the fight, and settles back after', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="ready" displayName="Andre" />);
   const world = () => container.querySelector('.scene-world');
   expect(world()).toHaveAttribute('data-camera', 'rest');
   expect(world().style.transform).toBe('scale(1) translate(0%, 0%)');
 
-  // Pressing Cast pushes in on the angler: he and the water past his rod sit in the middle of the window.
+  // Pressing Cast pans to the water: the angler sits just inside the left edge and the rest is water.
   rerender(<GameScene biome="river" phase="casting" displayName="Andre" />);
   expect(world()).toHaveAttribute('data-camera', 'cast');
   const castScale = parseFloat(world().getAttribute('data-camera-scale'));
   const castX = parseFloat(world().getAttribute('data-camera-x'));
-  expect(castScale).toBeGreaterThan(1.25);
-  expect(castX + 480 / castScale / 2).toBeCloseTo(178 + 30, 0);
-  // The power meter is still drawn beside him, in screen space.
-  expect(parseFloat(container.querySelector('.stage-meter.is-cast').style.left)).toBeGreaterThan(20);
+  expect(castScale).toBeGreaterThanOrEqual(1.3);
+  expect(castX).toBe(178 - 30);
+  expect(480 - (castX + 480 / castScale)).toBeLessThan(2);
+  // The power meter is still drawn beside him, in screen space — past his front foot now, since
+  // the camera leaves no room at his back.
+  const meterPct = parseFloat(container.querySelector('.stage-meter.is-cast').style.left);
+  expect(meterPct).toBeGreaterThan(((178 - castX) * castScale / 480) * 100);
+  expect(meterPct).toBeLessThan(30);
 
   rerender(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={100} />);
   expect(world()).toHaveAttribute('data-camera', 'fight');
@@ -289,11 +293,12 @@ test('on the boat the camera never pushes past the angler: he stays at the left 
   const world = container.querySelector('.scene-world');
   const x = parseFloat(world.getAttribute('data-camera-x'));
   expect(x).toBeGreaterThan(0);
-  expect(x).toBeLessThan(92 - 40);
-  // The meter keeps its spot on the angler's left, still on screen.
+  expect(x).toBeLessThanOrEqual(92 - 30);
+  // With no room at his back the meter stands past his front foot, still on screen.
+  const scale = parseFloat(world.getAttribute('data-camera-scale'));
   const meterLeft = parseFloat(container.querySelector('.stage-meter.is-tension').style.left);
-  expect(meterLeft).toBeGreaterThan(0);
-  expect(meterLeft).toBeLessThan(6);
+  expect(meterLeft).toBeGreaterThan(((92 - x) * scale / 480) * 100);
+  expect(meterLeft).toBeLessThan(30);
 });
 
 test('the fly rod aims at the rise: the ring sits where the fly will land and the meter band moves to it', () => {

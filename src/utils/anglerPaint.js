@@ -160,8 +160,17 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
     // The brim goes, unless it is a visor's; the cap's own top is a little taller than a head.
     if (kind !== 'visor') brim.forEach((k) => { crown.delete(k); erase(k - Math.floor(k / width) * width, Math.floor(k / width)); });
     if (head.crown !== 'hat') {
+      // The top row goes, and the next two lose their ends, so the head rounds off rather
+      // than ending in the cap's flat top.
       const top = Math.min(...[...crown].map((k) => Math.floor(k / width)));
-      [...crown].forEach((k) => { const y = Math.floor(k / width); if (y < top + 2 && !brim.has(k)) { crown.delete(k); erase(k - y * width, y); } });
+      const ends = new Map();
+      crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; const e = ends.get(y) || [Infinity, -Infinity]; ends.set(y, [Math.min(e[0], x), Math.max(e[1], x)]); });
+      [...crown].forEach((k) => {
+        const y = Math.floor(k / width); const x = k - y * width; if (brim.has(k)) return;
+        const [ex0, ex1] = ends.get(y);
+        const trim = y === top ? Infinity : y === top + 1 ? 2 : y === top + 2 ? 1 : 0;
+        if (x - ex0 < trim || ex1 - x < trim) { crown.delete(k); erase(x, y); }
+      });
     }
     const base = head.crown === 'scalp' ? skin : head.crown === 'hair' ? hair : head.hat.rgb;
     const trim = head.hat?.trim || null;
@@ -170,8 +179,9 @@ function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
       const top = Math.min(...[...crown].filter((k) => !brim.has(k)).map((k) => Math.floor(k / width)));
       let tx0 = Infinity; let tx1 = -Infinity;
       crown.forEach((k) => { const y = Math.floor(k / width); if (y === top) { tx0 = Math.min(tx0, k - y * width); tx1 = Math.max(tx1, k - y * width); } });
+      // Each row up is set in a little further, so the crown rounds rather than blocks.
       const raise = kind === 'cowboy' ? 3 : 1; const inset = kind === 'cowboy' ? 2 : 1;
-      for (let y = top - raise; y < top; y += 1) for (let x = tx0 + inset; x <= tx1 - inset; x += 1) if (inside(x, y)) { crown.add(key(x, y)); put(x, y, base); }
+      for (let r = 1; r <= raise; r += 1) { const y = top - r; const step = inset + (r - 1) * 2; for (let x = tx0 + step; x <= tx1 - step; x += 1) if (inside(x, y)) { crown.add(key(x, y)); put(x, y, base); } }
     }
     const rows = new Map();
     let by0 = Infinity; let by1 = -Infinity;
