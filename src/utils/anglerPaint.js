@@ -1,35 +1,32 @@
 // Dresses the angler at runtime. The strips in assets/angler are the ChatGPT-drawn character
-// as he comes (cap, full beard); for a look each strip goes through a canvas where masked
-// parts are dyed (`paintPixels`, pure, tested on plain arrays) — skin, the beard to the hair
-// colour or into jaw, the cap to a colour or into hair, waders, boots, rod — and drawings
-// from assets/angler/parts are composited on the head at every frame's anchors
-// (utils/anglerAnchors.json: the cap's, beard's and face's boxes, found from the mask offline
-// by scripts/anglerMasks.mjs). Results are data URLs per action, cached by look. Where there
-// is no canvas (jsdom, ancient browsers) `renderAngler` resolves null and the stock strips
-// show.
+// as he comes (cap, full beard); for a look each strip goes through a canvas where
+// `paintPixels` (pure, tested on plain arrays) does two things. Parts that keep their shape
+// are dyed — skin, cap, waders, boots, rod, beard — luminance-preserving, so the artist's
+// shading survives. The head is sculpted: the cap's own pixels and the beard's own pixels,
+// found by the mask, are the silhouettes that become a scalp, hair, another hat, a jaw, a
+// goatee or a mustache, shaded like a dome and given the art's outline back. Nothing is
+// pasted on from outside the art, so it fits every frame from every angle the sheet has —
+// the cap the artist drew from the side, the front and the back is what the beanie is
+// sculpted from in each. Results are data URLs per action, cached by look. Where there is no
+// canvas (jsdom, ancient browsers) `renderAngler` resolves null and the stock strips show.
 import { ANGLER_SPRITES, SPRITE_FRAME } from './anglerSprites';
 import anchors from './anglerAnchors.json';
-import { PART, PART_BASE, HAIR_ART_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
+import { PART, PART_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
 import idleMask from '../assets/angler/masks/idle.png';
 import castMask from '../assets/angler/masks/cast.png';
 import reelMask from '../assets/angler/masks/reel.png';
 import fishonMask from '../assets/angler/masks/fishon.png';
 import celebrateMask from '../assets/angler/masks/celebrate.png';
-import bucket from '../assets/angler/parts/bucket.png';
-import beanie from '../assets/angler/parts/beanie.png';
-import straw from '../assets/angler/parts/straw.png';
-import visor from '../assets/angler/parts/visor.png';
-import cowboy from '../assets/angler/parts/cowboy.png';
-import hairShort from '../assets/angler/parts/hair_short.png';
-import hairLong from '../assets/angler/parts/hair_long.png';
-import beardGoatee from '../assets/angler/parts/beard_goatee.png';
-import beardMustache from '../assets/angler/parts/beard_mustache.png';
 
 const MASKS = { idle: idleMask, cast: castMask, reel: reelMask, fishon: fishonMask, celebrate: celebrateMask };
-export const PART_ART = { bucket, beanie, straw, visor, cowboy, hair_short: hairShort, hair_long: hairLong, beard_goatee: beardGoatee, beard_mustache: beardMustache };
+
+// The art's line colour, drawn back around anything sculpted.
+export const OUTLINE = [16, 15, 14];
 
 const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+const shaded = (rgb, k) => [clamp(rgb[0] * k), clamp(rgb[1] * k), clamp(rgb[2] * k)];
+const mix = (a, b, t) => [clamp(a[0] + (b[0] - a[0]) * t), clamp(a[1] + (b[1] - a[1]) * t), clamp(a[2] + (b[2] - a[2]) * t)];
 
 // Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
 // and reapply that shading to the target colour, so highlights and folds survive the dye.
@@ -38,76 +35,226 @@ export function tintPixel(rgb, base, target) {
   return [clamp(target[0] * shade), clamp(target[1] * shade), clamp(target[2] * shade)];
 }
 
-// A beard pixel turned into jaw: mostly flat skin, a touch darker than the cheek, with only
-// a hint of the beard's shading so it doesn't read as a sticker.
-export function jawPixel(rgb, skin) {
-  const ratio = luminance(...rgb) / luminance(...PART_BASE[PART.beard]);
-  const shade = 0.92 * Math.max(0.8, Math.min(1.05, 0.85 + 0.15 * ratio));
-  return [clamp(skin[0] * shade), clamp(skin[1] * shade), clamp(skin[2] * shade)];
+// Which way a frame's head is turned, from its anchors: the face box is the whole width of
+// the cap from the front, a sliver or nothing from the back, and to one side of the cap's
+// centre in profile.
+export function facingOf(frame) {
+  const { hat, face } = frame || {};
+  if (!hat || !face) return 'back';
+  const hatW = hat.x1 - hat.x0 + 1;
+  const faceW = face.x1 - face.x0 + 1;
+  if (faceW < hatW * 0.3) return 'back';
+  if (faceW >= hatW * 0.78) return 'front';
+  return (face.x0 + face.x1) / 2 >= (hat.x0 + hat.x1) / 2 ? 'right' : 'left';
 }
 
-const frameOf = (x, frameWidth) => Math.floor(x / frameWidth);
+// How far forward on the face a column is: 1 at the chin and lips, 0 at the back of the
+// face, below 0 behind it (the nape). From the front the middle of the face is the front.
+export function frontness(x, face, facing) {
+  const t = (x - face.x0) / Math.max(1, face.x1 - face.x0);
+  if (facing === 'right') return t;
+  if (facing === 'left') return 1 - t;
+  if (facing === 'front') return 1 - 2 * Math.abs(t - 0.5);
+  return -1;
+}
 
-// Dye a strip in place. `pixels` is the strip's RGBA, `mask` the matching mask's RGBA (red =
-// part id), `anchors` the per-frame boxes. The art's beard becomes jaw unless the look keeps
-// it; with no hat at all the cap's brim (the cap past the face) is erased; stubble dithers
-// the jaw with a hair-and-skin mix.
-export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette }) {
-  const { targets, skin, hair } = palette;
-  const keepBeard = targets[PART.beard] !== skin;
-  const stubble = palette.stubble ? [Math.round((skin[0] * 0.8 + hair[0]) / 2), Math.round((skin[1] * 0.8 + hair[1]) / 2), Math.round((skin[2] * 0.8 + hair[2]) / 2)] : null;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      if (pixels[i + 3] === 0) continue;
-      const part = mask[i];
-      if (!part) continue;
-      const frame = frameAnchors[frameOf(x, frameWidth)];
-      const fx = x - frameOf(x, frameWidth) * frameWidth;
-      if (palette.bareHead && (part === PART.hat || part === PART.panel) && frame?.face && frame?.hat) {
-        // The brim: cap pixels past the face, below the crown — only where the face is actually
-        // showing (a back view keeps its whole cap as the back of the head).
-        const faceShowing = frame.face.x1 - frame.face.x0 >= (frame.hat.x1 - frame.hat.x0) * 0.3;
-        if (faceShowing && fx > frame.face.x1 - 1 && y > frame.hat.y0 + (frame.hat.y1 - frame.hat.y0) * 0.4) { pixels[i + 3] = 0; continue; }
+// A dome's light: brightest at the top and the front, falling away down the sides.
+function domeShade(u, v, dir) {
+  return Math.max(0.62, Math.min(1.24, 1.14 - 0.4 * v + (dir === 0 ? -0.1 * Math.abs(u) : 0.1 * dir * u)));
+}
+
+// ---- The sculpting, one frame at a time ----
+
+function sculptHead({ pixels, mask, width, height, x0, x1, frame, palette }) {
+  if (!frame || !frame.hat) return;
+  const { hat, face, beard } = frame;
+  const { head, skin, hair } = palette;
+  const facing = facingOf(frame);
+  const dir = facing === 'right' ? 1 : facing === 'left' ? -1 : 0;
+  const inside = (x, y) => x >= x0 && x < x1 && y >= 0 && y < height;
+  const at = (x, y) => (y * width + x) * 4;
+  const partAt = (x, y) => (inside(x, y) ? mask[at(x, y)] : 0);
+  const alphaAt = (x, y) => (inside(x, y) ? pixels[at(x, y) + 3] : 0);
+  const put = (x, y, rgb) => { if (!inside(x, y)) return; const i = at(x, y); pixels[i] = rgb[0]; pixels[i + 1] = rgb[1]; pixels[i + 2] = rgb[2]; pixels[i + 3] = 255; };
+  const erase = (x, y) => { if (inside(x, y)) pixels[at(x, y) + 3] = 0; };
+  const key = (x, y) => y * width + x;
+  const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  // The crown: the cap and its panel, plus the line work inside the cap's box, which is the
+  // cap's own seams and edge and has to be repainted with it.
+  const crown = new Set();
+  for (let y = hat.y0; y <= hat.y1; y += 1) for (let x = Math.max(x0, hat.x0); x <= Math.min(x1 - 1, hat.x1); x += 1) {
+    const part = partAt(x, y);
+    if (part === PART.hat || part === PART.panel || (part === PART.outline && alphaAt(x, y) > 0)) crown.add(key(x, y));
+  }
+  const hatH = hat.y1 - hat.y0 + 1;
+
+  // The head's width, read across the crown's middle rows — a brim is whatever the cap has
+  // past that, low down.
+  let hx0 = Infinity; let hx1 = -Infinity;
+  crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y >= hat.y0 + hatH * 0.25 && y <= hat.y0 + hatH * 0.55) { hx0 = Math.min(hx0, x); hx1 = Math.max(hx1, x); } });
+  if (!Number.isFinite(hx0)) return;
+  const brim = new Set();
+  if (facing !== 'back') {
+    crown.forEach((k) => { const y = Math.floor(k / width); const x = k - y * width; if (y > hat.y0 + hatH * 0.45 && (x > hx1 + 1 || x < hx0 - 1)) brim.add(k); });
+  }
+
+  if (head.crown === 'cap') {
+    const tint = palette.targets[PART.hat];
+    if (tint) crown.forEach((k) => { if (mask[k * 4] === PART.hat || mask[k * 4] === PART.panel) { const i = k * 4; const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[mask[i]], tint); pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2]; } });
+  } else {
+    const kind = head.hat?.kind || null;
+    // The brim goes, unless it is a visor's; the cap's own top is a little taller than a head.
+    if (kind !== 'visor') brim.forEach((k) => { crown.delete(k); erase(k - Math.floor(k / width) * width, Math.floor(k / width)); });
+    if (head.crown !== 'hat') {
+      const top = Math.min(...[...crown].map((k) => Math.floor(k / width)));
+      [...crown].forEach((k) => { const y = Math.floor(k / width); if (y < top + 2 && !brim.has(k)) { crown.delete(k); erase(k - y * width, y); } });
+    }
+    const rows = new Map();
+    let by0 = Infinity; let by1 = -Infinity;
+    crown.forEach((k) => { if (brim.has(k)) return; const y = Math.floor(k / width); const x = k - y * width; const row = rows.get(y) || [Infinity, -Infinity]; rows.set(y, [Math.min(row[0], x), Math.max(row[1], x)]); by0 = Math.min(by0, y); by1 = Math.max(by1, y); });
+    if (!rows.size) return;
+    const bh = by1 - by0 + 1;
+    const base = head.crown === 'scalp' ? skin : head.crown === 'hair' ? hair : head.hat.rgb;
+    const trim = head.hat?.trim || null;
+
+    // The dome.
+    crown.forEach((k) => {
+      if (brim.has(k)) return;
+      const y = Math.floor(k / width); const x = k - y * width;
+      const [rx0, rx1] = rows.get(y);
+      const u = rx1 > rx0 ? (2 * (x - rx0)) / (rx1 - rx0) - 1 : 0;
+      const v = (y - by0) / bh;
+      let shade = domeShade(u, v, dir);
+      let rgb = base;
+      if (head.crown === 'hair' && v > 0.1 && v < 0.26 && (dir === 0 ? Math.abs(u) < 0.5 : u * dir > -0.2)) shade *= 1.22;
+      if (kind === 'beanie' && v > 0.66) { rgb = y === by0 + Math.round(bh * 0.66) ? shaded(base, 1.2) : shaded(base, 0.84); shade = 1; }
+      if ((kind === 'straw' && v > 0.74) || (kind === 'cowboy' && v > 0.78)) { rgb = trim; shade = 0.95; }
+      if (kind === 'visor' && v > 0.8) { rgb = head.hat.rgb; shade = 0.98 - 0.1 * v; }
+      put(x, y, shaded(rgb, shade));
+    });
+    // A visor keeps the cap's brim, in its own colour.
+    if (kind === 'visor') brim.forEach((k) => { const i = k * 4; const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[PART.hat], head.hat.rgb); pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2]; });
+
+    // What a hat adds beyond the cap's silhouette: a pompom, a brim.
+    const extras = new Set();
+    const add = (x, y, rgb) => { if (!inside(x, y)) return; put(x, y, rgb); extras.add(key(x, y)); };
+    const bottom = rows.get(by1);
+    if (kind === 'beanie') {
+      const [tx0, tx1] = rows.get(by0); const cx = Math.round((tx0 + tx1) / 2 + dir * (tx1 - tx0) * 0.05); const cy = by0 - 2;
+      for (let dy = -3; dy <= 3; dy += 1) for (let dx = -3; dx <= 3; dx += 1) if (dx * dx + dy * dy <= 10) add(cx + dx, cy + dy, shaded(trim, 1 - 0.06 * (dy + 3)));
+    }
+    if (kind === 'bucket' || kind === 'straw' || kind === 'cowboy') {
+      const reach = kind === 'bucket' ? 3 : kind === 'straw' ? 7 : 6;
+      const lift = kind === 'cowboy' ? 2 : kind === 'straw' ? 1 : 0;
+      for (let x = bottom[0] - reach; x <= bottom[1] + reach; x += 1) {
+        const out = Math.max(0, Math.max(bottom[0] - x, x - bottom[1]));
+        const up = lift && out > reach - 3 ? lift - (reach - out) : 0;
+        for (let r = 0; r < 3; r += 1) add(x, by1 + 1 + r - Math.max(0, up), r === 2 ? shaded(base, 0.72) : shaded(base, 1.02 - 0.08 * r));
       }
-      if (part === PART.beard && !keepBeard) {
-        const out = jawPixel([pixels[i], pixels[i + 1], pixels[i + 2]], skin);
-        pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
-        if (stubble && (x + y) % 2 === 0) { pixels[i] = stubble[0]; pixels[i + 1] = stubble[1]; pixels[i + 2] = stubble[2]; }
-        continue;
-      }
-      const target = targets[part];
-      if (!target) continue;
-      const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[part], target);
-      pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
+      if (kind === 'bucket') for (let x = bottom[0] - reach; x <= bottom[1] + reach; x += 1) add(x, by1 + 1, shaded(trim, 1));
+    }
+
+    // The line: around the sculpted head against the open, around a hat against everything;
+    // hair meets the face with a darker row rather than a line, scalp meets it with nothing.
+    const sculpted = new Set([...crown, ...extras]);
+    sculpted.forEach((k) => {
+      if (brim.has(k) && kind !== 'visor') return;
+      const y = Math.floor(k / width); const x = k - y * width;
+      let edge = false; let onFace = false;
+      NEIGHBOURS.forEach(([dx, dy]) => {
+        const nx = x + dx; const ny = y + dy;
+        if (sculpted.has(key(nx, ny))) return;
+        if (alphaAt(nx, ny) === 0) edge = true;
+        else if (head.crown === 'hat' || kind === 'visor') edge = true;
+        else onFace = true;
+      });
+      if (edge) put(x, y, OUTLINE);
+      else if (onFace && head.crown === 'hair') { const i = at(x, y); put(x, y, shaded([pixels[i], pixels[i + 1], pixels[i + 2]], 0.72)); }
+    });
+
+    // Long hair, down the back of the neck, behind the body: only the open air and the nape
+    // are painted, and from behind the neck too.
+    if (head.hairBack) {
+      const headW = hx1 - hx0 + 1;
+      const yTop = Math.round(by0 + bh * 0.45);
+      const yBot = Math.round((beard ? beard.y1 : by1) + bh * 0.4);
+      const spans = facing === 'right' ? [[hx0 - Math.round(headW * 0.12), hx0 + Math.round(headW * 0.28)]]
+        : facing === 'left' ? [[hx1 - Math.round(headW * 0.28), hx1 + Math.round(headW * 0.12)]]
+          : facing === 'front' ? [[hx0 - Math.round(headW * 0.08), hx0 + Math.round(headW * 0.18)], [hx1 - Math.round(headW * 0.18), hx1 + Math.round(headW * 0.08)]]
+            : [[hx0, hx1]];
+      const fill = new Set();
+      spans.forEach(([sx0, sx1]) => {
+        for (let y = yTop; y <= yBot; y += 1) for (let x = sx0; x <= sx1; x += 1) {
+          if (!inside(x, y) || sculpted.has(key(x, y))) continue;
+          const part = partAt(x, y);
+          const open = alphaAt(x, y) === 0 || part === PART.beard || (facing === 'back' && (part === PART.jacket || part === PART.skin));
+          if (!open) continue;
+          // Rounded off at the bottom corners.
+          const v = (y - yTop) / Math.max(1, yBot - yTop);
+          if (v > 0.85 && (x === sx0 || x === sx1)) continue;
+          put(x, y, shaded(hair, 0.9 - 0.2 * v));
+          fill.add(key(x, y));
+        }
+      });
+      fill.forEach((k) => {
+        const y = Math.floor(k / width); const x = k - y * width;
+        if (NEIGHBOURS.some(([dx, dy]) => !fill.has(key(x + dx, y + dy)) && !sculpted.has(key(x + dx, y + dy)) && alphaAt(x + dx, y + dy) === 0)) put(x, y, OUTLINE);
+      });
     }
   }
-  return pixels;
+
+  // The beard: kept and dyed, or cut down to a jaw with the parts of it a style keeps.
+  if (!beard) return;
+  const bH = beard.y1 - beard.y0 + 1;
+  const nape = (x) => facing === 'back' || (facing !== 'front' && face && frontness(x, face, facing) < 0);
+  const stubble = mix(skin, hair, 0.45);
+  for (let y = beard.y0; y <= beard.y1; y += 1) for (let x = Math.max(x0, beard.x0); x <= Math.min(x1 - 1, beard.x1); x += 1) {
+    if (partAt(x, y) !== PART.beard) continue;
+    const i = at(x, y);
+    const own = [pixels[i], pixels[i + 1], pixels[i + 2]];
+    const v = (y - beard.y0) / bH;
+    const t = face ? frontness(x, face, facing) : -1;
+    let keep = head.beard === 'keep';
+    if (head.beard === 'goatee') keep = (t > 0.5 && v > 0.45) || (t > 0.38 && v < 0.3);
+    if (head.beard === 'mustache') keep = t > 0.35 && v < 0.32;
+    if (nape(x)) {
+      // Behind the ear it is the hair at the nape, whatever the beard is.
+      if (head.crown === 'scalp') put(x, y, shaded(skin, 0.9 - 0.1 * v));
+      else if (head.beardTint || head.crown !== 'cap') { const out = tintPixel(own, PART_BASE[PART.beard], hair); put(x, y, out); }
+      continue;
+    }
+    if (keep) {
+      if (head.beardTint) put(x, y, tintPixel(own, PART_BASE[PART.beard], head.beardTint));
+      continue;
+    }
+    let rgb = shaded(skin, (0.97 - 0.14 * v) * (t < 0.3 ? 0.94 : 1));
+    if (head.beard === 'stubble' && v > 0.2 && (x + y) % 2 === 0) rgb = stubble;
+    const edge = NEIGHBOURS.some(([dx, dy]) => alphaAt(x + dx, y + dy) === 0);
+    const collar = !edge && NEIGHBOURS.some(([dx, dy]) => partAt(x + dx, y + dy) === PART.jacket);
+    put(x, y, edge ? OUTLINE : collar ? shaded(rgb, 0.8) : rgb);
+  }
 }
 
-// Where a drawing goes on a frame, as fractions of the box it's placed on (the cap's box
-// for hats and hair, the beard's box for facial hair): its width relative to the box, how
-// far its centre sits forward of the box's centre, and where its bottom or top lands.
-// `aspect` is the drawing's width / height. Coordinates are frame pixels: { x, y, w, h }.
-export const PLACEMENTS = {
-  hat: { on: 'hat', w: 1.36, cx: 0.03, bottom: 0.98 },
-  visor: { on: 'hat', w: 1.1, cx: 0.1, bottom: 1.02 },
-  hair_short: { on: 'hat', w: 1.3, cx: 0.02, bottom: 1.14 },
-  hair_long: { on: 'hat', w: 1.0, cx: -0.18, top: 0.35 },
-  beard_goatee: { on: 'beard', w: 0.72, cx: 0.14, top: 0.15 },
-  beard_mustache: { on: 'beard', w: 0.66, cx: 0.16, top: -0.08 },
-};
-export function placeOn(frame, kind, aspect = 1) {
-  const rule = PLACEMENTS[kind];
-  const box = frame?.[rule.on];
-  if (!box) return null;
-  const boxW = box.x1 - box.x0 + 1;
-  const boxH = box.y1 - box.y0 + 1;
-  const w = boxW * rule.w;
-  const h = w / aspect;
-  const cx = box.x0 + boxW / 2 + boxW * rule.cx;
-  const y = rule.bottom !== undefined ? box.y0 + boxH * rule.bottom - h : box.y0 + boxH * rule.top;
-  return { x: cx - w / 2, y, w, h };
+// Dye a strip in place, then sculpt every frame's head. `pixels` is the strip's RGBA, `mask`
+// the matching mask's RGBA (red = part id), `anchors` the per-frame boxes.
+export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette }) {
+  const { targets } = palette;
+  for (let i = 0; i < pixels.length; i += 4) {
+    if (pixels[i + 3] === 0) continue;
+    const part = mask[i];
+    // The cap and the beard are the head's to sculpt.
+    if (!part || part === PART.hat || part === PART.panel || part === PART.beard) continue;
+    const target = targets[part];
+    if (!target) continue;
+    const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[part], target);
+    pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
+  }
+  const frames = Math.ceil(width / frameWidth);
+  for (let f = 0; f < frames; f += 1) {
+    sculptHead({ pixels, mask, width, height, x0: f * frameWidth, x1: Math.min(width, (f + 1) * frameWidth), frame: frameAnchors[f], palette });
+  }
+  return pixels;
 }
 
 // ---- Canvas work ----
@@ -135,65 +282,18 @@ function loadImage(src) {
   return images.get(src);
 }
 
-// A hair or beard drawing dyed to the look's hair colour, keeping its own shading.
-function dyed(img, target) {
-  const { canvas, ctx } = canvasFor(img.width, img.height);
-  ctx.drawImage(img, 0, 0);
-  const image = ctx.getImageData(0, 0, img.width, img.height);
-  const d = image.data;
-  for (let i = 0; i < d.length; i += 4) {
-    if (d[i + 3] === 0) continue;
-    const out = tintPixel([d[i], d[i + 1], d[i + 2]], HAIR_ART_BASE, target);
-    d[i] = out[0]; d[i + 1] = out[1]; d[i + 2] = out[2];
-  }
-  ctx.putImageData(image, 0, 0);
-  return canvas;
-}
-
-async function partsFor(palette) {
-  const want = [];
-  if (palette.hairCrown) want.push(['crown', palette.hairCrown, true]);
-  if (palette.hairBack) want.push(['back', palette.hairBack, true]);
-  if (palette.beardOverlay) want.push(['beard', palette.beardOverlay, true]);
-  if (palette.hatOverlay) want.push(['hat', palette.hatOverlay, false]);
-  const entries = await Promise.all(want.map(async ([slot, name, dye]) => {
-    const img = await loadImage(PART_ART[name]);
-    return [slot, { image: dye ? dyed(img, palette.hair) : img, kind: name === 'visor' ? 'visor' : PLACEMENTS[name] ? name : 'hat' }];
-  }));
-  return Object.fromEntries(entries);
-}
-
-function drawPart(ctx, part, frame, offsetX) {
-  if (!part) return;
-  const box = placeOn(frame, part.kind, part.image.width / part.image.height);
-  if (box) ctx.drawImage(part.image, offsetX + box.x, box.y, box.w, box.h);
-}
-
-// Paint one action's strip for a palette: dye the art, then dress every frame.
-async function paintStrip(action, palette, parts) {
+// Paint one action's strip for a palette.
+async function paintStrip(action, palette) {
   const [art, maskArt] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), loadImage(MASKS[action])]);
   const { width, height } = art;
   const main = canvasFor(width, height);
   const maskCanvas = canvasFor(width, height);
-  const base = canvasFor(width, height);
-  base.ctx.drawImage(art, 0, 0);
+  main.ctx.drawImage(art, 0, 0);
   maskCanvas.ctx.drawImage(maskArt, 0, 0);
-  const image = base.ctx.getImageData(0, 0, width, height);
+  const image = main.ctx.getImageData(0, 0, width, height);
   const mask = maskCanvas.ctx.getImageData(0, 0, width, height).data;
-  const frameAnchors = anchors[action] || [];
-  paintPixels({ pixels: image.data, mask, width, height, frameWidth: SPRITE_FRAME.w, anchors: frameAnchors, palette });
-  base.ctx.putImageData(image, 0, 0);
-  main.ctx.imageSmoothingEnabled = true;
-  main.ctx.imageSmoothingQuality = 'high';
-  // Behind the body, the body, then what sits on the head.
-  frameAnchors.forEach((frame, index) => drawPart(main.ctx, parts.back, frame, index * SPRITE_FRAME.w));
-  main.ctx.drawImage(base.canvas, 0, 0);
-  frameAnchors.forEach((frame, index) => {
-    const offset = index * SPRITE_FRAME.w;
-    drawPart(main.ctx, parts.crown, frame, offset);
-    drawPart(main.ctx, parts.beard, frame, offset);
-    drawPart(main.ctx, parts.hat, frame, offset);
-  });
+  paintPixels({ pixels: image.data, mask, width, height, frameWidth: SPRITE_FRAME.w, anchors: anchors[action] || [], palette });
+  main.ctx.putImageData(image, 0, 0);
   return main.canvas;
 }
 
@@ -208,9 +308,8 @@ export function renderAngler(look) {
   if (!sheetCache.has(key)) {
     const palette = paletteFor(look);
     const job = (async () => {
-      const parts = await partsFor(palette);
       const sheets = {};
-      for (const action of Object.keys(ANGLER_SPRITES)) sheets[action] = (await paintStrip(action, palette, parts)).toDataURL('image/png');
+      for (const action of Object.keys(ANGLER_SPRITES)) sheets[action] = (await paintStrip(action, palette)).toDataURL('image/png');
       return sheets;
     })().catch(() => null);
     sheetCache.set(key, job);
@@ -225,9 +324,7 @@ export function renderStill(look) {
   const key = lookKey(look);
   if (!stillCache.has(key)) {
     const job = (async () => {
-      const palette = paletteFor(look);
-      const parts = await partsFor(palette);
-      const strip = await paintStrip('idle', palette, parts);
+      const strip = await paintStrip('idle', paletteFor(look));
       const still = canvasFor(SPRITE_FRAME.w, SPRITE_FRAME.h);
       still.ctx.drawImage(strip, 0, 0, SPRITE_FRAME.w, SPRITE_FRAME.h, 0, 0, SPRITE_FRAME.w, SPRITE_FRAME.h);
       return still.canvas.toDataURL('image/png');
