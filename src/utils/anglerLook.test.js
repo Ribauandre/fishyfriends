@@ -46,7 +46,8 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_red.sprite, tint: null });
   expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ sprite: 'cap_olive', tint: WARDROBE.cap_black.tint });
   // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
-  expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ sprite: 'side_part' });
+  // The stock style is the artist's own, lifted pose by pose; the rest are stamped hairpieces.
+  expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ overlay: true });
   expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head.hair).toMatchObject({ sprite: 'long' });
   expect(paletteFor({ hairstyle: 'bald' }).head.hair).toBeNull();
   expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');

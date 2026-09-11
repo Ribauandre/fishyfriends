@@ -34,12 +34,17 @@ export const HAIR_COLORS = {
   grey: { label: 'Grey', rgb: [156, 156, 156] },
 };
 
-// The sheet draws the head bald, so a hairstyle is a drawn hairpiece stamped over the skull —
-// one of the eight in assets/angler/hair.png, named by its `sprite` (see utils/hairSprites.json)
-// — dyed to the chosen colour. `bald` is the art as it comes.
+// The sheet draws the head bald, so a hairstyle is drawn hair put on it, and there are two
+// kinds. `overlay` is the artist's own, lifted pose by pose off art/angler-haired-sheet.png into
+// assets/angler/hair/*.png — it lies pixel-for-pixel on the strip, so it is right at every angle
+// the sheet draws, including the heads thrown back mid-cast and bowed on a loss. The rest are
+// `sprite`s: generated front-on hairpieces in assets/angler/hair.png, stamped on the crown. The
+// overlay is the better of the two and there is only one of it; the sprites are the variety.
+// `bald` is the art as it comes.
 export const HAIR_STYLES = {
-  bald: { label: 'Bald', sprite: null },
-  short: { label: 'Side part', sprite: 'side_part' },
+  bald: { label: 'Bald' },
+  short: { label: 'Short', overlay: true },
+  sweep: { label: 'Swept', sprite: 'side_part' },
   crew: { label: 'Crew cut', sprite: 'crew' },
   mop: { label: 'Mop', sprite: 'mop' },
   curls: { label: 'Curls', sprite: 'curls' },
@@ -149,11 +154,13 @@ export const isDefaultLook = (look) => lookKey(look) === lookKey(DEFAULT_LOOK);
 // The parts a pixel can belong to (the mask's red channel), and the colour each is painted in
 // the art: the mid-tone the shading is measured against when it's retinted.
 export const PART = { skin: 1, shirt: 2, waders: 3, boots: 4, rod: 5, outline: 6 };
-// The mid-tones the drawn beard and the drawn hair are painted in, which their dyes are
-// measured against. Each is read off the lighter strands rather than the middle, so that
-// dyeing a pale colour onto them lands under white instead of blowing out.
-export const BEARD_BASE = [140, 104, 64];
-export const HAIR_BASE = [132, 84, 44];
+// The mid-tones the art is painted in, which its dyes are measured against. Each is read off
+// the lighter strands rather than the middle, so that dyeing a pale colour onto them lands under
+// white instead of blowing out. DRAWN_BASE covers everything lifted off a pose sheet — the
+// beard and the hair overlays, which are the same hand and the same palette; HAIR_SPRITE_BASE
+// is the generated hairpieces, which came out lighter.
+export const DRAWN_BASE = [112, 72, 48];
+export const HAIR_SPRITE_BASE = [132, 84, 44];
 
 export const PART_BASE = {
   [PART.skin]: [208, 136, 88],
@@ -187,7 +194,7 @@ export function paletteFor(look) {
     },
     head: {
       // Hair goes on whether or not a hat does: a cap leaves plenty of it showing.
-      hair: style.sprite ? { sprite: style.sprite } : null,
+      hair: style.overlay ? { overlay: true } : style.sprite ? { sprite: style.sprite } : null,
       hat: hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
       beard: { ...beard },
     },

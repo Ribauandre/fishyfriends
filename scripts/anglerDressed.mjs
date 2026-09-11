@@ -1,9 +1,10 @@
-// Lifts two things off the dressed angler sheet: the artist's own beard, as an overlay strip
-// per action (src/assets/angler/beard/*.png) pixel-for-pixel on top of the bald strips, and
-// where he put the cap, as a per-frame anchor for every hat the game stamps
-// (src/utils/hatAnchors.json).
+// Lifts what the artist drew on the angler's head off a sheet that has it, as an overlay strip
+// per action laid pixel-for-pixel on top of the bald strips:
 //
-//   node scripts/anglerDressed.mjs art/angler-dressed-sheet.png
+//   node scripts/anglerDressed.mjs beard art/angler-dressed-sheet.png  -> assets/angler/beard/*
+//   node scripts/anglerDressed.mjs hair  art/angler-haired-sheet.png   -> assets/angler/hair/*
+//
+// The beard run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
 //
 // The dressed sheet is the same character in the same poses as art/angler-sheet.png, drawn
 // with an olive cap and a full beard on a white background. Sliced on the same feet anchor
@@ -12,10 +13,13 @@
 // that angle, with its own shading and line work. That is worth far more than a beard the
 // painter invents: a shape guessed from a head box is the thing that looked sloppy.
 //
-// The two are told apart by hue, which the art makes easy: the cap is olive (red and green
-// level, blue behind them) and the beard is brown (red ahead of green ahead of blue). Line work
-// goes to whichever of the two it lies against. The beard is written straight into the strip's
-// own geometry, so the painter has nothing to scale or place: it stamps the overlay as it is.
+// What is lifted is the brown around the head, which is all either sheet adds there: hair on
+// one, a beard on the other. Hue does the work — brown runs red ahead of green ahead of blue,
+// where the cap's olive has red and green level, and the waders are further off still. Line work
+// goes with whatever it lies against. Each overlay is written straight into the strip's own
+// geometry, so the painter has nothing to scale or place: it stamps it as it is. That is the
+// whole point of these sheets — a hairstyle drawn for a head thrown back mid-cast beats any
+// front-on hairpiece pasted onto one, and there are twenty-two of those heads.
 //
 // The cap itself is thrown away — hats come from the hats sheet, which has twenty of them — but
 // not before it is measured. Where a hat sits was the last thing in this pipeline still being
@@ -39,11 +43,15 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const sheet = process.argv[2];
-if (!sheet) { console.error('usage: node scripts/anglerBeard.mjs <dressed-sheet.png>'); process.exit(1); }
+const [kind, sheet] = process.argv.slice(2);
+// `below` is how far past the chin to look, as a fraction of the head: a beard spills onto the
+// collar, hair does not. `caps` says the sheet wears one worth measuring.
+const LIFT = { beard: { below: 0.55, caps: true }, hair: { below: 0, caps: false } };
+const lift = LIFT[kind];
+if (!lift || !sheet) { console.error(`usage: node scripts/anglerDressed.mjs <${Object.keys(LIFT).join('|')}> <sheet.png>`); process.exit(1); }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assets = path.join(root, 'src', 'assets', 'angler');
-const out = path.join(assets, 'beard');
+const out = path.join(assets, kind);
 mkdirSync(out, { recursive: true });
 const ANCHORS = JSON.parse(readFileSync(path.join(root, 'src', 'utils', 'anglerAnchors.json'), 'utf8'));
 
@@ -60,7 +68,7 @@ for (const action of Object.keys(KEEP)) bald[action] = `data:image/png;base64,${
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage();
 const data = readFileSync(sheet).toString('base64');
-const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips, heads }) => {
+const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips, heads, lift }) => {
   const load = async (src) => { const img = new Image(); img.src = src; await img.decode(); return img; };
   const pixelsOf = (img) => {
     const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -111,8 +119,10 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
   });
   const poseBands = bands.filter((b) => b.y1 - b.y0 + 1 >= 140);
 
-  // Brown against olive: the beard's red runs ahead of its green, the cap's does not.
-  const isBeard = (p) => px[p * 4] - px[p * 4 + 1] > 10;
+  // Brown against olive: hair and beard run red ahead of green, where the cap's olive has the
+  // two level. Skin runs redder still, so darkness is what separates it — the face is the
+  // lightest thing on the head and hair the darkest.
+  const isBeard = (p) => px[p * 4] - px[p * 4 + 1] > 10 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 130;
   const isDark = (p) => (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 70;
   const isCap = (p) => Math.abs(px[p * 4] - px[p * 4 + 1]) <= 12 && (px[p * 4] + px[p * 4 + 1]) / 2 - px[p * 4 + 2] > 16 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 170;
 
@@ -182,10 +192,12 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         const to = (y * strip.width + x) * 4;
         total += 1;
         if (base.data[to + 3]) covered += 1;
-        if (isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
+        // Only brown around the head — the rod is brown too, and crosses right past it.
+        const lx = x - f * box.w;
+        const onHead = head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * lift.below;
+        if (onHead && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
         else if (isDark(p)) line.add(to);
-        else if (head && isCap(p)) {
-          const lx = x - f * box.w;
+        else if (lift.caps && head && isCap(p)) {
           if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
           const row = capRows.get(y) || [Infinity, -Infinity];
           capRows.set(y, [Math.min(row[0], lx), Math.max(row[1], lx)]);
@@ -217,13 +229,15 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
     results[action] = { url: strip.toDataURL('image/png'), overlap: Math.round((covered / total) * 100) };
   }
   return { results, notes, hatAnchors };
-}, { data, bald, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS });
+}, { data, bald, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS, lift });
 
 for (const [action, { url, overlap }] of Object.entries(report.results)) {
   writeFileSync(path.join(out, `${action}.png`), Buffer.from(url.split(',')[1], 'base64'));
-  console.log(`beard/${action}.png — ${overlap}% of the dressed frame lands on the bald one`);
+  console.log(`${kind}/${action}.png — ${overlap}% of the dressed frame lands on the bald one`);
 }
-writeFileSync(path.join(root, 'src', 'utils', 'hatAnchors.json'), `${JSON.stringify(report.hatAnchors)}\n`);
-console.log('wrote src/utils/hatAnchors.json');
+if (lift.caps) {
+  writeFileSync(path.join(root, 'src', 'utils', 'hatAnchors.json'), `${JSON.stringify(report.hatAnchors)}\n`);
+  console.log('wrote src/utils/hatAnchors.json');
+}
 report.notes.forEach((note) => console.log(' ', note));
 await browser.close();

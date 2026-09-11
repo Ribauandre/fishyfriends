@@ -114,13 +114,24 @@ test('the beard is the drawn overlay, dyed, and a style is a window on it', () =
   expect(near(dressed({ beard: 'none' })(20, 30), PART_BASE[PART.skin], 2)).toBe(true);
 });
 
-test('hair is a drawn hairpiece too, put on the crown and dyed', () => {
+test('the stock hairstyle is an overlay lying on the strip, dyed where it is not line work', () => {
+  const over = new Uint8ClampedArray(W * H * 4);
+  for (let y = 11; y <= 18; y += 1) for (let x = 14; x <= 28; x += 1) over.set([120, 78, 52, 255], (y * W + x) * 4);
+  const { pixels, mask } = scene();
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ hairstyle: 'short', hair: 'black' }), hairOver: over });
+  const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  expect(near(px(20, 14), HAIR_COLORS.black.rgb, 80)).toBe(true);
+  // Nothing outside the overlay is touched.
+  expect(near(px(20, 28), PART_BASE[PART.skin], 2)).toBe(true);
+});
+
+test('the other hairstyles are hairpieces stamped on the crown and dyed', () => {
   const cell = { cellW: 10, cellH: 8, anchorY: 0, refHead: 19, anchor: 'top' };
   const data = new Uint8ClampedArray(cell.cellW * cell.cellH * 4);
   for (let i = 0; i < cell.cellW * cell.cellH; i += 1) data.set([150, 100, 60, 255], i * 4);
-  const art = { data, width: cell.cellW, height: cell.cellH, ...cell, index: { side_part: 0 } };
+  const art = { data, width: cell.cellW, height: cell.cellH, ...cell, index: { curls: 0 } };
   const { pixels, mask } = scene();
-  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ hairstyle: 'short', hair: 'black' }), hairArt: art });
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ hairstyle: 'curls', hair: 'black' }), hairArt: art });
   const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
   // Its own crown goes on the skull's, not on the row a hat hangs from.
   expect(near(px(21, 11), HAIR_COLORS.black.rgb, 80)).toBe(true);
