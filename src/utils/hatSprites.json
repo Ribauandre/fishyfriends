@@ -1,0 +1,28 @@
+{
+  "refHead": 40,
+  "cellW": 63,
+  "cellH": 60,
+  "anchorY": 39,
+  "order": [
+    "cap_fish_navy",
+    "cap_fish_red",
+    "cap_olive",
+    "cap_brown",
+    "cap_camo",
+    "bucket_tan",
+    "bucket_canvas",
+    "bucket_camo",
+    "straw_blue",
+    "straw_red",
+    "beanie_black",
+    "beanie_olive",
+    "beanie_red",
+    "beanie_navy",
+    "beanie_grey",
+    "souwester",
+    "wide_olive",
+    "wide_navy",
+    "boonie_white",
+    "boonie_olive"
+  ]
+}

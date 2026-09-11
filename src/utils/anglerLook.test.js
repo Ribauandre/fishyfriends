@@ -1,4 +1,5 @@
 import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, SKIN_TONES, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor } from './anglerLook';
+import hatSprites from './hatSprites.json';
 
 test('a look you cannot wear falls back to the free defaults, slot by slot', () => {
   expect(normalizeLook(null)).toEqual(DEFAULT_LOOK);
@@ -18,15 +19,15 @@ test('the look key is the normalized look in a fixed order, so it can cache pain
   expect(isDefaultLook({ beard: 'full' })).toBe(false);
 });
 
-test('every rack item has a slot, a price and, for a hat, the kind the painter builds', () => {
+test('every rack item has a slot, a price and, for a hat, a drawing to stamp', () => {
   Object.values(WARDROBE).forEach((item) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
-    if (item.slot === 'hat' && item.kind !== 'none') {
-      expect(['cap', 'visor', 'beanie', 'straw', 'bucket', 'cowboy']).toContain(item.kind);
-      expect(item.rgb).toHaveLength(3);
-      expect(item.trim).toHaveLength(3);
-    }
+    if (item.slot !== 'hat') return;
+    if (item.sprite === null) return;
+    expect(hatSprites.order).toContain(item.sprite);
+    // A tinted hat says which drawing's colour it is measured against.
+    if (item.tint) expect(item.base).toHaveLength(3);
   });
   SLOTS.forEach((slot) => expect(itemsFor(slot).some((item) => item.cost === 0)).toBe(true));
 });
@@ -35,22 +36,19 @@ test('the default look is the art as drawn: nothing dyed and nothing on the head
   const palette = paletteFor(DEFAULT_LOOK);
   expect(Object.values(palette.targets).every((target) => target === null)).toBe(true);
   expect(palette.head).toMatchObject({ crown: 'bare', hat: null, hairBack: false });
-  expect(palette.head.beard.rise).toBe(0);
-  expect(palette.head.beard.lip).toBe(false);
+  expect(palette.head.beard.keep).toBe('none');
 });
 
-test('the head plan says what goes on the skull and what shape the beard takes', () => {
-  expect(paletteFor({ hat: 'cap_red' }).head).toMatchObject({ crown: 'hat', hat: { kind: 'cap', rgb: WARDROBE.cap_red.rgb, trim: WARDROBE.cap_red.trim } });
+test('the head plan names the drawing to stamp and the part of the beard to keep', () => {
+  expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_red.sprite, tint: null });
+  expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ sprite: 'cap_olive', tint: WARDROBE.cap_black.tint });
+  // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
   expect(paletteFor({ hairstyle: 'short' }).head).toMatchObject({ crown: 'hair', hairBack: false });
-  expect(paletteFor({ hairstyle: 'long' }).head).toMatchObject({ crown: 'hair', hairBack: true });
-  expect(paletteFor({ hat: 'hat_beanie' }).head.crown).toBe('hat');
-  // A visor sits on whatever the hairstyle makes of the crown.
-  expect(paletteFor({ hat: 'hat_visor', hairstyle: 'short' }).head).toMatchObject({ crown: 'hair', hat: { kind: 'visor' } });
-  expect(paletteFor({ hat: 'hat_visor' }).head.crown).toBe('bare');
-  // Long hair hangs down the back under a hat too.
-  expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head).toMatchObject({ crown: 'hat', hairBack: true });
-  expect(paletteFor({ beard: 'full' }).head.beard.rise).toBeGreaterThan(0);
-  expect(paletteFor({ beard: 'goatee' }).head.beard.chinOnly).toBe(true);
+  expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head).toMatchObject({ crown: 'hair', hairBack: true });
+  expect(paletteFor({ hairstyle: 'bald' }).head.crown).toBe('bare');
+  expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
+  expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('chin');
+  expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('lip');
   expect(paletteFor({ beard: 'stubble' }).head.beard.dither).toBe(true);
   expect(paletteFor({ hair: 'grey' }).hair).toEqual(HAIR_COLORS.grey.rgb);
 });
