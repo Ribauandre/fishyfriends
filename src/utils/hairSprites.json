@@ -1,0 +1,17 @@
+{
+  "refHead": 40,
+  "anchor": "top",
+  "cellW": 51,
+  "cellH": 75,
+  "anchorY": 3,
+  "order": [
+    "side_part",
+    "crew",
+    "mop",
+    "curls",
+    "widows_peak",
+    "long",
+    "top_knot",
+    "shaggy"
+  ]
+}

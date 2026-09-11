@@ -1,7 +1,9 @@
-// Lifts the artist's own beard off the dressed angler sheet and writes it as an overlay strip
-// per action (src/assets/angler/beard/*.png), pixel-for-pixel on top of the bald strips.
+// Lifts two things off the dressed angler sheet: the artist's own beard, as an overlay strip
+// per action (src/assets/angler/beard/*.png) pixel-for-pixel on top of the bald strips, and
+// where he put the cap, as a per-frame anchor for every hat the game stamps
+// (src/utils/hatAnchors.json).
 //
-//   node scripts/anglerBeard.mjs art/angler-dressed-sheet.png
+//   node scripts/anglerDressed.mjs art/angler-dressed-sheet.png
 //
 // The dressed sheet is the same character in the same poses as art/angler-sheet.png, drawn
 // with an olive cap and a full beard on a white background. Sliced on the same feet anchor
@@ -11,10 +13,16 @@
 // painter invents: a shape guessed from a head box is the thing that looked sloppy.
 //
 // The two are told apart by hue, which the art makes easy: the cap is olive (red and green
-// level, blue behind them) and the beard is brown (red ahead of green ahead of blue). Line
-// work goes to whichever of the two it lies against. Only the beard is kept — hats come from
-// the hats sheet, which has twenty of them — and it is written straight into the strip's own
-// geometry, so the painter has nothing to scale or place: it stamps the overlay as it is.
+// level, blue behind them) and the beard is brown (red ahead of green ahead of blue). Line work
+// goes to whichever of the two it lies against. The beard is written straight into the strip's
+// own geometry, so the painter has nothing to scale or place: it stamps the overlay as it is.
+//
+// The cap itself is thrown away — hats come from the hats sheet, which has twenty of them — but
+// not before it is measured. Where a hat sits was the last thing in this pipeline still being
+// guessed at, as a fraction of the head box, and it showed: a fraction cannot know that the
+// head is tipped forward in one pose and thrown back in another. The artist did know, in every
+// frame, so each frame keeps the centre and the row of the cap's own brim and every hat is
+// hung on that.
 // Needs Playwright with Chromium (project or global install via NODE_PATH; PLAYWRIGHT_CHROMIUM
 // to point at a binary).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -37,6 +45,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assets = path.join(root, 'src', 'assets', 'angler');
 const out = path.join(assets, 'beard');
 mkdirSync(out, { recursive: true });
+const ANCHORS = JSON.parse(readFileSync(path.join(root, 'src', 'utils', 'anglerAnchors.json'), 'utf8'));
 
 // The same rows and the same kept frames as scripts/anglerSlice.mjs — it is the same character
 // in the same poses, so anything else would put a beard on the wrong face.
@@ -51,7 +60,7 @@ for (const action of Object.keys(KEEP)) bald[action] = `data:image/png;base64,${
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage();
 const data = readFileSync(sheet).toString('base64');
-const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips }) => {
+const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips, heads }) => {
   const load = async (src) => { const img = new Image(); img.src = src; await img.decode(); return img; };
   const pixelsOf = (img) => {
     const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -105,6 +114,7 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips 
   // Brown against olive: the beard's red runs ahead of its green, the cap's does not.
   const isBeard = (p) => px[p * 4] - px[p * 4 + 1] > 10;
   const isDark = (p) => (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 70;
+  const isCap = (p) => Math.abs(px[p * 4] - px[p * 4 + 1]) <= 12 && (px[p * 4] + px[p * 4 + 1]) / 2 - px[p * 4 + 2] > 16 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 170;
 
   // A rod arcing into the next pose joins the two into one blob, so the figures are counted
   // by their bodies — what survives losing three pixels all round — and every pixel goes to
@@ -146,7 +156,7 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips 
     notes.push(`row ${index}: ${figures.length} figures`);
   });
 
-  const results = {};
+  const results = {}; const hatAnchors = {};
   for (const [action, frames] of Object.entries(sheets)) {
     const base = pixelsOf(await load(bald[action]));
     const strip = document.createElement('canvas');
@@ -161,7 +171,11 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips 
       if (!n) { notes.push(`${action}[${f}] no feet found`); return; }
       const feetX = Math.round(sum / n); const feetY = comp.y1;
       const dx = f * box.w + box.feetX - feetX; const dy = box.feetY - feetY;
-      const hit = new Set(); const line = new Set();
+      const hit = new Set(); const line = new Set(); const capRows = new Map();
+      // The head this pose was sliced with, so the cap can be told from the waders — which are
+      // the same olive, and the only other olive on the figure.
+      const box0 = (heads[action] || [])[f];
+      const head = box0 && box0.head;
       comp.pixels.forEach((p) => {
         const x = (p % W) + dx; const y = ((p / W) | 0) + dy;
         if (x < f * box.w || x >= (f + 1) * box.w || y < 0 || y >= box.h) return;
@@ -170,7 +184,24 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips 
         if (base.data[to + 3]) covered += 1;
         if (isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
         else if (isDark(p)) line.add(to);
+        else if (head && isCap(p)) {
+          const lx = x - f * box.w;
+          if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
+          const row = capRows.get(y) || [Infinity, -Infinity];
+          capRows.set(y, [Math.min(row[0], lx), Math.max(row[1], lx)]);
+        }
       });
+      // Where the cap meets the head: the lowest row still most of its full width, the same
+      // row every hat sprite is anchored on, and the middle of the row that is widest.
+      if (capRows.size) {
+        let full = 0; let wideAt = null;
+        capRows.forEach((row, y) => { const run = row[1] - row[0] + 1; if (run > full) { full = run; wideAt = y; } });
+        let seat = wideAt;
+        capRows.forEach((row, y) => { if (row[1] - row[0] + 1 >= full * 0.7 && y > seat) seat = y; });
+        const wide = capRows.get(wideAt);
+        hatAnchors[action] = hatAnchors[action] || [];
+        hatAnchors[action][f] = { cx: Math.round((wide[0] + wide[1]) / 2), y: seat };
+      }
       // Line work touching the beard is the beard's; the cap's own is left behind.
       for (let pass = 0; pass < 2; pass += 1) {
         const gained = [];
@@ -185,12 +216,14 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips 
     sctx.putImageData(image, 0, 0);
     results[action] = { url: strip.toDataURL('image/png'), overlap: Math.round((covered / total) * 100) };
   }
-  return { results, notes };
-}, { data, bald, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS });
+  return { results, notes, hatAnchors };
+}, { data, bald, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS });
 
 for (const [action, { url, overlap }] of Object.entries(report.results)) {
   writeFileSync(path.join(out, `${action}.png`), Buffer.from(url.split(',')[1], 'base64'));
   console.log(`beard/${action}.png — ${overlap}% of the dressed frame lands on the bald one`);
 }
+writeFileSync(path.join(root, 'src', 'utils', 'hatAnchors.json'), `${JSON.stringify(report.hatAnchors)}\n`);
+console.log('wrote src/utils/hatAnchors.json');
 report.notes.forEach((note) => console.log(' ', note));
 await browser.close();

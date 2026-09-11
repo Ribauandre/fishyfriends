@@ -3,8 +3,8 @@
 // through a canvas where `paintPixels` (pure, tested on plain arrays) does three things.
 //
 // Parts that keep their shape are dyed: skin, shirt, waders, boots and rod, luminance-
-// preserving, so the artist's shading survives. The beard and the hat are *drawn art stamped
-// on*, not shapes the painter invents — inventing them was what looked sloppy. The beard
+// preserving, so the artist's shading survives. The beard, the hat and the hair are *drawn art
+// stamped on*, not shapes the painter invents — inventing them was what looked sloppy. The beard
 // overlays in assets/angler/beard are the artist's own beard, lifted pose by pose off the
 // dressed sheet by scripts/anglerBeard.mjs, and they sit pixel-for-pixel on the strip they
 // belong to, so there is nothing to place: a style is a mask over them and the hair colour is a
@@ -12,14 +12,16 @@
 // width it is worn at, and each carries one anchor row — the peak, band or brim that lies on a
 // head — so stamping one is a scale by the frame's own head and a single row to line up.
 //
-// Only the hair is still built by hand, since no sheet draws any: it is laid over the top of
-// the skull following the silhouette the art gives, deeper round the back than at the forehead.
-// Results are data URLs per action, cached by look. Where there is no canvas (jsdom, ancient
+// Hair is the same again: eight drawn hairpieces in assets/angler/hair.png, dyed to the chosen
+// colour. Nothing on this character is invented any more — every cosmetic is a drawing, and the
+// painter only dyes and places. Results are data URLs per action, cached by look. Where there is no canvas (jsdom, ancient
 // browsers) `renderAngler` resolves null and the stock strips show.
 import { ANGLER_SPRITES, SPRITE_FRAME } from './anglerSprites';
 import anchors from './anglerAnchors.json';
+import hatAnchors from './hatAnchors.json';
 import hatSprites from './hatSprites.json';
-import { PART, PART_BASE, BEARD_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
+import hairSprites from './hairSprites.json';
+import { PART_BASE, BEARD_BASE, HAIR_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
 import idleMask from '../assets/angler/masks/idle.png';
 import castMask from '../assets/angler/masks/cast.png';
 import reelMask from '../assets/angler/masks/reel.png';
@@ -31,24 +33,24 @@ import reelBeard from '../assets/angler/beard/reel.png';
 import celebrateBeard from '../assets/angler/beard/celebrate.png';
 import hurtBeard from '../assets/angler/beard/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
+import hairSheet from '../assets/angler/hair.png';
 
 const MASKS = { idle: idleMask, cast: castMask, reel: reelMask, celebrate: celebrateMask, hurt: hurtMask };
+// One set of per-frame anchors: the head box and facing from the mask tool, and the row and
+// centre the artist's own cap sat on from the dressed sheet.
+const FRAMES = Object.fromEntries(Object.entries(anchors).map(([action, list]) => [action, list.map((frame, f) => ({ ...frame, hatAnchor: (hatAnchors[action] || [])[f] || null }))]));
 const BEARDS = { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard };
 
-// The art's line colour, drawn back around the hair.
-export const OUTLINE = [16, 15, 14];
-
-// Where things sit on the head, as fractions of it from the crown down to the chin. The sheet
-// draws the same head in every pose, only tilted, so these hold whichever way it is turned:
-// the mouth low, and a hat's anchor row — the peak, band or brim that lies on the head — just
-// above the eyes. They are what the cut-down beards are measured against; the full beard needs
-// no landmark at all, since it is the drawing as the artist left it.
+// Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
+// beards are measured against. The full beard needs none, being the drawing as the artist left
+// it, and neither does a hat — the dressed sheet says where one sits, frame by frame.
 const MOUTH = 0.84;
-const HAT_SEAT = 0.5;
+// Only for a frame the dressed sheet has no cap in. A fraction of the head cannot know that it
+// is tipped forward in one pose and thrown back in another, which is why it is the fallback.
+const HAT_SEAT = 0.32;
 
 const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
-const shaded = (rgb, k) => [clamp(rgb[0] * k), clamp(rgb[1] * k), clamp(rgb[2] * k)];
 const mix = (a, b, t) => [clamp(a[0] + (b[0] - a[0]) * t), clamp(a[1] + (b[1] - a[1]) * t), clamp(a[2] + (b[2] - a[2]) * t)];
 
 // Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
@@ -67,15 +69,9 @@ export function frontness(x, head, facing) {
   return 1 - 2 * Math.abs(t - 0.5);
 }
 
-// A dome's light: brightest at the top and the front, falling away down the sides.
-function domeShade(u, v, dir) {
-  const round = 1 - 0.34 * u * u;
-  return Math.max(0.55, Math.min(1.3, (1.2 - 0.42 * v) * round + (dir === 0 ? 0 : 0.12 * dir * u)));
-}
-
 // ---- Dressing one frame's head ----
 
-function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard, hats }) {
+function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard, hats, hairArt }) {
   const plan = palette.head;
   if (!frame || !frame.head) return;
   // The anchors are in the frame's own pixels; the strip's start puts them in the strip's.
@@ -89,78 +85,35 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
 
   const inside = (x, y) => x >= x0 && x < x1 && y >= 0 && y < height;
   const at = (x, y) => (y * width + x) * 4;
-  const partAt = (x, y) => (inside(x, y) ? mask[at(x, y)] : 0);
-  const alphaAt = (x, y) => (inside(x, y) ? pixels[at(x, y) + 3] : 0);
   const put = (x, y, rgb) => { if (!inside(x, y)) return; const i = at(x, y); pixels[i] = rgb[0]; pixels[i + 1] = rgb[1]; pixels[i + 2] = rgb[2]; pixels[i + 3] = 255; };
-  const key = (x, y) => y * width + x;
-  const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-  // ---- hair, laid over the top of the skull ----
-  if (plan.crown === 'hair') {
-    const inBox = (x, y) => x >= head.x0 && x <= head.x1 && y >= head.y0 && y <= head.y1;
-    const isHead = (x, y) => inBox(x, y) && alphaAt(x, y) > 0 && (partAt(x, y) === PART.skin || partAt(x, y) === PART.outline);
-    const tops = new Map();
-    for (let x = head.x0; x <= head.x1; x += 1) {
-      for (let y = head.y0; y <= head.y1; y += 1) if (isHead(x, y)) { tops.set(x, y); break; }
+  // Anything worn on the head is a drawing stamped on: scaled by this frame's own head, hung
+  // on the row and centre the artist's cap sat on, and dyed if the item asks for it.
+  const stamp = (sheet, sprite, base, tint) => {
+    const { cellW, cellH, anchorY, refHead } = sheet;
+    const column = sheet.index[sprite];
+    if (column === undefined) return;
+    const scale = headW / refHead;
+    // A hat hangs off the row the artist's own cap sat on, which is the one thing in this
+    // pipeline that knows the head is tipped forward in one pose and thrown back in another.
+    // A hairpiece is the top of the head rather than something worn on it, so its own crown
+    // goes on the skull's, a shade above.
+    const seat = sheet.anchor === 'top'
+      ? { cx: (head.x0 + head.x1) / 2 + dir * headW * 0.06, y: head.y0 - 2 * scale }
+      : frame.hatAnchor
+        ? { cx: frame.hatAnchor.cx + x0, y: frame.hatAnchor.y }
+        : { cx: (head.x0 + head.x1) / 2 + dir * headW * 0.06, y: head.y0 + headH * HAT_SEAT };
+    const left = Math.round(seat.cx - (cellW * scale) / 2);
+    const top = Math.round(seat.y - anchorY * scale);
+    for (let y = 0; y < Math.round(cellH * scale); y += 1) for (let x = 0; x < Math.round(cellW * scale); x += 1) {
+      const sx = column * cellW + Math.min(cellW - 1, Math.floor(x / scale));
+      const sy = Math.min(cellH - 1, Math.floor(y / scale));
+      const s = (sy * sheet.width + sx) * 4;
+      if (!sheet.data[s + 3]) continue;
+      const own = [sheet.data[s], sheet.data[s + 1], sheet.data[s + 2]];
+      put(left + x, top + y, tint && luminance(...own) >= 40 ? tintPixel(own, base, tint) : own);
     }
-    const crown = new Set();
-    const rows = new Map();
-    tops.forEach((top, x) => {
-      // A hairline runs deep round the back of the head and shallow at the forehead.
-      const reach = plan.hairDepth * (1 + 0.3 * (1 - frontness(x, head, facing)));
-      for (let y = top; y <= head.y0 + headH * reach; y += 1) {
-        if (!inside(x, y) || partAt(x, y) !== PART.skin) continue;
-        crown.add(key(x, y));
-        const row = rows.get(y) || [Infinity, -Infinity];
-        rows.set(y, [Math.min(row[0], x), Math.max(row[1], x)]);
-      }
-    });
-    let top = Infinity; let bottom = -Infinity;
-    rows.forEach((_, y) => { top = Math.min(top, y); bottom = Math.max(bottom, y); });
-    const span = bottom - top + 1;
-    crown.forEach((k) => {
-      const y = Math.floor(k / width); const x = k - y * width;
-      const [rx0, rx1] = rows.get(y);
-      const u = rx1 > rx0 ? (2 * (x - rx0)) / (rx1 - rx0) - 1 : 0;
-      put(x, y, shaded(hair, domeShade(u, (y - top) / Math.max(1, span), dir) * 1.02));
-    });
-
-    // Long hair, down the back of the neck: only the open air behind the head is filled, and
-    // it tapers away from the head as it falls.
-    const fall = new Set();
-    if (plan.hairBack && crown.size) {
-      const yTop = top + Math.round(headH * 0.35);
-      const yBot = head.y1 + Math.round(headH * 0.3);
-      const wide = Math.round(headW * 0.22);
-      const edges = facing === 'right' ? [head.x0] : facing === 'left' ? [head.x1] : [head.x0, head.x1];
-      edges.forEach((edge, index) => {
-        const away = facing === 'front' ? (index === 0 ? -1 : 1) : facing === 'right' ? -1 : 1;
-        for (let y = yTop; y <= yBot; y += 1) for (let step = 0; step <= wide; step += 1) {
-          const x = edge + away * step;
-          if (!inside(x, y) || alphaAt(x, y) !== 0) continue;
-          const v = (y - yTop) / Math.max(1, yBot - yTop);
-          if (step > wide * (1 - 0.45 * v)) continue;
-          if (v < 0.14 && step > wide * 0.5) continue;
-          put(x, y, shaded(hair, 0.88 - 0.2 * v));
-          fall.add(key(x, y));
-        }
-      });
-    }
-
-    // The line: round anything standing against the open air; where hair meets the face it is
-    // a darker row rather than a line, the way the art shades.
-    const drawn = new Set([...crown, ...fall]);
-    drawn.forEach((k) => {
-      const y = Math.floor(k / width); const x = k - y * width;
-      let edge = false; let onFace = false;
-      NEIGHBOURS.forEach(([dx, dy]) => {
-        if (drawn.has(key(x + dx, y + dy))) return;
-        if (alphaAt(x + dx, y + dy) === 0) edge = true; else onFace = true;
-      });
-      if (edge) put(x, y, OUTLINE);
-      else if (onFace) { const i = at(x, y); put(x, y, shaded([pixels[i], pixels[i + 1], pixels[i + 2]], 0.74)); }
-    });
-  }
+  };
 
   // ---- the beard: the artist's own, masked to a style and dyed ----
   const style = plan.beard;
@@ -187,29 +140,15 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
     }
   }
 
-  // ---- the hat: a drawn one, scaled by this frame's head and hung on its anchor row ----
-  if (hats && plan.hat) {
-    const { cellW, cellH, anchorY, refHead } = hats;
-    const column = hats.index[plan.hat.sprite];
-    if (column === undefined) return;
-    const scale = headW / refHead;
-    const left = Math.round((head.x0 + head.x1) / 2 + dir * headW * 0.06 - (cellW * scale) / 2);
-    const top = Math.round(head.y0 + headH * HAT_SEAT - anchorY * scale);
-    for (let y = 0; y < Math.round(cellH * scale); y += 1) for (let x = 0; x < Math.round(cellW * scale); x += 1) {
-      const sx = column * cellW + Math.min(cellW - 1, Math.floor(x / scale));
-      const sy = Math.min(cellH - 1, Math.floor(y / scale));
-      const s = (sy * hats.width + sx) * 4;
-      if (!hats.data[s + 3]) continue;
-      const own = [hats.data[s], hats.data[s + 1], hats.data[s + 2]];
-      put(left + x, top + y, plan.hat.tint && luminance(...own) >= 40 ? tintPixel(own, plan.hat.base, plan.hat.tint) : own);
-    }
-  }
+  // ---- what is worn on the head: hair first, then the hat over it ----
+  if (hairArt && plan.hair) stamp(hairArt, plan.hair.sprite, HAIR_BASE, palette.hair);
+  if (hats && plan.hat) stamp(hats, plan.hat.sprite, plan.hat.base, plan.hat.tint);
 }
 
 // Dye a strip in place, then dress every frame's head. `pixels` is the strip's RGBA, `mask` the
 // matching mask's RGBA (red = part id), `beard` the matching beard overlay's RGBA, `hats` the
 // hat sheet with its manifest, `anchors` the per-frame boxes.
-export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette, beard = null, hats = null }) {
+export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette, beard = null, hats = null, hairArt = null }) {
   const { targets } = palette;
   for (let i = 0; i < pixels.length; i += 4) {
     if (pixels[i + 3] === 0) continue;
@@ -220,7 +159,7 @@ export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: 
   }
   const frames = Math.ceil(width / frameWidth);
   for (let f = 0; f < frames; f += 1) {
-    dressHead({ pixels, mask, width, height, x0: f * frameWidth, x1: Math.min(width, (f + 1) * frameWidth), frame: frameAnchors[f], palette, beard, hats });
+    dressHead({ pixels, mask, width, height, x0: f * frameWidth, x1: Math.min(width, (f + 1) * frameWidth), frame: frameAnchors[f], palette, beard, hats, hairArt });
   }
   return pixels;
 }
@@ -257,20 +196,20 @@ async function pixelsOf(src) {
   return { data: canvas.ctx.getImageData(0, 0, img.width, img.height).data, width: img.width, height: img.height };
 }
 
-let hatArt = null;
-function loadHats() {
-  if (!hatArt) hatArt = pixelsOf(hatSheet).then((art) => ({ ...art, ...hatSprites, index: Object.fromEntries(hatSprites.order.map((key, i) => [key, i])) }));
-  return hatArt;
+const wearables = new Map();
+function loadWearable(src, manifest) {
+  if (!wearables.has(src)) wearables.set(src, pixelsOf(src).then((art) => ({ ...art, ...manifest, index: Object.fromEntries(manifest.order.map((key, i) => [key, i])) })));
+  return wearables.get(src);
 }
 
 // Paint one action's strip for a palette.
 async function paintStrip(action, palette) {
-  const [art, mask, beard, hats] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(BEARDS[action]), loadHats()]);
+  const [art, mask, beard, hats, hairArt] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(BEARDS[action]), loadWearable(hatSheet, hatSprites), loadWearable(hairSheet, hairSprites)]);
   const { width, height } = art;
   const main = canvasFor(width, height);
   main.ctx.drawImage(art, 0, 0);
   const image = main.ctx.getImageData(0, 0, width, height);
-  paintPixels({ pixels: image.data, mask: mask.data, width, height, frameWidth: SPRITE_FRAME.w, anchors: anchors[action] || [], palette, beard: beard.data, hats });
+  paintPixels({ pixels: image.data, mask: mask.data, width, height, frameWidth: SPRITE_FRAME.w, anchors: FRAMES[action] || [], palette, beard: beard.data, hats, hairArt });
   main.ctx.putImageData(image, 0, 0);
   return main.canvas;
 }

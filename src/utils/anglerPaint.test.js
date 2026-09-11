@@ -1,10 +1,10 @@
-import { tintPixel, frontness, paintPixels, OUTLINE } from './anglerPaint';
+import { tintPixel, frontness, paintPixels } from './anglerPaint';
 import { PART, PART_BASE, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor } from './anglerLook';
 
 // A tiny frame in the three-quarter turn the sheet draws: a bare head and jaw, shoulders in a
 // shirt, and a rod out to one side. Everything the painter puts on the head it puts on here.
 const W = 44; const H = 40;
-const FRAME = { head: { x0: 12, y0: 10, x1: 30, y1: 32 }, facing: 'right' };
+const FRAME = { head: { x0: 12, y0: 10, x1: 30, y1: 32 }, facing: 'right', hatAnchor: { cx: 21, y: 18 } };
 function scene() {
   const pixels = new Uint8ClampedArray(W * H * 4);
   const mask = new Uint8ClampedArray(W * H * 4);
@@ -46,28 +46,6 @@ test('the stock look leaves the art alone', () => {
   expect(Array.from(pixels)).toEqual(Array.from(before));
 });
 
-test('hair is laid over the top of the skull and leaves the face alone', () => {
-  const px = paint({ hairstyle: 'short', hair: 'blond' });
-  expect(near(px(20, 13), HAIR_COLORS.blond.rgb, 80)).toBe(true);
-  // Lit from the top.
-  expect(px(20, 12).r).toBeGreaterThan(px(20, 16).r);
-  // The face below it is untouched skin.
-  expect(near(px(20, 26), PART_BASE[PART.skin], 2)).toBe(true);
-  // It reaches further down the back of the head than the forehead, and is shaded darker
-  // there, so the test is that the pixel changed at the back and did not at the front.
-  expect(px(13, 18).r).not.toBe(bare(13, 18).r);
-  expect(near(px(29, 18), PART_BASE[PART.skin], 2)).toBe(true);
-});
-
-test('long hair hangs down the back of the neck, in the open air behind the head', () => {
-  const px = paint({ hairstyle: 'long', hair: 'red' });
-  expect(px(11, 24).a).toBe(255);
-  expect(near(px(11, 24), HAIR_COLORS.red.rgb, 90) || near(px(11, 24), OUTLINE, 20)).toBe(true);
-  // It falls behind the head, not in front of it, and never over the face.
-  expect(px(32, 24).a).toBe(0);
-  expect(near(px(26, 26), PART_BASE[PART.skin], 2)).toBe(true);
-});
-
 // A stand-in for the drawn art the painter stamps: a beard overlay lying on the jaw exactly
 // where the strip has one, and a hat sheet of two flat cells with a known anchor row.
 function beardOverlay() {
@@ -75,7 +53,7 @@ function beardOverlay() {
   for (let y = 24; y <= 34; y += 1) for (let x = 14; x <= 29; x += 1) beard.set([150, 112, 70, 255], (y * W + x) * 4);
   return beard;
 }
-const HAT_CELL = { cellW: 10, cellH: 8, anchorY: 5, refHead: 19 };
+const HAT_CELL = { cellW: 10, cellH: 8, anchorY: 5, refHead: 19, anchor: 'brim' };
 function hatSheet() {
   const { cellW, cellH } = HAT_CELL;
   const data = new Uint8ClampedArray(cellW * 2 * cellH * 4);
@@ -90,18 +68,17 @@ function dressed(look, extra = {}) {
   return (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
 }
 
-test('a hat is the drawn sprite, scaled by the head and hung on its anchor row', () => {
+test('a hat is the drawn sprite, hung on the row the artist\'s own cap sat on', () => {
   const px = dressed({ hat: 'cap_green' });
-  // The cell is stamped: its anchor row lands just above the eyes and it stands proud above.
-  expect(px(21, 20).a).toBe(255);
-  expect(near(px(21, 20), [180, 40, 40], 30)).toBe(true);
-  // Below the anchor the face is the art's own skin again.
+  // The cell is stamped with its anchor row on the frame's own cap row, not on a fraction of
+  // the head: the sheet knows this pose's tilt and a fraction cannot.
+  expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
+  // Below it the face is the art's own skin again.
   expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
   // Another item in the same slot stamps a different cell.
-  expect(near(dressed({ hat: 'hat_straw' })(21, 20), [40, 60, 180], 30)).toBe(true);
+  expect(near(dressed({ hat: 'hat_straw' })(21, 16), [40, 60, 180], 30)).toBe(true);
   // And a tinted item re-dyes the drawing it shares.
-  const black = dressed({ hat: 'cap_black' });
-  expect(black(21, 20).r).toBeLessThan(px(21, 20).r);
+  expect(dressed({ hat: 'cap_black' })(21, 16).r).toBeLessThan(px(21, 16).r);
 });
 
 test('a hat is stamped on every frame, at that frame\'s own head', () => {
@@ -112,11 +89,11 @@ test('a hat is stamped on every frame, at that frame\'s own head', () => {
     const from = (y * W + x) * 4;
     [[x, 0], [x + 4, W]].forEach(([tx, ox]) => { if (tx < W) { const to = (y * W * 2 + ox + tx) * 4; pixels.set(one.pixels.slice(from, from + 4), to); mask[to] = one.mask[from]; } });
   }
-  const second = { head: { ...FRAME.head, x0: FRAME.head.x0 + 4, x1: FRAME.head.x1 + 4 }, facing: 'right' };
+  const second = { head: { ...FRAME.head, x0: FRAME.head.x0 + 4, x1: FRAME.head.x1 + 4 }, facing: 'right', hatAnchor: { cx: 25, y: 18 } };
   paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'cap_green' }), hats: hatSheet() });
   const px = (x, y) => { const i = (y * W * 2 + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
-  expect(near(px(21, 20), [180, 40, 40], 30)).toBe(true);
-  expect(near(px(W + 25, 20), [180, 40, 40], 30)).toBe(true);
+  expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
+  expect(near(px(W + 25, 16), [180, 40, 40], 30)).toBe(true);
 });
 
 test('the beard is the drawn overlay, dyed, and a style is a window on it', () => {
@@ -135,6 +112,19 @@ test('the beard is the drawn overlay, dyed, and a style is a window on it', () =
   expect(near(stubble(16, 30), PART_BASE[PART.skin], 2)).toBe(true);
   // Clean shaven leaves the overlay off entirely.
   expect(near(dressed({ beard: 'none' })(20, 30), PART_BASE[PART.skin], 2)).toBe(true);
+});
+
+test('hair is a drawn hairpiece too, put on the crown and dyed', () => {
+  const cell = { cellW: 10, cellH: 8, anchorY: 0, refHead: 19, anchor: 'top' };
+  const data = new Uint8ClampedArray(cell.cellW * cell.cellH * 4);
+  for (let i = 0; i < cell.cellW * cell.cellH; i += 1) data.set([150, 100, 60, 255], i * 4);
+  const art = { data, width: cell.cellW, height: cell.cellH, ...cell, index: { side_part: 0 } };
+  const { pixels, mask } = scene();
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ hairstyle: 'short', hair: 'black' }), hairArt: art });
+  const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  // Its own crown goes on the skull's, not on the row a hat hangs from.
+  expect(near(px(21, 11), HAIR_COLORS.black.rgb, 80)).toBe(true);
+  expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
 });
 
 test('skin and gear are dyed in place, shading and all', () => {

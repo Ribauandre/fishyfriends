@@ -1,5 +1,6 @@
-import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, SKIN_TONES, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor } from './anglerLook';
+import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor } from './anglerLook';
 import hatSprites from './hatSprites.json';
+import hairSprites from './hairSprites.json';
 
 test('a look you cannot wear falls back to the free defaults, slot by slot', () => {
   expect(normalizeLook(null)).toEqual(DEFAULT_LOOK);
@@ -30,12 +31,14 @@ test('every rack item has a slot, a price and, for a hat, a drawing to stamp', (
     if (item.tint) expect(item.base).toHaveLength(3);
   });
   SLOTS.forEach((slot) => expect(itemsFor(slot).some((item) => item.cost === 0)).toBe(true));
+  // Every hairstyle but the bald one names a drawing too.
+  Object.values(HAIR_STYLES).forEach((style) => { if (style.sprite) expect(hairSprites.order).toContain(style.sprite); });
 });
 
 test('the default look is the art as drawn: nothing dyed and nothing on the head', () => {
   const palette = paletteFor(DEFAULT_LOOK);
   expect(Object.values(palette.targets).every((target) => target === null)).toBe(true);
-  expect(palette.head).toMatchObject({ crown: 'bare', hat: null, hairBack: false });
+  expect(palette.head).toMatchObject({ hair: null, hat: null });
   expect(palette.head.beard.keep).toBe('none');
 });
 
@@ -43,9 +46,9 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_red.sprite, tint: null });
   expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ sprite: 'cap_olive', tint: WARDROBE.cap_black.tint });
   // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
-  expect(paletteFor({ hairstyle: 'short' }).head).toMatchObject({ crown: 'hair', hairBack: false });
-  expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head).toMatchObject({ crown: 'hair', hairBack: true });
-  expect(paletteFor({ hairstyle: 'bald' }).head.crown).toBe('bare');
+  expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ sprite: 'side_part' });
+  expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head.hair).toMatchObject({ sprite: 'long' });
+  expect(paletteFor({ hairstyle: 'bald' }).head.hair).toBeNull();
   expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
   expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('chin');
   expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('lip');

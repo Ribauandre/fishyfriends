@@ -34,14 +34,19 @@ export const HAIR_COLORS = {
   grey: { label: 'Grey', rgb: [156, 156, 156] },
 };
 
-// The sheet draws the head bald, so a hairstyle is hair laid over the top of the skull:
-// `depth` is how far down the head the hairline sits, as a fraction of it — deeper round the
-// back than at the forehead, which the painter works out from the turn of the head — and
-// `back` hangs it down the neck as well, under a hat or not.
+// The sheet draws the head bald, so a hairstyle is a drawn hairpiece stamped over the skull —
+// one of the eight in assets/angler/hair.png, named by its `sprite` (see utils/hairSprites.json)
+// — dyed to the chosen colour. `bald` is the art as it comes.
 export const HAIR_STYLES = {
-  bald: { label: 'Bald', depth: 0, back: false },
-  short: { label: 'Short', depth: 0.3, back: false },
-  long: { label: 'Long', depth: 0.34, back: true },
+  bald: { label: 'Bald', sprite: null },
+  short: { label: 'Side part', sprite: 'side_part' },
+  crew: { label: 'Crew cut', sprite: 'crew' },
+  mop: { label: 'Mop', sprite: 'mop' },
+  curls: { label: 'Curls', sprite: 'curls' },
+  receding: { label: "Widow's peak", sprite: 'widows_peak' },
+  long: { label: 'Long', sprite: 'long' },
+  topknot: { label: 'Top knot', sprite: 'top_knot' },
+  shaggy: { label: 'Shaggy', sprite: 'shaggy' },
 };
 
 // A beard is the artist's own, lifted pose by pose off the dressed sheet into the overlays in
@@ -144,10 +149,11 @@ export const isDefaultLook = (look) => lookKey(look) === lookKey(DEFAULT_LOOK);
 // The parts a pixel can belong to (the mask's red channel), and the colour each is painted in
 // the art: the mid-tone the shading is measured against when it's retinted.
 export const PART = { skin: 1, shirt: 2, waders: 3, boots: 4, rod: 5, outline: 6 };
-// The mid-tone the drawn beard is painted in, which its dye is measured against. It is read
-// off the beard's lighter strands rather than its middle, so that dyeing a pale colour onto
-// them lands under white instead of blowing out.
+// The mid-tones the drawn beard and the drawn hair are painted in, which their dyes are
+// measured against. Each is read off the lighter strands rather than the middle, so that
+// dyeing a pale colour onto them lands under white instead of blowing out.
 export const BEARD_BASE = [140, 104, 64];
+export const HAIR_BASE = [132, 84, 44];
 
 export const PART_BASE = {
   [PART.skin]: [208, 136, 88],
@@ -181,10 +187,8 @@ export function paletteFor(look) {
     },
     head: {
       // Hair goes on whether or not a hat does: a cap leaves plenty of it showing.
-      crown: style.depth ? 'hair' : 'bare',
+      hair: style.sprite ? { sprite: style.sprite } : null,
       hat: hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
-      hairDepth: style.depth,
-      hairBack: style.back,
       beard: { ...beard },
     },
   };
