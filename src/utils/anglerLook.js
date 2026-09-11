@@ -1,96 +1,107 @@
 // How an angler looks in Cast & Catch, and the wardrobe Marina's Outfitters sells.
 //
-// The angler is the ChatGPT-drawn sprite sheet in assets/angler — cap, full beard, olive
-// jacket, khaki waders — dressed at runtime by utils/anglerPaint.js. Every strip has a part
-// mask (assets/angler/masks, red channel = part id: skin, beard, the cap and its panel,
-// jacket, waders, boots, rod) and per-frame anchors (utils/anglerAnchors.json: the cap's,
-// beard's and face's boxes), both built from the art by scripts/anglerMasks.mjs. A look is
-// applied two ways. Parts that keep their shape are dyed (skin tone, the cap to a cap colour,
-// waders, boots, rod, the beard to the hair colour) — luminance-preserving, so the artist's
-// shading survives. The head is *sculpted*: the cap's and the beard's own pixels are the
-// silhouette the painter reshapes, in every frame and from every angle the sheet has, into a
-// bald scalp, hair, another hat, a jaw, a goatee or a mustache, with a dome's shading and the
-// art's own outline drawn back on. Nothing is pasted on from outside the art, which is why it
-// fits. This module owns the model — the free choices (skin tone, hair style and colour,
-// facial hair), the racks (hats, rods, boots, waders — bought once with tackle points,
-// `wardrobe` on game_profiles, worn from `look`, migration 0022) — and `paletteFor`, the
-// pure look → paint plan the painter and its tests share. Every slot has a free default, so a
-// look can always be worn even after a refund or a bad save.
+// The angler is the ChatGPT-drawn sprite sheet in assets/angler — bald, clean-shaven, pale
+// shirt, olive waders — dressed at runtime by utils/anglerPaint.js. Every strip has a part
+// mask (assets/angler/masks, red channel = part id: skin, shirt, waders, boots, rod, line
+// work) and per-frame anchors (utils/anglerAnchors.json: the head's box, the face's box and
+// which way it is turned), both built from the art by scripts/anglerMasks.mjs. A look is
+// applied two ways. Parts that keep their shape are dyed — skin, shirt, waders, boots, rod —
+// luminance-preserving, so the artist's shading survives. The head is *built on*: the sheet
+// draws a bare skull and a bare jaw, so hair, a beard and a hat are added to them rather than
+// carved out of a cap and a beard that were drawn in. That is the whole reason this sheet
+// replaced the last one — nothing has to be taken off before anything can be put on, and a
+// hat is a shape over a known silhouette instead of a reinterpretation of someone else's.
+// This module owns the model — the free choices (skin tone, hair style and colour, facial
+// hair), the racks (hats, shirts, rods, boots, waders — bought once with tackle points,
+// `wardrobe` on game_profiles, worn from `look`, migration 0022) — and `paletteFor`, the pure
+// look → paint plan the painter and its tests share. Every slot has a free default, and the
+// free defaults together are the art exactly as drawn, so the stock strips can show unpainted.
 export const SKIN_TONES = {
-  fair: { label: 'Fair', rgb: [246, 208, 176] },
-  light: { label: 'Light', rgb: [236, 176, 128] },
-  medium: { label: 'Medium', rgb: [220, 103, 38] },
-  olive: { label: 'Olive', rgb: [186, 132, 80] },
-  brown: { label: 'Brown', rgb: [140, 85, 50] },
-  deep: { label: 'Deep', rgb: [86, 52, 34] },
+  fair: { label: 'Fair', rgb: [248, 176, 128] },
+  light: { label: 'Light', rgb: [232, 164, 112] },
+  medium: { label: 'Medium', rgb: [208, 136, 88] },
+  olive: { label: 'Olive', rgb: [186, 120, 80] },
+  brown: { label: 'Brown', rgb: [168, 104, 72] },
+  deep: { label: 'Deep', rgb: [104, 72, 56] },
 };
 
 export const HAIR_COLORS = {
-  auburn: { label: 'Auburn', rgb: [80, 40, 20] },
-  brown: { label: 'Brown', rgb: [70, 48, 32] },
-  black: { label: 'Black', rgb: [26, 22, 20] },
-  blond: { label: 'Blond', rgb: [196, 156, 84] },
-  red: { label: 'Red', rgb: [178, 72, 30] },
-  grey: { label: 'Grey', rgb: [150, 150, 150] },
+  auburn: { label: 'Auburn', rgb: [116, 58, 30] },
+  brown: { label: 'Brown', rgb: [74, 50, 34] },
+  black: { label: 'Black', rgb: [30, 26, 24] },
+  blond: { label: 'Blond', rgb: [200, 160, 88] },
+  red: { label: 'Red', rgb: [180, 74, 32] },
+  grey: { label: 'Grey', rgb: [156, 156, 156] },
 };
 
-// With the cap off the crown of the head is hair or scalp; `back` hangs long hair down the
-// back of the neck, under a hat or not.
+// The sheet draws the head bald, so a hairstyle is hair laid over the top of the skull:
+// `depth` is how far down the head the hairline sits, as a fraction of it — deeper round the
+// back than at the forehead, which the painter works out from the turn of the head — and
+// `back` hangs it down the neck as well, under a hat or not.
 export const HAIR_STYLES = {
-  short: { label: 'Short', crown: 'hair', back: false },
-  long: { label: 'Long', crown: 'hair', back: true },
-  bald: { label: 'Bald', crown: 'scalp', back: false },
+  bald: { label: 'Bald', depth: 0, back: false },
+  short: { label: 'Short', depth: 0.3, back: false },
+  long: { label: 'Long', depth: 0.34, back: true },
 };
 
-// The art has a full beard; every other style is cut from it — the beard's own pixels become
-// jaw, and a goatee or mustache keeps the part of the beard that is one.
+// The jaw is drawn bare, so every beard is painted onto it. A beard is not a band across the
+// face: it runs from the mouth at the chin up to the sideburn at the ear, and `rise` is how
+// far up that run it goes. `lip` adds the moustache, `chinOnly` keeps just the front of it,
+// and `dither` thins the whole thing to stubble.
 export const BEARD_STYLES = {
-  full: { label: 'Full beard', mode: 'keep' },
-  goatee: { label: 'Goatee', mode: 'goatee' },
-  mustache: { label: 'Mustache', mode: 'mustache' },
-  stubble: { label: 'Stubble', mode: 'stubble' },
-  none: { label: 'Clean shaven', mode: 'jaw' },
+  none: { label: 'Clean shaven', rise: 0, lip: false },
+  stubble: { label: 'Stubble', rise: 0.7, lip: true, dither: true },
+  mustache: { label: 'Moustache', rise: 0, lip: true },
+  goatee: { label: 'Goatee', rise: 0, lip: true, chinOnly: true },
+  full: { label: 'Full beard', rise: 0.75, lip: true },
 };
 
-// The racks. Caps are the art's own cap dyed to `tint`. The other hats are `kind`s the painter
-// sculpts from the cap's silhouette in `rgb`, with `trim` for a band, brim underside or
-// pompom. Rods, boots and waders are dyes.
+// The racks. Hats are `kind`s the painter builds over the bare skull in `rgb`, with `trim` for
+// a peak, band, brim underside or pompom. Shirts, rods, boots and waders are dyes: `tint` null
+// means the art's own colour, which is what the free item in every rack is.
 export const WARDROBE = {
-  cap_green: { slot: 'hat', label: 'Club cap', cost: 0, kind: 'cap', tint: null },
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, kind: 'none' },
-  cap_red: { slot: 'hat', label: 'Red cap', cost: 40, kind: 'cap', tint: [176, 42, 40] },
-  cap_navy: { slot: 'hat', label: 'Navy cap', cost: 40, kind: 'cap', tint: [34, 48, 96] },
-  cap_black: { slot: 'hat', label: 'Black cap', cost: 40, kind: 'cap', tint: [30, 30, 34] },
-  cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, kind: 'cap', tint: [226, 112, 30] },
+  cap_green: { slot: 'hat', label: 'Club cap', cost: 0, kind: 'cap', rgb: [80, 96, 48], trim: [56, 68, 34] },
+  cap_red: { slot: 'hat', label: 'Red cap', cost: 40, kind: 'cap', rgb: [176, 42, 40], trim: [120, 28, 28] },
+  cap_navy: { slot: 'hat', label: 'Navy cap', cost: 40, kind: 'cap', rgb: [34, 48, 96], trim: [22, 32, 66] },
+  cap_black: { slot: 'hat', label: 'Black cap', cost: 40, kind: 'cap', rgb: [34, 34, 38], trim: [20, 20, 24] },
+  cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, kind: 'cap', rgb: [226, 112, 30], trim: [166, 74, 18] },
+  cap_trucker: { slot: 'hat', label: 'Trucker cap', cost: 60, kind: 'cap', rgb: [224, 224, 224], trim: [24, 80, 144] },
   hat_visor: { slot: 'hat', label: 'Sun visor', cost: 60, kind: 'visor', rgb: [236, 232, 222], trim: [44, 46, 50] },
-  hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 70, kind: 'beanie', rgb: [132, 36, 46], trim: [236, 222, 196] },
-  hat_straw: { slot: 'hat', label: 'Straw hat', cost: 80, kind: 'straw', rgb: [216, 180, 98], trim: [96, 62, 32] },
-  hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 90, kind: 'bucket', rgb: [112, 118, 76], trim: [78, 84, 50] },
+  hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 70, kind: 'beanie', rgb: [56, 56, 60], trim: [214, 206, 186] },
+  hat_straw: { slot: 'hat', label: 'Straw hat', cost: 80, kind: 'straw', rgb: [208, 152, 80], trim: [36, 74, 128] },
+  hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 90, kind: 'bucket', rgb: [144, 112, 64], trim: [86, 64, 36] },
+  hat_boonie: { slot: 'hat', label: 'Field boonie', cost: 90, kind: 'bucket', rgb: [128, 120, 80], trim: [78, 72, 46] },
   hat_cowboy: { slot: 'hat', label: 'Cowboy hat', cost: 120, kind: 'cowboy', rgb: [126, 82, 46], trim: [68, 42, 22] },
+  shirt_grey: { slot: 'shirt', label: 'Work shirt', cost: 0, tint: null },
+  shirt_white: { slot: 'shirt', label: 'White tee', cost: 40, tint: [236, 236, 238] },
+  shirt_navy: { slot: 'shirt', label: 'Navy tee', cost: 40, tint: [56, 72, 112] },
+  shirt_red: { slot: 'shirt', label: 'Flannel red', cost: 50, tint: [168, 62, 54] },
+  shirt_olive: { slot: 'shirt', label: 'Olive tee', cost: 50, tint: [104, 116, 74] },
   rod_graphite: { slot: 'rod', label: 'Graphite rod', cost: 0, tint: null },
   rod_red: { slot: 'rod', label: 'Red rod', cost: 50, tint: [196, 44, 44] },
   rod_blue: { slot: 'rod', label: 'Blue rod', cost: 50, tint: [44, 96, 204] },
   rod_white: { slot: 'rod', label: 'White rod', cost: 50, tint: [226, 226, 226] },
   rod_gold: { slot: 'rod', label: 'Gold rod', cost: 80, tint: [222, 172, 52] },
-  boots_green: { slot: 'boots', label: 'Dock boots', cost: 0, tint: null },
+  boots_green: { slot: 'boots', label: 'Deck boots', cost: 0, tint: null },
   boots_black: { slot: 'boots', label: 'Black boots', cost: 40, tint: [12, 12, 14] },
   boots_brown: { slot: 'boots', label: 'Leather boots', cost: 40, tint: [112, 72, 42] },
   boots_yellow: { slot: 'boots', label: 'Yellow boots', cost: 60, tint: [196, 160, 44] },
   boots_red: { slot: 'boots', label: 'Red boots', cost: 60, tint: [184, 44, 44] },
-  waders_khaki: { slot: 'waders', label: 'Khaki waders', cost: 0, tint: null },
+  waders_khaki: { slot: 'waders', label: 'Field waders', cost: 0, tint: null },
   waders_olive: { slot: 'waders', label: 'Olive waders', cost: 60, tint: [112, 118, 72] },
   waders_grey: { slot: 'waders', label: 'Grey waders', cost: 60, tint: [124, 128, 134] },
   waders_navy: { slot: 'waders', label: 'Navy waders', cost: 70, tint: [52, 66, 112] },
   waders_brown: { slot: 'waders', label: 'Brown waders', cost: 60, tint: [122, 82, 52] },
 };
 
-export const SLOTS = ['hat', 'rod', 'boots', 'waders'];
-export const SLOT_LABELS = { hat: 'Hats', rod: 'Rods', boots: 'Boots', waders: 'Waders' };
+export const SLOTS = ['hat', 'shirt', 'rod', 'boots', 'waders'];
+export const SLOT_LABELS = { hat: 'Hats', shirt: 'Shirts', rod: 'Rods', boots: 'Boots', waders: 'Waders' };
 export const WARDROBE_LIST = Object.entries(WARDROBE).map(([key, item]) => ({ key, ...item }));
 export const itemsFor = (slot) => WARDROBE_LIST.filter((item) => item.slot === slot);
 
-export const DEFAULT_LOOK = { skin: 'medium', hairstyle: 'short', hair: 'auburn', beard: 'full', hat: 'cap_green', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' };
-const LOOK_FIELDS = ['skin', 'hairstyle', 'hair', 'beard', 'hat', 'rod', 'boots', 'waders'];
+export const DEFAULT_LOOK = { skin: 'medium', hairstyle: 'bald', hair: 'brown', beard: 'none', hat: 'hat_none', shirt: 'shirt_grey', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' };
+const LOOK_FIELDS = ['skin', 'hairstyle', 'hair', 'beard', 'hat', 'shirt', 'rod', 'boots', 'waders'];
 
 export function isOwned(itemKey, wardrobe = []) {
   const item = WARDROBE[itemKey];
@@ -116,23 +127,21 @@ export function lookKey(look) {
 
 export const isDefaultLook = (look) => lookKey(look) === lookKey(DEFAULT_LOOK);
 
-// The parts a pixel can belong to (the mask's red channel), and the colour each is painted
-// in the art: the mid-tone the shading is measured against when it's retinted.
-export const PART = { skin: 1, beard: 2, hat: 3, panel: 4, jacket: 5, waders: 6, boots: 7, rod: 8, outline: 9 };
+// The parts a pixel can belong to (the mask's red channel), and the colour each is painted in
+// the art: the mid-tone the shading is measured against when it's retinted.
+export const PART = { skin: 1, shirt: 2, waders: 3, boots: 4, rod: 5, outline: 6 };
 export const PART_BASE = {
-  [PART.skin]: [220, 103, 38],
-  [PART.beard]: [80, 40, 20],
-  [PART.hat]: [23, 57, 52],
-  [PART.panel]: [207, 184, 153],
-  [PART.waders]: [179, 138, 100],
-  [PART.boots]: [24, 26, 27],
-  [PART.rod]: [48, 48, 48],
+  [PART.skin]: [208, 136, 88],
+  [PART.shirt]: [186, 191, 206],
+  [PART.waders]: [128, 112, 80],
+  [PART.boots]: [42, 42, 47],
+  [PART.rod]: [72, 56, 40],
 };
 
 // Everything the painter needs for a look: what each dyed part goes to (null = leave the art
-// alone), and the head plan — what the cap's silhouette becomes (`crown`: the cap itself,
-// scalp, hair, or a hat `kind` of its own), whether long hair hangs down the back, and what
-// is cut from the beard.
+// alone), and the head plan — what sits on the skull (`crown`: nothing, hair, or a hat of its
+// own `kind`), how far down the head the hair reaches, whether it hangs down the back, and
+// what shape of beard the jaw gets.
 export function paletteFor(look) {
   const safe = normalizeLook(look, Object.keys(WARDROBE));
   const hat = WARDROBE[safe.hat];
@@ -140,27 +149,25 @@ export function paletteFor(look) {
   const skin = SKIN_TONES[safe.skin].rgb;
   const style = HAIR_STYLES[safe.hairstyle];
   const beard = BEARD_STYLES[safe.beard];
-  const capOn = hat.kind === 'cap';
+  // A visor is a band and a peak: the crown it sits on is whatever the hairstyle gives.
+  const crowned = hat.kind !== 'none' && hat.kind !== 'visor';
   return {
     look: safe,
     skin,
     hair,
     targets: {
       [PART.skin]: safe.skin === DEFAULT_LOOK.skin ? null : skin,
-      [PART.hat]: capOn && safe.hat !== DEFAULT_LOOK.hat ? hat.tint : null,
+      [PART.shirt]: WARDROBE[safe.shirt].tint,
       [PART.waders]: WARDROBE[safe.waders].tint,
       [PART.boots]: WARDROBE[safe.boots].tint,
       [PART.rod]: WARDROBE[safe.rod].tint,
     },
     head: {
-      // A visor sits on the crown the hairstyle gives; every other hat is the crown.
-      crown: capOn ? 'cap' : hat.kind === 'none' || hat.kind === 'visor' ? style.crown : 'hat',
-      hat: capOn || hat.kind === 'none' ? null : { kind: hat.kind, rgb: hat.rgb, trim: hat.trim },
+      crown: crowned ? 'hat' : style.depth ? 'hair' : 'bare',
+      hat: hat.kind === 'none' ? null : { kind: hat.kind, rgb: hat.rgb, trim: hat.trim },
+      hairDepth: style.depth,
       hairBack: style.back,
-      beard: beard.mode,
-      // The beard is dyed to the hair colour wherever it stays a beard; the default look is the
-      // art as drawn, so it is left alone there.
-      beardTint: safe.hair === DEFAULT_LOOK.hair ? null : hair,
+      beard: { ...beard },
     },
   };
 }

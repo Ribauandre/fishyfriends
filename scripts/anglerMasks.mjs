@@ -1,17 +1,19 @@
 // Builds what utils/anglerPaint.js needs from the angler strips (src/assets/angler/*.png, the
 // ChatGPT-made character sliced by scripts/anglerSlice.mjs): a part mask per strip
 // (src/assets/angler/masks/*.png, red channel = part id — see PART in utils/anglerLook.js),
-// per-frame anchors (src/utils/anglerAnchors.json: the cap's box, the beard's box and the
-// face's box) that hats, hair and facial hair are placed against, and a colour-coded preview
-// per strip beside the masks (masks/*.preview.png) to eyeball. Re-run whenever the strips
-// change:
+// per-frame anchors (src/utils/anglerAnchors.json: the head's box and the face's box) that
+// hair, beards and hats are built against, and a colour-coded preview per strip beside the
+// masks (masks/*.preview.png) to eyeball. Re-run whenever the strips change:
 //
 //   node scripts/anglerMasks.mjs
 //
-// Pixels are classified by nearest reference colour within a vertical band of the frame,
-// then smoothed; the rod is the thin grey line outside the body's silhouette. Needs
-// Playwright with Chromium (project or global install via NODE_PATH; PLAYWRIGHT_CHROMIUM to
-// point at a binary).
+// The character is drawn bald and clean-shaven, so there is no cap or beard to tell apart —
+// the parts are the five the art actually has plus its line work. Pixels are classified by
+// nearest reference colour, the rod is the brown thin line outside the body's silhouette, and
+// the head is the biggest run of skin in the top of the figure. The face box is the line work
+// inside the head — the eyes, the brow and the mouth — which is what says which way the head
+// is turned. Needs Playwright with Chromium (project or global install via NODE_PATH;
+// PLAYWRIGHT_CHROMIUM to point at a binary).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -32,28 +34,33 @@ const masksDir = path.join(assets, 'masks');
 mkdirSync(masksDir, { recursive: true });
 
 const STRIPS = JSON.parse(readFileSync(path.join(assets, 'strips.json'), 'utf8'));
-const PARTS = { skin: 1, beard: 2, hat: 3, panel: 4, jacket: 5, waders: 6, boots: 7, rod: 8, outline: 9 };
-// Reference colours per part as drawn in the art, with the vertical band of the frame
-// (fractions of frame height) the part can occur in.
+const PARTS = { skin: 1, shirt: 2, waders: 3, boots: 4, rod: 5, outline: 6 };
+// Reference colours per part as drawn in the art: skin orange, the shirt a pale blue grey,
+// the waders olive, the boots a neutral dark, and the line work black. The rod is not in here
+// — the art paints it a brown that sits between the line work and the boots, so it is found
+// by its shape instead (see below).
 const REFS = [
-  { part: 'skin', rgb: [[220, 103, 38], [235, 150, 90], [190, 85, 35], [245, 185, 140], [160, 70, 30]], y: [0.1, 0.72] },
-  { part: 'beard', rgb: [[53, 29, 15], [105, 51, 28], [80, 40, 20], [130, 65, 35]], y: [0.24, 0.38] },
-  { part: 'hat', rgb: [[23, 57, 52], [35, 80, 70], [15, 40, 38], [50, 100, 85], [10, 28, 26], [28, 48, 44]], y: [0, 0.32] },
-  { part: 'panel', rgb: [[207, 184, 153], [230, 215, 190], [180, 160, 130]], y: [0, 0.3] },
-  { part: 'jacket', rgb: [[86, 83, 50], [63, 70, 48], [45, 52, 35], [100, 100, 60], [30, 36, 24]], y: [0.27, 0.95] },
-  { part: 'waders', rgb: [[179, 138, 100], [147, 111, 78], [200, 165, 125], [120, 90, 62], [77, 63, 45]], y: [0.38, 0.9] },
-  { part: 'boots', rgb: [[24, 26, 27], [40, 44, 46], [55, 60, 62]], y: [0.78, 1] },
-  { part: 'outline', rgb: [[0, 0, 0], [10, 10, 10], [18, 18, 18]], y: [0, 1] },
-  { part: 'rod', rgb: [[48, 48, 48], [64, 64, 64], [80, 80, 80], [36, 36, 36]], y: [0, 1] },
+  { part: 'skin', rgb: [[213, 139, 85], [232, 170, 120], [190, 115, 68], [246, 202, 164], [158, 88, 48]] },
+  { part: 'shirt', rgb: [[186, 191, 206], [216, 220, 231], [150, 157, 173], [118, 125, 142]] },
+  { part: 'waders', rgb: [[128, 112, 80], [101, 89, 62], [78, 68, 46], [150, 134, 98], [58, 52, 36]] },
+  { part: 'boots', rgb: [[42, 42, 47], [58, 58, 64], [26, 26, 31], [76, 76, 82]] },
+  { part: 'outline', rgb: [[0, 0, 0], [12, 12, 12], [22, 20, 18]] },
 ];
-const PREVIEW = { 1: [255, 200, 150], 2: [255, 80, 40], 3: [0, 255, 0], 4: [255, 255, 255], 5: [0, 120, 255], 6: [255, 255, 0], 7: [255, 0, 255], 8: [0, 255, 255], 9: [30, 30, 30] };
+const PREVIEW = { 1: [255, 200, 150], 2: [255, 255, 255], 3: [255, 255, 0], 4: [255, 0, 255], 5: [0, 255, 255], 6: [30, 30, 30] };
+// Which way each frame's head is turned. The sheet only ever draws the angler in a
+// three-quarter turn to his right — the eyes sit in the right third of the head in every
+// frame, bowed ones included — so this is one fact about the art rather than something to
+// find in it. The painter puts a cap's peak and a beard's chin on the front from it, and it
+// reads the box as a profile: hairline deep at the back of the head and shallow at the
+// forehead, sideburn high at the ear and beard low at the chin.
+const FACING = 'right';
 
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage();
 const anchors = {};
 for (const [action, info] of Object.entries(STRIPS)) {
   const src = `data:image/png;base64,${readFileSync(path.join(assets, `${action}.png`)).toString('base64')}`;
-  const result = await page.evaluate(async ({ src, frames, frameW, REFS, PARTS, PREVIEW }) => {
+  const result = await page.evaluate(async ({ src, frames, frameW, REFS, PARTS, PREVIEW, FACING }) => {
     const img = new Image(); img.src = src; await img.decode();
     const W = img.width; const H = img.height;
     const c = document.createElement('canvas'); c.width = W; c.height = H;
@@ -61,19 +68,51 @@ for (const [action, info] of Object.entries(STRIPS)) {
     const d = ctx.getImageData(0, 0, W, H).data;
     const cls = new Uint8Array(W * H);
     const dist = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
-    for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
-      const i = (y * W + x) * 4; if (d[i + 3] < 100) continue;
-      const px = [d[i], d[i + 1], d[i + 2]]; const fy = y / H;
+    for (let i = 0; i < W * H; i += 1) {
+      if (d[i * 4 + 3] < 100) continue;
+      const px = [d[i * 4], d[i * 4 + 1], d[i * 4 + 2]];
+      // The waders' deepest folds go almost black, and nearest-colour hands them to the line
+      // work, which leaves a dyed pair of waders full of undyed holes. They keep their olive
+      // cast all the way down though — red and green together with blue behind them — and the
+      // art's line work is neutral, so the tint tells them apart where the brightness cannot.
+      if ((px[0] + px[1]) / 2 - px[2] >= 14 && Math.abs(px[0] - px[1]) <= 14 && (px[0] + px[1] + px[2]) / 3 < 60) { cls[i] = PARTS.waders; continue; }
       let best = null; let bestD = Infinity;
-      for (const ref of REFS) { if (fy < ref.y[0] || fy > ref.y[1]) continue; for (const rgb of ref.rgb) { const dd = dist(px, rgb); if (dd < bestD) { bestD = dd; best = ref.part; } } }
-      cls[y * W + x] = PARTS[best];
+      for (const ref of REFS) for (const rgb of ref.rgb) { const dd = dist(px, rgb); if (dd < bestD) { bestD = dd; best = ref.part; } }
+      cls[i] = PARTS[best];
     }
-    // The rod is the grey outside the body: body = every non-rod, non-outline pixel dilated.
+    // The rod is not told apart by colour — the art paints it a brown so dark it sits between
+    // the line work and the boots — but by shape: it is the only thing on the figure thin
+    // enough to disappear under an erosion. So the body is what survives losing three pixels
+    // all round, and every opaque pixel outside that body, grown back with room to spare for
+    // fingers and boot heels, is the rod. Where the rod crosses the body it stays line work,
+    // which is how it was drawn and how it reads.
+    const on = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i += 1) on[i] = d[i * 4 + 3] >= 100 ? 1 : 0;
+    const grow = (mask, R) => {
+      const out = new Uint8Array(W * H);
+      for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) { if (!mask[y * W + x]) continue; for (let dy = -R; dy <= R; dy += 1) for (let dx = -R; dx <= R; dx += 1) { const yy = y + dy; const xx = x + dx; if (yy >= 0 && yy < H && xx >= 0 && xx < W) out[yy * W + xx] = 1; } }
+      return out;
+    };
     const body = new Uint8Array(W * H);
-    for (let i = 0; i < W * H; i += 1) { const k = cls[i]; if (k && k !== PARTS.rod && k !== PARTS.outline) body[i] = 1; }
-    const dil = new Uint8Array(W * H); const R = 3;
-    for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) { if (!body[y * W + x]) continue; for (let dy = -R; dy <= R; dy += 1) for (let dx = -R; dx <= R; dx += 1) { const yy = y + dy; const xx = x + dx; if (yy >= 0 && yy < H && xx >= 0 && xx < W) dil[yy * W + xx] = 1; } }
-    for (let i = 0; i < W * H; i += 1) { if (cls[i] === PARTS.rod && dil[i]) cls[i] = PARTS.outline; if (cls[i] === PARTS.outline && !dil[i] && d[i * 4 + 3] >= 100) cls[i] = PARTS.rod; }
+    for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
+      let solid = true;
+      for (let dy = -3; dy <= 3 && solid; dy += 1) for (let dx = -3; dx <= 3; dx += 1) { const yy = y + dy; const xx = x + dx; if (yy < 0 || yy >= H || xx < 0 || xx >= W || !on[yy * W + xx]) { solid = false; break; } }
+      body[y * W + x] = solid ? 1 : 0;
+    }
+    const dil = grow(body, 4);
+    for (let i = 0; i < W * H; i += 1) {
+      if (!on[i]) continue;
+      if (!dil[i]) { cls[i] = PARTS.rod; continue; }
+      // Every pixel-art figure here is keylined, so the outermost pixel of the body is the
+      // line and nothing else — without this the antialiased edge reads as dark boot leather
+      // and rings the whole angler in a colour that then takes the boot dye.
+      const x = i % W; const y = (i / W) | 0;
+      const edge = [[-1, 0], [1, 0], [0, -1], [0, 1]].some(([dx, dy]) => {
+        const nx = x + dx; const ny = y + dy;
+        return nx < 0 || ny < 0 || nx >= W || ny >= H || !on[ny * W + nx];
+      });
+      if (edge) cls[i] = PARTS.outline;
+    }
     // Majority smoothing to clear speckle; the rod keeps its thin line.
     for (let pass = 0; pass < 2; pass += 1) {
       const next = new Uint8Array(cls);
@@ -86,76 +125,96 @@ for (const [action, info] of Object.entries(STRIPS)) {
       }
       cls.set(next);
     }
-    // Per-frame anchors: the cap (hat + panel), the beard, and the face (skin between them).
+
     const frameAnchors = [];
     for (let f = 0; f < frames; f += 1) {
-      const box = (ids, yMin = 0, yMax = H) => {
-        let x0 = 1e9; let y0 = 1e9; let x1 = -1; let y1 = -1;
-        for (let y = yMin; y < yMax; y += 1) for (let x = f * frameW; x < (f + 1) * frameW; x += 1) {
-          if (ids.includes(cls[y * W + x])) { const lx = x - f * frameW; if (lx < x0) x0 = lx; if (lx > x1) x1 = lx; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const fx0 = f * frameW; const fx1 = (f + 1) * frameW;
+      let top = H; let bottom = -1;
+      for (let y = 0; y < H; y += 1) for (let x = fx0; x < fx1; x += 1) if (cls[y * W + x]) { if (y < top) top = y; bottom = Math.max(bottom, y); break; }
+      for (let y = H - 1; y >= 0; y -= 1) { let any = false; for (let x = fx0; x < fx1; x += 1) if (cls[y * W + x]) { any = true; break; } if (any) { bottom = y; break; } }
+      // The head: the biggest patch of skin whose top is in the top of the figure. A raised
+      // fist is skin up there too, but it is a fraction of the size of a head.
+      const seen = new Uint8Array(W * H); let head = null;
+      const ceiling = top + (bottom - top) * 0.45;
+      for (let y = top; y <= bottom; y += 1) for (let x = fx0; x < fx1; x += 1) {
+        const i = y * W + x; if (seen[i] || cls[i] !== PARTS.skin) continue;
+        const stack = [i]; seen[i] = 1; let area = 0; let x0 = x; let x1 = x; let y0 = y; let y1 = y;
+        const wide = new Map(); const rows = new Map();
+        while (stack.length) {
+          const j = stack.pop(); area += 1; const jy = Math.floor(j / W); const jx = j - jy * W;
+          if (jx < x0) x0 = jx; if (jx > x1) x1 = jx; if (jy < y0) y0 = jy; if (jy > y1) y1 = jy;
+          wide.set(jy, (wide.get(jy) || 0) + 1);
+          const span = rows.get(jy); const lx = jx - fx0;
+          if (span) { span[0] = Math.min(span[0], lx); span[1] = Math.max(span[1], lx); } else rows.set(jy, [lx, lx]);
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+            const nx = jx + dx; const ny = jy + dy;
+            if (nx < fx0 || nx >= fx1 || ny < 0 || ny >= H) return;
+            const n = ny * W + nx; if (!seen[n] && cls[n] === PARTS.skin) { seen[n] = 1; stack.push(n); }
+          });
         }
-        return x1 < 0 ? null : { x0, y0, x1, y1 };
-      };
-      // The cap and the beard are each the largest patch of their parts, so a fish held up in a
-      // celebrate frame (green, dark) can't stretch the box.
-      const largest = (ids) => {
-        const seen = new Uint8Array(W * H); let best = null;
-        for (let y = 0; y < H; y += 1) for (let x = f * frameW; x < (f + 1) * frameW; x += 1) {
-          const i = y * W + x; if (seen[i] || !ids.includes(cls[i])) continue;
-          const stack = [i]; seen[i] = 1; let area = 0; let x0 = x; let x1 = x; let y0 = y; let y1 = y;
-          while (stack.length) {
-            const j = stack.pop(); area += 1; const jy = Math.floor(j / W); const jx = j - jy * W;
-            if (jx < x0) x0 = jx; if (jx > x1) x1 = jx; if (jy < y0) y0 = jy; if (jy > y1) y1 = jy;
-            [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]].forEach(([dx, dy]) => { const nx = jx + dx; const ny = jy + dy; if (nx < f * frameW || nx >= (f + 1) * frameW || ny < 0 || ny >= H) return; const n = ny * W + nx; if (!seen[n] && ids.includes(cls[n])) { seen[n] = 1; stack.push(n); } });
-          }
-          if (!best || area > best.area) best = { area, x0: x0 - f * frameW, x1: x1 - f * frameW, y0, y1 };
-        }
-        if (!best || best.area <= 20) return null;
-        // Pull in the pieces that touch it (the brim and panel are cut off the crown by outline).
-        const merged = { x0: best.x0, y0: best.y0, x1: best.x1, y1: best.y1 };
-        let grew = true;
-        while (grew) {
-          grew = false;
-          for (let y = 0; y < H; y += 1) for (let x = f * frameW; x < (f + 1) * frameW; x += 1) {
-            const lx = x - f * frameW;
-            if (!ids.includes(cls[y * W + x])) continue;
-            if (lx >= merged.x0 - 6 && lx <= merged.x1 + 6 && y >= merged.y0 - 6 && y <= merged.y1 + 6 && (lx < merged.x0 || lx > merged.x1 || y < merged.y0 || y > merged.y1)) {
-              merged.x0 = Math.min(merged.x0, lx); merged.x1 = Math.max(merged.x1, lx); merged.y0 = Math.min(merged.y0, y); merged.y1 = Math.max(merged.y1, y); grew = true;
-            }
-          }
-        }
-        return merged;
-      };
-      let hat = largest([PARTS.hat, PARTS.panel]);
-      // The jacket never rises above the cap's bottom row, so dark green up there is cap shading.
-      if (hat) {
-        for (let y = 0; y <= hat.y1; y += 1) for (let x = f * frameW; x < (f + 1) * frameW; x += 1) { if (cls[y * W + x] === PARTS.jacket) cls[y * W + x] = PARTS.hat; }
-        hat = largest([PARTS.hat, PARTS.panel]);
+        if (y0 > ceiling) continue;
+        if (!head || area > head.area) head = { area, x0: x0 - fx0, y0, x1: x1 - fx0, y1, wide, rows };
       }
-      const beard = largest([PARTS.beard]);
-      const faceBox = hat ? box([PARTS.skin], hat.y0, (beard ? beard.y1 : hat.y1 + 30) + 4) : null;
-      // The face is the skin under the cap, not a raised hand: clip it to the cap's reach.
-      const face = faceBox && hat ? { x0: Math.max(faceBox.x0, hat.x0 - 6), y0: faceBox.y0, x1: Math.min(faceBox.x1, hat.x1 + 6), y1: faceBox.y1 } : faceBox;
-      frameAnchors.push({ hat, beard, face });
+      if (head) {
+        // The neck is the same skin as the face and joined to it, so the patch runs on down
+        // into the collar. A head is widest at the cheeks and a neck is not, so the chin is
+        // the first row below the widest one that has lost most of that width — and the box
+        // has to stop there, or every beard and hairline is measured against a head half
+        // again too long.
+        let widest = head.y0; let most = 0;
+        head.wide.forEach((n, y) => { if (n > most) { most = n; widest = y; } });
+        for (let y = widest + 1; y <= head.y1; y += 1) {
+          if ((head.wide.get(y) || 0) >= most * 0.55) continue;
+          head.y1 = y - 1; break;
+        }
+        let x0 = Infinity; let x1 = -Infinity;
+        head.rows.forEach((span, y) => { if (y > head.y1) return; x0 = Math.min(x0, span[0]); x1 = Math.max(x1, span[1]); });
+        if (Number.isFinite(x0)) { head.x0 = x0; head.x1 = x1; }
+      }
+      // The face: the line work inside the head — the brow, the eyes, the mouth. Its bottom
+      // row is the mouth line, which is where a beard's moustache ends and its jaw begins.
+      // Only line work with head all round it counts, and the chin is cut off the bottom,
+      // where the neck below leaves the silhouette's own line looking just as boxed in.
+      let face = null;
+      if (head) {
+        const chin = head.y0 + (head.y1 - head.y0) * 0.8;
+        for (let y = head.y0; y <= chin; y += 1) for (let x = head.x0 + fx0; x <= head.x1 + fx0; x += 1) {
+          if (cls[y * W + x] !== PARTS.outline) continue;
+          let boxed = true;
+          for (const [dx, dy] of [[-4, 0], [4, 0], [0, -4], [0, 4]]) {
+            const nx = x + dx; const ny = y + dy;
+            if (nx < fx0 || nx >= fx1 || ny < 0 || ny >= H) { boxed = false; break; }
+            const k = cls[ny * W + nx];
+            if (k !== PARTS.skin && k !== PARTS.outline) { boxed = false; break; }
+          }
+          if (!boxed) continue;
+          const lx = x - fx0;
+          face = face
+            ? { x0: Math.min(face.x0, lx), y0: Math.min(face.y0, y), x1: Math.max(face.x1, lx), y1: Math.max(face.y1, y) }
+            : { x0: lx, y0: y, x1: lx, y1: y };
+        }
+      }
+      frameAnchors.push({ head: head && { x0: head.x0, y0: head.y0, x1: head.x1, y1: head.y1 }, face, facing: FACING });
     }
+
     const maskImage = ctx.createImageData(W, H); const preview = ctx.createImageData(W, H);
     for (let i = 0; i < W * H; i += 1) {
       const k = cls[i]; if (!k) continue;
       maskImage.data[i * 4] = k; maskImage.data[i * 4 + 3] = 255;
-      const col = PREVIEW[k] || [255, 255, 255]; preview.data[i * 4] = col[0]; preview.data[i * 4 + 1] = col[1]; preview.data[i * 4 + 2] = col[2]; preview.data[i * 4 + 3] = 255;
+      const col = PREVIEW[k] || [255, 0, 0]; preview.data[i * 4] = col[0]; preview.data[i * 4 + 1] = col[1]; preview.data[i * 4 + 2] = col[2]; preview.data[i * 4 + 3] = 255;
     }
     const mc = document.createElement('canvas'); mc.width = W; mc.height = H; mc.getContext('2d').putImageData(maskImage, 0, 0);
     const pc = document.createElement('canvas'); pc.width = W; pc.height = H; const pctx = pc.getContext('2d'); pctx.putImageData(preview, 0, 0);
     pctx.lineWidth = 1;
     frameAnchors.forEach((a, f) => {
-      [['hat', '#ff0000'], ['beard', '#ff00aa'], ['face', '#0000ff']].forEach(([key, colour]) => { const b = a[key]; if (!b) return; pctx.strokeStyle = colour; pctx.strokeRect(f * frameW + b.x0 + 0.5, b.y0 + 0.5, b.x1 - b.x0, b.y1 - b.y0); });
+      [['head', '#ff0000'], ['face', '#0000ff']].forEach(([key, colour]) => { const b = a[key]; if (!b) return; pctx.strokeStyle = colour; pctx.strokeRect(f * frameW + b.x0 + 0.5, b.y0 + 0.5, b.x1 - b.x0, b.y1 - b.y0); });
     });
     return { mask: mc.toDataURL('image/png'), preview: pc.toDataURL('image/png'), anchors: frameAnchors };
-  }, { src, frames: info.frames, frameW: info.w, REFS, PARTS, PREVIEW });
+  }, { src, frames: info.frames, frameW: info.w, REFS, PARTS, PREVIEW, FACING });
   writeFileSync(path.join(masksDir, `${action}.png`), Buffer.from(result.mask.split(',')[1], 'base64'));
   writeFileSync(path.join(masksDir, `${action}.preview.png`), Buffer.from(result.preview.split(',')[1], 'base64'));
   anchors[action] = result.anchors;
-  console.log(action, JSON.stringify(result.anchors[0]));
+  console.log(action, JSON.stringify(result.anchors));
 }
 await browser.close();
 writeFileSync(path.join(root, 'src', 'utils', 'anglerAnchors.json'), `${JSON.stringify(anchors)}\n`);
