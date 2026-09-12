@@ -113,7 +113,7 @@ export const WARDROBE = {
   rod_gold: { slot: 'rod', label: 'Gold rod', cost: 80, tint: [222, 172, 52] },
   boots_green: { slot: 'boots', label: 'Deck boots', cost: 0, tint: null },
   boots_black: { slot: 'boots', label: 'Black boots', cost: 40, tint: [12, 12, 14] },
-  boots_brown: { slot: 'boots', label: 'Leather boots', cost: 40, tint: [112, 72, 42] },
+  boots_brown: { slot: 'boots', label: 'Leather boots', cost: 40, overlay: true },
   boots_yellow: { slot: 'boots', label: 'Yellow boots', cost: 60, tint: [196, 160, 44] },
   boots_red: { slot: 'boots', label: 'Red boots', cost: 60, tint: [184, 44, 44] },
   waders_khaki: { slot: 'waders', label: 'Field waders', cost: 0, tint: null },
@@ -195,10 +195,12 @@ export function paletteFor(look) {
       [PART.shirt]: WARDROBE[safe.shirt].tint,
       // A drawn outfit covers the waders, so dyeing them underneath it would do nothing.
       [PART.waders]: WARDROBE[safe.waders].overlay ? null : WARDROBE[safe.waders].tint,
-      [PART.boots]: WARDROBE[safe.boots].tint,
+      // Drawn boots cover the painted ones, so dyeing those underneath would do nothing.
+      [PART.boots]: WARDROBE[safe.boots].overlay ? null : WARDROBE[safe.boots].tint,
       [PART.rod]: WARDROBE[safe.rod].tint,
     },
     outfit: WARDROBE[safe.waders].overlay ? { overlay: true } : null,
+    boots: WARDROBE[safe.boots].overlay ? { overlay: true } : null,
     head: {
       // Hair goes on whether or not a hat does: a cap leaves plenty of it showing.
       hair: style.overlay ? { overlay: true } : style.sprite ? { sprite: style.sprite } : null,

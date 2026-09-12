@@ -24,7 +24,7 @@ test('every rack item has a slot, a price and, for a hat, a drawing to stamp', (
   Object.values(WARDROBE).forEach((item) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
-    if (item.slot === 'waders' && item.overlay) return;
+    if (item.overlay) return;
     if (item.slot !== 'hat') return;
     if (item.sprite === null) return;
     expect(hatSprites.order).toContain(item.sprite);
@@ -64,6 +64,9 @@ test('skin and gear are dyes, and the art\'s own colours are never dyed to thems
   const geared = paletteFor({ rod: 'rod_gold', boots: 'boots_red', waders: 'waders_navy', shirt: 'shirt_navy' }, ['rod_gold', 'boots_red', 'waders_navy', 'shirt_navy']);
   expect(geared.targets[PART.rod]).toEqual(WARDROBE.rod_gold.tint);
   expect(geared.targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);
+  // A drawn garment is copied on instead, so the dye under it is dropped.
+  expect(paletteFor({ boots: 'boots_brown' }, ['boots_brown']).targets[PART.boots]).toBeNull();
+  expect(paletteFor({ boots: 'boots_brown' }, ['boots_brown']).boots).toEqual({ overlay: true });
   expect(geared.targets[PART.waders]).toEqual(WARDROBE.waders_navy.tint);
   expect(geared.targets[PART.shirt]).toEqual(WARDROBE.shirt_navy.tint);
 });

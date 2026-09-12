@@ -4,6 +4,7 @@
 //   node scripts/anglerDressed.mjs beard  art/angler-dressed-sheet.png -> assets/angler/beard/*
 //   node scripts/anglerDressed.mjs hair   art/angler-haired-sheet.png  -> assets/angler/hair/*
 //   node scripts/anglerDressed.mjs outfit art/angler-outfit-sheet.png  -> assets/angler/outfit/*
+//   node scripts/anglerDressed.mjs boots  art/angler-boots-sheet.png   -> assets/angler/boots/*
 //
 // The beard run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
 //
@@ -18,7 +19,11 @@
 // hue does the work: brown runs red ahead of green ahead of blue where the cap's olive has red
 // and green level, and darkness separates it from skin, the lightest thing on a head. For the
 // outfit sheet it is simply every body pixel that differs from the bald one, since the clothes
-// are the only thing that changed and the two sheets line up to a pixel or two. Line work goes
+// are the only thing that changed and the two sheets line up to a pixel or two. The boots sheet
+// gets the hue test instead, in a box of its own: brown leather against the olive of the wader
+// hem right above it is the same question as brown hair against an olive cap, and two dark
+// boots differ from two dark ones by too little for a diff to see. Its box is the rows the bald
+// frame's own mask wears boots on, opened upwards for a taller shaft. Line work goes
 // with whatever it lies against. Each overlay is written straight into the strip's own
 // geometry, so the painter has nothing to scale or place: it stamps it as it is. That is the
 // whole point of these sheets — a hairstyle drawn for a head thrown back mid-cast beats any
@@ -55,6 +60,7 @@ const LIFT = {
   beard: { below: 0.55, caps: true },
   hair: { below: 0, caps: false },
   outfit: { diff: true, caps: false },
+  boots: { caps: false, part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
 };
 const lift = LIFT[kind];
 if (!lift || !sheet) { console.error(`usage: node scripts/anglerDressed.mjs <${Object.keys(LIFT).join('|')}> <sheet.png>`); process.exit(1); }
@@ -72,12 +78,16 @@ const STRIPS = JSON.parse(readFileSync(path.join(assets, 'strips.json'), 'utf8')
 const BOX = { w: 250, h: 160, feetX: 80, feetY: 154 };
 
 const bald = {};
-for (const action of Object.keys(KEEP)) bald[action] = `data:image/png;base64,${readFileSync(path.join(assets, `${action}.png`)).toString('base64')}`;
+const masks = {};
+for (const action of Object.keys(KEEP)) {
+  bald[action] = `data:image/png;base64,${readFileSync(path.join(assets, `${action}.png`)).toString('base64')}`;
+  if (lift.part) masks[action] = `data:image/png;base64,${readFileSync(path.join(assets, 'masks', `${action}.png`)).toString('base64')}`;
+}
 
 const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM } : {});
 const page = await browser.newPage();
 const data = readFileSync(sheet).toString('base64');
-const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips, heads, lift }) => {
+const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, strips, heads, lift }) => {
   const load = async (src) => { const img = new Image(); img.src = src; await img.decode(); return img; };
   const pixelsOf = (img) => {
     const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
@@ -183,6 +193,7 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
   const results = {}; const hatAnchors = {};
   for (const [action, frames] of Object.entries(sheets)) {
     const base = pixelsOf(await load(bald[action]));
+    const mask = lift.part ? pixelsOf(await load(masks[action])) : null;
     const strip = document.createElement('canvas');
     strip.width = base.width; strip.height = base.height;
     const sctx = strip.getContext('2d');
@@ -200,6 +211,24 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
       // the same olive, and the only other olive on the figure.
       const box0 = (heads[action] || [])[f];
       const head = box0 && box0.head;
+      // The rows this sheet redrew, off the bald frame's own mask: from the lowest row wearing
+      // the part up to the highest one near it, opened upwards by a margin since a leather boot
+      // is drawn with a taller shaft than a deck one. A stray pixel the mask got wrong higher up
+      // the figure is left out by the reach, not by hoping there is none.
+      let band = null;
+      if (mask) {
+        const rows = [];
+        for (let y = 0; y < box.h; y += 1) {
+          let n = 0;
+          for (let x = f * box.w; x < (f + 1) * box.w; x += 1) if (mask.data[(y * mask.width + x) * 4] === lift.part) n += 1;
+          rows[y] = n;
+        }
+        let y1 = box.h - 1; while (y1 > 0 && rows[y1] < 4) y1 -= 1;
+        let y0 = y1; for (let y = y1; y >= 0 && y > y1 - lift.reach; y -= 1) if (rows[y] >= 4) y0 = y;
+        // Never further from the ground than a boot is tall, whatever the mask says: in the
+        // kneeling pose it calls his shoulder leather, and his bowed head is right beside it.
+        band = { y0: Math.max(0, y1 - lift.reach, y0 - (lift.above || 0)), y1: Math.min(box.h - 1, y1 + 4) };
+      }
       comp.pixels.forEach((p) => {
         const x = (p % W) + dx; const y = ((p / W) | 0) + dy;
         if (x < f * box.w || x >= (f + 1) * box.w || y < 0 || y >= box.h) return;
@@ -212,9 +241,16 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         // a redraw, and that is what the cleanup below is for.
         const onBody = head && y > head.y1;
         const changed = onBody && (!base.data[to + 3] || Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60);
-        // Only brown around the head — the rod is brown too, and crosses right past it.
-        const onHead = head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0);
-        if (lift.diff ? changed : onHead && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
+        // Nothing goes on over skin: in the kneeling pose his bare forearms are as brown and as
+        // dark as the leather, and they are in the same place in both sheets, so the bald
+        // frame's own mask is what says which is which.
+        const onSkin = mask && lift.avoid && mask.data[to] === lift.avoid;
+        // Only brown where this sheet drew it — the rod is brown too, and crosses right past
+        // the head; the waders are olive all the way down to the boots.
+        const inBox = !onSkin && (band
+          ? y >= band.y0 && y <= band.y1
+          : head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
+        if (lift.diff ? changed : inBox && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
         else if (!lift.diff && isDark(p)) line.add(to);
         else if (lift.caps && head && isCap(p)) {
           if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
@@ -234,8 +270,10 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         hatAnchors[action][f] = { cx: Math.round((wide[0] + wide[1]) / 2), y: seat };
       }
       // A redraw never lands on exactly the same pixels, so a diff leaves a rim of flecks all
-      // round the body. Nothing that small is a garment.
-      if (lift.diff) {
+      // round the body, and a hue test picks up the odd brown speck of shading. Nothing that
+      // small is a garment.
+      const smallest = lift.diff ? 80 : lift.clean;
+      if (smallest) {
         const seenRun = new Set();
         hit.forEach((to) => {
           if (seenRun.has(to)) return;
@@ -247,7 +285,7 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
               if (hit.has(n) && !seenRun.has(n)) { seenRun.add(n); run.push(n); st.push(n); }
             });
           }
-          if (run.length < 80) run.forEach((q) => { hit.delete(q); image.data[q + 3] = 0; });
+          if (run.length < smallest) run.forEach((q) => { hit.delete(q); image.data[q + 3] = 0; });
         });
       }
       // Line work touching the beard is the beard's; the cap's own is left behind.
@@ -259,13 +297,13 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         });
         gained.forEach((to) => { line.delete(to); hit.add(to); image.data[to] = 20; image.data[to + 1] = 16; image.data[to + 2] = 14; image.data[to + 3] = 255; });
       }
-      notes.push(`${action}[${f}] beard ${hit.size}px`);
+      notes.push(`${action}[${f}] ${hit.size}px`);
     });
     sctx.putImageData(image, 0, 0);
     results[action] = { url: strip.toDataURL('image/png'), overlap: Math.round((covered / total) * 100) };
   }
   return { results, notes, hatAnchors };
-}, { data, bald, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS, lift });
+}, { data, bald, masks, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS, lift });
 
 for (const [action, { url, overlap }] of Object.entries(report.results)) {
   writeFileSync(path.join(out, `${action}.png`), Buffer.from(url.split(',')[1], 'base64'));

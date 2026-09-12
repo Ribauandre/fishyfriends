@@ -151,6 +151,24 @@ test('a drawn outfit is copied over the body, and the waders dye gives way to it
   expect(paletteFor({ waders: 'waders_jeans' }, ['waders_jeans']).targets[PART.waders]).toBeNull();
 });
 
+test('drawn boots go on over the outfit, and the boots dye gives way to them', () => {
+  const outfit = new Uint8ClampedArray(W * H * 4);
+  for (let y = 34; y <= 39; y += 1) for (let x = 16; x <= 26; x += 1) outfit.set([60, 80, 140, 255], (y * W + x) * 4);
+  const boots = new Uint8ClampedArray(W * H * 4);
+  for (let y = 37; y <= 39; y += 1) for (let x = 16; x <= 26; x += 1) boots.set([112, 72, 42, 255], (y * W + x) * 4);
+  const { pixels, mask } = scene();
+  const look = { waders: 'waders_jeans', boots: 'boots_brown' };
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor(look), outfitOver: outfit, bootsOver: boots });
+  const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  // Where the two drawings overlap the boots win — they are worn over the hem, not under it.
+  expect(near(px(20, 38), [112, 72, 42], 20)).toBe(true);
+  expect(near(px(20, 35), [60, 80, 140], 20)).toBe(true);
+  expect(paletteFor(look).targets[PART.boots]).toBeNull();
+  // A dyed boot is still a dye, and no drawing is copied for it.
+  expect(paletteFor({ boots: 'boots_red' }).boots).toBeNull();
+  expect(paletteFor({ boots: 'boots_red' }).targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);
+});
+
 test('skin and gear are dyed in place, shading and all', () => {
   const px = paint({ skin: 'deep', rod: 'rod_gold', shirt: 'shirt_navy' });
   expect(near(px(20, 26), SKIN_TONES.deep.rgb, 40)).toBe(true);
