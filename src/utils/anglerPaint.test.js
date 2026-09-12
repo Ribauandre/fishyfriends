@@ -138,6 +138,19 @@ test('the other hairstyles are hairpieces stamped on the crown and dyed', () => 
   expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
 });
 
+test('a drawn outfit is copied over the body, and the waders dye gives way to it', () => {
+  const over = new Uint8ClampedArray(W * H * 4);
+  for (let y = 34; y <= 38; y += 1) for (let x = 16; x <= 26; x += 1) over.set([60, 80, 140, 255], (y * W + x) * 4);
+  const { pixels, mask } = scene();
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor({ waders: 'waders_jeans' }, ['waders_jeans']), outfitOver: over });
+  const px = (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
+  expect(near(px(20, 36), [60, 80, 140], 20)).toBe(true);
+  // Outside the drawing the art is its own, so the sleeves are still there to dye.
+  expect(near(px(20, 20), PART_BASE[PART.skin], 2)).toBe(true);
+  // And the palette stops dyeing waders that a drawing covers.
+  expect(paletteFor({ waders: 'waders_jeans' }, ['waders_jeans']).targets[PART.waders]).toBeNull();
+});
+
 test('skin and gear are dyed in place, shading and all', () => {
   const px = paint({ skin: 'deep', rod: 'rod_gold', shirt: 'shirt_navy' });
   expect(near(px(20, 26), SKIN_TONES.deep.rgb, 40)).toBe(true);

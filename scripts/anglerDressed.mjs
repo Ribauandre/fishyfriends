@@ -1,8 +1,9 @@
 // Lifts what the artist drew on the angler's head off a sheet that has it, as an overlay strip
 // per action laid pixel-for-pixel on top of the bald strips:
 //
-//   node scripts/anglerDressed.mjs beard art/angler-dressed-sheet.png  -> assets/angler/beard/*
-//   node scripts/anglerDressed.mjs hair  art/angler-haired-sheet.png   -> assets/angler/hair/*
+//   node scripts/anglerDressed.mjs beard  art/angler-dressed-sheet.png -> assets/angler/beard/*
+//   node scripts/anglerDressed.mjs hair   art/angler-haired-sheet.png  -> assets/angler/hair/*
+//   node scripts/anglerDressed.mjs outfit art/angler-outfit-sheet.png  -> assets/angler/outfit/*
 //
 // The beard run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
 //
@@ -13,10 +14,12 @@
 // that angle, with its own shading and line work. That is worth far more than a beard the
 // painter invents: a shape guessed from a head box is the thing that looked sloppy.
 //
-// What is lifted is the brown around the head, which is all either sheet adds there: hair on
-// one, a beard on the other. Hue does the work — brown runs red ahead of green ahead of blue,
-// where the cap's olive has red and green level, and the waders are further off still. Line work
-// goes with whatever it lies against. Each overlay is written straight into the strip's own
+// What is lifted depends on the sheet. For the head sheets it is the brown around the head, and
+// hue does the work: brown runs red ahead of green ahead of blue where the cap's olive has red
+// and green level, and darkness separates it from skin, the lightest thing on a head. For the
+// outfit sheet it is simply every body pixel that differs from the bald one, since the clothes
+// are the only thing that changed and the two sheets line up to a pixel or two. Line work goes
+// with whatever it lies against. Each overlay is written straight into the strip's own
 // geometry, so the painter has nothing to scale or place: it stamps it as it is. That is the
 // whole point of these sheets — a hairstyle drawn for a head thrown back mid-cast beats any
 // front-on hairpiece pasted onto one, and there are twenty-two of those heads.
@@ -46,7 +49,13 @@ const { chromium } = loadPlaywright();
 const [kind, sheet] = process.argv.slice(2);
 // `below` is how far past the chin to look, as a fraction of the head: a beard spills onto the
 // collar, hair does not. `caps` says the sheet wears one worth measuring.
-const LIFT = { beard: { below: 0.55, caps: true }, hair: { below: 0, caps: false } };
+// `below` is how far past the chin a head lift looks, as a fraction of the head; `diff` swaps
+// the hue test for "whatever is not what the bald sheet has here", which is what an outfit is.
+const LIFT = {
+  beard: { below: 0.55, caps: true },
+  hair: { below: 0, caps: false },
+  outfit: { diff: true, caps: false },
+};
 const lift = LIFT[kind];
 if (!lift || !sheet) { console.error(`usage: node scripts/anglerDressed.mjs <${Object.keys(LIFT).join('|')}> <sheet.png>`); process.exit(1); }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -78,16 +87,21 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
   const img = await load(`data:image/png;base64,${data}`);
   const { data: px, width: W, height: H } = pixelsOf(img);
 
-  // The sheet is drawn on white: flood it away from the edges so the figures are all that is
-  // left, then drop the navy label chips the same way the bald slicer does.
+  // The sheets come back both ways — some on white, some already cut out — so which one this
+  // is decides how the background goes: a flood from the edges, or just the alpha channel.
+  let clear = 0;
+  for (let p = 0; p < W * H; p += 1) if (px[p * 4 + 3] === 0) clear += 1;
+  const cutOut = clear > W * H * 0.2;
   const bg = new Uint8Array(W * H); const stack = [];
   const isLight = (p) => px[p * 4] > 200 && px[p * 4 + 1] > 200 && px[p * 4 + 2] > 200 && Math.max(px[p * 4], px[p * 4 + 1], px[p * 4 + 2]) - Math.min(px[p * 4], px[p * 4 + 1], px[p * 4 + 2]) < 20;
   const push = (x, y) => { const p = y * W + x; if (bg[p] || !isLight(p)) return; bg[p] = 1; stack.push(p); };
-  for (let x = 0; x < W; x += 1) { push(x, 0); push(x, H - 1); }
-  for (let y = 0; y < H; y += 1) { push(0, y); push(W - 1, y); }
-  while (stack.length) { const p = stack.pop(); const x = p % W; const y = (p / W) | 0; if (x > 0) push(x - 1, y); if (x < W - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < H - 1) push(x, y + 1); }
+  if (!cutOut) {
+    for (let x = 0; x < W; x += 1) { push(x, 0); push(x, H - 1); }
+    for (let y = 0; y < H; y += 1) { push(0, y); push(W - 1, y); }
+    while (stack.length) { const p = stack.pop(); const x = p % W; const y = (p / W) | 0; if (x > 0) push(x - 1, y); if (x < W - 1) push(x + 1, y); if (y > 0) push(x, y - 1); if (y < H - 1) push(x, y + 1); }
+  }
   const on = new Uint8Array(W * H);
-  for (let p = 0; p < W * H; p += 1) on[p] = bg[p] ? 0 : 1;
+  for (let p = 0; p < W * H; p += 1) on[p] = cutOut ? (px[p * 4 + 3] >= 60 ? 1 : 0) : (bg[p] ? 0 : 1);
 
   const componentsOf = (mask, w, h) => {
     const seen = new Int32Array(w * h).fill(-1); const found = [];
@@ -192,11 +206,16 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         const to = (y * strip.width + x) * 4;
         total += 1;
         if (base.data[to + 3]) covered += 1;
-        // Only brown around the head — the rod is brown too, and crosses right past it.
         const lx = x - f * box.w;
-        const onHead = head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * lift.below;
-        if (onHead && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
-        else if (isDark(p)) line.add(to);
+        // An outfit is everything below the chin that is not what the bald sheet has there.
+        // Clothes are the only thing that changed, so nothing else can differ but the noise of
+        // a redraw, and that is what the cleanup below is for.
+        const onBody = head && y > head.y1;
+        const changed = onBody && (!base.data[to + 3] || Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60);
+        // Only brown around the head — the rod is brown too, and crosses right past it.
+        const onHead = head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0);
+        if (lift.diff ? changed : onHead && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
+        else if (!lift.diff && isDark(p)) line.add(to);
         else if (lift.caps && head && isCap(p)) {
           if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
           const row = capRows.get(y) || [Infinity, -Infinity];
@@ -214,8 +233,25 @@ const report = await page.evaluate(async ({ data, bald, rows, keep, box, strips,
         hatAnchors[action] = hatAnchors[action] || [];
         hatAnchors[action][f] = { cx: Math.round((wide[0] + wide[1]) / 2), y: seat };
       }
+      // A redraw never lands on exactly the same pixels, so a diff leaves a rim of flecks all
+      // round the body. Nothing that small is a garment.
+      if (lift.diff) {
+        const seenRun = new Set();
+        hit.forEach((to) => {
+          if (seenRun.has(to)) return;
+          const run = [to]; const st = [to]; seenRun.add(to);
+          while (st.length) {
+            const q = st.pop(); const i = q / 4; const qx = i % strip.width; const qy = (i / strip.width) | 0;
+            [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+              const n = ((qy + dy) * strip.width + qx + dx) * 4;
+              if (hit.has(n) && !seenRun.has(n)) { seenRun.add(n); run.push(n); st.push(n); }
+            });
+          }
+          if (run.length < 80) run.forEach((q) => { hit.delete(q); image.data[q + 3] = 0; });
+        });
+      }
       // Line work touching the beard is the beard's; the cap's own is left behind.
-      for (let pass = 0; pass < 2; pass += 1) {
+      for (let pass = 0; pass < 2 && !lift.diff; pass += 1) {
         const gained = [];
         line.forEach((to) => {
           const i = to / 4; const x = i % strip.width; const y = (i / strip.width) | 0;

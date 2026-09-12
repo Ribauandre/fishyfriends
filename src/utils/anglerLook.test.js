@@ -24,6 +24,7 @@ test('every rack item has a slot, a price and, for a hat, a drawing to stamp', (
   Object.values(WARDROBE).forEach((item) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
+    if (item.slot === 'waders' && item.overlay) return;
     if (item.slot !== 'hat') return;
     if (item.sprite === null) return;
     expect(hatSprites.order).toContain(item.sprite);

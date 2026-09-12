@@ -12,6 +12,10 @@
 // width it is worn at, and each carries one anchor row — the peak, band or brim that lies on a
 // head — so stamping one is a scale by the frame's own head and a single row to line up.
 //
+// The waders come both ways too: normally a dye, but one rack item is a whole drawn outfit
+// lifted off a fourth sheet of the same poses, which can change the garment's shape and not
+// just its colour. It leaves the sleeves alone, so the shirt dye still works under it.
+//
 // Hair comes both ways. The stock style is an overlay like the beard, lifted off a third sheet
 // of the same poses, and it is the better of the two for the same reason: it was drawn for a
 // head thrown back mid-cast. The rest are generated hairpieces in assets/angler/hair.png,
@@ -39,6 +43,11 @@ import castHair from '../assets/angler/hair/cast.png';
 import reelHair from '../assets/angler/hair/reel.png';
 import celebrateHair from '../assets/angler/hair/celebrate.png';
 import hurtHair from '../assets/angler/hair/hurt.png';
+import idleOutfit from '../assets/angler/outfit/idle.png';
+import castOutfit from '../assets/angler/outfit/cast.png';
+import reelOutfit from '../assets/angler/outfit/reel.png';
+import celebrateOutfit from '../assets/angler/outfit/celebrate.png';
+import hurtOutfit from '../assets/angler/outfit/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
 import hairSheet from '../assets/angler/hair.png';
 
@@ -48,6 +57,7 @@ const MASKS = { idle: idleMask, cast: castMask, reel: reelMask, celebrate: celeb
 const FRAMES = Object.fromEntries(Object.entries(anchors).map(([action, list]) => [action, list.map((frame, f) => ({ ...frame, hatAnchor: (hatAnchors[action] || [])[f] || null }))]));
 const BEARDS = { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard };
 const HAIR = { idle: idleHair, cast: castHair, reel: reelHair, celebrate: celebrateHair, hurt: hurtHair };
+const OUTFITS = { idle: idleOutfit, cast: castOutfit, reel: reelOutfit, celebrate: celebrateOutfit, hurt: hurtOutfit };
 
 // Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
 // beards are measured against. The full beard needs none, being the drawing as the artist left
@@ -163,7 +173,7 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
 // Dye a strip in place, then dress every frame's head. `pixels` is the strip's RGBA, `mask` the
 // matching mask's RGBA (red = part id), `beard` the matching beard overlay's RGBA, `hats` the
 // hat sheet with its manifest, `anchors` the per-frame boxes.
-export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette, beard = null, hats = null, hairArt = null, hairOver = null }) {
+export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette, beard = null, hats = null, hairArt = null, hairOver = null, outfitOver = null }) {
   const { targets } = palette;
   for (let i = 0; i < pixels.length; i += 4) {
     if (pixels[i + 3] === 0) continue;
@@ -171,6 +181,14 @@ export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: 
     if (!target) continue;
     const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[mask[i]], target);
     pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
+  }
+  // A drawn outfit goes on before the head does, so a beard still falls over its collar. Like
+  // the beard and the hair it lies on the strip's own geometry, so it only has to be copied.
+  if (outfitOver && palette.outfit) {
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (!outfitOver[i + 3]) continue;
+      pixels[i] = outfitOver[i]; pixels[i + 1] = outfitOver[i + 1]; pixels[i + 2] = outfitOver[i + 2]; pixels[i + 3] = 255;
+    }
   }
   const frames = Math.ceil(width / frameWidth);
   for (let f = 0; f < frames; f += 1) {
@@ -219,12 +237,12 @@ function loadWearable(src, manifest) {
 
 // Paint one action's strip for a palette.
 async function paintStrip(action, palette) {
-  const [art, mask, beard, hairOver, hats, hairArt] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(BEARDS[action]), pixelsOf(HAIR[action]), loadWearable(hatSheet, hatSprites), loadWearable(hairSheet, hairSprites)]);
+  const [art, mask, beard, hairOver, outfitOver, hats, hairArt] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(BEARDS[action]), pixelsOf(HAIR[action]), pixelsOf(OUTFITS[action]), loadWearable(hatSheet, hatSprites), loadWearable(hairSheet, hairSprites)]);
   const { width, height } = art;
   const main = canvasFor(width, height);
   main.ctx.drawImage(art, 0, 0);
   const image = main.ctx.getImageData(0, 0, width, height);
-  paintPixels({ pixels: image.data, mask: mask.data, width, height, frameWidth: SPRITE_FRAME.w, anchors: FRAMES[action] || [], palette, beard: beard.data, hats, hairArt, hairOver: hairOver.data });
+  paintPixels({ pixels: image.data, mask: mask.data, width, height, frameWidth: SPRITE_FRAME.w, anchors: FRAMES[action] || [], palette, beard: beard.data, hats, hairArt, hairOver: hairOver.data, outfitOver: outfitOver.data });
   main.ctx.putImageData(image, 0, 0);
   return main.canvas;
 }

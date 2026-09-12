@@ -65,7 +65,11 @@ export const BEARD_STYLES = {
   full: { label: 'Full beard', keep: 'all' },
 };
 
-// The racks. A hat is one of the twenty drawn in assets/angler/hats.png, named by its `sprite`
+// The racks. A waders item is normally a dye, but `overlay` marks the one that is a whole
+// drawn outfit instead — lifted pose by pose off art/angler-outfit-sheet.png, so it can change
+// the garment's shape and not just its colour, which no dye can. It leaves the sleeves alone,
+// so the shirt rack still works underneath it.
+// A hat is one of the twenty drawn in assets/angler/hats.png, named by its `sprite`
 // (see utils/hatSprites.json) — the painter stamps it, it does not build it. A few are the same
 // drawing taken in another colour, which is what `tint` is for: it re-dyes the sprite against
 // `base`, the colour that drawing is painted in. Shirts, rods, boots and waders are dyes on the
@@ -113,6 +117,7 @@ export const WARDROBE = {
   boots_yellow: { slot: 'boots', label: 'Yellow boots', cost: 60, tint: [196, 160, 44] },
   boots_red: { slot: 'boots', label: 'Red boots', cost: 60, tint: [184, 44, 44] },
   waders_khaki: { slot: 'waders', label: 'Field waders', cost: 0, tint: null },
+  waders_jeans: { slot: 'waders', label: 'Vest and jeans', cost: 80, overlay: true },
   waders_olive: { slot: 'waders', label: 'Olive waders', cost: 60, tint: [112, 118, 72] },
   waders_grey: { slot: 'waders', label: 'Grey waders', cost: 60, tint: [124, 128, 134] },
   waders_navy: { slot: 'waders', label: 'Navy waders', cost: 70, tint: [52, 66, 112] },
@@ -188,10 +193,12 @@ export function paletteFor(look) {
     targets: {
       [PART.skin]: safe.skin === DEFAULT_LOOK.skin ? null : skin,
       [PART.shirt]: WARDROBE[safe.shirt].tint,
-      [PART.waders]: WARDROBE[safe.waders].tint,
+      // A drawn outfit covers the waders, so dyeing them underneath it would do nothing.
+      [PART.waders]: WARDROBE[safe.waders].overlay ? null : WARDROBE[safe.waders].tint,
       [PART.boots]: WARDROBE[safe.boots].tint,
       [PART.rod]: WARDROBE[safe.rod].tint,
     },
+    outfit: WARDROBE[safe.waders].overlay ? { overlay: true } : null,
     head: {
       // Hair goes on whether or not a hat does: a cap leaves plenty of it showing.
       hair: style.overlay ? { overlay: true } : style.sprite ? { sprite: style.sprite } : null,
