@@ -85,6 +85,8 @@ const CAP_DRAWN = [104, 96, 56];
 // its keyline is what falls under 20.
 const BEANIE_DRAWN = [59, 53, 49];
 const BEANIE_FLOOR = 20;
+// The bucket's own canvas. Only 15% of it falls under the usual guard, so that one stands.
+const BUCKET_DRAWN = [147, 124, 85];
 
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
@@ -100,8 +102,8 @@ export const WARDROBE = {
   hat_beanie_red: { slot: 'hat', label: 'Red beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [170, 50, 44] },
   hat_beanie_navy: { slot: 'hat', label: 'Navy beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [52, 68, 116] },
   hat_beanie_grey: { slot: 'hat', label: 'Grey beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [132, 134, 140] },
-  hat_visor: { slot: 'hat', label: 'Canvas bucket', cost: 70, sprite: 'bucket_canvas' },
-  hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 80, sprite: 'bucket_tan' },
+  hat_visor: { slot: 'hat', label: 'Canvas bucket', cost: 70, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [206, 198, 172] },
+  hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 80, overlay: 'bucket_tan' },
   hat_boonie: { slot: 'hat', label: 'Camo boonie', cost: 90, sprite: 'bucket_camo' },
   hat_straw: { slot: 'hat', label: 'Straw hat', cost: 90, sprite: 'straw_blue' },
   hat_straw_red: { slot: 'hat', label: 'Straw hat, red band', cost: 90, sprite: 'straw_red' },

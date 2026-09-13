@@ -71,7 +71,7 @@ const LIFT = {
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
-  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, shift: 2, dir: 'hats' },
+  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, shift: 1, fill: true, dir: 'hats' },
   // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
   // cap's olive from the beard's brown.
   cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, dir: 'hats' },
@@ -234,7 +234,10 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
       for (let dy = -lift.shift; dy <= lift.shift; dy += 1) for (let dx = -lift.shift; dx <= lift.shift; dx += 1) {
         const n = to + (dy * base.width + dx) * 4;
         if (n < 0 || n >= base.data.length || !base.data[n + 3]) continue;
-        if (Math.abs(r - base.data[n]) + Math.abs(g - base.data[n + 1]) + Math.abs(b - base.data[n + 2]) <= 30) return true;
+        // Tight, because this is looking for the *same* colour moved over, not a near one: a
+        // tan hat lands close to skin without being it, and a loose match punches the skin
+        // through the crown of one in speckles.
+        if (Math.abs(r - base.data[n]) + Math.abs(g - base.data[n + 1]) + Math.abs(b - base.data[n + 2]) <= 12) return true;
       }
       return false;
     };
@@ -381,6 +384,36 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
           if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ox, oy]) => hit.has(((y + oy) * strip.width + x + ox) * 4))) gained.push(to);
         });
         gained.forEach((to) => { line.delete(to); hit.add(to); image.data[to] = 20; image.data[to + 1] = 16; image.data[to + 2] = 14; image.data[to + 3] = 255; });
+      }
+      // A garment is solid. Wherever the tests above have punched a hole clean through the
+      // middle of one — a tan hat lands near enough to skin for that — the sheet itself says
+      // what belongs there, so it is put back. Holes only: anything open to the outside of the
+      // frame is not a hole, it is the shape of the hat.
+      if (lift.fill) {
+        const outside = new Uint8Array(box.w * box.h); const queue = [];
+        const push = (lx, ly) => {
+          if (lx < 0 || ly < 0 || lx >= box.w || ly >= box.h) return;
+          const k = ly * box.w + lx;
+          if (outside[k] || hit.has(((ly) * strip.width + f * box.w + lx) * 4)) return;
+          outside[k] = 1; queue.push(k);
+        };
+        for (let lx = 0; lx < box.w; lx += 1) { push(lx, 0); push(lx, box.h - 1); }
+        for (let ly = 0; ly < box.h; ly += 1) { push(0, ly); push(box.w - 1, ly); }
+        while (queue.length) {
+          const k = queue.pop(); const lx = k % box.w; const ly = (k / box.w) | 0;
+          push(lx - 1, ly); push(lx + 1, ly); push(lx, ly - 1); push(lx, ly + 1);
+        }
+        for (let ly = 0; ly < box.h; ly += 1) for (let lx = 0; lx < box.w; lx += 1) {
+          if (outside[ly * box.w + lx]) continue;
+          const to = (ly * strip.width + f * box.w + lx) * 4;
+          if (hit.has(to)) continue;
+          const sx = lx + f * box.w - dx; const sy = ly - dy;
+          if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+          const from = (sy * W + sx) * 4;
+          hit.add(to);
+          for (let k = 0; k < 3; k += 1) image.data[to + k] = px[from + k];
+          image.data[to + 3] = 255;
+        }
       }
       notes.push(`${action}[${f}] ${hit.size}px`);
     });

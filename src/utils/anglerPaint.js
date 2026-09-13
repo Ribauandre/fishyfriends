@@ -76,6 +76,11 @@ import beanieBlackCast from '../assets/angler/hats/beanie_black/cast.png';
 import beanieBlackReel from '../assets/angler/hats/beanie_black/reel.png';
 import beanieBlackCelebrate from '../assets/angler/hats/beanie_black/celebrate.png';
 import beanieBlackHurt from '../assets/angler/hats/beanie_black/hurt.png';
+import bucketTanIdle from '../assets/angler/hats/bucket_tan/idle.png';
+import bucketTanCast from '../assets/angler/hats/bucket_tan/cast.png';
+import bucketTanReel from '../assets/angler/hats/bucket_tan/reel.png';
+import bucketTanCelebrate from '../assets/angler/hats/bucket_tan/celebrate.png';
+import bucketTanHurt from '../assets/angler/hats/bucket_tan/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
 import hairSheet from '../assets/angler/hair.png';
 
@@ -94,6 +99,7 @@ const HAT_ART = {
   cap_olive: { idle: capOliveIdle, cast: capOliveCast, reel: capOliveReel, celebrate: capOliveCelebrate, hurt: capOliveHurt },
   cap_red: { idle: capRedIdle, cast: capRedCast, reel: capRedReel, celebrate: capRedCelebrate, hurt: capRedHurt },
   beanie_black: { idle: beanieBlackIdle, cast: beanieBlackCast, reel: beanieBlackReel, celebrate: beanieBlackCelebrate, hurt: beanieBlackHurt },
+  bucket_tan: { idle: bucketTanIdle, cast: bucketTanCast, reel: bucketTanReel, celebrate: bucketTanCelebrate, hurt: bucketTanHurt },
 };
 
 // Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
