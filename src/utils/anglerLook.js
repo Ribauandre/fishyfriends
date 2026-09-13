@@ -87,6 +87,9 @@ const BEANIE_DRAWN = [59, 53, 49];
 const BEANIE_FLOOR = 20;
 // The bucket's own canvas. Only 15% of it falls under the usual guard, so that one stands.
 const BUCKET_DRAWN = [147, 124, 85];
+// The sou'wester's oilskin. The two rain hats are that same hat in another colour, which a
+// solid oilskin can be: 15% of it falls under the usual guard, so that one stands.
+const OILSKIN_DRAWN = [198, 147, 45];
 
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
@@ -107,9 +110,9 @@ export const WARDROBE = {
   hat_boonie: { slot: 'hat', label: 'Camo boonie', cost: 90, sprite: 'bucket_camo' },
   hat_straw: { slot: 'hat', label: 'Straw hat', cost: 90, overlay: 'straw_blue' },
   hat_straw_red: { slot: 'hat', label: 'Straw hat, red band', cost: 90, sprite: 'straw_red' },
-  hat_wide_olive: { slot: 'hat', label: 'Olive rain hat', cost: 100, sprite: 'wide_olive' },
-  hat_wide_navy: { slot: 'hat', label: 'Navy rain hat', cost: 100, sprite: 'wide_navy' },
-  hat_cowboy: { slot: 'hat', label: "Sou'wester", cost: 120, sprite: 'souwester' },
+  hat_wide_olive: { slot: 'hat', label: 'Olive rain hat', cost: 100, overlay: 'souwester', base: OILSKIN_DRAWN, tint: [104, 116, 66] },
+  hat_wide_navy: { slot: 'hat', label: 'Navy rain hat', cost: 100, overlay: 'souwester', base: OILSKIN_DRAWN, tint: [54, 70, 118] },
+  hat_cowboy: { slot: 'hat', label: "Sou'wester", cost: 120, overlay: 'souwester' },
   hat_boonie_white: { slot: 'hat', label: 'Flats boonie', cost: 130, sprite: 'boonie_white' },
   hat_boonie_olive: { slot: 'hat', label: 'Guide boonie', cost: 130, sprite: 'boonie_olive' },
   shirt_grey: { slot: 'shirt', label: 'Work shirt', cost: 0, tint: null },

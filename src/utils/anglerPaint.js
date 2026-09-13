@@ -86,6 +86,11 @@ import strawBlueCast from '../assets/angler/hats/straw_blue/cast.png';
 import strawBlueReel from '../assets/angler/hats/straw_blue/reel.png';
 import strawBlueCelebrate from '../assets/angler/hats/straw_blue/celebrate.png';
 import strawBlueHurt from '../assets/angler/hats/straw_blue/hurt.png';
+import souwesterIdle from '../assets/angler/hats/souwester/idle.png';
+import souwesterCast from '../assets/angler/hats/souwester/cast.png';
+import souwesterReel from '../assets/angler/hats/souwester/reel.png';
+import souwesterCelebrate from '../assets/angler/hats/souwester/celebrate.png';
+import souwesterHurt from '../assets/angler/hats/souwester/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
 import hairSheet from '../assets/angler/hair.png';
 
@@ -106,6 +111,7 @@ const HAT_ART = {
   beanie_black: { idle: beanieBlackIdle, cast: beanieBlackCast, reel: beanieBlackReel, celebrate: beanieBlackCelebrate, hurt: beanieBlackHurt },
   bucket_tan: { idle: bucketTanIdle, cast: bucketTanCast, reel: bucketTanReel, celebrate: bucketTanCelebrate, hurt: bucketTanHurt },
   straw_blue: { idle: strawBlueIdle, cast: strawBlueCast, reel: strawBlueReel, celebrate: strawBlueCelebrate, hurt: strawBlueHurt },
+  souwester: { idle: souwesterIdle, cast: souwesterCast, reel: souwesterReel, celebrate: souwesterCelebrate, hurt: souwesterHurt },
 };
 
 // Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
