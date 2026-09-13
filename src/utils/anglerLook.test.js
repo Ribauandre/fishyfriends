@@ -24,6 +24,8 @@ test('every rack item has a slot, a price and, for a hat, a drawing to stamp', (
   Object.values(WARDROBE).forEach((item) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
+    // A hat is either a drawing of him wearing it or a drawing stamped on, never neither.
+    if (item.slot === 'hat' && item.overlay) { expect(typeof item.overlay).toBe('string'); return; }
     if (item.overlay) return;
     if (item.slot !== 'hat') return;
     if (item.sprite === null) return;
@@ -45,7 +47,9 @@ test('the default look is the art as drawn: nothing dyed and nothing on the head
 
 test('the head plan names the drawing to stamp and the part of the beard to keep', () => {
   expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_red.sprite, tint: null });
-  expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ sprite: 'cap_olive', tint: WARDROBE.cap_black.tint });
+  // The caps are drawings of him wearing one now; the rest are still stamped until their sheets land.
+  expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: WARDROBE.cap_black.tint });
+  expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
   // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
   // The stock style is the artist's own, lifted pose by pose; the rest are stamped hairpieces.
   expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ overlay: true });

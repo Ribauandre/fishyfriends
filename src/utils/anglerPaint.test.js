@@ -60,7 +60,14 @@ function hatSheet() {
   for (let y = 0; y < cellH; y += 1) for (let x = 0; x < cellW * 2; x += 1) {
     data.set(x < cellW ? [180, 40, 40, 255] : [40, 60, 180, 255], (y * cellW * 2 + x) * 4);
   }
-  return { data, width: cellW * 2, height: cellH, ...HAT_CELL, index: { cap_olive: 0, straw_blue: 1 } };
+  return { data, width: cellW * 2, height: cellH, ...HAT_CELL, index: { cap_brown: 0, straw_blue: 1 } };
+}
+// A stand-in for a hat lifted off a sheet of him wearing it: it lies on the strip's own pixels,
+// so there is nothing to scale or anchor.
+function hatOverlay() {
+  const over = new Uint8ClampedArray(W * H * 4);
+  for (let y = 8; y <= 15; y += 1) for (let x = 13; x <= 29; x += 1) over.set([96, 128, 64, 255], (y * W + x) * 4);
+  return over;
 }
 function dressed(look, extra = {}) {
   const { pixels, mask } = scene();
@@ -68,8 +75,8 @@ function dressed(look, extra = {}) {
   return (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
 }
 
-test('a hat is the drawn sprite, hung on the row the artist\'s own cap sat on', () => {
-  const px = dressed({ hat: 'cap_green' });
+test('a hat still on the stamped sheet is hung on the row the artist\'s own cap sat on', () => {
+  const px = dressed({ hat: 'cap_brown' });
   // The cell is stamped with its anchor row on the frame's own cap row, not on a fraction of
   // the head: the sheet knows this pose's tilt and a fraction cannot.
   expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
@@ -77,8 +84,21 @@ test('a hat is the drawn sprite, hung on the row the artist\'s own cap sat on', 
   expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
   // Another item in the same slot stamps a different cell.
   expect(near(dressed({ hat: 'hat_straw' })(21, 16), [40, 60, 180], 30)).toBe(true);
-  // And a tinted item re-dyes the drawing it shares.
-  expect(dressed({ hat: 'cap_black' })(21, 16).r).toBeLessThan(px(21, 16).r);
+});
+
+test('a drawn hat is copied where the artist put it, and a dyed one is that same drawing', () => {
+  const worn = dressed({ hat: 'cap_green' }, { hatOver: hatOverlay() });
+  // Nothing is scaled and no anchor row is consulted: the overlay lands on its own pixels.
+  expect(near(worn(21, 12), [96, 128, 64], 20)).toBe(true);
+  // Below it the face is the art's own skin again.
+  expect(near(worn(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
+  // A dyed cap is the same drawing measured against the olive it was painted in.
+  const black = dressed({ hat: 'cap_black' }, { hatOver: hatOverlay() });
+  expect(black(21, 12).g).toBeLessThan(worn(21, 12).g);
+  expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
+  // A drawing wins over the stamped sheet, so a hat never goes on twice.
+  const both = dressed({ hat: 'cap_green' }, { hatOver: hatOverlay() });
+  expect(near(both(21, 16), [180, 40, 40], 30)).toBe(false);
 });
 
 test('a hat is stamped on every frame, at that frame\'s own head', () => {
@@ -90,7 +110,7 @@ test('a hat is stamped on every frame, at that frame\'s own head', () => {
     [[x, 0], [x + 4, W]].forEach(([tx, ox]) => { if (tx < W) { const to = (y * W * 2 + ox + tx) * 4; pixels.set(one.pixels.slice(from, from + 4), to); mask[to] = one.mask[from]; } });
   }
   const second = { head: { ...FRAME.head, x0: FRAME.head.x0 + 4, x1: FRAME.head.x1 + 4 }, facing: 'right', hatAnchor: { cx: 25, y: 18 } };
-  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'cap_green' }), hats: hatSheet() });
+  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'cap_brown' }), hats: hatSheet() });
   const px = (x, y) => { const i = (y * W * 2 + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
   expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
   expect(near(px(W + 25, 16), [180, 40, 40], 30)).toBe(true);

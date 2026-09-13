@@ -75,15 +75,18 @@ export const BEARD_STYLES = {
 // `base`, the colour that drawing is painted in. Shirts, rods, boots and waders are dyes on the
 // character himself: `tint` null means the art's own colour, which is what the free item in
 // every rack is.
-const CAP_OLIVE = [96, 108, 56];
+// The olive the artist painted the cap he drew on the dressed sheet, which its dyes are
+// measured against. Read off the lifted overlay, not off the cap on the stamped sheet: they are
+// two drawings of the same cap and they are not the same green.
+const CAP_DRAWN = [104, 96, 56];
 
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
-  cap_green: { slot: 'hat', label: 'Club cap', cost: 0, sprite: 'cap_olive' },
+  cap_green: { slot: 'hat', label: 'Club cap', cost: 0, overlay: 'cap_olive' },
   cap_red: { slot: 'hat', label: 'Angler cap, red', cost: 40, sprite: 'cap_fish_red' },
   cap_navy: { slot: 'hat', label: 'Angler cap, blue', cost: 40, sprite: 'cap_fish_navy' },
-  cap_black: { slot: 'hat', label: 'Black cap', cost: 40, sprite: 'cap_olive', base: CAP_OLIVE, tint: [46, 46, 50] },
-  cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, sprite: 'cap_olive', base: CAP_OLIVE, tint: [214, 108, 32] },
+  cap_black: { slot: 'hat', label: 'Black cap', cost: 40, overlay: 'cap_olive', base: CAP_DRAWN, tint: [46, 46, 50] },
+  cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, overlay: 'cap_olive', base: CAP_DRAWN, tint: [214, 108, 32] },
   cap_brown: { slot: 'hat', label: 'Field cap', cost: 50, sprite: 'cap_brown' },
   cap_camo: { slot: 'hat', label: 'Camo cap', cost: 60, sprite: 'cap_camo' },
   hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 60, sprite: 'beanie_black' },
@@ -204,7 +207,11 @@ export function paletteFor(look) {
     head: {
       // Hair goes on whether or not a hat does: a cap leaves plenty of it showing.
       hair: style.overlay ? { overlay: true } : style.sprite ? { sprite: style.sprite } : null,
-      hat: hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
+      // A hat comes both ways while the drawings come in: an overlay lifted off a sheet of him
+      // wearing it, which needs no placing, or the old standalone drawing stamped on.
+      hat: hat.overlay
+        ? { overlay: hat.overlay, base: hat.base || null, tint: hat.tint || null }
+        : hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
       beard: { ...beard },
     },
   };
