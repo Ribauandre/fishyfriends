@@ -299,10 +299,16 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
           : lift.box === 'body'
             ? Boolean(head) && y > head.y1
             : Boolean(head) && lx >= head.x0 - (lift.pad || 14) && lx <= head.x1 + (lift.pad || 14) && y >= head.y0 - (lift.rise || 18) && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
+        // Out in the air beside him, a pale grey stroke is the sheet's own drawn line or the
+        // whip marks around it. The bald strips carry neither — the slicer takes them out
+        // because the game draws its own line from the rod tip — so there is nothing there to
+        // diff against and every one of them reads as new. A hat out there is a colour.
+        const grey = Math.max(px[p * 4], px[p * 4 + 1], px[p * 4 + 2]) - Math.min(px[p * 4], px[p * 4 + 1], px[p * 4 + 2]) < 24
+          && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 > 190;
         const drawn = lift.test === 'diff'
           ? (base.data[to + 3]
             ? Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60
-            : inner[p] === 1)
+            : inner[p] === 1 && !grey)
           : lift.test === 'olive' ? isCap(p) : isBeard(p);
         if (inBox && drawn) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
         else if (lift.test !== 'diff' && isDark(p)) line.add(to);
@@ -409,6 +415,10 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
           if (hit.has(to)) continue;
           const sx = lx + f * box.w - dx; const sy = ly - dy;
           if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+          // Only from the figure. A wide brim and the rod can close a pocket of plain
+          // background between them, and filling that would stamp the sheet's own backdrop
+          // onto the stage beside his ear.
+          if (!on[sy * W + sx]) continue;
           const from = (sy * W + sx) * 4;
           hit.add(to);
           for (let k = 0; k < 3; k += 1) image.data[to + k] = px[from + k];

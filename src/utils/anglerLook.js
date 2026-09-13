@@ -105,7 +105,7 @@ export const WARDROBE = {
   hat_visor: { slot: 'hat', label: 'Canvas bucket', cost: 70, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [206, 198, 172] },
   hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 80, overlay: 'bucket_tan' },
   hat_boonie: { slot: 'hat', label: 'Camo boonie', cost: 90, sprite: 'bucket_camo' },
-  hat_straw: { slot: 'hat', label: 'Straw hat', cost: 90, sprite: 'straw_blue' },
+  hat_straw: { slot: 'hat', label: 'Straw hat', cost: 90, overlay: 'straw_blue' },
   hat_straw_red: { slot: 'hat', label: 'Straw hat, red band', cost: 90, sprite: 'straw_red' },
   hat_wide_olive: { slot: 'hat', label: 'Olive rain hat', cost: 100, sprite: 'wide_olive' },
   hat_wide_navy: { slot: 'hat', label: 'Navy rain hat', cost: 100, sprite: 'wide_navy' },

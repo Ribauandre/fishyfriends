@@ -60,7 +60,7 @@ function hatSheet() {
   for (let y = 0; y < cellH; y += 1) for (let x = 0; x < cellW * 2; x += 1) {
     data.set(x < cellW ? [180, 40, 40, 255] : [40, 60, 180, 255], (y * cellW * 2 + x) * 4);
   }
-  return { data, width: cellW * 2, height: cellH, ...HAT_CELL, index: { cap_brown: 0, straw_blue: 1 } };
+  return { data, width: cellW * 2, height: cellH, ...HAT_CELL, index: { cap_brown: 0, cap_camo: 1 } };
 }
 // A stand-in for a hat lifted off a sheet of him wearing it: it lies on the strip's own pixels,
 // so there is nothing to scale or anchor.
@@ -83,7 +83,7 @@ test('a hat still on the stamped sheet is hung on the row the artist\'s own cap 
   // Below it the face is the art's own skin again.
   expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
   // Another item in the same slot stamps a different cell.
-  expect(near(dressed({ hat: 'hat_straw' })(21, 16), [40, 60, 180], 30)).toBe(true);
+  expect(near(dressed({ hat: 'cap_camo' })(21, 16), [40, 60, 180], 30)).toBe(true);
 });
 
 test('a drawn hat is copied where the artist put it, and a dyed one is that same drawing', () => {
