@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.80be1fdd.css",
-    "main.js": "/static/js/main.2c6a2923.js",
+    "main.js": "/static/js/main.bc6625b2.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
@@ -34,19 +34,14 @@
     "static/media/offshore.webp": "/static/media/offshore.d93e052d039f4a70395a.webp",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
     "static/media/river.webp": "/static/media/river.8509b9250a2d3a6cab75.webp",
-    "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
     "static/media/shopkeeper.png": "/static/media/shopkeeper.3ba2ba32c3b4a9e1ed2e.png",
     "static/media/frame.png": "/static/media/frame.9362beea1c8065ff32b6.png",
     "static/media/bay.webp": "/static/media/bay.a73866f7ac71a3bf78df.webp",
     "static/media/captain.png": "/static/media/captain.c5a212a32f1cd89a1186.png",
     "static/media/plank.png": "/static/media/plank.cd6b6c9747fd649cf48e.png",
     "static/media/shoreline.webp": "/static/media/shoreline.5e996d2d36acea569749.webp",
-    "static/media/idle.png": "/static/media/idle.aa691bccb2162423f9c6.png",
-    "static/media/celebrate.png": "/static/media/celebrate.982a11462d0d96ad7df7.png",
-    "static/media/cast.png": "/static/media/cast.9cfebf5184ba058098ca.png",
     "static/media/shop.webp": "/static/media/shop.1e26251ff5acb847ad54.webp",
     "static/media/canyon.webp": "/static/media/canyon.15741e5b7bb4dd83da06.webp",
-    "static/media/hurt.png": "/static/media/hurt.35facbdf431687fe7714.png",
     "static/media/boat.png": "/static/media/boat.c6bdd4cb66b6d81fbf9f.png",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "static/media/truck.png": "/static/media/truck.292f2893f3a8e39b2444.png",
@@ -60,7 +55,6 @@
     "static/media/crankbait.png": "/static/media/crankbait.14b80cdd7c7d7687ce00.png",
     "static/media/crewicon.png": "/static/media/crewicon.6727b3b8653e4f2ac273.png",
     "static/media/nymph.png": "/static/media/nymph.108210243848477c9deb.png",
-    "static/media/hair.png": "/static/media/hair.269146d3e9ed9043c4ec.png",
     "static/media/outfit.png": "/static/media/outfit.7b7ba0670c64cee99ba6.png",
     "static/media/tacklebox.png": "/static/media/tacklebox.bd65311e9b86562d8df7.png",
     "static/media/deck.webp": "/static/media/deck.ae57925196dfb0fee557.webp",
@@ -69,6 +63,7 @@
     "static/media/questicon.png": "/static/media/questicon.b649e3283e2b3e24c14b.png",
     "static/media/livebait.png": "/static/media/livebait.11f2412961dddca06acf.png",
     "static/media/line.png": "/static/media/line.41daa5107d0716b3101a.png",
+    "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
     "static/media/bait.png": "/static/media/bait.7476c4f2330f75a5fc24.png",
     "static/media/book.png": "/static/media/book.b6c84298ae429071e939.png",
     "static/media/trophyicon.png": "/static/media/trophyicon.e563932d87caceeeb759.png",
@@ -79,11 +74,11 @@
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
     "main.80be1fdd.css.map": "/static/css/main.80be1fdd.css.map",
-    "main.2c6a2923.js.map": "/static/js/main.2c6a2923.js.map",
+    "main.bc6625b2.js.map": "/static/js/main.bc6625b2.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.80be1fdd.css",
-    "static/js/main.2c6a2923.js"
+    "static/js/main.bc6625b2.js"
   ]
 }
