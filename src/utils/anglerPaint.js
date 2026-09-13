@@ -52,6 +52,15 @@ export function bandOf(rgb, ramp) {
 // hundred in red for the deep tone — so a smooth face came out as flat patches with a hard edge
 // between them. Blending the two steps by where the pixel sits makes the move continuous, and at
 // a band's own brightness it is exactly that band's step, as before.
+//
+// And the step is a ratio per channel, not a difference. A pixel *on* a band lands on the other
+// ramp's band either way; the two part company on a pixel that is off the ramp, and the render
+// has thousands of those — every pixel along an eye, a nostril or the line of the mouth is part
+// skin and part the line's black. Take the difference and such a pixel is pushed the whole of the
+// band's step: a half-black cheek pixel next to his eye came out grey-purple under the deep tone,
+// and the shadow under his cheekbone, warmer than the band it sat nearest, went the same way.
+// Scaled, a pixel that is half skin and half black becomes half the new skin and half black,
+// which is what the artist would have drawn there.
 export function shiftPixel(rgb, from, to) {
   const light = luminance(...rgb);
   const rungs = from.map((tone) => luminance(...tone));
@@ -59,29 +68,54 @@ export function shiftPixel(rgb, from, to) {
   while (i < rungs.length - 2 && light > rungs[i + 1]) i += 1;
   const span = rungs[i + 1] - rungs[i];
   const t = span > 0 ? Math.max(0, Math.min(1, (light - rungs[i]) / span)) : 0;
-  return [0, 1, 2].map((k) => clamp(rgb[k] + (to[i][k] - from[i][k]) * (1 - t) + (to[i + 1][k] - from[i + 1][k]) * t));
+  const ratio = (band, k) => to[band][k] / Math.max(1, from[band][k]);
+  return [0, 1, 2].map((k) => clamp(rgb[k] * (ratio(i, k) * (1 - t) + ratio(i + 1, k) * t)));
 }
 
-// Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
-// and reapply that shading to the target colour, so highlights and folds survive the dye.
+// Retint one pixel: keep how much lighter or darker it was than the part's painted mid-tone
+// and reapply that same step to the target colour, so highlights and folds survive the dye.
 export function tintPixel(rgb, base, target) {
-  const shade = Math.max(0.3, Math.min(1.7, luminance(...rgb) / luminance(...base)));
-  if (shade <= 1) return [clamp(target[0] * shade), clamp(target[1] * shade), clamp(target[2] * shade)];
-  // A highlight lightens toward white, it does not multiply past it. Multiplying is what turned
-  // a blond beard neon: the drawing is painted dark, so its lit strands ask for a shade of 1.7,
-  // and 1.7 times a pale target clips two channels and leaves the third, which is a colour
-  // nobody chose. Mixing keeps the hue all the way up.
-  return mix(target, [255, 255, 255], (shade - 1) / 0.7 * 0.55);
+  // The artist's shading, as a step in brightness from the part's own mid-tone — and the same
+  // step taken from the target. This is additive, not a ratio, and that is the whole point: a
+  // ratio scales every contrast the artist drew by target-over-base, so a white rod on dark
+  // brown stretched its shading threefold, and a highlight on a black vest — which the ratio
+  // path then mixed toward white by a fixed fraction — came out as a bright grey line along a
+  // black garment. A highlight fifty steps above the drawn mid-tone should sit fifty steps above
+  // the dye, whatever the dye is: dark grey on black, near-white on white.
+  const want = luminance(...target) + (luminance(...rgb) - luminance(...base));
+  const lt = luminance(...target);
+  if (want <= lt) return target.map((v) => clamp(v * Math.max(0, want) / Math.max(1, lt)));
+  // Lightening goes toward white, and only as far as the step asks, so the hue holds all the
+  // way up instead of clipping two channels and leaving the third.
+  return mix(target, [255, 255, 255], Math.min(1, (want - lt) / Math.max(1, 255 - lt)));
 }
 
-// Hair and beards are drawn dark, so most of a strand sits below its own mid-tone and a plain
-// dye carries all of that darkness onto whatever colour it is given — which is why blond read
-// as olive. Pulling the drawing's contrast in toward its middle lifts the darks onto the target
-// and lets a pale colour read as itself, and the strands are still there underneath.
-const HAIR_CONTRAST = 0.55;
+// Hair and the beard take the same additive dye as gear. There used to be a step here that pulled
+// the drawing's contrast in toward its middle first, because under the old ratio dye a dark strand
+// times a pale target came out olive; the additive dye carries a strand's darkness as the same
+// step below the target that it was below the drawn mid-tone, so blond reads as blond with its
+// strands intact, and compressing on top of that only flattened the beard into a beige patch.
 export function dyeDrawn(rgb, base, target) {
-  const lifted = luminance(...base) * (1 + (luminance(...rgb) / luminance(...base) - 1) * HAIR_CONTRAST);
-  return tintPixel([lifted, lifted, lifted], base, target);
+  return tintPixel(rgb, base, target);
+}
+
+// How much of a pixel is the artist's keyline, and so is kept as drawn whatever part it is in.
+//
+// The part mask says what a pixel is *of*; it does not say that it is the drawing's own black.
+// The masks are settled at working size, where his eye is a block of near-black inside the face
+// and its cell averages to brown, so the eye comes out labelled hair, and the seams inside a
+// garment, the lines the artist drew across his beard and the nostrils on his face all carry the
+// label of whatever they are drawn on. Every dye above keeps a pixel's step below its part's
+// mid-tone, which is right for shading and wrong for a line: a pixel a hundred steps below a
+// cream cap is black, and a hundred steps below a white one is grey, so a white cap came out
+// with grey seams and blond hair with blond eyes. A pixel artist recolouring a sprite swaps every
+// entry in its palette but one: the line stays black. So does it here — fully where the pixel is
+// the line's own colour, and by a fading share through the few steps of softening the render put
+// around every line, where a pixel is part line and part whatever it lies against.
+export const KEYLINE_HOLD = 12;
+export const KEYLINE_FADE = 36;
+export function keylineHold(rgb) {
+  return Math.max(0, Math.min(1, (KEYLINE_FADE - luminance(...rgb)) / (KEYLINE_FADE - KEYLINE_HOLD)));
 }
 
 // Recolour a strip in place. `pixels` is RGBA from the strip, `mask` is RGBA from the matching
@@ -92,6 +126,8 @@ export function paintPixels({ pixels, mask, width, height, palette }) {
     const part = mask[i * 4];
     if (!part || part === PART.outline) continue;
     const rgb = [pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]];
+    const hold = keylineHold(rgb);
+    if (hold >= 1) continue;
     let out = null;
     if (part === PART.skin) {
       if (palette.skinRamp) out = shiftPixel(rgb, SKIN_BODY, palette.skinRamp);
@@ -102,6 +138,7 @@ export function paintPixels({ pixels, mask, width, height, palette }) {
       if (target) out = tintPixel(rgb, PART_BASE[part], target);
     }
     if (!out) continue;
+    if (hold > 0) out = mix(out, rgb, hold);
     pixels[i * 4] = out[0]; pixels[i * 4 + 1] = out[1]; pixels[i * 4 + 2] = out[2];
   }
   return pixels;

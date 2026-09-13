@@ -1,4 +1,4 @@
-import { paintPixels, tintPixel, shiftPixel, dyeDrawn, bandOf, canPaint, renderAngler, renderStill } from './anglerPaint';
+import { paintPixels, tintPixel, shiftPixel, dyeDrawn, bandOf, canPaint, renderAngler, renderStill, keylineHold, KEYLINE_HOLD, KEYLINE_FADE } from './anglerPaint';
 import { PART, PART_BASE, SKIN_BODY, DEFAULT_LOOK, paletteFor, skinRampFor } from './anglerLook';
 
 // A strip four pixels wide, one high, with one pixel per part we care about.
@@ -94,4 +94,35 @@ test('nothing is painted where there is no canvas, and the stock look is never p
   await expect(renderStill({ skin: 'deep' })).resolves.toBe(null);
   await expect(renderAngler(DEFAULT_LOOK)).resolves.toBe(null);
   await expect(renderAngler(null)).resolves.toBe(null);
+});
+
+test('the artist\'s line is never dyed, whatever part it is labelled', () => {
+  // The masks are settled at working size, where his eye averages into the face and comes out
+  // labelled hair, and the seams inside a garment carry the garment's label. A pixel that is the
+  // drawing's own near-black stays exactly as drawn under every dye and every skin tone.
+  const line = [8, 6, 9];
+  const parts = [PART.hair, PART.cap, PART.skin, PART.vest];
+  const { pixels, mask } = strip(parts, parts.map(() => line));
+  paintPixels({ pixels, mask, width: parts.length, height: 1, palette: paletteFor({ skin: 'fair', hair: 'blond', hat: 'hat_boonie_white', vest: 'vest_rust' }) });
+  parts.forEach((_, i) => expect(read(pixels, i)).toEqual(line));
+  // The hold fades out through the softening the render put round every line, so there is no
+  // step in it: full at the line's own brightness, none by the time a pixel is plainly shading.
+  expect(keylineHold([KEYLINE_HOLD, KEYLINE_HOLD, KEYLINE_HOLD])).toBe(1);
+  expect(keylineHold([KEYLINE_FADE, KEYLINE_FADE, KEYLINE_FADE])).toBe(0);
+  const mid = (KEYLINE_HOLD + KEYLINE_FADE) / 2;
+  expect(keylineHold([mid, mid, mid])).toBeCloseTo(0.5);
+});
+
+test('a skin pixel off the ramp is scaled, not pushed: half black stays half black', () => {
+  // A pixel along the line of his eye is part skin and part the line. Moved by a difference it
+  // came out grey-purple under the deep tone; moved by a ratio it is half the new skin.
+  const ramp = skinRampFor('deep');
+  const half = SKIN_BODY[2].map((v) => Math.round(v / 2));
+  const moved = shiftPixel(half, SKIN_BODY, ramp);
+  // Not clamped to black in any channel, and still a warm tone — red over green over blue, as
+  // every band of every ramp is — rather than the grey the difference left when it took blue
+  // and green less far down than red.
+  moved.forEach((v) => expect(v).toBeGreaterThan(0));
+  expect(moved[0]).toBeGreaterThan(moved[1]);
+  expect(moved[1]).toBeGreaterThan(moved[2]);
 });
