@@ -71,6 +71,11 @@ import capRedCast from '../assets/angler/hats/cap_red/cast.png';
 import capRedReel from '../assets/angler/hats/cap_red/reel.png';
 import capRedCelebrate from '../assets/angler/hats/cap_red/celebrate.png';
 import capRedHurt from '../assets/angler/hats/cap_red/hurt.png';
+import beanieBlackIdle from '../assets/angler/hats/beanie_black/idle.png';
+import beanieBlackCast from '../assets/angler/hats/beanie_black/cast.png';
+import beanieBlackReel from '../assets/angler/hats/beanie_black/reel.png';
+import beanieBlackCelebrate from '../assets/angler/hats/beanie_black/celebrate.png';
+import beanieBlackHurt from '../assets/angler/hats/beanie_black/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
 import hairSheet from '../assets/angler/hair.png';
 
@@ -88,6 +93,7 @@ const BOOTS = { idle: idleBoots, cast: castBoots, reel: reelBoots, celebrate: ce
 const HAT_ART = {
   cap_olive: { idle: capOliveIdle, cast: capOliveCast, reel: capOliveReel, celebrate: capOliveCelebrate, hurt: capOliveHurt },
   cap_red: { idle: capRedIdle, cast: capRedCast, reel: capRedReel, celebrate: capRedCelebrate, hurt: capRedHurt },
+  beanie_black: { idle: beanieBlackIdle, cast: beanieBlackCast, reel: beanieBlackReel, celebrate: beanieBlackCelebrate, hurt: beanieBlackHurt },
 };
 
 // Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
@@ -206,7 +212,9 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
       const i = at(x, y);
       if (!hatOver[i + 3]) continue;
       const own = [hatOver[i], hatOver[i + 1], hatOver[i + 2]];
-      put(x, y, plan.hat.tint && luminance(...own) >= 40 ? tintPixel(own, plan.hat.base, plan.hat.tint) : own);
+      // How dark a pixel can be and still take the dye is the drawing's, not a constant: on a
+      // black knit hat the usual guard calls most of the wool line work.
+      put(x, y, plan.hat.tint && luminance(...own) >= (plan.hat.floor || 40) ? tintPixel(own, plan.hat.base, plan.hat.tint) : own);
     }
   } else if (hats && plan.hat?.sprite) stamp(hats, plan.hat.sprite, plan.hat.base, plan.hat.tint);
 }

@@ -79,6 +79,12 @@ export const BEARD_STYLES = {
 // measured against. Read off the lifted overlay, not off the cap on the stamped sheet: they are
 // two drawings of the same cap and they are not the same green.
 const CAP_DRAWN = [104, 96, 56];
+// The beanie's own wool, and how dark a pixel can be and still be wool rather than line work.
+// The stock one is knitted black, so the usual guard — anything under 40 is the keyline — would
+// call more than half the hat line work and leave a dyed one mostly black. Read off the drawing:
+// its keyline is what falls under 20.
+const BEANIE_DRAWN = [59, 53, 49];
+const BEANIE_FLOOR = 20;
 
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
@@ -89,11 +95,11 @@ export const WARDROBE = {
   cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, overlay: 'cap_olive', base: CAP_DRAWN, tint: [214, 108, 32] },
   cap_brown: { slot: 'hat', label: 'Field cap', cost: 50, sprite: 'cap_brown' },
   cap_camo: { slot: 'hat', label: 'Camo cap', cost: 60, sprite: 'cap_camo' },
-  hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 60, sprite: 'beanie_black' },
-  hat_beanie_olive: { slot: 'hat', label: 'Olive beanie', cost: 60, sprite: 'beanie_olive' },
-  hat_beanie_red: { slot: 'hat', label: 'Red beanie', cost: 60, sprite: 'beanie_red' },
-  hat_beanie_navy: { slot: 'hat', label: 'Navy beanie', cost: 60, sprite: 'beanie_navy' },
-  hat_beanie_grey: { slot: 'hat', label: 'Grey beanie', cost: 60, sprite: 'beanie_grey' },
+  hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 60, overlay: 'beanie_black' },
+  hat_beanie_olive: { slot: 'hat', label: 'Olive beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [96, 108, 60] },
+  hat_beanie_red: { slot: 'hat', label: 'Red beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [170, 50, 44] },
+  hat_beanie_navy: { slot: 'hat', label: 'Navy beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [52, 68, 116] },
+  hat_beanie_grey: { slot: 'hat', label: 'Grey beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [132, 134, 140] },
   hat_visor: { slot: 'hat', label: 'Canvas bucket', cost: 70, sprite: 'bucket_canvas' },
   hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 80, sprite: 'bucket_tan' },
   hat_boonie: { slot: 'hat', label: 'Camo boonie', cost: 90, sprite: 'bucket_camo' },
@@ -210,7 +216,7 @@ export function paletteFor(look) {
       // A hat comes both ways while the drawings come in: an overlay lifted off a sheet of him
       // wearing it, which needs no placing, or the old standalone drawing stamped on.
       hat: hat.overlay
-        ? { overlay: hat.overlay, base: hat.base || null, tint: hat.tint || null }
+        ? { overlay: hat.overlay, base: hat.base || null, tint: hat.tint || null, floor: hat.floor || null }
         : hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
       beard: { ...beard },
     },

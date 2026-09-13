@@ -52,6 +52,10 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   // The caps are drawings of him wearing one now; the rest are still stamped until their sheets land.
   expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: WARDROBE.cap_black.tint });
   expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
+  // Four beanies are one drawing in four colours, which a solid knit hat can be and a cap with
+  // a white front panel cannot.
+  ['hat_beanie', 'hat_beanie_red', 'hat_beanie_navy', 'hat_beanie_olive', 'hat_beanie_grey']
+    .forEach((key) => expect(WARDROBE[key].overlay).toBe('beanie_black'));
   // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
   // The stock style is the artist's own, lifted pose by pose; the rest are stamped hairpieces.
   expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ overlay: true });

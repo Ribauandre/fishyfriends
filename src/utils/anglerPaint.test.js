@@ -95,6 +95,10 @@ test('a drawn hat is copied where the artist put it, and a dyed one is that same
   // A dyed cap is the same drawing measured against the olive it was painted in.
   const black = dressed({ hat: 'cap_black' }, { hatOver: hatOverlay() });
   expect(black(21, 12).g).toBeLessThan(worn(21, 12).g);
+  // How dark a pixel can be and still take the dye is the drawing's own: a black knit hat is
+  // mostly under the usual guard, and dyeing it against that would leave it black.
+  expect(paletteFor({ hat: 'hat_beanie_red' }).head.hat.floor).toBeLessThan(40);
+  expect(paletteFor({ hat: 'cap_black' }).head.hat.floor).toBeNull();
   expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
   // A drawing wins over the stamped sheet, so a hat never goes on twice.
   const both = dressed({ hat: 'cap_green' }, { hatOver: hatOverlay() });

@@ -71,7 +71,7 @@ const LIFT = {
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
-  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, dir: 'hats' },
+  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, shift: 2, dir: 'hats' },
   // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
   // cap's olive from the beard's brown.
   cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, dir: 'hats' },
@@ -221,6 +221,23 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
   for (const [action, frames] of Object.entries(sheets)) {
     const base = pixelsOf(await load(bald[action]));
     const mask = lift.part ? pixelsOf(await load(masks[action])) : null;
+    // A diff on the head also finds the brow, the ear and the eye, because the artist redrew
+    // them a pixel over — and once a hat is dyed, an eye that came along with it is dyed too.
+    // What tells them apart is that a feature moved is still there to be found right beside it:
+    // a pixel that matches what the bald frame has within a pixel or two of itself is that same
+    // thing shifted, where a hat is a colour the head never had there at all.
+    const shifted = (r, g, b, to) => {
+      // Only what is light enough to be mistaken for skin or an eye. A hat's own keyline is as
+      // black as the head's and would always look like it shifted — and a dark stray never
+      // shows anyway, since a dye leaves line work alone.
+      if (0.299 * r + 0.587 * g + 0.114 * b < 100) return false;
+      for (let dy = -lift.shift; dy <= lift.shift; dy += 1) for (let dx = -lift.shift; dx <= lift.shift; dx += 1) {
+        const n = to + (dy * base.width + dx) * 4;
+        if (n < 0 || n >= base.data.length || !base.data[n + 3]) continue;
+        if (Math.abs(r - base.data[n]) + Math.abs(g - base.data[n + 1]) + Math.abs(b - base.data[n + 2]) <= 30) return true;
+      }
+      return false;
+    };
     const strip = document.createElement('canvas');
     strip.width = base.width; strip.height = base.height;
     const sctx = strip.getContext('2d');
@@ -269,7 +286,8 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
         // Nothing goes on over skin: in the kneeling pose his bare forearms are as brown and as
         // dark as the leather, and they are in the same place in both sheets, so the bald
         // frame's own mask is what says which is which.
-        const onSkin = mask && lift.avoid && mask.data[to] === lift.avoid;
+        const onSkin = (mask && lift.avoid && mask.data[to] === lift.avoid)
+          || (lift.shift && base.data[to + 3] && shifted(px[p * 4], px[p * 4 + 1], px[p * 4 + 2], to));
         // Where this sheet is allowed to have drawn. A hue test needs one — the rod is brown too
         // and crosses right past the head, and the waders are olive down to the boots — and a
         // diff needs one just as much, since a redraw differs faintly everywhere.
