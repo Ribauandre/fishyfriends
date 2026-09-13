@@ -51,6 +51,11 @@ import castMustache from '../assets/angler/beards/mustache/cast.png';
 import reelMustache from '../assets/angler/beards/mustache/reel.png';
 import celebrateMustache from '../assets/angler/beards/mustache/celebrate.png';
 import hurtMustache from '../assets/angler/beards/mustache/hurt.png';
+import idleGoatee from '../assets/angler/beards/goatee/idle.png';
+import castGoatee from '../assets/angler/beards/goatee/cast.png';
+import reelGoatee from '../assets/angler/beards/goatee/reel.png';
+import celebrateGoatee from '../assets/angler/beards/goatee/celebrate.png';
+import hurtGoatee from '../assets/angler/beards/goatee/hurt.png';
 import idleHair from '../assets/angler/hair/idle.png';
 import castHair from '../assets/angler/hair/cast.png';
 import reelHair from '../assets/angler/hair/reel.png';
@@ -109,6 +114,7 @@ const FRAMES = Object.fromEntries(Object.entries(anchors).map(([action, list]) =
 const BEARD_ART = {
   full: { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard },
   mustache: { idle: idleMustache, cast: castMustache, reel: reelMustache, celebrate: celebrateMustache, hurt: hurtMustache },
+  goatee: { idle: idleGoatee, cast: castGoatee, reel: reelGoatee, celebrate: celebrateGoatee, hurt: hurtGoatee },
 };
 const HAIR = { idle: idleHair, cast: castHair, reel: reelHair, celebrate: celebrateHair, hurt: hurtHair };
 const OUTFITS = { idle: idleOutfit, cast: castOutfit, reel: reelOutfit, celebrate: celebrateOutfit, hurt: hurtOutfit };
@@ -125,10 +131,6 @@ const HAT_ART = {
   souwester: { idle: souwesterIdle, cast: souwesterCast, reel: souwesterReel, celebrate: souwesterCelebrate, hurt: souwesterHurt },
 };
 
-// Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down
-// beards are measured against. The full beard needs none, being the drawing as the artist left
-// it, and neither does a hat — the dressed sheet says where one sits, frame by frame.
-const MOUTH = 0.84;
 // Only for a frame the dressed sheet has no cap in. A fraction of the head cannot know that it
 // is tipped forward in one pose and thrown back in another, which is why it is the fallback.
 const HAT_SEAT = 0.32;
@@ -196,7 +198,6 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
   const { skin, hair } = palette;
   const headW = head.x1 - head.x0 + 1;
   const headH = head.y1 - head.y0 + 1;
-  const mouthY = head.y0 + headH * MOUTH;
 
   const inside = (x, y) => x >= x0 && x < x1 && y >= 0 && y < height;
   const at = (x, y) => (y * width + x) * 4;
@@ -230,28 +231,13 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
     }
   };
 
-  // ---- the beard: the artist's own, masked to a style and dyed ----
+  // ---- the beard: the artist's own drawing for this style, dyed ----
   const style = plan.beard;
   if (beard && style.keep !== 'none') {
     const stubble = mix(skin, hair, 0.5);
     for (let y = 0; y < height; y += 1) for (let x = x0; x < x1; x += 1) {
       const i = at(x, y);
       if (!beard[i + 3]) continue;
-      const t = frontness(x, head, facing);
-      // A full beard keeps the artist's whole shape, spill onto the collar and all. The cut-down
-      // styles are a window on it, and are held to the head so they cannot leave a patch of
-      // stubble or a stray goatee pixel down on the chest.
-      if (style.keep !== 'all' && y > head.y1 + headH * 0.2) continue;
-      // A goatee is a patch around the chin, not a corner of the beard: cutting it with a
-      // half-plane left a rectangle sitting on his jaw. This is still a window on the artist's
-      // drawing rather than a drawing of its own, which is the next thing to fix properly.
-      if (style.keep === 'chin') {
-        const cx = head.x0 + headW * (dir >= 0 ? 0.74 : 0.26);
-        const cy = mouthY + headH * 0.08;
-        if (((x - cx) / (headW * 0.30)) ** 2 + ((y - cy) / (headH * 0.24)) ** 2 > 1) continue;
-      }
-      if (style.keep === 'lip' && !(y > mouthY - 5 && y < mouthY + 1 && t > 0.55)) continue;
-
       const own = [beard[i], beard[i + 1], beard[i + 2]];
       // Line work the beard brought with it stays line work; the rest takes the hair colour.
       if (luminance(...own) < 40) { put(x, y, own); continue; }

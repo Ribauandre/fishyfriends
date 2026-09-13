@@ -120,19 +120,17 @@ test('a hat is stamped on every frame, at that frame\'s own head', () => {
   expect(near(px(W + 25, 16), [180, 40, 40], 30)).toBe(true);
 });
 
-test('the beard is the drawn overlay, dyed, and a style is a window on it', () => {
+test('facial hair is the drawn overlay for its style, dyed where it is not line work', () => {
   const full = dressed({ beard: 'full', hair: 'black' });
   expect(near(full(20, 30), HAIR_COLORS.black.rgb, 80)).toBe(true);
+  // Nothing outside the drawing is touched, whichever style is worn.
   expect(near(full(20, 20), PART_BASE[PART.skin], 2)).toBe(true);
-  // Nothing outside the drawn overlay is touched, however the style is cut.
   expect(near(full(20, 22), PART_BASE[PART.skin], 2)).toBe(true);
-  // A goatee keeps the front of the chin and leaves the rest of the jaw bare.
-  const goatee = dressed({ beard: 'goatee', hair: 'black' });
-  expect(near(goatee(28, 33), HAIR_COLORS.black.rgb, 80)).toBe(true);
-  expect(near(goatee(15, 26), PART_BASE[PART.skin], 2)).toBe(true);
-  // Stubble is the same shape let almost all the way down into the skin under it, so it reads
-  // as a shadow on the jaw. It used to be thinned to every other pixel, which at this size is a
-  // checkerboard rather than stubble.
+  // Each style names its own drawing now, so the painter copies rather than cutting a window.
+  ['full', 'goatee', 'mustache'].forEach((beard) => expect(paletteFor({ beard }).head.beard.keep).toBe('all'));
+  // Stubble is the full beard's own footprint let almost all the way down into the skin, so it
+  // reads as a shadow on the jaw. It used to be thinned to every other pixel, which at this size
+  // is a checkerboard rather than stubble.
   const stubble = dressed({ beard: 'stubble', hair: 'black' });
   const bare = PART_BASE[PART.skin][0];
   expect(stubble(16, 30).r).toBeLessThan(bare);

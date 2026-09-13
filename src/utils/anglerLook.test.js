@@ -64,11 +64,14 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
   // Facial hair names the drawing it wears, the way a hat does; only the full beard has a sheet
   // so far, so the cut-down styles are windows on it.
-  expect(paletteFor({ beard: 'goatee' }).head.beard.overlay).toBe('full');
+  expect(paletteFor({ beard: 'goatee' }).head.beard.overlay).toBe('goatee');
+  // Stubble is the one style with no drawing of its own: it is the full beard's footprint.
+  expect(paletteFor({ beard: 'stubble' }).head.beard.overlay).toBe('full');
   // The moustache has a sheet of its own, so it is the drawing rather than a window on one.
   expect(paletteFor({ beard: 'mustache' }).head.beard).toMatchObject({ overlay: 'mustache', keep: 'all' });
   expect(paletteFor({ beard: 'none' }).head.beard.overlay).toBeUndefined();
-  expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('chin');
+  // Every style that is a shape has its own drawing, so nothing is windowed out of any of them.
+  expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('all');
   // The moustache is its own drawing now, so nothing is windowed out of it.
   expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('all');
   expect(paletteFor({ beard: 'stubble' }).head.beard.shade).toBeGreaterThan(0);
