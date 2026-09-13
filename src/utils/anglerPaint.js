@@ -66,6 +66,11 @@ import capOliveCast from '../assets/angler/hats/cap_olive/cast.png';
 import capOliveReel from '../assets/angler/hats/cap_olive/reel.png';
 import capOliveCelebrate from '../assets/angler/hats/cap_olive/celebrate.png';
 import capOliveHurt from '../assets/angler/hats/cap_olive/hurt.png';
+import capRedIdle from '../assets/angler/hats/cap_red/idle.png';
+import capRedCast from '../assets/angler/hats/cap_red/cast.png';
+import capRedReel from '../assets/angler/hats/cap_red/reel.png';
+import capRedCelebrate from '../assets/angler/hats/cap_red/celebrate.png';
+import capRedHurt from '../assets/angler/hats/cap_red/hurt.png';
 import hatSheet from '../assets/angler/hats.png';
 import hairSheet from '../assets/angler/hair.png';
 
@@ -82,6 +87,7 @@ const BOOTS = { idle: idleBoots, cast: castBoots, reel: reelBoots, celebrate: ce
 // the stamped sheet. Explicit because the bundler needs every asset named at build time.
 const HAT_ART = {
   cap_olive: { idle: capOliveIdle, cast: capOliveCast, reel: capOliveReel, celebrate: capOliveCelebrate, hurt: capOliveHurt },
+  cap_red: { idle: capRedIdle, cast: capRedCast, reel: capRedReel, celebrate: capRedCelebrate, hurt: capRedHurt },
 };
 
 // Where the mouth falls down the head, from the crown to the chin: the landmark the cut-down

@@ -83,7 +83,7 @@ const CAP_DRAWN = [104, 96, 56];
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
   cap_green: { slot: 'hat', label: 'Club cap', cost: 0, overlay: 'cap_olive' },
-  cap_red: { slot: 'hat', label: 'Angler cap, red', cost: 40, sprite: 'cap_fish_red' },
+  cap_red: { slot: 'hat', label: 'Angler cap, red', cost: 40, overlay: 'cap_red' },
   cap_navy: { slot: 'hat', label: 'Angler cap, blue', cost: 40, sprite: 'cap_fish_navy' },
   cap_black: { slot: 'hat', label: 'Black cap', cost: 40, overlay: 'cap_olive', base: CAP_DRAWN, tint: [46, 46, 50] },
   cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, overlay: 'cap_olive', base: CAP_DRAWN, tint: [214, 108, 32] },

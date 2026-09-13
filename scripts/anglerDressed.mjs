@@ -71,10 +71,10 @@ const LIFT = {
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
-  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, clean: 30, dir: 'hats' },
+  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, dir: 'hats' },
   // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
   // cap's olive from the beard's brown.
-  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, clean: 30, dir: 'hats' },
+  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, dir: 'hats' },
 };
 const lift = LIFT[kind];
 if (lift && lift.dir && !name) { console.error(`usage: node scripts/anglerDressed.mjs ${kind} <sheet.png> <name>`); process.exit(1); }
@@ -305,9 +305,35 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
       // A redraw never lands on exactly the same pixels, so a diff leaves a rim of flecks all
       // round the body, and a hue test picks up the odd brown speck of shading. Nothing that
       // small is a garment.
+      // A garment is not one pixel wide. Where the two sheets' silhouettes differ by a pixel the
+      // diff finds a thread of it running all round the figure, and inside the bald figure there
+      // is no fringe rule to catch it — this cap is white exactly where that thread is. So the
+      // hits are opened: worn away by a pixel and grown back, which deletes anything thinner
+      // than that and leaves everything else the size it was.
+      if (lift.open) {
+        const core = new Set();
+        hit.forEach((to) => {
+          const i = to / 4; const x = i % strip.width; const y = (i / strip.width) | 0;
+          let all = true;
+          for (let dy = -1; dy <= 1 && all; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
+            if (!hit.has(((y + dy) * strip.width + x + dx) * 4)) { all = false; break; }
+          }
+          if (all) core.add(to);
+        });
+        const kept = new Set();
+        core.forEach((to) => {
+          const i = to / 4; const x = i % strip.width; const y = (i / strip.width) | 0;
+          for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
+            const n = ((y + dy) * strip.width + x + dx) * 4;
+            if (hit.has(n)) kept.add(n);
+          }
+        });
+        hit.forEach((to) => { if (!kept.has(to)) image.data[to + 3] = 0; });
+        hit.forEach((to) => { if (!kept.has(to)) hit.delete(to); });
+      }
       const smallest = lift.test === 'diff' ? (lift.clean || 80) : lift.clean;
-      if (smallest) {
-        const seenRun = new Set();
+      if (smallest || lift.one) {
+        const seenRun = new Set(); const runs = [];
         hit.forEach((to) => {
           if (seenRun.has(to)) return;
           const run = [to]; const st = [to]; seenRun.add(to);
@@ -318,7 +344,15 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
               if (hit.has(n) && !seenRun.has(n)) { seenRun.add(n); run.push(n); st.push(n); }
             });
           }
-          if (run.length < smallest) run.forEach((q) => { hit.delete(q); image.data[q + 3] = 0; });
+          runs.push(run);
+        });
+        // A hat is one thing. The rod and the drawn line cross the head box and the artist put
+        // them a pixel off, and a brow or an ear redrawn comes away in flecks — all of them
+        // separate from the hat, however long a rod's run is. So the biggest piece is the hat
+        // and the rest is not, which no size threshold can say.
+        const biggest = lift.one ? runs.reduce((best, run) => (run.length > best ? run.length : best), 0) : 0;
+        runs.forEach((run) => {
+          if (lift.one ? run.length < biggest : run.length < smallest) run.forEach((q) => { hit.delete(q); image.data[q + 3] = 0; });
         });
       }
       // Line work touching the beard is the beard's; the cap's own is left behind.

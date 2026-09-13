@@ -46,7 +46,9 @@ test('the default look is the art as drawn: nothing dyed and nothing on the head
 });
 
 test('the head plan names the drawing to stamp and the part of the beard to keep', () => {
-  expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_red.sprite, tint: null });
+  expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ overlay: 'cap_red', tint: null });
+  // A hat still on the stamped sheet names a cell there.
+  expect(paletteFor({ hat: 'cap_navy' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_navy.sprite, tint: null });
   // The caps are drawings of him wearing one now; the rest are still stamped until their sheets land.
   expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: WARDROBE.cap_black.tint });
   expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
