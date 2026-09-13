@@ -1,128 +1,32 @@
-// Dresses the angler at runtime. The strips in assets/angler are the ChatGPT-drawn character
-// as he comes — bald, clean-shaven, pale shirt, olive waders — and for a look each strip goes
-// through a canvas where `paintPixels` (pure, tested on plain arrays) does three things.
+// Paint the angler's strips for a look.
 //
-// Parts that keep their shape are dyed: skin, shirt, waders, boots and rod, luminance-
-// preserving, so the artist's shading survives. The beard, the hat and the hair are *drawn art
-// stamped on*, not shapes the painter invents — inventing them was what looked sloppy. The beard
-// overlays in assets/angler/beard are the artist's own beard, lifted pose by pose off the
-// dressed sheet by scripts/anglerBeard.mjs, and they sit pixel-for-pixel on the strip they
-// belong to, so there is nothing to place: a style is a mask over them and the hair colour is a
-// dye. Hats are the same: a drawing of him wearing one, lifted pose by pose, so it needs no
-// scale and no anchor row and turns with his head because the artist turned it.
+// Every cosmetic on this character is a colour, so this module only ever recolours pixels the
+// artist drew — it never adds, stamps or places anything. That is a deliberate narrowing: the
+// version before it composited overlays lifted off a dozen sheets, and every defect that ever
+// reached the site was a placement or a lift gone wrong, never a dye.
 //
-// The waders and the boots come both ways too: normally a dye, but one rack item in each slot
-// is a whole drawn garment lifted off another sheet of the same poses, which can change its
-// shape and not just its colour. The outfit leaves the sleeves alone, so the shirt dye still
-// works under it; the boots go on last, over the outfit's own hems.
+// `paintPixels` is the whole of it and is pure: give it a strip's pixels, the matching part mask
+// and a palette from `paletteFor`, and it walks them together. Which part a pixel belongs to is
+// settled offline by scripts/anglerPixelMasks.mjs; all that is decided here is what to do with it:
 //
-// Every hat is a drawing of *him wearing it* now, in HAT_ART. A hat drawn front-on as a
-// standalone object could not sit on a head in a three-quarter turn — that is a viewing angle,
-// not a placement — and a chin strap drawn across the front of one landed across his face.
+//   skin      moved between ramps, band for band, so the modelling on his face survives
+//   hair      dyed with the contrast pulled in first, because hair is drawn dark
+//   the rest  dyed straight, keeping each pixel's shade against its part's painted mid-tone
+//   outline   left alone, and so is any pixel in no part at all — the reel, a caught fish
 //
-// Hair comes both ways. The stock style is an overlay like the beard, lifted off a third sheet
-// of the same poses, and it is the better of the two for the same reason: it was drawn for a
-// head thrown back mid-cast. The rest are generated hairpieces in assets/angler/hair.png,
-// stamped on the crown. Nothing on this character is invented any more — every cosmetic is a
-// drawing, and the painter only dyes and places. Results are data URLs per action, cached by look. Where there is no canvas (jsdom, ancient
-// browsers) `renderAngler` resolves null and the stock strips show.
+// The canvas half below renders those strips to data URLs and caches them per look. Where there is
+// no canvas — jsdom, in the tests — everything returns null and the components fall back to the
+// stock strips, which is also what the stock look itself does, since painting it would be a no-op.
+import { PART, PART_BASE, SKIN_BODY, paletteFor, lookKey, isDefaultLook } from './anglerLook';
 import { ANGLER_SPRITES, SPRITE_FRAME } from './anglerSprites';
-import anchors from './anglerAnchors.json';
-import hairSprites from './hairSprites.json';
-import { PART, PART_BASE, SKIN_BODY, DRAWN_BASE, HAIR_SPRITE_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
+
 import idleMask from '../assets/angler/masks/idle.png';
+import walkMask from '../assets/angler/masks/walk.png';
 import castMask from '../assets/angler/masks/cast.png';
 import reelMask from '../assets/angler/masks/reel.png';
 import celebrateMask from '../assets/angler/masks/celebrate.png';
-import hurtMask from '../assets/angler/masks/hurt.png';
-import idleBeard from '../assets/angler/beards/full/idle.png';
-import castBeard from '../assets/angler/beards/full/cast.png';
-import reelBeard from '../assets/angler/beards/full/reel.png';
-import celebrateBeard from '../assets/angler/beards/full/celebrate.png';
-import hurtBeard from '../assets/angler/beards/full/hurt.png';
-import idleMustache from '../assets/angler/beards/mustache/idle.png';
-import castMustache from '../assets/angler/beards/mustache/cast.png';
-import reelMustache from '../assets/angler/beards/mustache/reel.png';
-import celebrateMustache from '../assets/angler/beards/mustache/celebrate.png';
-import hurtMustache from '../assets/angler/beards/mustache/hurt.png';
-import idleGoatee from '../assets/angler/beards/goatee/idle.png';
-import castGoatee from '../assets/angler/beards/goatee/cast.png';
-import reelGoatee from '../assets/angler/beards/goatee/reel.png';
-import celebrateGoatee from '../assets/angler/beards/goatee/celebrate.png';
-import hurtGoatee from '../assets/angler/beards/goatee/hurt.png';
-import idleHair from '../assets/angler/hair/idle.png';
-import castHair from '../assets/angler/hair/cast.png';
-import reelHair from '../assets/angler/hair/reel.png';
-import celebrateHair from '../assets/angler/hair/celebrate.png';
-import hurtHair from '../assets/angler/hair/hurt.png';
-import idleOutfit from '../assets/angler/outfit/idle.png';
-import castOutfit from '../assets/angler/outfit/cast.png';
-import reelOutfit from '../assets/angler/outfit/reel.png';
-import celebrateOutfit from '../assets/angler/outfit/celebrate.png';
-import hurtOutfit from '../assets/angler/outfit/hurt.png';
-import idleBoots from '../assets/angler/boots/idle.png';
-import castBoots from '../assets/angler/boots/cast.png';
-import reelBoots from '../assets/angler/boots/reel.png';
-import celebrateBoots from '../assets/angler/boots/celebrate.png';
-import hurtBoots from '../assets/angler/boots/hurt.png';
-import capOliveIdle from '../assets/angler/hats/cap_olive/idle.png';
-import capOliveCast from '../assets/angler/hats/cap_olive/cast.png';
-import capOliveReel from '../assets/angler/hats/cap_olive/reel.png';
-import capOliveCelebrate from '../assets/angler/hats/cap_olive/celebrate.png';
-import capOliveHurt from '../assets/angler/hats/cap_olive/hurt.png';
-import capRedIdle from '../assets/angler/hats/cap_red/idle.png';
-import capRedCast from '../assets/angler/hats/cap_red/cast.png';
-import capRedReel from '../assets/angler/hats/cap_red/reel.png';
-import capRedCelebrate from '../assets/angler/hats/cap_red/celebrate.png';
-import capRedHurt from '../assets/angler/hats/cap_red/hurt.png';
-import beanieBlackIdle from '../assets/angler/hats/beanie_black/idle.png';
-import beanieBlackCast from '../assets/angler/hats/beanie_black/cast.png';
-import beanieBlackReel from '../assets/angler/hats/beanie_black/reel.png';
-import beanieBlackCelebrate from '../assets/angler/hats/beanie_black/celebrate.png';
-import beanieBlackHurt from '../assets/angler/hats/beanie_black/hurt.png';
-import bucketTanIdle from '../assets/angler/hats/bucket_tan/idle.png';
-import bucketTanCast from '../assets/angler/hats/bucket_tan/cast.png';
-import bucketTanReel from '../assets/angler/hats/bucket_tan/reel.png';
-import bucketTanCelebrate from '../assets/angler/hats/bucket_tan/celebrate.png';
-import bucketTanHurt from '../assets/angler/hats/bucket_tan/hurt.png';
-import strawBlueIdle from '../assets/angler/hats/straw_blue/idle.png';
-import strawBlueCast from '../assets/angler/hats/straw_blue/cast.png';
-import strawBlueReel from '../assets/angler/hats/straw_blue/reel.png';
-import strawBlueCelebrate from '../assets/angler/hats/straw_blue/celebrate.png';
-import strawBlueHurt from '../assets/angler/hats/straw_blue/hurt.png';
-import souwesterIdle from '../assets/angler/hats/souwester/idle.png';
-import souwesterCast from '../assets/angler/hats/souwester/cast.png';
-import souwesterReel from '../assets/angler/hats/souwester/reel.png';
-import souwesterCelebrate from '../assets/angler/hats/souwester/celebrate.png';
-import souwesterHurt from '../assets/angler/hats/souwester/hurt.png';
-import hairSheet from '../assets/angler/hair.png';
 
-const MASKS = { idle: idleMask, cast: castMask, reel: reelMask, celebrate: celebrateMask, hurt: hurtMask };
-// The per-frame head box and facing, from the mask tool.
-const FRAMES = anchors;
-// Facial hair the same way hats go: a drawing of him wearing it, lifted off a sheet of the same
-// poses into assets/angler/beards/<style>/. `full` is the dressed sheet's own beard, and the
-// styles that have no sheet yet are windows on it — the last invented shapes on this character.
-const BEARD_ART = {
-  full: { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard },
-  mustache: { idle: idleMustache, cast: castMustache, reel: reelMustache, celebrate: celebrateMustache, hurt: hurtMustache },
-  goatee: { idle: idleGoatee, cast: castGoatee, reel: reelGoatee, celebrate: celebrateGoatee, hurt: hurtGoatee },
-};
-const HAIR = { idle: idleHair, cast: castHair, reel: reelHair, celebrate: celebrateHair, hurt: hurtHair };
-const OUTFITS = { idle: idleOutfit, cast: castOutfit, reel: reelOutfit, celebrate: celebrateOutfit, hurt: hurtOutfit };
-const BOOTS = { idle: idleBoots, cast: castBoots, reel: reelBoots, celebrate: celebrateBoots, hurt: hurtBoots };
-// The hats that are drawings of him wearing one, by the name of their folder in assets/angler/
-// hats. A hat lands here as its sheet arrives; until then its rack item still names a sprite on
-// the stamped sheet. Explicit because the bundler needs every asset named at build time.
-const HAT_ART = {
-  cap_olive: { idle: capOliveIdle, cast: capOliveCast, reel: capOliveReel, celebrate: capOliveCelebrate, hurt: capOliveHurt },
-  cap_red: { idle: capRedIdle, cast: capRedCast, reel: capRedReel, celebrate: capRedCelebrate, hurt: capRedHurt },
-  beanie_black: { idle: beanieBlackIdle, cast: beanieBlackCast, reel: beanieBlackReel, celebrate: beanieBlackCelebrate, hurt: beanieBlackHurt },
-  bucket_tan: { idle: bucketTanIdle, cast: bucketTanCast, reel: bucketTanReel, celebrate: bucketTanCelebrate, hurt: bucketTanHurt },
-  straw_blue: { idle: strawBlueIdle, cast: strawBlueCast, reel: strawBlueReel, celebrate: strawBlueCelebrate, hurt: strawBlueHurt },
-  souwester: { idle: souwesterIdle, cast: souwesterCast, reel: souwesterReel, celebrate: souwesterCelebrate, hurt: souwesterHurt },
-};
-
+const MASKS = { idle: idleMask, walk: walkMask, cast: castMask, reel: reelMask, celebrate: celebrateMask };
 
 const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
@@ -144,16 +48,6 @@ export function shiftPixel(rgb, from, to) {
   return [clamp(rgb[0] + to[band][0] - from[band][0]), clamp(rgb[1] + to[band][1] - from[band][1]), clamp(rgb[2] + to[band][2] - from[band][2])];
 }
 
-// Hair and beards are drawn dark, so most of a strand sits below its own mid-tone and a plain
-// dye carries all of that darkness onto whatever colour it is given — which is why blond read
-// as olive. Pulling the drawing's contrast in toward its middle lifts the darks onto the target
-// and lets a pale colour read as itself, and the strands are still there underneath.
-const HAIR_CONTRAST = 0.55;
-export function dyeDrawn(rgb, base, target) {
-  const lifted = luminance(...base) * (1 + (luminance(...rgb) / luminance(...base) - 1) * HAIR_CONTRAST);
-  return tintPixel([lifted, lifted, lifted], base, target);
-}
-
 // Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
 // and reapply that shading to the target colour, so highlights and folds survive the dye.
 export function tintPixel(rgb, base, target) {
@@ -166,123 +60,35 @@ export function tintPixel(rgb, base, target) {
   return mix(target, [255, 255, 255], (shade - 1) / 0.7 * 0.55);
 }
 
-// How far forward on the face a column is: 1 at the nose and chin, 0 at the back of the head.
-// From the front the middle of the face is the front, so a goatee lands on the chin either way.
-export function frontness(x, head, facing) {
-  const t = (x - head.x0) / Math.max(1, head.x1 - head.x0);
-  if (facing === 'right') return t;
-  if (facing === 'left') return 1 - t;
-  return 1 - 2 * Math.abs(t - 0.5);
+// Hair and beards are drawn dark, so most of a strand sits below its own mid-tone and a plain
+// dye carries all of that darkness onto whatever colour it is given — which is why blond read
+// as olive. Pulling the drawing's contrast in toward its middle lifts the darks onto the target
+// and lets a pale colour read as itself, and the strands are still there underneath.
+const HAIR_CONTRAST = 0.55;
+export function dyeDrawn(rgb, base, target) {
+  const lifted = luminance(...base) * (1 + (luminance(...rgb) / luminance(...base) - 1) * HAIR_CONTRAST);
+  return tintPixel([lifted, lifted, lifted], base, target);
 }
 
-// ---- Dressing one frame's head ----
-
-function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard, hairArt, hairOver, hatOver }) {
-  const plan = palette.head;
-  if (!frame || !frame.head) return;
-  // The anchors are in the frame's own pixels; the strip's start puts them in the strip's.
-  const head = { ...frame.head, x0: frame.head.x0 + x0, x1: frame.head.x1 + x0 };
-  const facing = frame.facing || 'front';
-  const dir = facing === 'right' ? 1 : facing === 'left' ? -1 : 0;
-  const { skin, hair } = palette;
-  const headW = head.x1 - head.x0 + 1;
-
-  const inside = (x, y) => x >= x0 && x < x1 && y >= 0 && y < height;
-  const at = (x, y) => (y * width + x) * 4;
-  const put = (x, y, rgb) => { if (!inside(x, y)) return; const i = at(x, y); pixels[i] = rgb[0]; pixels[i + 1] = rgb[1]; pixels[i + 2] = rgb[2]; pixels[i + 3] = 255; };
-
-  // A hairpiece from the generated sheet: scaled by this frame's own head and hung on its own
-  // crown, since a hairpiece is not worn on the head, it *is* the top of it. Hats do not come
-  // this way any more — a drawing of him wearing one needs no scale and no anchor at all.
-  const stamp = (sheet, sprite, base, tint) => {
-    const { cellW, cellH, anchorY, refHead } = sheet;
-    const column = sheet.index[sprite];
-    if (column === undefined) return;
-    const scale = headW / refHead;
-    const seat = { cx: (head.x0 + head.x1) / 2 + dir * headW * 0.06, y: head.y0 - 2 * scale };
-    const left = Math.round(seat.cx - (cellW * scale) / 2);
-    const top = Math.round(seat.y - anchorY * scale);
-    for (let y = 0; y < Math.round(cellH * scale); y += 1) for (let x = 0; x < Math.round(cellW * scale); x += 1) {
-      const sx = column * cellW + Math.min(cellW - 1, Math.floor(x / scale));
-      const sy = Math.min(cellH - 1, Math.floor(y / scale));
-      const s = (sy * sheet.width + sx) * 4;
-      if (!sheet.data[s + 3]) continue;
-      const own = [sheet.data[s], sheet.data[s + 1], sheet.data[s + 2]];
-      put(left + x, top + y, tint && luminance(...own) >= 40 ? dyeDrawn(own, base, tint) : own);
+// Recolour a strip in place. `pixels` is RGBA from the strip, `mask` is RGBA from the matching
+// part mask — only its red channel is read, and it is the part id.
+export function paintPixels({ pixels, mask, width, height, palette }) {
+  for (let i = 0; i < width * height; i += 1) {
+    if (!pixels[i * 4 + 3]) continue;
+    const part = mask[i * 4];
+    if (!part || part === PART.outline) continue;
+    const rgb = [pixels[i * 4], pixels[i * 4 + 1], pixels[i * 4 + 2]];
+    let out = null;
+    if (part === PART.skin) {
+      if (palette.skinRamp) out = shiftPixel(rgb, SKIN_BODY, palette.skinRamp);
+    } else if (part === PART.hair) {
+      if (palette.targets[PART.hair]) out = dyeDrawn(rgb, PART_BASE[PART.hair], palette.targets[PART.hair]);
+    } else {
+      const target = palette.targets[part];
+      if (target) out = tintPixel(rgb, PART_BASE[part], target);
     }
-  };
-
-  // ---- the beard: the artist's own drawing for this style, dyed ----
-  const style = plan.beard;
-  if (beard && style.keep !== 'none') {
-    const stubble = mix(skin, hair, 0.5);
-    for (let y = 0; y < height; y += 1) for (let x = x0; x < x1; x += 1) {
-      const i = at(x, y);
-      if (!beard[i + 3]) continue;
-      const own = [beard[i], beard[i + 1], beard[i + 2]];
-      // Line work the beard brought with it stays line work; the rest takes the hair colour.
-      if (luminance(...own) < 40) { put(x, y, own); continue; }
-      const dyed = dyeDrawn(own, DRAWN_BASE, hair);
-      // Stubble is the artist's own beard let almost all the way down into the skin under it, so
-      // it reads as a shadow on the jaw. It used to be thinned to every other pixel as well, and
-      // at this size a checkerboard is what that looks like, not stubble.
-      put(x, y, style.shade ? mix([pixels[i], pixels[i + 1], pixels[i + 2]], mix(stubble, dyed, 0.5), style.shade) : dyed);
-    }
-  }
-
-  // ---- what is worn on the head: hair first, then the hat over it ----
-  if (hairOver && plan.hair?.overlay) {
-    for (let y = 0; y < height; y += 1) for (let x = x0; x < x1; x += 1) {
-      const i = at(x, y);
-      if (!hairOver[i + 3]) continue;
-      const own = [hairOver[i], hairOver[i + 1], hairOver[i + 2]];
-      put(x, y, luminance(...own) < 40 ? own : dyeDrawn(own, DRAWN_BASE, palette.hair));
-    }
-  } else if (hairArt && plan.hair?.sprite) stamp(hairArt, plan.hair.sprite, HAIR_SPRITE_BASE, palette.hair);
-  // A drawn hat lies on the strip's own geometry, so it only has to be copied — no scale, no
-  // anchor row, and it turns with the head because the artist turned it. A dyed one is the same
-  // drawing in another colour, measured against the olive it was painted in.
-  if (hatOver && plan.hat?.overlay) {
-    for (let y = 0; y < height; y += 1) for (let x = x0; x < x1; x += 1) {
-      const i = at(x, y);
-      if (!hatOver[i + 3]) continue;
-      const own = [hatOver[i], hatOver[i + 1], hatOver[i + 2]];
-      // How dark a pixel can be and still take the dye is the drawing's, not a constant: on a
-      // black knit hat the usual guard calls most of the wool line work.
-      put(x, y, plan.hat.tint && luminance(...own) >= (plan.hat.floor || 40) ? tintPixel(own, plan.hat.base, plan.hat.tint) : own);
-    }
-  }
-}
-
-// Dye a strip in place, then dress every frame's head. `pixels` is the strip's RGBA, `mask` the
-// matching mask's RGBA (red = part id), `beard` the matching beard overlay's RGBA, `hats` the
-// hat sheet with its manifest, `anchors` the per-frame boxes.
-export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: frameAnchors = [], palette, beard = null, hairArt = null, hairOver = null, outfitOver = null, bootsOver = null, hatOver = null }) {
-  const { targets } = palette;
-  for (let i = 0; i < pixels.length; i += 4) {
-    if (pixels[i + 3] === 0) continue;
-    const rgb = [pixels[i], pixels[i + 1], pixels[i + 2]];
-    // Skin is a ramp swap, not a dye: the gear keeps its shape under a colour, but a face
-    // needs its own shading and a dye flattens it.
-    const out = mask[i] === PART.skin
-      ? palette.skinRamp && shiftPixel(rgb, SKIN_BODY, palette.skinRamp)
-      : targets[mask[i]] && tintPixel(rgb, PART_BASE[mask[i]], targets[mask[i]]);
     if (!out) continue;
-    pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
-  }
-  // A drawn garment goes on before the head does, so a beard still falls over its collar. Like
-  // the beard and the hair it lies on the strip's own geometry, so it only has to be copied.
-  // The outfit first and the boots over it, the order they are worn in.
-  [outfitOver && palette.outfit && outfitOver, bootsOver && palette.boots && bootsOver].forEach((over) => {
-    if (!over) return;
-    for (let i = 0; i < pixels.length; i += 4) {
-      if (!over[i + 3]) continue;
-      pixels[i] = over[i]; pixels[i + 1] = over[i + 1]; pixels[i + 2] = over[i + 2]; pixels[i + 3] = 255;
-    }
-  });
-  const frames = Math.ceil(width / frameWidth);
-  for (let f = 0; f < frames; f += 1) {
-    dressHead({ pixels, mask, width, height, x0: f * frameWidth, x1: Math.min(width, (f + 1) * frameWidth), frame: frameAnchors[f], palette, beard, hairArt, hairOver, hatOver });
+    pixels[i * 4] = out[0]; pixels[i * 4 + 1] = out[1]; pixels[i * 4 + 2] = out[2];
   }
   return pixels;
 }
@@ -319,22 +125,14 @@ async function pixelsOf(src) {
   return { data: canvas.ctx.getImageData(0, 0, img.width, img.height).data, width: img.width, height: img.height };
 }
 
-const wearables = new Map();
-function loadWearable(src, manifest) {
-  if (!wearables.has(src)) wearables.set(src, pixelsOf(src).then((art) => ({ ...art, ...manifest, index: Object.fromEntries(manifest.order.map((key, i) => [key, i])) })));
-  return wearables.get(src);
-}
-
 // Paint one action's strip for a palette.
 async function paintStrip(action, palette) {
-  const worn = palette.head.hat?.overlay;
-  const whiskers = BEARD_ART[palette.head.beard.overlay] || BEARD_ART.full;
-  const [art, mask, beard, hairOver, outfitOver, bootsOver, hairArt, hatOver] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(whiskers[action]), pixelsOf(HAIR[action]), pixelsOf(OUTFITS[action]), pixelsOf(BOOTS[action]), loadWearable(hairSheet, hairSprites), worn && HAT_ART[worn] ? pixelsOf(HAT_ART[worn][action]) : null]);
+  const [art, mask] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action])]);
   const { width, height } = art;
   const main = canvasFor(width, height);
   main.ctx.drawImage(art, 0, 0);
   const image = main.ctx.getImageData(0, 0, width, height);
-  paintPixels({ pixels: image.data, mask: mask.data, width, height, frameWidth: SPRITE_FRAME.w, anchors: FRAMES[action] || [], palette, beard: beard.data, hairArt, hairOver: hairOver.data, outfitOver: outfitOver.data, bootsOver: bootsOver.data, hatOver: hatOver && hatOver.data });
+  paintPixels({ pixels: image.data, mask: mask.data, width, height, palette });
   main.ctx.putImageData(image, 0, 0);
   return main.canvas;
 }
@@ -342,8 +140,8 @@ async function paintStrip(action, palette) {
 const sheetCache = new Map();
 const stillCache = new Map();
 
-// Resolves to { idle, cast, reel, celebrate, hurt } data URLs, or null for the stock look and
-// wherever nothing can be painted.
+// Resolves to one data URL per strip, or null for the stock look and wherever nothing can be
+// painted.
 export function renderAngler(look) {
   if (!look || isDefaultLook(look) || !canPaint()) return Promise.resolve(null);
   const key = lookKey(look);

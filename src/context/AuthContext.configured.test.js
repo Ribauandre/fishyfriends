@@ -596,8 +596,10 @@ describe('Cast & Catch world', () => {
     expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ wardrobe: ['cap_red'], tackle_points: 60 }));
     __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60, wardrobe: ['cap_red'], look: {} }, error: null });
     await expectError(result.current.purchaseApparel('cap_red'), /already own/i);
+    // rod_gold is not owned, so it falls back to the free rod; `beard` is a field the old sheet
+    // had and this one does not, and it is read past rather than saved.
     const saved = await result.current.saveLook({ skin: 'deep', hat: 'cap_red', rod: 'rod_gold', beard: 'goatee' });
-    expect(saved.look).toEqual({ skin: 'deep', hairstyle: 'bald', hair: 'brown', beard: 'goatee', hat: 'cap_red', shirt: 'shirt_grey', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' });
+    expect(saved.look).toEqual({ skin: 'deep', hair: 'brown', hat: 'cap_red', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' });
     expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ look: saved.look }));
   });
 

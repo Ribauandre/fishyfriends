@@ -62,12 +62,14 @@ test('only loops the reel animation while the player is actually holding', () =>
   expect(container.querySelector('.scene-sprite')).toHaveClass('is-looping');
 });
 
-test('celebrates a landed fish and holds it up, but slumps after a loss', () => {
+test('celebrates a landed fish and holds it up, and straightens up after a loss', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'celebrate');
   expect(container.querySelector('.scene-trophy')).toHaveAttribute('data-species', 'walleye');
   rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: false, message: 'The line snapped!' }} />);
-  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'hurt');
+  // The sheet draws idle, walk, cast, reel and celebrate, and no slump — so a lost fish simply
+  // returns him to standing rather than pressing another pose into service as a reaction.
+  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'idle');
   expect(container.querySelector('.scene-trophy')).toBeNull();
 });
 
