@@ -1,4 +1,4 @@
-import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor } from './anglerLook';
+import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, SKIN_BODY, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor } from './anglerLook';
 import hatSprites from './hatSprites.json';
 import hairSprites from './hairSprites.json';
 
@@ -64,13 +64,22 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
   expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('chin');
   expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('lip');
-  expect(paletteFor({ beard: 'stubble' }).head.beard.dither).toBe(true);
+  expect(paletteFor({ beard: 'stubble' }).head.beard.shade).toBeGreaterThan(0);
   expect(paletteFor({ hair: 'grey' }).hair).toEqual(HAIR_COLORS.grey.rgb);
 });
 
-test('skin and gear are dyes, and the art\'s own colours are never dyed to themselves', () => {
-  expect(paletteFor({ skin: 'deep' }).targets[PART.skin]).toEqual(SKIN_TONES.deep.rgb);
-  expect(paletteFor({ skin: 'medium' }).targets[PART.skin]).toBeNull();
+test('gear is a dye, skin is a ramp, and the art\'s own colours are never changed to themselves', () => {
+  // A tone is one of the ramps the sheet draws, swapped in whole; the stock one is the art.
+  expect(paletteFor({ skin: 'deep' }).skinRamp).toEqual(skinRampFor('deep'));
+  expect(skinRampFor('deep')).toHaveLength(SKIN_BODY.length);
+  expect(paletteFor({ skin: 'medium' }).skinRamp).toBeNull();
+  expect(paletteFor({ skin: 'deep' }).targets[PART.skin]).toBeUndefined();
+  // Olive is the one tone the sheet has no head for, mixed from the two it draws either side.
+  const olive = skinRampFor('olive');
+  olive.forEach((band, i) => band.forEach((v, k) => {
+    const [lo, hi] = [skinRampFor('brown')[i][k], skinRampFor('medium')[i][k]].sort((a, b) => a - b);
+    expect(v).toBeGreaterThanOrEqual(lo); expect(v).toBeLessThanOrEqual(hi);
+  }));
   const geared = paletteFor({ rod: 'rod_gold', boots: 'boots_red', waders: 'waders_navy', shirt: 'shirt_navy' }, ['rod_gold', 'boots_red', 'waders_navy', 'shirt_navy']);
   expect(geared.targets[PART.rod]).toEqual(WARDROBE.rod_gold.tint);
   expect(geared.targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);

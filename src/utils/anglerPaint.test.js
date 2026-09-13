@@ -1,5 +1,5 @@
-import { tintPixel, frontness, paintPixels } from './anglerPaint';
-import { PART, PART_BASE, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor } from './anglerLook';
+import { tintPixel, frontness, paintPixels, bandOf, shiftPixel } from './anglerPaint';
+import { PART, PART_BASE, SKIN_BODY, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor, skinRampFor } from './anglerLook';
 
 // A tiny frame in the three-quarter turn the sheet draws: a bare head and jaw, shoulders in a
 // shirt, and a rod out to one side. Everything the painter puts on the head it puts on here.
@@ -130,10 +130,15 @@ test('the beard is the drawn overlay, dyed, and a style is a window on it', () =
   const goatee = dressed({ beard: 'goatee', hair: 'black' });
   expect(near(goatee(28, 33), HAIR_COLORS.black.rgb, 80)).toBe(true);
   expect(near(goatee(15, 26), PART_BASE[PART.skin], 2)).toBe(true);
-  // Stubble is the same shape let down into the skin under it, on every other pixel.
+  // Stubble is the same shape let almost all the way down into the skin under it, so it reads
+  // as a shadow on the jaw. It used to be thinned to every other pixel, which at this size is a
+  // checkerboard rather than stubble.
   const stubble = dressed({ beard: 'stubble', hair: 'black' });
-  expect(stubble(15, 30).r).toBeLessThan(full(15, 30).r + 200);
-  expect(near(stubble(16, 30), PART_BASE[PART.skin], 2)).toBe(true);
+  const bare = PART_BASE[PART.skin][0];
+  expect(stubble(16, 30).r).toBeLessThan(bare);
+  expect(stubble(16, 30).r).toBeGreaterThan(full(16, 30).r);
+  // Every pixel of the shape, not every other one.
+  expect(stubble(15, 30).r).toBeLessThan(bare);
   // Clean shaven leaves the overlay off entirely.
   expect(near(dressed({ beard: 'none' })(20, 30), PART_BASE[PART.skin], 2)).toBe(true);
 });
@@ -193,9 +198,13 @@ test('drawn boots go on over the outfit, and the boots dye gives way to them', (
   expect(paletteFor({ boots: 'boots_red' }).targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);
 });
 
-test('skin and gear are dyed in place, shading and all', () => {
+test('gear is dyed in place and skin is moved to another of the artist\'s ramps', () => {
   const px = paint({ skin: 'deep', rod: 'rod_gold', shirt: 'shirt_navy' });
-  expect(near(px(20, 26), SKIN_TONES.deep.rgb, 40)).toBe(true);
+  // The scene's skin is the art's own mid-tone, so it lands on the deep ramp's matching band.
+  const band = bandOf(PART_BASE[PART.skin], SKIN_BODY);
+  expect(near(px(20, 26), skinRampFor('deep')[band], 12)).toBe(true);
+  // And the shading survives, because the pixel is moved rather than rebuilt from its brightness.
+  expect(shiftPixel([120, 80, 52], SKIN_BODY, skinRampFor('deep'))).not.toEqual(shiftPixel([200, 130, 82], SKIN_BODY, skinRampFor('deep')));
   expect(px(36, 35).r).toBeGreaterThan(px(36, 35).b);
   expect(px(20, 35).b).toBeGreaterThan(px(20, 35).r);
 });

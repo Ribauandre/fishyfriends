@@ -16,14 +16,31 @@
 // `wardrobe` on game_profiles, worn from `look`, migration 0022) — and `paletteFor`, the pure
 // look → paint plan the painter and its tests share. Every slot has a free default, and the
 // free defaults together are the art exactly as drawn, so the stock strips can show unpainted.
+// A skin tone is not a dye. The sheet's SKIN TONES row is five separate heads, one drawn per
+// tone, because the artist did not tint one either — and tinting is what flattened the shading
+// and turned the deepest tone grey. So each rack tone names a ramp of his (`tone`, an index into
+// skinRamps.json) and the painter swaps the body's ramp for it, band for band. `rgb` stays as
+// the swatch on the rack. Olive sits between two of the drawn ramps and is mixed from them at
+// the ratio that lands it on its own swatch; it is the one tone the sheet does not draw.
+import skinRamps from './skinRamps.json';
+
 export const SKIN_TONES = {
-  fair: { label: 'Fair', rgb: [248, 176, 128] },
-  light: { label: 'Light', rgb: [232, 164, 112] },
-  medium: { label: 'Medium', rgb: [208, 136, 88] },
-  olive: { label: 'Olive', rgb: [186, 120, 80] },
-  brown: { label: 'Brown', rgb: [168, 104, 72] },
-  deep: { label: 'Deep', rgb: [104, 72, 56] },
+  fair: { label: 'Fair', rgb: [248, 176, 128], tone: 0 },
+  light: { label: 'Light', rgb: [232, 164, 112], tone: 1 },
+  medium: { label: 'Medium', rgb: [208, 136, 88], tone: 2 },
+  olive: { label: 'Olive', rgb: [186, 120, 80], tone: [2, 3, 0.53] },
+  brown: { label: 'Brown', rgb: [168, 104, 72], tone: 3 },
+  deep: { label: 'Deep', rgb: [104, 72, 56], tone: 4 },
 };
+
+// The ramp a tone wears: one the artist drew, or a mix of two of them.
+export function skinRampFor(key) {
+  const tone = (SKIN_TONES[key] || SKIN_TONES[DEFAULT_LOOK.skin]).tone;
+  if (!Array.isArray(tone)) return skinRamps.tones[tone];
+  const [from, to, t] = tone;
+  return skinRamps.tones[from].map((band, i) => band.map((v, k) => Math.round(v + (skinRamps.tones[to][i][k] - v) * t)));
+}
+export const SKIN_BODY = skinRamps.body;
 
 export const HAIR_COLORS = {
   auburn: { label: 'Auburn', rgb: [116, 58, 30] },
@@ -59,7 +76,7 @@ export const HAIR_STYLES = {
 // mouth, or the `lip` above it. `dither` thins what is kept to stubble.
 export const BEARD_STYLES = {
   none: { label: 'Clean shaven', keep: 'none' },
-  stubble: { label: 'Stubble', keep: 'all', dither: true },
+  stubble: { label: 'Stubble', keep: 'all', shade: 0.42 },
   mustache: { label: 'Moustache', keep: 'lip' },
   goatee: { label: 'Goatee', keep: 'chin' },
   full: { label: 'Full beard', keep: 'all' },
@@ -204,8 +221,9 @@ export function paletteFor(look) {
     look: safe,
     skin,
     hair,
+    // The art as drawn for the stock tone, so nothing is touched; otherwise the ramp to wear.
+    skinRamp: safe.skin === DEFAULT_LOOK.skin ? null : skinRampFor(safe.skin),
     targets: {
-      [PART.skin]: safe.skin === DEFAULT_LOOK.skin ? null : skin,
       [PART.shirt]: WARDROBE[safe.shirt].tint,
       // A drawn outfit covers the waders, so dyeing them underneath it would do nothing.
       [PART.waders]: WARDROBE[safe.waders].overlay ? null : WARDROBE[safe.waders].tint,

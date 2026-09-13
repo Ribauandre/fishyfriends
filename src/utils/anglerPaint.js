@@ -35,7 +35,7 @@ import anchors from './anglerAnchors.json';
 import hatAnchors from './hatAnchors.json';
 import hatSprites from './hatSprites.json';
 import hairSprites from './hairSprites.json';
-import { PART_BASE, DRAWN_BASE, HAIR_SPRITE_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
+import { PART, PART_BASE, SKIN_BODY, DRAWN_BASE, HAIR_SPRITE_BASE, paletteFor, lookKey, isDefaultLook } from './anglerLook';
 import idleMask from '../assets/angler/masks/idle.png';
 import castMask from '../assets/angler/masks/cast.png';
 import reelMask from '../assets/angler/masks/reel.png';
@@ -126,11 +126,42 @@ const clamp = (value) => Math.max(0, Math.min(255, Math.round(value)));
 const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
 const mix = (a, b, t) => [clamp(a[0] + (b[0] - a[0]) * t), clamp(a[1] + (b[1] - a[1]) * t), clamp(a[2] + (b[2] - a[2]) * t)];
 
+// Which band of a ramp a pixel belongs to. A ramp is a ladder of brightness, so that is what
+// places a pixel on it.
+export function bandOf(rgb, ramp) {
+  let best = 0; let nearest = Infinity;
+  ramp.forEach((tone, i) => { const d = Math.abs(luminance(...rgb) - luminance(...tone)); if (d < nearest) { nearest = d; best = i; } });
+  return best;
+}
+
+// Move one pixel from the ramp the art is painted in to another the artist drew, by the step
+// between their matching bands. A dye would have thrown away everything but the pixel's
+// brightness; this keeps the pixel and moves it, so the shading arrives intact.
+export function shiftPixel(rgb, from, to) {
+  const band = bandOf(rgb, from);
+  return [clamp(rgb[0] + to[band][0] - from[band][0]), clamp(rgb[1] + to[band][1] - from[band][1]), clamp(rgb[2] + to[band][2] - from[band][2])];
+}
+
+// Hair and beards are drawn dark, so most of a strand sits below its own mid-tone and a plain
+// dye carries all of that darkness onto whatever colour it is given — which is why blond read
+// as olive. Pulling the drawing's contrast in toward its middle lifts the darks onto the target
+// and lets a pale colour read as itself, and the strands are still there underneath.
+const HAIR_CONTRAST = 0.55;
+export function dyeDrawn(rgb, base, target) {
+  const lifted = luminance(...base) * (1 + (luminance(...rgb) / luminance(...base) - 1) * HAIR_CONTRAST);
+  return tintPixel([lifted, lifted, lifted], base, target);
+}
+
 // Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
 // and reapply that shading to the target colour, so highlights and folds survive the dye.
 export function tintPixel(rgb, base, target) {
   const shade = Math.max(0.3, Math.min(1.7, luminance(...rgb) / luminance(...base)));
-  return [clamp(target[0] * shade), clamp(target[1] * shade), clamp(target[2] * shade)];
+  if (shade <= 1) return [clamp(target[0] * shade), clamp(target[1] * shade), clamp(target[2] * shade)];
+  // A highlight lightens toward white, it does not multiply past it. Multiplying is what turned
+  // a blond beard neon: the drawing is painted dark, so its lit strands ask for a shade of 1.7,
+  // and 1.7 times a pale target clips two channels and leaves the third, which is a colour
+  // nobody chose. Mixing keeps the hue all the way up.
+  return mix(target, [255, 255, 255], (shade - 1) / 0.7 * 0.55);
 }
 
 // How far forward on the face a column is: 1 at the nose and chin, 0 at the back of the head.
@@ -184,7 +215,7 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
       const s = (sy * sheet.width + sx) * 4;
       if (!sheet.data[s + 3]) continue;
       const own = [sheet.data[s], sheet.data[s + 1], sheet.data[s + 2]];
-      put(left + x, top + y, tint && luminance(...own) >= 40 ? tintPixel(own, base, tint) : own);
+      put(left + x, top + y, tint && luminance(...own) >= 40 ? (base === HAIR_SPRITE_BASE ? dyeDrawn(own, base, tint) : tintPixel(own, base, tint)) : own);
     }
   };
 
@@ -200,16 +231,24 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
       // styles are a window on it, and are held to the head so they cannot leave a patch of
       // stubble or a stray goatee pixel down on the chest.
       if (style.keep !== 'all' && y > head.y1 + headH * 0.2) continue;
-      if (style.keep === 'chin' && !(y > mouthY && t > 0.55)) continue;
+      // A goatee is a patch around the chin, not a corner of the beard: cutting it with a
+      // half-plane left a rectangle sitting on his jaw. This is still a window on the artist's
+      // drawing rather than a drawing of its own, which is the next thing to fix properly.
+      if (style.keep === 'chin') {
+        const cx = head.x0 + headW * (dir >= 0 ? 0.74 : 0.26);
+        const cy = mouthY + headH * 0.08;
+        if (((x - cx) / (headW * 0.30)) ** 2 + ((y - cy) / (headH * 0.24)) ** 2 > 1) continue;
+      }
       if (style.keep === 'lip' && !(y > mouthY - 5 && y < mouthY + 1 && t > 0.55)) continue;
-      if (style.dither && (x + y) % 2 === 0) continue;
+
       const own = [beard[i], beard[i + 1], beard[i + 2]];
       // Line work the beard brought with it stays line work; the rest takes the hair colour.
       if (luminance(...own) < 40) { put(x, y, own); continue; }
-      const dyed = tintPixel(own, DRAWN_BASE, hair);
-      // Stubble is the same beard thinned to every other pixel and let down into the skin
-      // under it, so it reads as a shadow on the jaw rather than a mesh laid over it.
-      put(x, y, style.dither ? mix([pixels[i], pixels[i + 1], pixels[i + 2]], mix(stubble, dyed, 0.5), 0.55) : dyed);
+      const dyed = dyeDrawn(own, DRAWN_BASE, hair);
+      // Stubble is the artist's own beard let almost all the way down into the skin under it, so
+      // it reads as a shadow on the jaw. It used to be thinned to every other pixel as well, and
+      // at this size a checkerboard is what that looks like, not stubble.
+      put(x, y, style.shade ? mix([pixels[i], pixels[i + 1], pixels[i + 2]], mix(stubble, dyed, 0.5), style.shade) : dyed);
     }
   }
 
@@ -219,7 +258,7 @@ function dressHead({ pixels, mask, width, height, x0, x1, frame, palette, beard,
       const i = at(x, y);
       if (!hairOver[i + 3]) continue;
       const own = [hairOver[i], hairOver[i + 1], hairOver[i + 2]];
-      put(x, y, luminance(...own) < 40 ? own : tintPixel(own, DRAWN_BASE, palette.hair));
+      put(x, y, luminance(...own) < 40 ? own : dyeDrawn(own, DRAWN_BASE, palette.hair));
     }
   } else if (hairArt && plan.hair?.sprite) stamp(hairArt, plan.hair.sprite, HAIR_SPRITE_BASE, palette.hair);
   // A drawn hat lies on the strip's own geometry, so it only has to be copied — no scale, no
@@ -244,9 +283,13 @@ export function paintPixels({ pixels, mask, width, height, frameWidth, anchors: 
   const { targets } = palette;
   for (let i = 0; i < pixels.length; i += 4) {
     if (pixels[i + 3] === 0) continue;
-    const target = targets[mask[i]];
-    if (!target) continue;
-    const out = tintPixel([pixels[i], pixels[i + 1], pixels[i + 2]], PART_BASE[mask[i]], target);
+    const rgb = [pixels[i], pixels[i + 1], pixels[i + 2]];
+    // Skin is a ramp swap, not a dye: the gear keeps its shape under a colour, but a face
+    // needs its own shading and a dye flattens it.
+    const out = mask[i] === PART.skin
+      ? palette.skinRamp && shiftPixel(rgb, SKIN_BODY, palette.skinRamp)
+      : targets[mask[i]] && tintPixel(rgb, PART_BASE[mask[i]], targets[mask[i]]);
+    if (!out) continue;
     pixels[i] = out[0]; pixels[i + 1] = out[1]; pixels[i + 2] = out[2];
   }
   // A drawn garment goes on before the head does, so a beard still falls over its collar. Like
