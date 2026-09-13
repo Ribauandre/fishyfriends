@@ -5,6 +5,8 @@
 //   node scripts/anglerDressed.mjs hair   art/angler-haired-sheet.png  -> assets/angler/hair/*
 //   node scripts/anglerDressed.mjs outfit art/angler-outfit-sheet.png  -> assets/angler/outfit/*
 //   node scripts/anglerDressed.mjs boots  art/angler-boots-sheet.png   -> assets/angler/boots/*
+//   node scripts/anglerDressed.mjs hat    art/angler-dressed-sheet.png cap_olive
+//                                                          -> assets/angler/hats/cap_olive/*
 //
 // The beard run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
 //
@@ -51,22 +53,35 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
-const [kind, sheet] = process.argv.slice(2);
+const [kind, sheet, name] = process.argv.slice(2);
 // `below` is how far past the chin to look, as a fraction of the head: a beard spills onto the
 // collar, hair does not. `caps` says the sheet wears one worth measuring.
 // `below` is how far past the chin a head lift looks, as a fraction of the head; `diff` swaps
 // the hue test for "whatever is not what the bald sheet has here", which is what an outfit is.
+// `pad` and `rise` are how far past the head box a head lift looks, sideways and upwards: a
+// beard stays on the face, a hat sits above the crown and out past the ears.
+// Two independent choices per sheet. `box` is where to look: the head box (`head`, opened by
+// `pad`/`rise`/`below`), everything under the chin (`body`), or the rows the bald frame wears a
+// masked part on (`band`). `test` is what counts as the garment there: `diff` is whatever is not
+// what the bald sheet has, which needs no colour at all and is right whenever the sheet changed
+// one thing; `brown` and `olive` are hue, for a sheet that changed two things at once.
 const LIFT = {
-  beard: { below: 0.55, caps: true },
-  hair: { below: 0, caps: false },
-  outfit: { diff: true, caps: false },
-  boots: { caps: false, part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
+  beard: { box: 'head', test: 'brown', below: 0.55, caps: true },
+  hair: { box: 'head', test: 'brown', below: 0 },
+  outfit: { box: 'body', test: 'diff' },
+  boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
+  // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
+  hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, clean: 30, dir: 'hats' },
+  // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
+  // cap's olive from the beard's brown.
+  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, clean: 30, dir: 'hats' },
 };
 const lift = LIFT[kind];
+if (lift && lift.dir && !name) { console.error(`usage: node scripts/anglerDressed.mjs ${kind} <sheet.png> <name>`); process.exit(1); }
 if (!lift || !sheet) { console.error(`usage: node scripts/anglerDressed.mjs <${Object.keys(LIFT).join('|')}> <sheet.png>`); process.exit(1); }
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const assets = path.join(root, 'src', 'assets', 'angler');
-const out = path.join(assets, kind);
+const out = lift && lift.dir ? path.join(assets, lift.dir, name || kind) : path.join(assets, kind);
 mkdirSync(out, { recursive: true });
 const ANCHORS = JSON.parse(readFileSync(path.join(root, 'src', 'utils', 'anglerAnchors.json'), 'utf8'));
 
@@ -239,19 +254,23 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
         // An outfit is everything below the chin that is not what the bald sheet has there.
         // Clothes are the only thing that changed, so nothing else can differ but the noise of
         // a redraw, and that is what the cleanup below is for.
-        const onBody = head && y > head.y1;
-        const changed = onBody && (!base.data[to + 3] || Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60);
         // Nothing goes on over skin: in the kneeling pose his bare forearms are as brown and as
         // dark as the leather, and they are in the same place in both sheets, so the bald
         // frame's own mask is what says which is which.
         const onSkin = mask && lift.avoid && mask.data[to] === lift.avoid;
-        // Only brown where this sheet drew it — the rod is brown too, and crosses right past
-        // the head; the waders are olive all the way down to the boots.
-        const inBox = !onSkin && (band
-          ? y >= band.y0 && y <= band.y1
-          : head && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
-        if (lift.diff ? changed : inBox && isBeard(p)) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
-        else if (!lift.diff && isDark(p)) line.add(to);
+        // Where this sheet is allowed to have drawn. A hue test needs one — the rod is brown too
+        // and crosses right past the head, and the waders are olive down to the boots — and a
+        // diff needs one just as much, since a redraw differs faintly everywhere.
+        const inBox = !onSkin && (lift.box === 'band'
+          ? Boolean(band) && y >= band.y0 && y <= band.y1
+          : lift.box === 'body'
+            ? Boolean(head) && y > head.y1
+            : Boolean(head) && lx >= head.x0 - (lift.pad || 14) && lx <= head.x1 + (lift.pad || 14) && y >= head.y0 - (lift.rise || 18) && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
+        const drawn = lift.test === 'diff'
+          ? !base.data[to + 3] || Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60
+          : lift.test === 'olive' ? isCap(p) : isBeard(p);
+        if (inBox && drawn) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
+        else if (lift.test !== 'diff' && isDark(p)) line.add(to);
         else if (lift.caps && head && isCap(p)) {
           if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
           const row = capRows.get(y) || [Infinity, -Infinity];
@@ -272,7 +291,7 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
       // A redraw never lands on exactly the same pixels, so a diff leaves a rim of flecks all
       // round the body, and a hue test picks up the odd brown speck of shading. Nothing that
       // small is a garment.
-      const smallest = lift.diff ? 80 : lift.clean;
+      const smallest = lift.test === 'diff' ? (lift.clean || 80) : lift.clean;
       if (smallest) {
         const seenRun = new Set();
         hit.forEach((to) => {
@@ -289,7 +308,7 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
         });
       }
       // Line work touching the beard is the beard's; the cap's own is left behind.
-      for (let pass = 0; pass < 2 && !lift.diff; pass += 1) {
+      for (let pass = 0; pass < 2 && lift.test !== 'diff'; pass += 1) {
         const gained = [];
         line.forEach((to) => {
           const i = to / 4; const x = i % strip.width; const y = (i / strip.width) | 0;
