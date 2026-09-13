@@ -2,34 +2,34 @@
 // scripts/anglerPixelSlice.mjs. Every frame sits in the same box with the feet anchored at
 // (feetX, feetY), so an action can swap without the figure hopping.
 //
-// He is cut at the resolution the artist drew him — the box is 254x234 — rather than averaged down
-// onto a coarse grid, which an earlier pass of this did and which cost real detail: his eyes, the
-// vest pockets, the rod guides and the boot laces are all finer than any such grid. The geometry
-// here is all expressed against SPRITE_FRAME rather than in numbers of its own, so GameScene, which
-// works in painting units and divides by these, does not move when the art's resolution changes —
-// and it has changed twice now.
+// He is cut at the resolution the artist drew him — the box is 356x269, wide because the cast
+// wind-up holds the rod out well behind him — rather than averaged down onto a coarse grid, which
+// an earlier pass of this did and which cost real detail. The geometry here is all expressed
+// against SPRITE_FRAME rather than in numbers of its own, so GameScene, which works in painting
+// units and divides by these, does not move when the art's resolution changes — and it has
+// changed three times now.
 import idle from '../assets/angler/idle.png';
 import walk from '../assets/angler/walk.png';
 import cast from '../assets/angler/cast.png';
 import reel from '../assets/angler/reel.png';
 import celebrate from '../assets/angler/celebrate.png';
 
-export const SPRITE_FRAME = { w: 254, h: 234, feetX: 121, feetY: 233 };
+export const SPRITE_FRAME = { w: 356, h: 269, feetX: 154, feetY: 268 };
 
-// The window on a frame that a still preview shows. The sheet draws him and his rod inside one
-// square, so unlike the last one there is no run of empty box to trim off — the still is the frame.
-export const STILL_WINDOW = { x: 0, y: 0, w: 254, h: 234 };
+// The window on a frame that a still preview shows: the idle pose stands in the middle of the
+// box, and the width the wind-up needs either side of it is empty there.
+export const STILL_WINDOW = { x: 50, y: 0, w: 256, h: 269 };
 
 // rodTip is where the line leaves the rod for that strip's held pose, in frame pixels, measured off
 // the rod in the part mask rather than guessed: the rod pixel furthest from his feet. Where the rod
 // runs out of the box the tip is where it leaves the frame, which is where the line has to start
 // for the two to meet.
 export const ANGLER_SPRITES = {
-  idle: { src: idle, frames: 4, rodTip: { x: 194, y: 32 } },
-  walk: { src: walk, frames: 4, rodTip: { x: 54, y: 20 } },
-  cast: { src: cast, frames: 4, rodTip: { x: 253, y: 43 } },
-  reel: { src: reel, frames: 4, rodTip: { x: 236, y: 61 } },
-  celebrate: { src: celebrate, frames: 4, rodTip: { x: 39, y: 9 } },
+  idle: { src: idle, frames: 4, rodTip: { x: 253, y: 8 } },
+  walk: { src: walk, frames: 4, rodTip: { x: 251, y: 21 } },
+  cast: { src: cast, frames: 4, rodTip: { x: 293, y: 134 } },
+  reel: { src: reel, frames: 4, rodTip: { x: 246, y: 41 } },
+  celebrate: { src: celebrate, frames: 4, rodTip: { x: 50, y: 12 } },
 };
 
 // What the angler is doing in each phase: which strip, how many frames to step through, and

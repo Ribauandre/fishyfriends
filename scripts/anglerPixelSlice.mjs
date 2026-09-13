@@ -1,23 +1,26 @@
 // Slice art/angler-pixel-sheet.png into the angler's strips.
 //
-// This sheet is not like the ones before it. It is real pixel art — a small character drawn on a
-// coarse grid — but it arrives as a large, softened render of that art: every native pixel is a
-// block about eight screen pixels across, and the compression has left each block a cloud of
-// near-identical colours rather than one. So the job here is to find the grid the artist actually
-// drew on and average each block back down to the single colour it was, which is the only way to
-// get art this size looking the way it was drawn instead of like a photograph of itself.
+// This sheet is flat pixel art on a transparent ground: five labelled rows — IDLE, WALK, CAST,
+// REEL IN, CELEBRATE — of four frames each, every block of the drawing one colour, a black keyline
+// round everything, and nothing behind him. The two hard problems the sheets before it posed are
+// simply not here: there is no sky to tell his jeans from (the ground is alpha, so "on" is alpha
+// at or over half), and there is no grid to find and average onto (he is cut at the resolution he
+// is drawn at, and the box is whatever that comes to).
 //
-// Nothing about that grid is safe to assume. The model drew the table of panels freehand, so the
-// panels are not the same width (216 to 222) or height (249 to 276), and the lattice inside one
-// does not have to share a phase with the next. Each cell is therefore measured on its own, by
-// the one property that actually defines the lattice: inside a real block every pixel is the same
-// colour, so the right period and phase are the ones that make the colour variance within blocks
-// smallest. Guessing a period from the panel width instead would drift by a pixel across the row
-// and smear every edge on the far side of the sheet.
+// What is still here is that the artist drew things that are not him: a row label at the left of
+// each row, the fishing line and its bobber in the cast and reel frames, the splash off the line
+// while he fights a fish, and the stars round a celebrated catch — and the lines are long enough
+// to reach into the next frame's cell, so the cells cannot be found as gaps in the alpha (the cast
+// row has none). They are found from the frame *pitch* instead: the rows have gaps, the first row
+// has four clean frames, and every row is cut at the same four columns. Inside a cell, everything
+// that is not him is thinner than he is anywhere: the line is two pixels, and the bobber, the
+// droplets, the stars and the label hang off nothing once the line is gone. So each cell is
+// opened by a pixel — eroded, the largest eight-connected piece kept, and the original grown back
+// one pixel round it — which keeps the rod (eight pixels wide) and the fish he holds by the tail
+// (attached to his hand) and drops all the rest.
 //
-// Rows are IDLE, WALK, CAST, REEL IN, CELEBRATE, four frames each. There is no HURT row, which the
-// game wants for a lost fish; `strips.json` records what is here and FishingGame decides what to
-// show when a fish comes off.
+// Frames are hung on the feet, not the cell, so a pose never bobs; `strips.json` records the
+// shared box and `SPRITE_FRAME` in anglerSprites.js must match it.
 
 import { readPng, writePng } from './png.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -25,290 +28,125 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const SHEET = new URL('../art/angler-pixel-sheet.png', import.meta.url).pathname;
 const OUT = new URL('../src/assets/angler/', import.meta.url).pathname;
 const ROWS = ['idle', 'walk', 'cast', 'reel', 'celebrate'];
+const ON = 128;
 
 const sheet = readPng(SHEET);
 const { width: W, height: H, data: D } = sheet;
-const lum = (x, y) => { const p = (y * W + x) * 4; return 0.299 * D[p] + 0.587 * D[p + 1] + 0.114 * D[p + 2]; };
+const lit = (x, y) => D[(y * W + x) * 4 + 3] >= ON;
 
-// The panel borders are the near-black lines ruling the table, found as rows and columns that are
-// dark rather than by measuring in from the edge.
-//
-// What makes a border a border is that it runs the *whole way across the table*, and that has to be
-// measured across the table rather than across the sheet, because the sheet is wider than the table
-// — there is a margin with the row labels in it. Measured across the sheet, a true border is only
-// about 78% dark, which puts the bar low enough to also admit lines that are not borders at all: a
-// sheet whose four reel-in frames all stand their boots at the same height, and splash their
-// bobbers on the same row, has a band 56% dark lying across the middle of a row. That was found as
-// a seventh row line and the run stopped with "found 4 columns and 6 rows", which is the guard
-// doing its job rather than the slicer quietly cutting every reel frame in half.
-//
-// So it is done twice. A first, lenient pass finds where the table is at all — its outermost lines
-// are unambiguous whatever the threshold. The second pass measures only within that box, where a
-// real border is dark almost all the way and anything drawn inside a panel is not.
-function lines(count, from, to, bar, dark) {
-  const frac = [];
-  for (let i = 0; i < count; i += 1) {
-    let n = 0;
-    for (let j = from; j < to; j += 1) n += dark(i, j) ? 1 : 0;
-    frac.push(n / (to - from));
+// Runs of rows (or columns) with anything drawn in them.
+function bands(count, test) {
+  const out = []; let start = -1;
+  for (let i = 0; i <= count; i += 1) {
+    const v = i < count && test(i);
+    if (v && start < 0) start = i;
+    if (!v && start >= 0) { out.push([start, i - 1]); start = -1; }
   }
-  const runs = []; let start = -1;
-  for (let i = 0; i < count; i += 1) {
-    if (frac[i] > bar) { if (start < 0) start = i; } else if (start >= 0) { runs.push([start, i - 1]); start = -1; }
-  }
-  if (start >= 0) runs.push([start, count - 1]);
-  return runs;
+  return out;
 }
+const ROWBANDS = bands(H, (y) => { for (let x = 0; x < W; x += 1) if (lit(x, y)) return true; return false; });
+if (ROWBANDS.length !== ROWS.length) throw new Error(`found ${ROWBANDS.length} rows of drawing, expected ${ROWS.length}`);
 
-const darkCol = (x, y) => lum(x, y) < 90;
-const darkRow = (y, x) => lum(x, y) < 90;
-const roughV = lines(W, 0, H, 0.55, darkCol);
-const roughH = lines(H, 0, W, 0.55, darkRow);
-if (!roughV.length || !roughH.length) throw new Error('found no table of panels on the sheet');
-const tableX = [roughV[0][0], roughV[roughV.length - 1][1] + 1];
-const tableY = [roughH[0][0], roughH[roughH.length - 1][1] + 1];
-const vert = lines(W, tableY[0], tableY[1], 0.9, darkCol);
-const horz = lines(H, tableX[0], tableX[1], 0.9, darkRow);
-if (vert.length !== 5 || horz.length !== 6) {
-  throw new Error(`expected a 4x5 table of panels, found ${vert.length - 1} columns and ${horz.length - 1} rows`);
-}
-// One pixel clear of the border line on each side, so no cell carries a slice of its own frame.
-const cells = (runs) => runs.slice(0, -1).map((run, i) => [run[1] + 2, runs[i + 1][0] - 1]);
-const COLS = cells(vert);
-const ROWBANDS = cells(horz);
+// The columns, from the first row: its label and four frames stand apart, and the frames are at
+// one pitch. Every row is cut at the midpoints between those frame centres, and to the left of
+// the first frame at the midpoint between it and the label.
+const [ly0, ly1] = ROWBANDS[0];
+const firstRow = bands(W, (x) => { for (let y = ly0; y <= ly1; y += 1) if (lit(x, y)) return true; return false; });
+if (firstRow.length !== 5) throw new Error(`found ${firstRow.length} things in the first row, expected a label and four frames`);
+const centres = firstRow.slice(1).map(([a, b]) => (a + b) / 2);
+const pitch = (centres[3] - centres[0]) / 3;
+//
+// The cells overlap by REACH each side of that, because the rod he winds up with in the second
+// cast frame is drawn well into the first frame's cell, and cut at the midpoint it came out a
+// stub. What each cell keeps is the piece that stands in its *own* middle (the one with the most
+// pixels within half a pitch of the frame centre), not simply the largest piece, so the sliver of
+// the next frame that the overlap lets in is dropped even where it is the bigger.
+const REACH = 80;
+const COLS = centres.map((c, i) => [Math.max(i === 0 ? firstRow[0][1] + 1 : 0, Math.round(c - pitch / 2 - REACH)), Math.min(W - 1, Math.round(c + pitch / 2 + REACH))]);
+console.log(`frame pitch ${pitch.toFixed(1)}, columns ${COLS.map(([a, b]) => `${a}-${b}`).join(' ')}`);
 
-// The background goes before anything is averaged, and at the sheet's own resolution, because that
-// is where it can be done cleanly: the figure is drawn with a near-black keyline all the way round
-// it, eight screen pixels thick here, and a flood coming in from the edge of the cell simply stops
-// against that. Averaging first and cutting after is what leaves a blue rim on everything — a
-// block straddling the keyline comes out a blend of background and outline, and no threshold on
-// that blend is right everywhere.
-//
-// What counts as background is the sky and the drop shadow under his boots, and the whole
-// difficulty is that his jeans are very nearly the sky's colour: (38,99,147) against (36,146,189).
-// Every rule that tried to separate them on blueness, or on darkness, or on both, failed on some
-// pose — the flood walked in between his boots and hollowed out both legs.
-//
-// So the sky is not flooded for at all. It is a flat colour the artist filled every panel with,
-// over a million pixels of it within a few steps of one value, and nothing on him comes near it:
-// his jeans are ninety away from it in sum, and the reel and the lure are further. Matching it
-// outright, wherever it lies, settles the sky in one pass — and, more to the point, settles the
-// sky the figure has *closed around*. A flood can only reach what is open to the edge of the
-// panel, and in a wide stance the gap between his legs is not: the shadow at his boots seals the
-// bottom of it, and what a flood leaves behind there is a bright blue puddle standing between his
-// knees.
-//
-// That leaves the shadow, and the softened blend around everything the render touched. The shadow
-// is blue but far too dark to match, and it is starved of red where the sky and the jeans both sit
-// at about r=37, so the flood proper runs outward from the sky on that and stops at his jeans,
-// which are red enough to be his in every pose.
-//
-// The blend is the other half, and it cannot be had on colour: a pixel halfway between the sky and
-// a white fishing line is a pale blue that is neither. What is true of it is that it is *near* the
-// sky — a pixel or two of softening, no more — so it is taken by reach instead, a blue pixel
-// within BLEND_REACH of sky being sky that got smeared. His keyline is eight pixels thick here, so
-// a reach of three cannot cross it into the jeans behind, and the trailing leg he walks on, which
-// is the darkest denim in the sheet, stays his. Left in, that blend is a halo: it is what fattened
-// the drawn line past one pixel and so past the test below that takes the line out, and printed a
-// pale streak down the side of every rod in the sheet.
-const SKY_NEAR = 60;
-const OUTLINE_RED = 12;
-const BLEND_REACH = 3;
-// Blue enough to be sky, shadow, or the blend between them. The second clause is for the last
-// pixels of the boots' shadow, which the render leaves at about (6,32,42): blue-leaning but only
-// thirty-six apart in red against blue, just under the bar, so they survived as a faint dark line
-// under his feet in the cast frames. Nothing of his is that starved of red — his keyline is
-// near-black in all three channels, and the darkest denim in the sheet still has twice this red —
-// and in any case the reach budget below is what actually keeps the flood out of his jeans, not
-// this test.
-const isBlue = (p4) => (D[p4 + 2] - D[p4] > 45 || (D[p4] < OUTLINE_RED && D[p4 + 2] - D[p4] > 18)) && D[p4 + 2] > D[p4 + 1];
-const isDim = (p4) => isBlue(p4) && D[p4] < OUTLINE_RED;
-
-// The panel's own sky, read off its border ring rather than assumed, so a panel tinted differently
-// from its neighbours is still measured against itself.
-function skyColour([x0, x1], [y0, y1]) {
-  const tally = new Map();
-  const add = (x, y) => {
-    const p4 = (y * W + x) * 4;
-    const key = `${D[p4]},${D[p4 + 1]},${D[p4 + 2]}`;
-    tally.set(key, (tally.get(key) || 0) + 1);
-  };
-  for (let x = x0; x < x1; x += 1) { add(x, y0); add(x, y1 - 1); }
-  for (let y = y0; y < y1; y += 1) { add(x0, y); add(x1 - 1, y); }
-  const best = [...tally].sort((a, b) => b[1] - a[1])[0][0];
-  return best.split(',').map(Number);
-}
-
-function backgroundMask([x0, x1], [y0, y1]) {
-  const w = x1 - x0; const h = y1 - y0;
-  const sky = skyColour([x0, x1], [y0, y1]);
-  const isSky = (p4) => Math.abs(D[p4] - sky[0]) + Math.abs(D[p4 + 1] - sky[1]) + Math.abs(D[p4 + 2] - sky[2]) <= SKY_NEAR;
-  const seen = new Uint8Array(w * h);
-  // How far the blend has been walked to reach this pixel, which is all it is allowed to spend.
-  const spent = new Uint8Array(w * h).fill(255);
-  let frontier = [];
-  const push = (x, y, cost) => {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    const i = y * w + x;
-    if (cost >= spent[i]) return;
-    const p4 = ((y + y0) * W + x + x0) * 4;
-    if (!isSky(p4) && !isBlue(p4)) return;
-    spent[i] = cost; seen[i] = 1; frontier.push(i);
-  };
-  // Every pixel of sky is a seed, so an enclosed pocket of it needs no way out to count. The
-  // border needs no seeding of its own: it is sky, and where it is not — a boot run off the edge
-  // of its panel — it is not background either.
-  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) if (isSky(((y + y0) * W + x + x0) * 4)) push(x, y, 0);
-  // Breadth first, so every pixel is reached by its cheapest route before anything is spent past
-  // it. Sky costs nothing to cross, and neither does the red-starved dark of an outline or a
-  // boot's shadow, which is a colour he has nowhere in the sheet. Only the blend is rationed.
-  while (frontier.length) {
-    const wave = frontier;
-    frontier = [];
-    wave.forEach((i) => {
-      const x = i % w; const y = (i / w) | 0;
-      const p4 = ((y + y0) * W + x + x0) * 4;
-      const cost = isSky(p4) || isDim(p4) ? spent[i] : spent[i] + 1;
-      if (cost > BLEND_REACH) return;
-      push(x - 1, y, cost); push(x + 1, y, cost); push(x, y - 1, cost); push(x, y + 1, cost);
-    });
-  }
-  return seen;
-}
-
-// Cut one cell out at the sheet's own resolution. Nothing is averaged down.
-//
-// An earlier version of this script did average it down, onto a lattice it went to some trouble to
-// find, on the theory that the sheet was a small pixel-art character delivered as a large soft
-// render of itself and the job was to recover the small character. That theory was wrong, and the
-// way it was wrong is worth writing down because the measurement that seemed to support it was
-// bad. Within-block colour variance falls monotonically as the block shrinks — at one pixel per
-// block it is zero — so "the period that minimises variance" has no minimum to find, and what it
-// actually reports is whatever the bottom of the search range was. The range was set from a coarse
-// first guess of eight, so it dutifully answered about eight, and the answer looked plausible.
-//
-// Two checks say otherwise. Scoring periods by how much more the colour changes *on* the candidate
-// lattice lines than between them — which does have a real maximum — gives no clear winner at all
-// here: the best contrast is about 1.4, and it lands on 8.2, 9.9 and 10.8 depending on the axis.
-// And flattening a cell onto the detected lattice next to the cell itself is plainly worse: the
-// eyes, the vest pockets, the rod guides and the boot laces are all finer than any such block.
-//
-// So this sheet is not a coarse grid softened; it is simply drawn finer than that, in a style that
-// reads as pixel art. Averaging it threw away real detail and is what made him chunky on the
-// stage. He is cut at the resolution the artist drew him.
-function cell([x0, x1], [y0, y1]) {
-  const bg = backgroundMask([x0, x1], [y0, y1]);
-  const w = x1 - x0; const h = y1 - y0;
+function cell([x0, x1], [y0, y1], centre) {
+  const w = x1 - x0 + 1; const h = y1 - y0 + 1;
   const data = Buffer.alloc(w * h * 4);
   for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
-    const i = y * w + x;
-    if (bg[i]) continue;
-    const p4 = ((y + y0) * W + x + x0) * 4;
-    for (let k = 0; k < 3; k += 1) data[i * 4 + k] = D[p4 + k];
-    data[i * 4 + 3] = 255;
+    const s = ((y + y0) * W + x + x0) * 4; const t = (y * w + x) * 4;
+    if (D[s + 3] < ON) continue;
+    data[t] = D[s]; data[t + 1] = D[s + 1]; data[t + 2] = D[s + 2]; data[t + 3] = 255;
   }
-  return { width: w, height: h, data };
+  return { width: w, height: h, data, centre: centre - x0 };
 }
 
-// The sheet draws a fishing line and a bobber on the end of it; the game draws its own line from
-// the rod tip, so they go. A drawn line is unmistakable: it is the artist's white, it is thin, and
-// it runs straight for a long way. Nothing on him is both — the palest things he owns are the
-// shirt, the rod's guides and the reel, and none of those is a long thin stroke. Cutting the line
-// leaves the bobber hanging on nothing, and keepFigure takes it from there.
-//
-// Both numbers are in the sheet's own pixels. The averaged-down version of this script measured
-// the same line as one pixel wide and six long; at the resolution he is actually drawn at, that is
-// the width the artist strokes a line at — about eight — times as much.
-const LINE_MIN = 48;
-const LINE_MAX_THICK = 12;
-function stripLine(img) {
-  const { width: w, height: h, data } = img;
-  const pale = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i += 1) {
-    if (!data[i * 4 + 3]) continue;
-    const r = data[i * 4]; const g = data[i * 4 + 1]; const b = data[i * 4 + 2];
-    if (0.299 * r + 0.587 * g + 0.114 * b > 185 && Math.max(r, g, b) - Math.min(r, g, b) < 50) pale[i] = 1;
+const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+const FOUR = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+// Open the cell by OPEN pixels and keep the piece standing in its middle; see the note at the
+// top. Two, not one: the line hanging off the rod tip in the first reel frame is three pixels
+// wide where it leaves the rod and survived an opening of one.
+const OPEN = 2;
+function keepFigure(img) {
+  const { width: w, height: h, data, centre } = img;
+  const on = (x, y) => x >= 0 && y >= 0 && x < w && y < h && data[(y * w + x) * 4 + 3] > 0;
+  let eroded = new Uint8Array(w * h);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) if (on(x, y)) eroded[y * w + x] = 1;
+  for (let round = 0; round < OPEN; round += 1) {
+    const next = new Uint8Array(w * h);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+      const i = y * w + x;
+      if (eroded[i] && FOUR.every(([ox, oy]) => { const nx = x + ox; const ny = y + oy; return nx >= 0 && ny >= 0 && nx < w && ny < h && eroded[ny * w + nx]; })) next[i] = 1;
+    }
+    eroded = next;
   }
   const seen = new Uint8Array(w * h);
+  let best = []; let bestScore = -1;
   for (let start = 0; start < w * h; start += 1) {
-    if (seen[start] || !pale[start]) continue;
-    const stack = [start]; seen[start] = 1; const group = [];
-    while (stack.length) {
-      const i = stack.pop(); group.push(i);
-      const x = i % w; const y = (i / w) | 0;
-      NEIGHBOURS.forEach(([ox, oy]) => {
-        const nx = x + ox; const ny = y + oy;
-        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
-        const n = ny * w + nx;
-        if (seen[n] || !pale[n]) return;
-        seen[n] = 1; stack.push(n);
-      });
-    }
-    let x0 = w; let x1 = -1; let y0 = h; let y1 = -1;
-    group.forEach((i) => {
-      const x = i % w; const y = (i / w) | 0;
-      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
-    });
-    const bw = x1 - x0 + 1; const bh = y1 - y0 + 1;
-    if (Math.min(bw, bh) <= LINE_MAX_THICK && Math.max(bw, bh) >= LINE_MIN) group.forEach((i) => { data[i * 4 + 3] = 0; });
-  }
-  return img;
-}
-
-// He is one piece. The sheet draws a fishing line and its bobber as well, and those float clear of
-// him in the air; the game draws its own line from the rod tip, so whatever is not joined to the
-// figure is not his and goes. Anything he is actually holding — the rod, a fish — is joined to a
-// hand and stays.
-// Eight-connected, because the artist steps a silhouette across by one pixel at a time and a leg
-// can hang off the hip by a single diagonal. Four-connectivity calls that a separate object, and
-// it threw away both legs in half the cast and celebrate frames — the largest piece it could find
-// there was the torso.
-const NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
-
-function keepFigure(img) {
-  const { width: w, height: h, data } = img;
-  const seen = new Int32Array(w * h).fill(-1);
-  let best = null;
-  for (let start = 0; start < w * h; start += 1) {
-    if (seen[start] >= 0 || !data[start * 4 + 3]) continue;
-    const run = [start]; seen[start] = start; const group = [];
+    if (seen[start] || !eroded[start]) continue;
+    const run = [start]; seen[start] = 1; const group = []; let score = 0;
     while (run.length) {
       const i = run.pop(); group.push(i);
       const x = i % w; const y = (i / w) | 0;
+      if (Math.abs(x - centre) <= pitch / 2) score += 1;
       NEIGHBOURS.forEach(([ox, oy]) => {
         const nx = x + ox; const ny = y + oy;
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
         const n = ny * w + nx;
-        if (seen[n] >= 0 || !data[n * 4 + 3]) return;
-        seen[n] = start; run.push(n);
+        if (seen[n] || !eroded[n]) return;
+        seen[n] = 1; run.push(n);
       });
     }
-    if (!best || group.length > best.length) best = group;
+    if (score > bestScore) { best = group; bestScore = score; }
   }
-  const keep = new Set(best);
+  // Growing back, the figure does not grow into the line: where it leaves the rod tip the
+  // line is a few pixels wide, within reach of the tip's core, and came back as a stub.
+  const lineish = (x, y) => { const p = (y * w + x) * 4; return data[p + 2] > data[p] + 20 && 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2] > 120; };
+  let core = new Uint8Array(w * h); best.forEach((i) => { core[i] = 1; });
+  for (let round = 0; round < OPEN; round += 1) {
+    const next = new Uint8Array(core);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+      const i = y * w + x;
+      if (core[i] || !on(x, y) || lineish(x, y)) continue;
+      if (NEIGHBOURS.some(([ox, oy]) => { const nx = x + ox; const ny = y + oy; return nx >= 0 && ny >= 0 && nx < w && ny < h && core[ny * w + nx]; })) next[i] = 1;
+    }
+    core = next;
+  }
   let dropped = 0;
-  for (let i = 0; i < w * h; i += 1) if (!keep.has(i) && data[i * 4 + 3]) {
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const i = y * w + x;
+    if (!data[i * 4 + 3]) continue;
+    if (core[i]) continue;
     if (process.env.MARKDROP) { data[i * 4] = 255; data[i * 4 + 1] = 0; data[i * 4 + 2] = 0; } else data[i * 4 + 3] = 0;
     dropped += 1;
   }
-  // Worth saying out loud. What this is meant to drop is the odd orphan the sheet leaves in the
-  // air — a bobber, a whip mark — and those are a handful of pixels each. Anything larger is a
-  // piece of him that came adrift, which is the failure this step can cause rather than one it
-  // fixes, so it is reported rather than swallowed.
   img.dropped = dropped;
   return img;
 }
 
-// Where he stands. The feet are the bottom of the figure, and the frames are hung on that rather
-// than on the cell, because the artist did not place him at the same height in every panel and a
-// character who bobs a pixel between frames reads as a glitch.
+// Where he stands: the bottom of the figure, and the middle of its widest part in the bottom rows.
 function feet(img) {
   const { width: w, height: h, data } = img;
   let bottom = -1; let x0 = w; let x1 = -1;
   for (let y = h - 1; y >= 0 && bottom < 0; y -= 1) {
     for (let x = 0; x < w; x += 1) if (data[(y * w + x) * 4 + 3]) { bottom = y; break; }
   }
-  // The widest part of the bottom three rows is the pair of boots; its middle is where he stands.
   for (let y = Math.max(0, bottom - 2); y <= bottom; y += 1) {
     for (let x = 0; x < w; x += 1) if (data[(y * w + x) * 4 + 3]) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
   }
@@ -326,14 +164,13 @@ function bounds(img) {
 }
 
 const frames = ROWS.map((action, r) => COLS.map((col, i) => {
-  const img = keepFigure(stripLine(cell(col, ROWBANDS[r])));
-  if (img.dropped > 600) console.log(`  ! ${action} frame ${i + 1}: ${img.dropped}px came off as detached`);
-  return { img, feet: feet(img), bounds: bounds(img) };
+  const img = keepFigure(cell(col, ROWBANDS[r], centres[i]));
+  const b = bounds(img);
+  console.log(`  ${action}[${i}] ${b.x1 - b.x0 + 1}x${b.y1 - b.y0 + 1}, dropped ${img.dropped}px`);
+  return { img, feet: feet(img), bounds: b };
 }));
 
-
-// One box for every frame in every strip, so a pose never shifts the sprite on the stage. It is
-// the smallest box that holds every frame once they are all hung on their feet.
+// One box for every frame in every strip, the smallest that holds them all hung on their feet.
 let left = 0; let right = 0; let up = 0; let down = 0;
 frames.flat().forEach(({ feet: f, bounds: b }) => {
   left = Math.max(left, f.x - b.x0); right = Math.max(right, b.x1 - f.x);
@@ -360,7 +197,6 @@ ROWS.forEach((action, r) => {
   });
   writePng(`${OUT}${action}.png`, { width: w, height: BOX_H, data });
   strips[action] = { frames: row.length, w: BOX_W, h: BOX_H, feetX: FEET_X, feetY: FEET_Y };
-  console.log(`${action}.png — ${row.length} frames`);
 });
 writeFileSync(`${OUT}strips.json`, `${JSON.stringify(strips, null, 2)}\n`);
 console.log(`box ${BOX_W}x${BOX_H}, feet at (${FEET_X}, ${FEET_Y})`);

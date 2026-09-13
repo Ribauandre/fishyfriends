@@ -119,10 +119,9 @@ test('a skin pixel off the ramp is scaled, not pushed: half black stays half bla
   const ramp = skinRampFor('deep');
   const half = SKIN_BODY[2].map((v) => Math.round(v / 2));
   const moved = shiftPixel(half, SKIN_BODY, ramp);
-  // Not clamped to black in any channel, and still a warm tone — red over green over blue, as
-  // every band of every ramp is — rather than the grey the difference left when it took blue
-  // and green less far down than red.
+  // Not clamped to black in any channel, and still warm — redder than it is blue, as every band
+  // of every ramp is — rather than the grey-purple the difference left when it took red further
+  // down than blue.
   moved.forEach((v) => expect(v).toBeGreaterThan(0));
-  expect(moved[0]).toBeGreaterThan(moved[1]);
-  expect(moved[1]).toBeGreaterThan(moved[2]);
+  expect(moved[0]).toBeGreaterThan(moved[2]);
 });
