@@ -85,6 +85,40 @@ const touches = (group, set, w, h) => group.some((i) => {
   return false;
 });
 
+// Whether a piece has a core — whether anything is left after wearing `radius` off every edge.
+// This is what separates his beard from his rod, the two brown things that lie against his face.
+// A bounding box cannot: a beard wraps a jaw and its box is as long and thin as a rod's. Thickness
+// can — a rod is the same width all the way along and a beard has a chin in the middle of it.
+const stout = (group, w, radius) => {
+  let x0 = Infinity; let x1 = -1; let y0 = Infinity; let y1 = -1;
+  group.forEach((i) => {
+    const x = i % w; const y = (i / w) | 0;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  });
+  const bw = x1 - x0 + 3; const bh = y1 - y0 + 3;
+  let mask = new Uint8Array(bw * bh);
+  group.forEach((i) => { mask[(((i / w) | 0) - y0 + 1) * bw + (i % w) - x0 + 1] = 1; });
+  for (let k = 0; k < radius; k += 1) {
+    const next = new Uint8Array(bw * bh); let alive = false;
+    for (let y = 1; y < bh - 1; y += 1) for (let x = 1; x < bw - 1; x += 1) {
+      const i = y * bw + x;
+      if (mask[i] && mask[i - 1] && mask[i + 1] && mask[i - bw] && mask[i + bw]) { next[i] = 1; alive = true; }
+    }
+    if (!alive) return false;
+    mask = next;
+  }
+  return true;
+};
+
+const reaches = (group, w, far) => {
+  let x0 = Infinity; let x1 = -1; let y0 = Infinity; let y1 = -1;
+  group.forEach((i) => {
+    const x = i % w; const y = (i / w) | 0;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  });
+  return Math.max(x1 - x0, y1 - y0) + 1 >= far;
+};
+
 function maskFrame(hue, w, h, on) {
   const part = new Uint8Array(w * h);
   let top = h;
@@ -156,50 +190,67 @@ function maskFrame(hue, w, h, on) {
   // His hair and beard: the brown that touches his face. The rod is brown too and passes close
   // by his head in several poses, but it is held in a hand, not grown on a chin.
   const brownBlobs = components(w, h, (i) => on[i] && hue[i] === HUE.brown);
-  const hair = brownBlobs.filter((g) => touches(g, faceSet, w, h));
+  // ...and only as far as a head reaches. Whole components will not do: wound up for the cast he
+  // brings the rod past his chin, and there the rod and the beard are one piece of brown, so no
+  // test on the piece can separate them — it took the rod into his beard and that frame lost its
+  // rod entirely. A beard is bounded by the head it grows on, so the brown that touches his face
+  // counts as hair only within a head's reach of it, and whatever runs on past that is left for
+  // the rod tests to claim.
+  let fx0 = w; let fx1 = -1; let fy0 = h; let fy1 = -1;
+  faceSet.forEach((i) => {
+    const x = i % w; const y = (i / w) | 0;
+    if (x < fx0) fx0 = x; if (x > fx1) fx1 = x; if (y < fy0) fy0 = y; if (y > fy1) fy1 = y;
+  });
+  const headReach = Math.max(fx1 - fx0, fy1 - fy0) * 0.7;
+  const onHead = (i) => {
+    const x = i % w; const y = (i / w) | 0;
+    return x >= fx0 - headReach && x <= fx1 + headReach && y >= fy0 - headReach && y <= fy1 + headReach;
+  };
+  const hair = brownBlobs.filter((g) => touches(g, faceSet, w, h)).map((g) => g.filter(onHead));
   const hairSet = new Set(hair.flat());
 
-  // Where his hat ends and his face begins. On this sheet that cannot be asked of colour at all:
-  // the bucket hat is drawn in the same tan as the skin under it — (225,187,131) against
-  // (221,188,136) — so the two are one patch, and the patch picked out above as his face is really
-  // his whole head. What separates them is shape. A hat is wider than the head it is worn on, so
-  // the brim is the widest row of that patch, and everything from the crown down to it is hat
-  // while everything below it is face.
+  // His cap: the cream, blue and green that sit on that head.
   //
-  // The search is held to the upper part of the head, because lower down his beard widens the jaw
-  // and in the celebrate poses he brings a bare fist up beside his ear; either can match a brim
-  // for width, and neither is one. Ties go to the lowest row, the brim being the last thing the
-  // hat does on the way down.
-  const headRows = face.map((i) => (i / w) | 0);
-  const headTop = face.length ? Math.min(...headRows) : top;
-  const headBottom = face.length ? Math.max(...headRows) : top;
-  const rowWidth = new Int16Array(h);
-  headRows.forEach((y) => { rowWidth[y] += 1; });
-  let brim = headTop;
-  const brimLimit = headTop + Math.round((headBottom - headTop) * 0.6);
-  for (let y = headTop; y <= brimLimit; y += 1) if (rowWidth[y] >= rowWidth[brim]) brim = y;
-
-  // The hat is then everything inside the head's own width, down to that row — not merely the tan.
-  // Its crown carries a darker band and the shadow under its brim is darker still, and neither of
-  // those reads as skin; left out, a dyed hat comes out moth-eaten. What is excluded is his hair
-  // where it shows under the crown, the keyline, and thin brown, which is the rod crossing the box
-  // — it passes right by his head in the cast poses and is the same brown as the band.
-  let capLeft = w; let capRight = -1;
-  face.forEach((i) => {
-    if (((i / w) | 0) > brim) return;
-    const x = i % w;
+  // A different sheet drew him in a bucket hat the same tan as the skin under it — (225,187,131)
+  // against (221,188,136) — and there the hat had to be found by shape, as the part of the head
+  // patch above its widest row. This one draws a white crown, a green panel and a navy brim, and
+  // none of those is a colour a face is, so colour answers it directly and far more cleanly. The
+  // shape rule is not kept as a fallback: on this sheet it takes the top of his forehead.
+  //
+  // What colour alone cannot do is tell the crown from his shirt, or the brim from his jeans — the
+  // same cream and the same navy. So a piece counts as cap only if it lies against his head and
+  // reaches no lower than his chin: in the poses where he brings the rod up there is no keyline
+  // between crown and shoulder for a flood to stop at, and without that clause the whole man comes
+  // out as one piece of hat.
+  const faceRows = face.map((i) => (i / w) | 0);
+  const faceTop = face.length ? Math.min(...faceRows) : top;
+  const faceBottom = face.length ? Math.max(...faceRows) : top;
+  const headSet = new Set([...faceSet, ...hairSet]);
+  const capBlobs = components(w, h, (i) => on[i] && (hue[i] === HUE.cream || hue[i] === HUE.blue || hue[i] === HUE.green));
+  const capSet = new Set(capBlobs
+    .filter((g) => touches(g, headSet, w, h) && Math.min(...g.map((i) => (i / w) | 0)) <= faceTop)
+    .map((g) => g.filter((i) => ((i / w) | 0) <= faceBottom))
+    .flat());
+  // The brim is drawn with its own dark edge between it and the crown, so it is a separate piece
+  // and does not reach over the top of the head — on its own it fails the test above and comes out
+  // as a band of denim across his forehead. A cap is one hat, so anything of its colours lying
+  // against what is already cap, and no lower than his chin, is part of it.
+  for (let grown = true; grown;) {
+    grown = false;
+    capBlobs.forEach((g) => {
+      if (g.every((i) => capSet.has(i))) return;
+      if (Math.max(...g.map((i) => (i / w) | 0)) > faceBottom) return;
+      if (!touches(g, capSet, w, h)) return;
+      g.forEach((i) => capSet.add(i)); grown = true;
+    });
+  }
+  let capLeft = w; let capRight = -1; let capBottom = -1;
+  capSet.forEach((i) => {
+    const x = i % w; const y = (i / w) | 0;
     if (x < capLeft) capLeft = x;
     if (x > capRight) capRight = x;
+    if (y > capBottom) capBottom = y;
   });
-  const capSet = new Set();
-  for (let i = 0; i < w * h; i += 1) {
-    if (!on[i]) continue;
-    const y = (i / w) | 0; const x = i % w;
-    if (y < headTop || y > brim || x < capLeft || x > capRight) continue;
-    if (hue[i] === HUE.key || hairSet.has(i)) continue;
-    if ((hue[i] === HUE.brown || hue[i] === HUE.key) && !opened[i]) continue;
-    capSet.add(i);
-  }
 
   // His jeans: the blue that is not his cap's brim. Then his boots are what is under them —
   // taken per column, so a boot swung forward in a stride is still under its own trouser leg.
@@ -248,7 +299,7 @@ function maskFrame(hue, w, h, on) {
   // dark edge for those few pixels, which is a pixel wide and against a dark hat.
   const inHat = (i) => {
     const y = (i / w) | 0; const x = i % w;
-    return y <= brim && x >= capLeft && x <= capRight;
+    return y <= capBottom && x >= capLeft && x <= capRight;
   };
   const thin = new Set();
   for (let i = 0; i < w * h; i += 1) {
@@ -263,6 +314,20 @@ function maskFrame(hue, w, h, on) {
   // across, so the rod is simply the runs of it long enough to be one.
   const ROD_RUN = 5;
   const rodSet = new Set(components(w, h, (i) => thin.has(i)).filter((g) => g.length >= ROD_RUN).flat());
+
+  // Thinness above is measured against his whole outline, and there is one pose where that misses
+  // the rod entirely: wound up for the cast he holds it back along his own arm, and the two
+  // together are as wide as an arm, so the opening hands it back and that frame came out with no
+  // rod at all while the other nineteen were right. What is still true of it there is the rest of
+  // what a rod is — a long piece of brown with no core to it. A beard has a core, and his boots
+  // are below the hem already.
+  brownBlobs.forEach((group) => {
+    // What is left of this piece once his beard and his boots are taken out of it — tested on the
+    // remainder rather than the whole, since in that one pose the rod and the beard are one piece.
+    const rest = group.filter((i) => !hairSet.has(i) && !belowHem(i));
+    if (!rest.length || stout(rest, w, 1) || !reaches(rest, w, ROD_RUN)) return;
+    rest.forEach((i) => rodSet.add(i));
+  });
 
   // A garment is one thing, or at most a few — two sleeves, two trouser legs. So each is the
   // pieces of its colour that are a real part of it, and anything smaller than a quarter of the
@@ -288,7 +353,7 @@ function maskFrame(hue, w, h, on) {
   // that either reaches something already known to be clothing, or lies below his chin at all.
   function worn(want, anchor) {
     const blobs = components(w, h, (i) => on[i] && free(i) && hue[i] === want)
-      .filter((g) => touches(g, anchor, w, h) || g.reduce((s, i) => s + ((i / w) | 0), 0) / g.length > headBottom);
+      .filter((g) => touches(g, anchor, w, h) || g.reduce((s, i) => s + ((i / w) | 0), 0) / g.length > faceBottom);
     const biggest = Math.max(0, ...blobs.map((g) => g.length));
     return new Set(blobs.filter((g) => g.length * 4 >= biggest).flat());
   }
@@ -320,11 +385,117 @@ const PREVIEW = {
 };
 
 mkdirSync(`${DIR}masks/`, { recursive: true });
-const Z = 10; const cols = Math.max(...ACTIONS.map((a) => strips[a].frames));
+// The preview is a thing to look at, not an asset. At the size he is actually drawn, one pixel for
+// one pixel is a nine-thousand-pixel-wide PNG and a megabyte in the repo, so it is sampled down to
+// something a person can take in at a glance.
+const cols = Math.max(...ACTIONS.map((a) => strips[a].frames));
 const BW = strips[ACTIONS[0]].w; const BH = strips[ACTIONS[0]].h;
-const pw = cols * BW * Z; const ph = ACTIONS.length * BH * Z;
+const STEP = Math.max(1, Math.round(BW / 110));
+const sw = Math.ceil(BW / STEP); const sh = Math.ceil(BH / STEP);
+const pw = cols * sw; const ph = ACTIONS.length * sh;
 const preview = Buffer.alloc(pw * ph * 4);
 for (let i = 0; i < pw * ph; i += 1) { preview[i * 4] = 28; preview[i * 4 + 1] = 28; preview[i * 4 + 2] = 34; preview[i * 4 + 3] = 255; }
+
+// The strips are cut at the resolution the artist drew at, which is about eight times the size the
+// rules above were written and checked against. They are not run there.
+//
+// Every one of those rules is about shape at the scale of the drawing — a rod is thin, a beard is
+// not; a cap lies against a head; a garment is one piece and a stray is a quarter the size of one.
+// Scaled up they all still read, but the art underneath stops cooperating: at full size the hue
+// regions fragment, because the artist draws shading *inside* a beard and a keyline between every
+// two things, and those internal lines are pixels thick. Asked at that size, a beard is not one
+// stout patch of brown but a dozen thin ones, and it comes out as rod; widen the reach so that a
+// cap can find the head across its own outline and the rod, passing his ear, finds it too.
+//
+// Both of those were real, and both were chased for a while before the better answer showed up:
+// classify where the classification is stable and carry the answer across. So the frame is boxed
+// down to working size, the rules run there exactly as they were verified, and the labels are
+// expanded back. A label map upsamples honestly — it has no colours to interpolate — and the only
+// thing it costs is that a boundary lands within a working pixel of where it should, which is
+// inside the blend the render put there anyway.
+const WORKING_HEIGHT = 30;
+
+function maskAtWorkingSize(hue, fw, h, on, data, stripW, xOffset) {
+  const scale = Math.max(1, Math.round(h / WORKING_HEIGHT));
+  if (scale === 1) return maskFrame(hue, fw, h, on);
+  const sw = Math.ceil(fw / scale); const sh = Math.ceil(h / scale);
+  const sOn = new Uint8Array(sw * sh); const sHue = new Uint8Array(sw * sh);
+  for (let sy = 0; sy < sh; sy += 1) for (let sx = 0; sx < sw; sx += 1) {
+    const mean = [0, 0, 0]; let lit = 0; let total = 0;
+    for (let y = sy * scale; y < Math.min(h, (sy + 1) * scale); y += 1) {
+      for (let x = sx * scale; x < Math.min(fw, (sx + 1) * scale); x += 1) {
+        total += 1;
+        if (!on[y * fw + x]) continue;
+        const src = (y * stripW + xOffset + x) * 4;
+        mean[0] += data[src]; mean[1] += data[src + 1]; mean[2] += data[src + 2]; lit += 1;
+      }
+    }
+    // Drawn at all only where the block is mostly figure, which is what keeps a keyline one
+    // working pixel thick rather than two.
+    if (!lit || lit * 2 <= total) continue;
+    sOn[sy * sw + sx] = 1;
+    sHue[sy * sw + sx] = hueOf(Math.round(mean[0] / lit), Math.round(mean[1] / lit), Math.round(mean[2] / lit));
+  }
+  const small = maskFrame(sHue, sw, sh, sOn);
+  const part = new Uint8Array(fw * h);
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
+    if (!on[y * fw + x]) continue;
+    part[y * fw + x] = small[Math.min(sh - 1, (y / scale) | 0) * sw + Math.min(sw - 1, (x / scale) | 0)];
+  }
+  // A full-size pixel whose working pixel was background — the outer half of a keyline, the blend
+  // around every edge — takes a vote of its assigned neighbours. Left alone it is recoloured by
+  // nothing, and a dyed cap is drawn with a seam of its original colour all the way round.
+  for (let round = 0; round < scale; round += 1) {
+    const grown = [];
+    for (let i = 0; i < fw * h; i += 1) {
+      if (!on[i] || part[i]) continue;
+      const votes = new Map();
+      const x = i % fw; const y = (i / fw) | 0;
+      for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+        const nx = x + ox; const ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= fw || ny >= h) continue;
+        const v = part[ny * fw + nx];
+        if (v) votes.set(v, (votes.get(v) || 0) + 1);
+      }
+      if (votes.size) grown.push([i, [...votes].sort((a, b) => b[1] - a[1])[0][0]]);
+    }
+    if (!grown.length) break;
+    grown.forEach(([i, v]) => { part[i] = v; });
+  }
+
+  // Expanded like that the labels are right but their edges are square, in steps of a working
+  // pixel, where the art's own edges are where the artist put them. Dyed, that shows: the cap's
+  // colour runs a few pixels onto the forehead along one row and stops short along the next.
+  //
+  // The working size decided *which* parts this pose has and roughly where — the part that needs
+  // the whole figure to answer. Where a boundary falls needs only the pixel: his hat is cream and
+  // his face is not. So every pixel whose colour disagrees with the label it inherited looks
+  // outward for the nearest label its colour does fit, and takes that. Only boundaries move, only
+  // as far as a working pixel, and only onto a part already found nearby — a pixel cannot invent
+  // a part that this pose does not have.
+  const FITS = {
+    [PART.outline]: [HUE.key], [PART.skin]: [HUE.skin], [PART.cap]: [HUE.cream, HUE.blue, HUE.green],
+    [PART.hair]: [HUE.brown], [PART.shirt]: [HUE.cream], [PART.vest]: [HUE.green],
+    [PART.jeans]: [HUE.blue], [PART.boots]: [HUE.brown, HUE.skin], [PART.rod]: [HUE.brown, HUE.key],
+  };
+  const fits = (p, q) => p && FITS[p] && FITS[p].includes(q);
+  const snapped = new Uint8Array(part);
+  for (let i = 0; i < fw * h; i += 1) {
+    if (!on[i] || !part[i] || fits(part[i], hue[i])) continue;
+    const x = i % fw; const y = (i / fw) | 0;
+    let found = 0;
+    for (let r = 1; r <= scale && !found; r += 1) {
+      for (let oy = -r; oy <= r && !found; oy += 1) for (let ox = -r; ox <= r && !found; ox += 1) {
+        if (Math.max(Math.abs(ox), Math.abs(oy)) !== r) continue;
+        const nx = x + ox; const ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= fw || ny >= h) continue;
+        if (fits(part[ny * fw + nx], hue[i])) found = part[ny * fw + nx];
+      }
+    }
+    if (found) snapped[i] = found;
+  }
+  return snapped;
+}
 
 // Every pixel of each part, gathered across all twenty frames, so the dye bases and the skin
 // ramp below are measured off the art rather than guessed at.
@@ -347,7 +518,7 @@ ACTIONS.forEach((action, ri) => {
     for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
       fOn[y * fw + x] = on[y * w + f * BW + x]; fHue[y * fw + x] = hue[y * w + f * BW + x];
     }
-    const part = maskFrame(fHue, fw, h, fOn);
+    const part = maskAtWorkingSize(fHue, fw, h, fOn, data, w, f * BW);
     for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
       const p = part[y * fw + x]; if (!p) continue;
       counts[p] = (counts[p] || 0) + 1;
@@ -355,9 +526,9 @@ ACTIONS.forEach((action, ri) => {
       (pool[p] = pool[p] || []).push([data[src], data[src + 1], data[src + 2]]);
       const t = (y * w + f * BW + x) * 4;
       out[t] = p; out[t + 3] = 255;
-      const c = PREVIEW[p];
-      for (let j = 0; j < Z; j += 1) for (let i2 = 0; i2 < Z; i2 += 1) {
-        const q = (((ri * BH + y) * Z + j) * pw + (f * BW + x) * Z + i2) * 4;
+      if (x % STEP === 0 && y % STEP === 0) {
+        const c = PREVIEW[p];
+        const q = ((ri * sh + ((y / STEP) | 0)) * pw + f * sw + ((x / STEP) | 0)) * 4;
         for (let k = 0; k < 3; k += 1) preview[q + k] = c[k];
       }
     }
