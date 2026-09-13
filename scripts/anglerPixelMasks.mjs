@@ -499,9 +499,25 @@ function maskAtWorkingSize(hue, fw, h, on, data, stripW, xOffset) {
     [PART.jeans]: [HUE.blue], [PART.boots]: [HUE.brown, HUE.skin], [PART.rod]: [HUE.brown, HUE.key],
   };
   const fits = (p, q) => p && FITS[p] && FITS[p].includes(q);
+  // ...and only at a boundary. Asked everywhere, this relabels the *inside* of parts too: a
+  // highlight on his beard is light enough to read as skin, and a shadow on his cheek dark enough
+  // to read as brown, so the beard came out flecked with skin and the face with hair, and the
+  // dyes lit every fleck up in the wrong colour. A pixel with nothing but its own part around it
+  // is that part whatever colour the artist shaded it; only one that sits against another part
+  // is really in doubt.
+  const edge = (i) => {
+    const x = i % fw; const y = (i / fw) | 0;
+    for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+      const nx = x + ox; const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= fw || ny >= h) continue;
+      const v = part[ny * fw + nx];
+      if (v && v !== part[i]) return true;
+    }
+    return false;
+  };
   const snapped = new Uint8Array(part);
   for (let i = 0; i < fw * h; i += 1) {
-    if (!on[i] || !part[i] || fits(part[i], hue[i])) continue;
+    if (!on[i] || !part[i] || fits(part[i], hue[i]) || !edge(i)) continue;
     const x = i % fw; const y = (i / fw) | 0;
     let found = 0;
     for (let r = 1; r <= scale && !found; r += 1) {
