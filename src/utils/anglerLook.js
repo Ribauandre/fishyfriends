@@ -113,7 +113,9 @@ export const WARDROBE = {
   hat_wide_olive: { slot: 'hat', label: 'Sage cap', cost: 100, tint: [104, 116, 66] },
   hat_wide_navy: { slot: 'hat', label: 'Slate cap', cost: 100, tint: [54, 70, 118] },
   hat_cowboy: { slot: 'hat', label: 'Amber cap', cost: 120, tint: [198, 147, 45] },
-  hat_boonie_white: { slot: 'hat', label: 'White cap', cost: 130, tint: [214, 216, 214] },
+  // Actually white: the dye keeps a pixel's shade against the crown's own mid-tone, so a target
+  // of 214 came out as the light grey it is. A white cap needs a white target.
+  hat_boonie_white: { slot: 'hat', label: 'White cap', cost: 130, tint: [242, 242, 238] },
   hat_boonie_olive: { slot: 'hat', label: 'Guide cap', cost: 130, tint: [78, 88, 52] },
 
   shirt_grey: { slot: 'shirt', label: 'Work shirt', cost: 0, tint: null },

@@ -43,9 +43,23 @@ export function bandOf(rgb, ramp) {
 // Move one pixel from the ramp the art is painted in to another the artist drew, by the step
 // between their matching bands. A dye would have thrown away everything but the pixel's
 // brightness; this keeps the pixel and moves it, so the shading arrives intact.
+//
+// The step is *interpolated* between the two bands the pixel's brightness falls between, not
+// taken from the nearest one. Snapping to the nearest band was fine when he was thirty pixels
+// tall and every skin pixel sat near a band's centre; drawn at full size his face is a gradient,
+// and a gradient crosses the midpoint between two bands somewhere on every cheek. On one side of
+// that line a pixel took band one's step and on the other band two's — steps that differ by a
+// hundred in red for the deep tone — so a smooth face came out as flat patches with a hard edge
+// between them. Blending the two steps by where the pixel sits makes the move continuous, and at
+// a band's own brightness it is exactly that band's step, as before.
 export function shiftPixel(rgb, from, to) {
-  const band = bandOf(rgb, from);
-  return [clamp(rgb[0] + to[band][0] - from[band][0]), clamp(rgb[1] + to[band][1] - from[band][1]), clamp(rgb[2] + to[band][2] - from[band][2])];
+  const light = luminance(...rgb);
+  const rungs = from.map((tone) => luminance(...tone));
+  let i = 0;
+  while (i < rungs.length - 2 && light > rungs[i + 1]) i += 1;
+  const span = rungs[i + 1] - rungs[i];
+  const t = span > 0 ? Math.max(0, Math.min(1, (light - rungs[i]) / span)) : 0;
+  return [0, 1, 2].map((k) => clamp(rgb[k] + (to[i][k] - from[i][k]) * (1 - t) + (to[i + 1][k] - from[i + 1][k]) * t));
 }
 
 // Retint one pixel: keep how light or dark it was relative to the part's painted mid-tone
