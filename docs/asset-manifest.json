@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.80be1fdd.css",
-    "main.js": "/static/js/main.eac929f4.js",
+    "main.js": "/static/js/main.aecb1bd4.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
@@ -28,7 +28,7 @@
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
-    "static/media/celebrate.png": "/static/media/celebrate.ee0011dd6ff03ecbc976.png",
+    "static/media/celebrate.png": "/static/media/celebrate.0743bd3372baa78e23f2.png",
     "static/media/idle.png": "/static/media/idle.654fdcfaa7bfc6d11f89.png",
     "static/media/walk.png": "/static/media/walk.a095c1eee3b4a07c2956.png",
     "static/media/cast.png": "/static/media/cast.1ce909b31349c0f6433f.png",
@@ -78,11 +78,11 @@
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
     "main.80be1fdd.css.map": "/static/css/main.80be1fdd.css.map",
-    "main.eac929f4.js.map": "/static/js/main.eac929f4.js.map",
+    "main.aecb1bd4.js.map": "/static/js/main.aecb1bd4.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.80be1fdd.css",
-    "static/js/main.eac929f4.js"
+    "static/js/main.aecb1bd4.js"
   ]
 }
