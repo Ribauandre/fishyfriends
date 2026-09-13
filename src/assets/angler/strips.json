@@ -1,37 +1,37 @@
 {
   "idle": {
     "frames": 4,
-    "w": 31,
-    "h": 30,
-    "feetX": 13,
-    "feetY": 29
+    "w": 232,
+    "h": 232,
+    "feetX": 99,
+    "feetY": 231
   },
   "walk": {
     "frames": 4,
-    "w": 31,
-    "h": 30,
-    "feetX": 13,
-    "feetY": 29
+    "w": 232,
+    "h": 232,
+    "feetX": 99,
+    "feetY": 231
   },
   "cast": {
     "frames": 4,
-    "w": 31,
-    "h": 30,
-    "feetX": 13,
-    "feetY": 29
+    "w": 232,
+    "h": 232,
+    "feetX": 99,
+    "feetY": 231
   },
   "reel": {
     "frames": 4,
-    "w": 31,
-    "h": 30,
-    "feetX": 13,
-    "feetY": 29
+    "w": 232,
+    "h": 232,
+    "feetX": 99,
+    "feetY": 231
   },
   "celebrate": {
     "frames": 4,
-    "w": 31,
-    "h": 30,
-    "feetX": 13,
-    "feetY": 29
+    "w": 232,
+    "h": 232,
+    "feetX": 99,
+    "feetY": 231
   }
 }

@@ -57,38 +57,6 @@ const cells = (runs) => runs.slice(0, -1).map((run, i) => [run[1] + 2, runs[i + 
 const COLS = cells(vert);
 const ROWBANDS = cells(horz);
 
-// The lattice, by minimum within-block variance. A block's pixels were one colour before the
-// render softened them, so the true period and phase are the ones under which they still are.
-function lattice(lo, hi, from, to, axis) {
-  let best = null;
-  for (let p = 7.2; p <= 9.2; p += 0.01) {
-    for (let phase = 0; phase < p; phase += 0.1) {
-      let total = 0; let count = 0;
-      for (let start = lo + phase; start + p <= hi; start += p) {
-        const a = Math.round(start); const b = Math.round(start + p);
-        if (b - a < 2) continue;
-        // Sampled across the other axis — every seventh line is plenty to find a lattice and
-        // keeps the search over two hundred candidate phases quick.
-        for (let o = from; o < to; o += 7) {
-          const mean = [0, 0, 0];
-          for (let i = a; i < b; i += 1) {
-            const p4 = axis === 'x' ? (o * W + i) * 4 : (i * W + o) * 4;
-            mean[0] += D[p4]; mean[1] += D[p4 + 1]; mean[2] += D[p4 + 2];
-          }
-          for (let k = 0; k < 3; k += 1) mean[k] /= (b - a);
-          for (let i = a; i < b; i += 1) {
-            const p4 = axis === 'x' ? (o * W + i) * 4 : (i * W + o) * 4;
-            total += Math.abs(D[p4] - mean[0]) + Math.abs(D[p4 + 1] - mean[1]) + Math.abs(D[p4 + 2] - mean[2]);
-            count += 1;
-          }
-        }
-      }
-      if (count && (!best || total / count < best.variance)) best = { period: p, phase, variance: total / count };
-    }
-  }
-  return best;
-}
-
 // The background goes before anything is averaged, and at the sheet's own resolution, because that
 // is where it can be done cleanly: the figure is drawn with a near-black keyline all the way round
 // it, eight screen pixels thick here, and a flood coming in from the edge of the cell simply stops
@@ -126,7 +94,14 @@ function lattice(lo, hi, from, to, axis) {
 const SKY_NEAR = 60;
 const OUTLINE_RED = 12;
 const BLEND_REACH = 3;
-const isBlue = (p4) => D[p4 + 2] - D[p4] > 45 && D[p4 + 2] > D[p4 + 1];
+// Blue enough to be sky, shadow, or the blend between them. The second clause is for the last
+// pixels of the boots' shadow, which the render leaves at about (6,32,42): blue-leaning but only
+// thirty-six apart in red against blue, just under the bar, so they survived as a faint dark line
+// under his feet in the cast frames. Nothing of his is that starved of red — his keyline is
+// near-black in all three channels, and the darkest denim in the sheet still has twice this red —
+// and in any case the reach budget below is what actually keeps the flood out of his jeans, not
+// this test.
+const isBlue = (p4) => (D[p4 + 2] - D[p4] > 45 || (D[p4] < OUTLINE_RED && D[p4 + 2] - D[p4] > 18)) && D[p4 + 2] > D[p4 + 1];
 const isDim = (p4) => isBlue(p4) && D[p4] < OUTLINE_RED;
 
 // The panel's own sky, read off its border ring rather than assumed, so a panel tinted differently
@@ -181,44 +156,51 @@ function backgroundMask([x0, x1], [y0, y1]) {
   return seen;
 }
 
-// Average one cell down onto its own lattice, over the figure only. A native pixel is the mean of
-// the sheet pixels in its block that are not background, and it is drawn at all only if the block
-// is more than half figure — which is what keeps the keyline one pixel thick instead of two.
-function native([x0, x1], [y0, y1]) {
-  const lx = lattice(x0, x1, y0, y1, 'x');
-  const ly = lattice(y0, y1, x0, x1, 'y');
+// Cut one cell out at the sheet's own resolution. Nothing is averaged down.
+//
+// An earlier version of this script did average it down, onto a lattice it went to some trouble to
+// find, on the theory that the sheet was a small pixel-art character delivered as a large soft
+// render of itself and the job was to recover the small character. That theory was wrong, and the
+// way it was wrong is worth writing down because the measurement that seemed to support it was
+// bad. Within-block colour variance falls monotonically as the block shrinks — at one pixel per
+// block it is zero — so "the period that minimises variance" has no minimum to find, and what it
+// actually reports is whatever the bottom of the search range was. The range was set from a coarse
+// first guess of eight, so it dutifully answered about eight, and the answer looked plausible.
+//
+// Two checks say otherwise. Scoring periods by how much more the colour changes *on* the candidate
+// lattice lines than between them — which does have a real maximum — gives no clear winner at all
+// here: the best contrast is about 1.4, and it lands on 8.2, 9.9 and 10.8 depending on the axis.
+// And flattening a cell onto the detected lattice next to the cell itself is plainly worse: the
+// eyes, the vest pockets, the rod guides and the boot laces are all finer than any such block.
+//
+// So this sheet is not a coarse grid softened; it is simply drawn finer than that, in a style that
+// reads as pixel art. Averaging it threw away real detail and is what made him chunky on the
+// stage. He is cut at the resolution the artist drew him.
+function cell([x0, x1], [y0, y1]) {
   const bg = backgroundMask([x0, x1], [y0, y1]);
-  const bw = x1 - x0;
-  const w = Math.floor((x1 - x0 - lx.phase) / lx.period);
-  const h = Math.floor((y1 - y0 - ly.phase) / ly.period);
+  const w = x1 - x0; const h = y1 - y0;
   const data = Buffer.alloc(w * h * 4);
-  for (let j = 0; j < h; j += 1) {
-    for (let i = 0; i < w; i += 1) {
-      const a = Math.round(x0 + lx.phase + i * lx.period); const b = Math.round(x0 + lx.phase + (i + 1) * lx.period);
-      const c = Math.round(y0 + ly.phase + j * ly.period); const e = Math.round(y0 + ly.phase + (j + 1) * ly.period);
-      const mean = [0, 0, 0]; let on = 0; let total = 0;
-      for (let y = c; y < e; y += 1) for (let x = a; x < b; x += 1) {
-        total += 1;
-        if (bg[(y - y0) * bw + (x - x0)]) continue;
-        const p4 = (y * W + x) * 4;
-        mean[0] += D[p4]; mean[1] += D[p4 + 1]; mean[2] += D[p4 + 2]; on += 1;
-      }
-      const t = (j * w + i) * 4;
-      if (on * 2 <= total) continue;
-      for (let k = 0; k < 3; k += 1) data[t + k] = Math.round(mean[k] / on);
-      data[t + 3] = 255;
-    }
+  for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+    const i = y * w + x;
+    if (bg[i]) continue;
+    const p4 = ((y + y0) * W + x + x0) * 4;
+    for (let k = 0; k < 3; k += 1) data[i * 4 + k] = D[p4 + k];
+    data[i * 4 + 3] = 255;
   }
-  return { width: w, height: h, data, lx, ly };
+  return { width: w, height: h, data };
 }
 
 // The sheet draws a fishing line and a bobber on the end of it; the game draws its own line from
-// the rod tip, so they go. A drawn line is unmistakable at this size: it is the artist's white, it
-// is one pixel wide, and it runs straight for a dozen pixels or more. Nothing on him does that —
-// the palest things he owns are the shirt, the rod's guides and the reel, and the longest straight
-// run any of them makes is three. Cutting the line leaves the bobber hanging on nothing, and
-// keepFigure takes it from there.
-const LINE_MIN = 6;
+// the rod tip, so they go. A drawn line is unmistakable: it is the artist's white, it is thin, and
+// it runs straight for a long way. Nothing on him is both — the palest things he owns are the
+// shirt, the rod's guides and the reel, and none of those is a long thin stroke. Cutting the line
+// leaves the bobber hanging on nothing, and keepFigure takes it from there.
+//
+// Both numbers are in the sheet's own pixels. The averaged-down version of this script measured
+// the same line as one pixel wide and six long; at the resolution he is actually drawn at, that is
+// the width the artist strokes a line at — about eight — times as much.
+const LINE_MIN = 48;
+const LINE_MAX_THICK = 12;
 function stripLine(img) {
   const { width: w, height: h, data } = img;
   const pale = new Uint8Array(w * h);
@@ -248,7 +230,7 @@ function stripLine(img) {
       if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
     });
     const bw = x1 - x0 + 1; const bh = y1 - y0 + 1;
-    if (Math.min(bw, bh) === 1 && Math.max(bw, bh) >= LINE_MIN) group.forEach((i) => { data[i * 4 + 3] = 0; });
+    if (Math.min(bw, bh) <= LINE_MAX_THICK && Math.max(bw, bh) >= LINE_MIN) group.forEach((i) => { data[i * 4 + 3] = 0; });
   }
   return img;
 }
@@ -324,8 +306,8 @@ function bounds(img) {
 }
 
 const frames = ROWS.map((action, r) => COLS.map((col, i) => {
-  const img = keepFigure(stripLine(native(col, ROWBANDS[r])));
-  if (img.dropped > 10) console.log(`  ! ${action} frame ${i + 1}: ${img.dropped}px came off as detached`);
+  const img = keepFigure(stripLine(cell(col, ROWBANDS[r])));
+  if (img.dropped > 600) console.log(`  ! ${action} frame ${i + 1}: ${img.dropped}px came off as detached`);
   return { img, feet: feet(img), bounds: bounds(img) };
 }));
 
@@ -358,8 +340,7 @@ ROWS.forEach((action, r) => {
   });
   writePng(`${OUT}${action}.png`, { width: w, height: BOX_H, data });
   strips[action] = { frames: row.length, w: BOX_W, h: BOX_H, feetX: FEET_X, feetY: FEET_Y };
-  const sizes = row.map(({ img }) => `${img.width}x${img.height}`).join(' ');
-  console.log(`${action}.png — ${row.length} frames, native ${sizes}`);
+  console.log(`${action}.png — ${row.length} frames`);
 });
 writeFileSync(`${OUT}strips.json`, `${JSON.stringify(strips, null, 2)}\n`);
 console.log(`box ${BOX_W}x${BOX_H}, feet at (${FEET_X}, ${FEET_Y})`);
