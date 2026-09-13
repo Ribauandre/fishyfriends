@@ -1,5 +1,5 @@
 import { tintPixel, frontness, paintPixels, bandOf, shiftPixel } from './anglerPaint';
-import { PART, PART_BASE, SKIN_BODY, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor, skinRampFor } from './anglerLook';
+import { PART, PART_BASE, SKIN_BODY, WARDROBE, SKIN_TONES, HAIR_COLORS, paletteFor, skinRampFor, itemsFor } from './anglerLook';
 
 // A tiny frame in the three-quarter turn the sheet draws: a bare head and jaw, shoulders in a
 // shirt, and a rod out to one side. Everything the painter puts on the head it puts on here.
@@ -53,15 +53,6 @@ function beardOverlay() {
   for (let y = 24; y <= 34; y += 1) for (let x = 14; x <= 29; x += 1) beard.set([150, 112, 70, 255], (y * W + x) * 4);
   return beard;
 }
-const HAT_CELL = { cellW: 10, cellH: 8, anchorY: 5, refHead: 19, anchor: 'brim' };
-function hatSheet() {
-  const { cellW, cellH } = HAT_CELL;
-  const data = new Uint8ClampedArray(cellW * 2 * cellH * 4);
-  for (let y = 0; y < cellH; y += 1) for (let x = 0; x < cellW * 2; x += 1) {
-    data.set(x < cellW ? [180, 40, 40, 255] : [40, 60, 180, 255], (y * cellW * 2 + x) * 4);
-  }
-  return { data, width: cellW * 2, height: cellH, ...HAT_CELL, index: { cap_brown: 0, cap_camo: 1 } };
-}
 // A stand-in for a hat lifted off a sheet of him wearing it: it lies on the strip's own pixels,
 // so there is nothing to scale or anchor.
 function hatOverlay() {
@@ -71,20 +62,9 @@ function hatOverlay() {
 }
 function dressed(look, extra = {}) {
   const { pixels, mask } = scene();
-  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor(look), beard: beardOverlay(), hats: hatSheet(), ...extra });
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [FRAME], palette: paletteFor(look), beard: beardOverlay(), ...extra });
   return (x, y) => { const i = (y * W + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
 }
-
-test('a hat still on the stamped sheet is hung on the row the artist\'s own cap sat on', () => {
-  const px = dressed({ hat: 'cap_brown' });
-  // The cell is stamped with its anchor row on the frame's own cap row, not on a fraction of
-  // the head: the sheet knows this pose's tilt and a fraction cannot.
-  expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
-  // Below it the face is the art's own skin again.
-  expect(near(px(21, 28), PART_BASE[PART.skin], 2)).toBe(true);
-  // Another item in the same slot stamps a different cell.
-  expect(near(dressed({ hat: 'cap_camo' })(21, 16), [40, 60, 180], 30)).toBe(true);
-});
 
 test('a drawn hat is copied where the artist put it, and a dyed one is that same drawing', () => {
   const worn = dressed({ hat: 'cap_green' }, { hatOver: hatOverlay() });
@@ -100,24 +80,26 @@ test('a drawn hat is copied where the artist put it, and a dyed one is that same
   expect(paletteFor({ hat: 'hat_beanie_red' }).head.hat.floor).toBeLessThan(40);
   expect(paletteFor({ hat: 'cap_black' }).head.hat.floor).toBeNull();
   expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
-  // A drawing wins over the stamped sheet, so a hat never goes on twice.
-  const both = dressed({ hat: 'cap_green' }, { hatOver: hatOverlay() });
-  expect(near(both(21, 16), [180, 40, 40], 30)).toBe(false);
+  // Every hat in the rack is one of these drawings now — nothing is stamped.
+  itemsFor('hat').forEach((item) => { if (item.key !== 'hat_none') expect(typeof item.overlay).toBe('string'); });
 });
 
-test('a hat is stamped on every frame, at that frame\'s own head', () => {
+test('a drawn hat lands on every frame, on the pixels the artist drew it on', () => {
   const one = scene();
   const pixels = new Uint8ClampedArray(W * 2 * H * 4);
   const mask = new Uint8ClampedArray(W * 2 * H * 4);
+  const over = new Uint8ClampedArray(W * 2 * H * 4);
   for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
     const from = (y * W + x) * 4;
     [[x, 0], [x + 4, W]].forEach(([tx, ox]) => { if (tx < W) { const to = (y * W * 2 + ox + tx) * 4; pixels.set(one.pixels.slice(from, from + 4), to); mask[to] = one.mask[from]; } });
   }
-  const second = { head: { ...FRAME.head, x0: FRAME.head.x0 + 4, x1: FRAME.head.x1 + 4 }, facing: 'right', hatAnchor: { cx: 25, y: 18 } };
-  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'cap_brown' }), hats: hatSheet() });
+  // The drawing carries its own place in each frame, so the second one needs no second anchor.
+  [[21, 0], [25, 0]].forEach(([cx]) => { for (let y = 10; y <= 14; y += 1) for (let x = cx - 4; x <= cx + 4; x += 1) over.set([96, 128, 64, 255], (y * W * 2 + (cx === 25 ? W : 0) + x) * 4); });
+  const second = { head: { ...FRAME.head, x0: FRAME.head.x0 + 4, x1: FRAME.head.x1 + 4 }, facing: 'right' };
+  paintPixels({ pixels, mask, width: W * 2, height: H, frameWidth: W, anchors: [FRAME, second], palette: paletteFor({ hat: 'cap_green' }), hatOver: over });
   const px = (x, y) => { const i = (y * W * 2 + x) * 4; return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2], a: pixels[i + 3] }; };
-  expect(near(px(21, 16), [180, 40, 40], 30)).toBe(true);
-  expect(near(px(W + 25, 16), [180, 40, 40], 30)).toBe(true);
+  expect(near(px(21, 12), [96, 128, 64], 20)).toBe(true);
+  expect(near(px(W + 25, 12), [96, 128, 64], 20)).toBe(true);
 });
 
 test('facial hair is the drawn overlay for its style, dyed where it is not line work', () => {
@@ -210,8 +192,8 @@ test('gear is dyed in place and skin is moved to another of the artist\'s ramps'
 test('a frame with no anchors is only dyed', () => {
   const { pixels, mask } = scene();
   const before = pixels.slice();
-  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [], palette: paletteFor({ skin: 'deep', hat: 'cap_green' }), beard: beardOverlay(), hats: hatSheet() });
+  paintPixels({ pixels, mask, width: W, height: H, frameWidth: W, anchors: [], palette: paletteFor({ skin: 'deep', hat: 'cap_green' }), beard: beardOverlay() });
   expect(pixels[(26 * W + 20) * 4]).toBeLessThan(before[(26 * W + 20) * 4]);
-  // Nothing was stamped on the head: the headroom above it is still open.
+  // Nothing went on the head: the headroom above it is still open.
   expect(pixels[(9 * W + 20) * 4 + 3]).toBe(0);
 });

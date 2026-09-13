@@ -90,7 +90,7 @@ export const BEARD_STYLES = {
 // drawn outfit instead — lifted pose by pose off art/angler-outfit-sheet.png, so it can change
 // the garment's shape and not just its colour, which no dye can. It leaves the sleeves alone,
 // so the shirt rack still works underneath it.
-// A hat is one of the twenty drawn in assets/angler/hats.png, named by its `sprite`
+// A hat is a drawing of him wearing it, named by its `overlay`
 // (see utils/hatSprites.json) — the painter stamps it, it does not build it. A few are the same
 // drawing taken in another colour, which is what `tint` is for: it re-dyes the sprite against
 // `base`, the colour that drawing is painted in. Shirts, rods, boots and waders are dyes on the
@@ -111,16 +111,18 @@ const BUCKET_DRAWN = [147, 124, 85];
 // The sou'wester's oilskin. The two rain hats are that same hat in another colour, which a
 // solid oilskin can be: 15% of it falls under the usual guard, so that one stands.
 const OILSKIN_DRAWN = [198, 147, 45];
+// The straw's own weave. 13% falls under the usual guard, so that one stands.
+const STRAW_DRAWN = [154, 125, 93];
 
 export const WARDROBE = {
   hat_none: { slot: 'hat', label: 'Bare head', cost: 0, sprite: null },
   cap_green: { slot: 'hat', label: 'Club cap', cost: 0, overlay: 'cap_olive' },
   cap_red: { slot: 'hat', label: 'Angler cap, red', cost: 40, overlay: 'cap_red' },
-  cap_navy: { slot: 'hat', label: 'Angler cap, blue', cost: 40, sprite: 'cap_fish_navy' },
+  cap_navy: { slot: 'hat', label: 'Navy cap', cost: 40, overlay: 'cap_olive', base: CAP_DRAWN, tint: [48, 62, 108] },
   cap_black: { slot: 'hat', label: 'Black cap', cost: 40, overlay: 'cap_olive', base: CAP_DRAWN, tint: [46, 46, 50] },
   cap_orange: { slot: 'hat', label: 'Blaze cap', cost: 50, overlay: 'cap_olive', base: CAP_DRAWN, tint: [214, 108, 32] },
-  cap_brown: { slot: 'hat', label: 'Field cap', cost: 50, sprite: 'cap_brown' },
-  cap_camo: { slot: 'hat', label: 'Camo cap', cost: 60, sprite: 'cap_camo' },
+  cap_brown: { slot: 'hat', label: 'Field cap', cost: 50, overlay: 'cap_olive', base: CAP_DRAWN, tint: [110, 82, 54] },
+  cap_camo: { slot: 'hat', label: 'Moss cap', cost: 60, overlay: 'cap_olive', base: CAP_DRAWN, tint: [66, 78, 48] },
   hat_beanie: { slot: 'hat', label: 'Knit beanie', cost: 60, overlay: 'beanie_black' },
   hat_beanie_olive: { slot: 'hat', label: 'Olive beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [96, 108, 60] },
   hat_beanie_red: { slot: 'hat', label: 'Red beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [170, 50, 44] },
@@ -128,14 +130,14 @@ export const WARDROBE = {
   hat_beanie_grey: { slot: 'hat', label: 'Grey beanie', cost: 60, overlay: 'beanie_black', base: BEANIE_DRAWN, floor: BEANIE_FLOOR, tint: [132, 134, 140] },
   hat_visor: { slot: 'hat', label: 'Canvas bucket', cost: 70, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [206, 198, 172] },
   hat_bucket: { slot: 'hat', label: 'Bucket hat', cost: 80, overlay: 'bucket_tan' },
-  hat_boonie: { slot: 'hat', label: 'Camo boonie', cost: 90, sprite: 'bucket_camo' },
+  hat_boonie: { slot: 'hat', label: 'Field bucket', cost: 90, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [118, 88, 58] },
   hat_straw: { slot: 'hat', label: 'Straw hat', cost: 90, overlay: 'straw_blue' },
-  hat_straw_red: { slot: 'hat', label: 'Straw hat, red band', cost: 90, sprite: 'straw_red' },
+  hat_straw_red: { slot: 'hat', label: 'Weathered straw', cost: 90, overlay: 'straw_blue', base: STRAW_DRAWN, tint: [126, 96, 62] },
   hat_wide_olive: { slot: 'hat', label: 'Olive rain hat', cost: 100, overlay: 'souwester', base: OILSKIN_DRAWN, tint: [104, 116, 66] },
   hat_wide_navy: { slot: 'hat', label: 'Navy rain hat', cost: 100, overlay: 'souwester', base: OILSKIN_DRAWN, tint: [54, 70, 118] },
   hat_cowboy: { slot: 'hat', label: "Sou'wester", cost: 120, overlay: 'souwester' },
-  hat_boonie_white: { slot: 'hat', label: 'Flats boonie', cost: 130, sprite: 'boonie_white' },
-  hat_boonie_olive: { slot: 'hat', label: 'Guide boonie', cost: 130, sprite: 'boonie_olive' },
+  hat_boonie_white: { slot: 'hat', label: 'Flats bucket', cost: 130, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [214, 216, 214] },
+  hat_boonie_olive: { slot: 'hat', label: 'Guide bucket', cost: 130, overlay: 'bucket_tan', base: BUCKET_DRAWN, tint: [78, 88, 52] },
   shirt_grey: { slot: 'shirt', label: 'Work shirt', cost: 0, tint: null },
   shirt_white: { slot: 'shirt', label: 'White tee', cost: 40, tint: [236, 236, 238] },
   shirt_navy: { slot: 'shirt', label: 'Navy tee', cost: 40, tint: [56, 72, 112] },
@@ -242,9 +244,7 @@ export function paletteFor(look) {
       hair: style.overlay ? { overlay: true } : style.sprite ? { sprite: style.sprite } : null,
       // A hat comes both ways while the drawings come in: an overlay lifted off a sheet of him
       // wearing it, which needs no placing, or the old standalone drawing stamped on.
-      hat: hat.overlay
-        ? { overlay: hat.overlay, base: hat.base || null, tint: hat.tint || null, floor: hat.floor || null }
-        : hat.sprite ? { sprite: hat.sprite, base: hat.base || null, tint: hat.tint || null } : null,
+      hat: hat.overlay ? { overlay: hat.overlay, base: hat.base || null, tint: hat.tint || null, floor: hat.floor || null } : null,
       beard: { ...beard },
     },
   };

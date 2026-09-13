@@ -1,5 +1,4 @@
 import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, SKIN_BODY, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor } from './anglerLook';
-import hatSprites from './hatSprites.json';
 import hairSprites from './hairSprites.json';
 
 test('a look you cannot wear falls back to the free defaults, slot by slot', () => {
@@ -20,16 +19,14 @@ test('the look key is the normalized look in a fixed order, so it can cache pain
   expect(isDefaultLook({ beard: 'full' })).toBe(false);
 });
 
-test('every rack item has a slot, a price and, for a hat, a drawing to stamp', () => {
+test('every rack item has a slot, a price and, for a hat, a drawing of him wearing it', () => {
   Object.values(WARDROBE).forEach((item) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
-    // A hat is either a drawing of him wearing it or a drawing stamped on, never neither.
-    if (item.slot === 'hat' && item.overlay) { expect(typeof item.overlay).toBe('string'); return; }
-    if (item.overlay) return;
+    // Nothing is stamped any more: a hat is a drawing of him wearing it, or it is the bare head.
     if (item.slot !== 'hat') return;
-    if (item.sprite === null) return;
-    expect(hatSprites.order).toContain(item.sprite);
+    if (item.key === 'hat_none' || item.sprite === null) return;
+    expect(typeof item.overlay).toBe('string');
     // A tinted hat says which drawing's colour it is measured against.
     if (item.tint) expect(item.base).toHaveLength(3);
   });
@@ -47,8 +44,10 @@ test('the default look is the art as drawn: nothing dyed and nothing on the head
 
 test('the head plan names the drawing to stamp and the part of the beard to keep', () => {
   expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ overlay: 'cap_red', tint: null });
-  // A hat still on the stamped sheet names a cell there.
-  expect(paletteFor({ hat: 'cap_navy' }).head.hat).toMatchObject({ sprite: WARDROBE.cap_navy.sprite, tint: null });
+  // Every hat in the rack is a drawing of him wearing one, over six of them.
+  const art = new Set(itemsFor('hat').filter((item) => item.overlay).map((item) => item.overlay));
+  expect(art.size).toBe(6);
+  expect(itemsFor('hat').filter((item) => item.sprite === null)).toHaveLength(1);
   // The caps are drawings of him wearing one now; the rest are still stamped until their sheets land.
   expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: WARDROBE.cap_black.tint });
   expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });

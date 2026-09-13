@@ -9,8 +9,6 @@
 //                                                               -> assets/angler/hats/cap_red/*
 //   node scripts/anglerDressed.mjs cap    art/angler-dressed-sheet.png cap_olive
 //
-// The cap run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
-//
 // The dressed sheet is the same character in the same poses as art/angler-sheet.png, drawn
 // with an olive cap and a full beard on a white background. Sliced on the same feet anchor
 // into the same box, the two line up to within a pixel — so whatever the dressed frame has
@@ -32,12 +30,6 @@
 // whole point of these sheets — a hairstyle drawn for a head thrown back mid-cast beats any
 // front-on hairpiece pasted onto one, and there are twenty-two of those heads.
 //
-// The cap itself is thrown away — hats come from the hats sheet, which has twenty of them — but
-// not before it is measured. Where a hat sits was the last thing in this pipeline still being
-// guessed at, as a fraction of the head box, and it showed: a fraction cannot know that the
-// head is tipped forward in one pose and thrown back in another. The artist did know, in every
-// frame, so each frame keeps the centre and the row of the cap's own brim and every hat is
-// hung on that.
 // Needs Playwright with Chromium (project or global install via NODE_PATH; PLAYWRIGHT_CHROMIUM
 // to point at a binary).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -57,8 +49,7 @@ const { chromium } = loadPlaywright();
 const [kind, sheet, name] = process.argv.slice(2);
 // `pad`, `rise`, `from` and `below` open the head box sideways, upwards, downwards from the
 // crown and past the chin: a hat sits above the crown and out past the ears, where facial hair
-// starts below the brow and spills onto the collar. `caps` says this run measures the artist's
-// own cap on its way past, for utils/hatAnchors.json.
+// starts below the brow and spills onto the collar.
 // Two independent choices per sheet. `box` is where to look: the head box (`head`, opened by
 // `pad`/`rise`/`below`), everything under the chin (`body`), or the rows the bald frame wears a
 // masked part on (`band`). `test` is what counts as the garment there: `diff` is whatever is not
@@ -80,9 +71,8 @@ const LIFT = {
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
   hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, shift: 1, fill: true, dir: 'hats' },
   // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
-  // cap's olive from the beard's brown. It is also the only sheet wearing the artist's own cap,
-  // so this is the run that measures where a hat sits and writes utils/hatAnchors.json.
-  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, caps: true, dir: 'hats' },
+  // cap's olive from the beard's brown.
+  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, dir: 'hats' },
 };
 const lift = LIFT[kind];
 if (lift && lift.dir && !name) { console.error(`usage: node scripts/anglerDressed.mjs ${kind} <sheet.png> <name>`); process.exit(1); }
@@ -229,7 +219,7 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
     notes.push(`row ${index}: ${figures.length} figures`);
   });
 
-  const results = {}; const hatAnchors = {};
+  const results = {};
   for (const [action, frames] of Object.entries(sheets)) {
     const base = pixelsOf(await load(bald[action]));
     const mask = lift.part ? pixelsOf(await load(masks[action])) : null;
@@ -265,7 +255,7 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
       if (!n) { notes.push(`${action}[${f}] no feet found`); return; }
       const feetX = Math.round(sum / n); const feetY = comp.y1;
       const dx = f * box.w + box.feetX - feetX; const dy = box.feetY - feetY;
-      const hit = new Set(); const line = new Set(); const capRows = new Map();
+      const hit = new Set(); const line = new Set();
       // The head this pose was sliced with, so the cap can be told from the waders — which are
       // the same olive, and the only other olive on the figure.
       const box0 = (heads[action] || [])[f];
@@ -328,31 +318,9 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
           : lift.test === 'olive' ? isCap(p) : isBeard(p);
         if (inBox && drawn) {
           hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255;
-          // When the cap *is* what this run lifts, its own hits are what the brim is measured
-          // from: there is no branch below for them to fall through to any more.
-          if (lift.caps && head && lift.test === 'olive' && !isDark(p) && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1) {
-            const row = capRows.get(y) || [Infinity, -Infinity];
-            capRows.set(y, [Math.min(row[0], lx), Math.max(row[1], lx)]);
-          }
         }
         else if (lift.test !== 'diff' && isDark(p)) line.add(to);
-        else if (lift.caps && head && isCap(p)) {
-          if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;
-          const row = capRows.get(y) || [Infinity, -Infinity];
-          capRows.set(y, [Math.min(row[0], lx), Math.max(row[1], lx)]);
-        }
       });
-      // Where the cap meets the head: the lowest row still most of its full width, the same
-      // row every hat sprite is anchored on, and the middle of the row that is widest.
-      if (capRows.size) {
-        let full = 0; let wideAt = null;
-        capRows.forEach((row, y) => { const run = row[1] - row[0] + 1; if (run > full) { full = run; wideAt = y; } });
-        let seat = wideAt;
-        capRows.forEach((row, y) => { if (row[1] - row[0] + 1 >= full * 0.7 && y > seat) seat = y; });
-        const wide = capRows.get(wideAt);
-        hatAnchors[action] = hatAnchors[action] || [];
-        hatAnchors[action][f] = { cx: Math.round((wide[0] + wide[1]) / 2), y: seat };
-      }
       // A redraw never lands on exactly the same pixels, so a diff leaves a rim of flecks all
       // round the body, and a hue test picks up the odd brown speck of shading. Nothing that
       // small is a garment.
@@ -454,21 +422,12 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
     sctx.putImageData(image, 0, 0);
     results[action] = { url: strip.toDataURL('image/png'), overlap: Math.round((covered / total) * 100) };
   }
-  return { results, notes, hatAnchors };
+  return { results, notes };
 }, { data, bald, masks, rows: ROWS, keep: KEEP, box: BOX, strips: STRIPS, heads: ANCHORS, lift });
 
 for (const [action, { url, overlap }] of Object.entries(report.results)) {
   writeFileSync(path.join(out, `${action}.png`), Buffer.from(url.split(',')[1], 'base64'));
   console.log(`${kind}/${action}.png — ${overlap}% of the dressed frame lands on the bald one`);
-}
-// Only the sheet that wears the artist's own cap can say where a hat sits. Another beard sheet
-// puts a different hat on him, or none, and would otherwise clobber the seats with nothing.
-const seated = Object.values(report.hatAnchors).reduce((n, list) => n + list.filter(Boolean).length, 0);
-if (lift.caps && seated === 22) {
-  writeFileSync(path.join(root, 'src', 'utils', 'hatAnchors.json'), `${JSON.stringify(report.hatAnchors)}\n`);
-  console.log('wrote src/utils/hatAnchors.json');
-} else if (lift.caps) {
-  console.log(`left src/utils/hatAnchors.json alone — this sheet seats ${seated} of 22 caps`);
 }
 report.notes.forEach((note) => console.log(' ', note));
 await browser.close();
