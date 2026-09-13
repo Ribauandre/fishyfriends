@@ -74,12 +74,18 @@ export const HAIR_STYLES = {
 // A beard is the artist's own, lifted pose by pose off the dressed sheet into the overlays in
 // assets/angler/beard, so a style is only which part of it to keep: `all`, the `chin` below the
 // mouth, or the `lip` above it. `dither` thins what is kept to stubble.
+// Facial hair is a drawing of him wearing it, one sheet per style, the same way hats go —
+// `overlay` names the folder under assets/angler/beards. Only the full beard has its sheet so
+// far, off the dressed one; until the rest arrive they are windows cut out of it, and **those
+// windows are the last invented shapes on this character**. A goatee the artist draws is not
+// the corner of a full beard, and stubble is its footprint let down into the skin rather than a
+// shape of its own, so that one may well stay a window for good.
 export const BEARD_STYLES = {
   none: { label: 'Clean shaven', keep: 'none' },
-  stubble: { label: 'Stubble', keep: 'all', shade: 0.42 },
-  mustache: { label: 'Moustache', keep: 'lip' },
-  goatee: { label: 'Goatee', keep: 'chin' },
-  full: { label: 'Full beard', keep: 'all' },
+  stubble: { label: 'Stubble', overlay: 'full', keep: 'all', shade: 0.42 },
+  mustache: { label: 'Moustache', overlay: 'full', keep: 'lip' },
+  goatee: { label: 'Goatee', overlay: 'full', keep: 'chin' },
+  full: { label: 'Full beard', overlay: 'full', keep: 'all' },
 };
 
 // The racks. A waders item is normally a dye, but `overlay` marks the one that is a whole

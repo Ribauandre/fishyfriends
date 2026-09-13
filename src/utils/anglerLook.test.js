@@ -62,6 +62,10 @@ test('the head plan names the drawing to stamp and the part of the beard to keep
   expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head.hair).toMatchObject({ sprite: 'long' });
   expect(paletteFor({ hairstyle: 'bald' }).head.hair).toBeNull();
   expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
+  // Facial hair names the drawing it wears, the way a hat does; only the full beard has a sheet
+  // so far, so the cut-down styles are windows on it.
+  expect(paletteFor({ beard: 'goatee' }).head.beard.overlay).toBe('full');
+  expect(paletteFor({ beard: 'none' }).head.beard.overlay).toBeUndefined();
   expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('chin');
   expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('lip');
   expect(paletteFor({ beard: 'stubble' }).head.beard.shade).toBeGreaterThan(0);

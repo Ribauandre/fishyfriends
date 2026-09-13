@@ -41,11 +41,11 @@ import castMask from '../assets/angler/masks/cast.png';
 import reelMask from '../assets/angler/masks/reel.png';
 import celebrateMask from '../assets/angler/masks/celebrate.png';
 import hurtMask from '../assets/angler/masks/hurt.png';
-import idleBeard from '../assets/angler/beard/idle.png';
-import castBeard from '../assets/angler/beard/cast.png';
-import reelBeard from '../assets/angler/beard/reel.png';
-import celebrateBeard from '../assets/angler/beard/celebrate.png';
-import hurtBeard from '../assets/angler/beard/hurt.png';
+import idleBeard from '../assets/angler/beards/full/idle.png';
+import castBeard from '../assets/angler/beards/full/cast.png';
+import reelBeard from '../assets/angler/beards/full/reel.png';
+import celebrateBeard from '../assets/angler/beards/full/celebrate.png';
+import hurtBeard from '../assets/angler/beards/full/hurt.png';
 import idleHair from '../assets/angler/hair/idle.png';
 import castHair from '../assets/angler/hair/cast.png';
 import reelHair from '../assets/angler/hair/reel.png';
@@ -98,7 +98,12 @@ const MASKS = { idle: idleMask, cast: castMask, reel: reelMask, celebrate: celeb
 // One set of per-frame anchors: the head box and facing from the mask tool, and the row and
 // centre the artist's own cap sat on from the dressed sheet.
 const FRAMES = Object.fromEntries(Object.entries(anchors).map(([action, list]) => [action, list.map((frame, f) => ({ ...frame, hatAnchor: (hatAnchors[action] || [])[f] || null }))]));
-const BEARDS = { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard };
+// Facial hair the same way hats go: a drawing of him wearing it, lifted off a sheet of the same
+// poses into assets/angler/beards/<style>/. `full` is the dressed sheet's own beard, and the
+// styles that have no sheet yet are windows on it — the last invented shapes on this character.
+const BEARD_ART = {
+  full: { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard },
+};
 const HAIR = { idle: idleHair, cast: castHair, reel: reelHair, celebrate: celebrateHair, hurt: hurtHair };
 const OUTFITS = { idle: idleOutfit, cast: castOutfit, reel: reelOutfit, celebrate: celebrateOutfit, hurt: hurtOutfit };
 const BOOTS = { idle: idleBoots, cast: castBoots, reel: reelBoots, celebrate: celebrateBoots, hurt: hurtBoots };
@@ -350,7 +355,8 @@ function loadWearable(src, manifest) {
 // Paint one action's strip for a palette.
 async function paintStrip(action, palette) {
   const worn = palette.head.hat?.overlay;
-  const [art, mask, beard, hairOver, outfitOver, bootsOver, hats, hairArt, hatOver] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(BEARDS[action]), pixelsOf(HAIR[action]), pixelsOf(OUTFITS[action]), pixelsOf(BOOTS[action]), loadWearable(hatSheet, hatSprites), loadWearable(hairSheet, hairSprites), worn && HAT_ART[worn] ? pixelsOf(HAT_ART[worn][action]) : null]);
+  const whiskers = BEARD_ART[palette.head.beard.overlay] || BEARD_ART.full;
+  const [art, mask, beard, hairOver, outfitOver, bootsOver, hats, hairArt, hatOver] = await Promise.all([loadImage(ANGLER_SPRITES[action].src), pixelsOf(MASKS[action]), pixelsOf(whiskers[action]), pixelsOf(HAIR[action]), pixelsOf(OUTFITS[action]), pixelsOf(BOOTS[action]), loadWearable(hatSheet, hatSprites), loadWearable(hairSheet, hairSprites), worn && HAT_ART[worn] ? pixelsOf(HAT_ART[worn][action]) : null]);
   const { width, height } = art;
   const main = canvasFor(width, height);
   main.ctx.drawImage(art, 0, 0);

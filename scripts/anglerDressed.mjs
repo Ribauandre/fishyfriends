@@ -66,7 +66,12 @@ const [kind, sheet, name] = process.argv.slice(2);
 // what the bald sheet has, which needs no colour at all and is right whenever the sheet changed
 // one thing; `brown` and `olive` are hue, for a sheet that changed two things at once.
 const LIFT = {
-  beard: { box: 'head', test: 'brown', below: 0.55, caps: true },
+  // One sheet per facial hair style, the same way hats go. The dressed sheet is `full`, and it
+  // is also the one that measures the cap it wears for utils/hatAnchors.json.
+  // One sheet per facial hair style, the same way hats go — but not the same rules. A hat is one
+  // solid thing; a beard is a moustache and a chin and a pair of sideburns, and keeping only the
+  // biggest piece of that throws away three of the four.
+  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, caps: true, dir: 'beards' },
   hair: { box: 'head', test: 'brown', below: 0 },
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
@@ -173,7 +178,11 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
   // Brown against olive: hair and beard run red ahead of green, where the cap's olive has the
   // two level. Skin runs redder still, so darkness is what separates it — the face is the
   // lightest thing on the head and hair the darkest.
-  const isBeard = (p) => px[p * 4] - px[p * 4 + 1] > 10 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 130;
+  // Hair and leather run red ahead of green, and darkness separates them from skin. The last
+  // clause is for a sheet whose hat is *yellow*: that runs red ahead of green too, and its
+  // shaded folds are dark enough to pass, but no brown has its green so far ahead of its blue.
+  const isBeard = (p) => px[p * 4] - px[p * 4 + 1] > 10 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 130
+    && px[p * 4 + 1] - px[p * 4 + 2] < 55;
   const isDark = (p) => (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 70;
   const isCap = (p) => Math.abs(px[p * 4] - px[p * 4 + 1]) <= 12 && (px[p * 4] + px[p * 4 + 1]) / 2 - px[p * 4 + 2] > 16 && (px[p * 4] + px[p * 4 + 1] + px[p * 4 + 2]) / 3 < 170;
 
@@ -298,7 +307,11 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
           ? Boolean(band) && y >= band.y0 && y <= band.y1
           : lift.box === 'body'
             ? Boolean(head) && y > head.y1
-            : Boolean(head) && lx >= head.x0 - (lift.pad || 14) && lx <= head.x1 + (lift.pad || 14) && y >= head.y0 - (lift.rise || 18) && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
+            : Boolean(head) && lx >= head.x0 - (lift.pad || 14) && lx <= head.x1 + (lift.pad || 14)
+              // A hat opens the box upwards off the crown; facial hair starts below the brow,
+              // and a sheet that wears both puts the hat's own dark keyline right across it.
+              && y >= head.y0 + (head.y1 - head.y0) * (lift.from || 0) - (lift.from ? 0 : lift.rise || 18)
+              && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
         // Out in the air beside him, a pale grey stroke is the sheet's own drawn line or the
         // whip marks around it. The bald strips carry neither — the slicer takes them out
         // because the game draws its own line from the rod tip — so there is nothing there to
@@ -437,9 +450,14 @@ for (const [action, { url, overlap }] of Object.entries(report.results)) {
   writeFileSync(path.join(out, `${action}.png`), Buffer.from(url.split(',')[1], 'base64'));
   console.log(`${kind}/${action}.png — ${overlap}% of the dressed frame lands on the bald one`);
 }
-if (lift.caps) {
+// Only the sheet that wears the artist's own cap can say where a hat sits. Another beard sheet
+// puts a different hat on him, or none, and would otherwise clobber the seats with nothing.
+const seated = Object.values(report.hatAnchors).reduce((n, list) => n + list.filter(Boolean).length, 0);
+if (lift.caps && seated === 22) {
   writeFileSync(path.join(root, 'src', 'utils', 'hatAnchors.json'), `${JSON.stringify(report.hatAnchors)}\n`);
   console.log('wrote src/utils/hatAnchors.json');
+} else if (lift.caps) {
+  console.log(`left src/utils/hatAnchors.json alone — this sheet seats ${seated} of 22 caps`);
 }
 report.notes.forEach((note) => console.log(' ', note));
 await browser.close();
