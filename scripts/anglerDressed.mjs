@@ -67,7 +67,13 @@ const LIFT = {
   // dark brown jaw shadow, and any dark pixel it eats the *moustache*, which sits exactly on
   // the mouth line.
   beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, shift: 0, shiftLum: 100, shiftTol: 60, dir: 'beards' },
-  hair: { box: 'head', test: 'brown', below: 0 },
+  // The same narrow shift test the beard needs, and for the same reason: the artist redraws the
+  // ear and the jaw a pixel over on every sheet, and a dye lights that up as a pale loop round
+  // his ear. Hair is dark, so gating on light pixels never touches the hair itself.
+  // Hair can afford the wider search the beard could not: it sits on the crown and the temple,
+  // nowhere near the mouth line that a moustache lies on, so a one-pixel reach costs it nothing
+  // and catches the head's own antialiased edge where the artist redrew it a pixel over.
+  hair: { box: 'head', test: 'brown', below: 0, shift: 1, shiftLum: 30, shiftTol: 60 },
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
