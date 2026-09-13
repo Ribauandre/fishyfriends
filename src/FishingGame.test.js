@@ -425,8 +425,8 @@ test("Marina's sells apparel for points and the free look changes save straight 
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
-  expect(screen.getByText(/hats, rods, boots and waders on the racks/i)).toBeInTheDocument();
-  expect(screen.getByRole('img', { name: 'Your angler' })).toHaveAttribute('data-look', expect.stringContaining('medium|short|auburn|full|cap_green'));
+  expect(screen.getByText(/hats, shirts, rods, boots and waders on the racks/i)).toBeInTheDocument();
+  expect(screen.getByRole('img', { name: 'Your angler' })).toHaveAttribute('data-look', expect.stringContaining('medium|bald|brown|none|hat_none'));
 
   await userEvent.click(screen.getByRole('button', { name: 'Deep skin' }));
   expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ skin: 'deep' }));
@@ -435,15 +435,15 @@ test("Marina's sells apparel for points and the free look changes save straight 
   expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ skin: 'deep', beard: 'none' }));
   expect(await screen.findByText(/looking sharp/i)).toBeInTheDocument();
 
-  // A rack item is bought, then worn; the stock cap goes back to "owned".
-  expect(screen.getByRole('button', { name: 'Club cap · Wearing' })).toBeDisabled();
-  await userEvent.click(screen.getByRole('button', { name: 'Red cap · 40 pts' }));
+  // A rack item is bought, then worn; the free bare head goes back to "owned".
+  expect(screen.getByRole('button', { name: 'Bare head · Wearing' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Angler cap, red · 40 pts' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
   expect(purchaseApparel).toHaveBeenCalledWith('cap_red');
   expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ hat: 'cap_red' }));
-  expect(await screen.findByRole('button', { name: 'Red cap · Wearing' })).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Club cap · Owned' })).toBeEnabled();
-  expect(screen.getByText(/the red cap — good choice/i)).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Angler cap, red · Wearing' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Bare head · Owned' })).toBeEnabled();
+  expect(screen.getByText(/the angler cap, red — good choice/i)).toBeInTheDocument();
   expect(screen.getByLabelText('60 tackle points')).toBeInTheDocument();
   // The stage wears it too (stock art in jsdom, but the look is on the sprite).
   expect(document.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-look', expect.stringContaining('cap_red'));
@@ -456,7 +456,7 @@ test('a failed purchase is repeated back by Marina and nothing is worn', async (
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
   await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Cowboy hat · 120 pts' }));
+  await userEvent.click(screen.getByRole('button', { name: "Sou'wester · 120 pts" }));
   expect(await screen.findByText(/not enough tackle points yet\. no harm in looking/i)).toBeInTheDocument();
   expect(saveLook).not.toHaveBeenCalled();
 });

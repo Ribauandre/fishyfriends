@@ -39,7 +39,7 @@ test('plays the cast once, holds the rod out while waiting, and strikes on the b
   expect(container.querySelector('.scene-bobber')).toBeInTheDocument();
 
   rerender(<GameScene biome="river" phase="hookset" displayName="Andre" />);
-  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'fishon');
+  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'reel');
   expect(container.querySelector('.scene-splash')).toBeInTheDocument();
 });
 
@@ -62,12 +62,12 @@ test('only loops the reel animation while the player is actually holding', () =>
   expect(container.querySelector('.scene-sprite')).toHaveClass('is-looping');
 });
 
-test('celebrates a landed fish and holds it up, but just idles after a loss', () => {
+test('celebrates a landed fish and holds it up, but slumps after a loss', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'celebrate');
   expect(container.querySelector('.scene-trophy')).toHaveAttribute('data-species', 'walleye');
   rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: false, message: 'The line snapped!' }} />);
-  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'idle');
+  expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'hurt');
   expect(container.querySelector('.scene-trophy')).toBeNull();
 });
 
