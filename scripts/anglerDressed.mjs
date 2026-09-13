@@ -1,14 +1,15 @@
 // Lifts what the artist drew on the angler's head off a sheet that has it, as an overlay strip
 // per action laid pixel-for-pixel on top of the bald strips:
 //
-//   node scripts/anglerDressed.mjs beard  art/angler-dressed-sheet.png -> assets/angler/beard/*
 //   node scripts/anglerDressed.mjs hair   art/angler-haired-sheet.png  -> assets/angler/hair/*
 //   node scripts/anglerDressed.mjs outfit art/angler-outfit-sheet.png  -> assets/angler/outfit/*
 //   node scripts/anglerDressed.mjs boots  art/angler-boots-sheet.png   -> assets/angler/boots/*
-//   node scripts/anglerDressed.mjs hat    art/angler-dressed-sheet.png cap_olive
-//                                                          -> assets/angler/hats/cap_olive/*
+//   node scripts/anglerDressed.mjs beard  art/beards/full.png    full  -> assets/angler/beards/full/*
+//   node scripts/anglerDressed.mjs hat    art/hats/cap_red.png   cap_red
+//                                                               -> assets/angler/hats/cap_red/*
+//   node scripts/anglerDressed.mjs cap    art/angler-dressed-sheet.png cap_olive
 //
-// The beard run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
+// The cap run also measures the cap that sheet wears and writes src/utils/hatAnchors.json.
 //
 // The dressed sheet is the same character in the same poses as art/angler-sheet.png, drawn
 // with an olive cap and a full beard on a white background. Sliced on the same feet anchor
@@ -54,32 +55,30 @@ function loadPlaywright() {
 const { chromium } = loadPlaywright();
 
 const [kind, sheet, name] = process.argv.slice(2);
-// `below` is how far past the chin to look, as a fraction of the head: a beard spills onto the
-// collar, hair does not. `caps` says the sheet wears one worth measuring.
-// `below` is how far past the chin a head lift looks, as a fraction of the head; `diff` swaps
-// the hue test for "whatever is not what the bald sheet has here", which is what an outfit is.
-// `pad` and `rise` are how far past the head box a head lift looks, sideways and upwards: a
-// beard stays on the face, a hat sits above the crown and out past the ears.
+// `pad`, `rise`, `from` and `below` open the head box sideways, upwards, downwards from the
+// crown and past the chin: a hat sits above the crown and out past the ears, where facial hair
+// starts below the brow and spills onto the collar. `caps` says this run measures the artist's
+// own cap on its way past, for utils/hatAnchors.json.
 // Two independent choices per sheet. `box` is where to look: the head box (`head`, opened by
 // `pad`/`rise`/`below`), everything under the chin (`body`), or the rows the bald frame wears a
 // masked part on (`band`). `test` is what counts as the garment there: `diff` is whatever is not
 // what the bald sheet has, which needs no colour at all and is right whenever the sheet changed
 // one thing; `brown` and `olive` are hue, for a sheet that changed two things at once.
 const LIFT = {
-  // One sheet per facial hair style, the same way hats go. The dressed sheet is `full`, and it
-  // is also the one that measures the cap it wears for utils/hatAnchors.json.
   // One sheet per facial hair style, the same way hats go — but not the same rules. A hat is one
   // solid thing; a beard is a moustache and a chin and a pair of sideburns, and keeping only the
-  // biggest piece of that throws away three of the four.
-  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, caps: true, dir: 'beards' },
+  // biggest piece of that throws away three of the four. A beard sheet puts him in no hat at
+  // all, because a hat's own line work is the same brown as his whiskers and sits among them.
+  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, dir: 'beards' },
   hair: { box: 'head', test: 'brown', below: 0 },
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
   // Any hat, whatever colour: on a sheet that only put a hat on him, the hat is the difference.
   hat: { box: 'head', test: 'diff', pad: 24, rise: 28, below: 0, open: true, one: true, shift: 1, fill: true, dir: 'hats' },
   // The one sheet that changed two things: it wears a beard as well, so hue has to separate the
-  // cap's olive from the beard's brown.
-  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, dir: 'hats' },
+  // cap's olive from the beard's brown. It is also the only sheet wearing the artist's own cap,
+  // so this is the run that measures where a hat sits and writes utils/hatAnchors.json.
+  cap: { box: 'head', test: 'olive', pad: 24, rise: 28, below: 0, one: true, caps: true, dir: 'hats' },
 };
 const lift = LIFT[kind];
 if (lift && lift.dir && !name) { console.error(`usage: node scripts/anglerDressed.mjs ${kind} <sheet.png> <name>`); process.exit(1); }
@@ -323,7 +322,15 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
             ? Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60
             : inner[p] === 1 && !grey)
           : lift.test === 'olive' ? isCap(p) : isBeard(p);
-        if (inBox && drawn) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
+        if (inBox && drawn) {
+          hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255;
+          // When the cap *is* what this run lifts, its own hits are what the brim is measured
+          // from: there is no branch below for them to fall through to any more.
+          if (lift.caps && head && lift.test === 'olive' && !isDark(p) && lx >= head.x0 - 14 && lx <= head.x1 + 14 && y >= head.y0 - 18 && y <= head.y1) {
+            const row = capRows.get(y) || [Infinity, -Infinity];
+            capRows.set(y, [Math.min(row[0], lx), Math.max(row[1], lx)]);
+          }
+        }
         else if (lift.test !== 'diff' && isDark(p)) line.add(to);
         else if (lift.caps && head && isCap(p)) {
           if (lx < head.x0 - 14 || lx > head.x1 + 14 || y < head.y0 - 18 || y > head.y1) return;

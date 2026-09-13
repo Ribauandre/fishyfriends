@@ -82,7 +82,7 @@ export const HAIR_STYLES = {
 // shape of its own, so that one may well stay a window for good.
 export const BEARD_STYLES = {
   none: { label: 'Clean shaven', keep: 'none' },
-  stubble: { label: 'Stubble', overlay: 'full', keep: 'all', shade: 0.42 },
+  stubble: { label: 'Stubble', overlay: 'full', keep: 'all', shade: 0.24 },
   mustache: { label: 'Moustache', overlay: 'full', keep: 'lip' },
   goatee: { label: 'Goatee', overlay: 'full', keep: 'chin' },
   full: { label: 'Full beard', overlay: 'full', keep: 'all' },
