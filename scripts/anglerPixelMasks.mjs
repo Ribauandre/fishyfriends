@@ -227,8 +227,18 @@ function maskFrame(hue, w, h, on) {
   const faceBottom = face.length ? Math.max(...faceRows) : top;
   const headSet = new Set([...faceSet, ...hairSet]);
   const capBlobs = components(w, h, (i) => on[i] && (hue[i] === HUE.cream || hue[i] === HUE.blue || hue[i] === HUE.green));
+  // ...and over the head rather than merely beside it. In one celebrate frame he holds a fish up
+  // level with his ear: it is pale, it is a separate piece, it reaches higher than his crown and it
+  // lies against his head, so it answered every clause above and came out as cap — twice as much
+  // cap as any other frame, and a dyed hat would have taken the fish with it. A hat is worn on a
+  // head, so the middle of a piece of it has to sit within the width of the face it is worn on.
+  const overHead = (g) => {
+    const mid = g.reduce((sum, i) => sum + (i % w), 0) / g.length;
+    const span = (fx1 - fx0) * 0.4;
+    return mid >= fx0 - span && mid <= fx1 + span;
+  };
   const capSet = new Set(capBlobs
-    .filter((g) => touches(g, headSet, w, h) && Math.min(...g.map((i) => (i / w) | 0)) <= faceTop)
+    .filter((g) => touches(g, headSet, w, h) && overHead(g) && Math.min(...g.map((i) => (i / w) | 0)) <= faceTop)
     .map((g) => g.filter((i) => ((i / w) | 0) <= faceBottom))
     .flat());
   // The brim is drawn with its own dark edge between it and the crown, so it is a separate piece
@@ -240,10 +250,20 @@ function maskFrame(hue, w, h, on) {
     capBlobs.forEach((g) => {
       if (g.every((i) => capSet.has(i))) return;
       if (Math.max(...g.map((i) => (i / w) | 0)) > faceBottom) return;
-      if (!touches(g, capSet, w, h)) return;
+      if (!overHead(g) || !touches(g, capSet, w, h)) return;
       g.forEach((i) => capSet.add(i)); grown = true;
     });
   }
+  // Clipped to the head's own width, not merely filtered by it. Whole components will not do here
+  // either: in that frame the fish, his raised sleeve and the crown are all cream and all one
+  // piece, so there is nothing to reject — the piece is genuinely part cap. A cap is no wider than
+  // the head it is worn on, so what lies outside that width is not cap whatever it is joined to.
+  const capSpan = (fx1 - fx0) * 0.4;
+  [...capSet].forEach((i) => {
+    const x = i % w;
+    if (x < fx0 - capSpan || x > fx1 + capSpan) capSet.delete(i);
+  });
+
   let capLeft = w; let capRight = -1; let capBottom = -1;
   capSet.forEach((i) => {
     const x = i % w; const y = (i / w) | 0;

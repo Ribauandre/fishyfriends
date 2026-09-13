@@ -2,7 +2,7 @@
 // scripts/anglerPixelSlice.mjs. Every frame sits in the same box with the feet anchored at
 // (feetX, feetY), so an action can swap without the figure hopping.
 //
-// He is cut at the resolution the artist drew him — the box is 232x232 — rather than averaged down
+// He is cut at the resolution the artist drew him — the box is 254x234 — rather than averaged down
 // onto a coarse grid, which an earlier pass of this did and which cost real detail: his eyes, the
 // vest pockets, the rod guides and the boot laces are all finer than any such grid. The geometry
 // here is all expressed against SPRITE_FRAME rather than in numbers of its own, so GameScene, which
@@ -14,22 +14,22 @@ import cast from '../assets/angler/cast.png';
 import reel from '../assets/angler/reel.png';
 import celebrate from '../assets/angler/celebrate.png';
 
-export const SPRITE_FRAME = { w: 232, h: 232, feetX: 99, feetY: 231 };
+export const SPRITE_FRAME = { w: 254, h: 234, feetX: 121, feetY: 233 };
 
 // The window on a frame that a still preview shows. The sheet draws him and his rod inside one
 // square, so unlike the last one there is no run of empty box to trim off — the still is the frame.
-export const STILL_WINDOW = { x: 0, y: 0, w: 232, h: 232 };
+export const STILL_WINDOW = { x: 0, y: 0, w: 254, h: 234 };
 
 // rodTip is where the line leaves the rod for that strip's held pose, in frame pixels, measured off
 // the rod in the part mask rather than guessed: the rod pixel furthest from his feet. Where the rod
 // runs out of the box the tip is where it leaves the frame, which is where the line has to start
 // for the two to meet.
 export const ANGLER_SPRITES = {
-  idle: { src: idle, frames: 4, rodTip: { x: 172, y: 30 } },
-  walk: { src: walk, frames: 4, rodTip: { x: 32, y: 18 } },
-  cast: { src: cast, frames: 4, rodTip: { x: 230, y: 41 } },
-  reel: { src: reel, frames: 4, rodTip: { x: 231, y: 68 } },
-  celebrate: { src: celebrate, frames: 4, rodTip: { x: 17, y: 6 } },
+  idle: { src: idle, frames: 4, rodTip: { x: 194, y: 32 } },
+  walk: { src: walk, frames: 4, rodTip: { x: 54, y: 20 } },
+  cast: { src: cast, frames: 4, rodTip: { x: 253, y: 43 } },
+  reel: { src: reel, frames: 4, rodTip: { x: 236, y: 61 } },
+  celebrate: { src: celebrate, frames: 4, rodTip: { x: 39, y: 9 } },
 };
 
 // What the angler is doing in each phase: which strip, how many frames to step through, and

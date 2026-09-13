@@ -30,25 +30,45 @@ const sheet = readPng(SHEET);
 const { width: W, height: H, data: D } = sheet;
 const lum = (x, y) => { const p = (y * W + x) * 4; return 0.299 * D[p] + 0.587 * D[p + 1] + 0.114 * D[p + 2]; };
 
-// The panel borders are the only near-black lines that run the whole way across the sheet, so they
-// are found as columns and rows that are mostly dark rather than by measuring in from the edge.
-function lines(count, span, dark) {
+// The panel borders are the near-black lines ruling the table, found as rows and columns that are
+// dark rather than by measuring in from the edge.
+//
+// What makes a border a border is that it runs the *whole way across the table*, and that has to be
+// measured across the table rather than across the sheet, because the sheet is wider than the table
+// — there is a margin with the row labels in it. Measured across the sheet, a true border is only
+// about 78% dark, which puts the bar low enough to also admit lines that are not borders at all: a
+// sheet whose four reel-in frames all stand their boots at the same height, and splash their
+// bobbers on the same row, has a band 56% dark lying across the middle of a row. That was found as
+// a seventh row line and the run stopped with "found 4 columns and 6 rows", which is the guard
+// doing its job rather than the slicer quietly cutting every reel frame in half.
+//
+// So it is done twice. A first, lenient pass finds where the table is at all — its outermost lines
+// are unambiguous whatever the threshold. The second pass measures only within that box, where a
+// real border is dark almost all the way and anything drawn inside a panel is not.
+function lines(count, from, to, bar, dark) {
   const frac = [];
   for (let i = 0; i < count; i += 1) {
     let n = 0;
-    for (let j = 0; j < span; j += 1) n += dark(i, j) ? 1 : 0;
-    frac.push(n / span);
+    for (let j = from; j < to; j += 1) n += dark(i, j) ? 1 : 0;
+    frac.push(n / (to - from));
   }
   const runs = []; let start = -1;
   for (let i = 0; i < count; i += 1) {
-    if (frac[i] > 0.55) { if (start < 0) start = i; } else if (start >= 0) { runs.push([start, i - 1]); start = -1; }
+    if (frac[i] > bar) { if (start < 0) start = i; } else if (start >= 0) { runs.push([start, i - 1]); start = -1; }
   }
   if (start >= 0) runs.push([start, count - 1]);
   return runs;
 }
 
-const vert = lines(W, H, (x, y) => lum(x, y) < 90);
-const horz = lines(H, W, (y, x) => lum(x, y) < 90);
+const darkCol = (x, y) => lum(x, y) < 90;
+const darkRow = (y, x) => lum(x, y) < 90;
+const roughV = lines(W, 0, H, 0.55, darkCol);
+const roughH = lines(H, 0, W, 0.55, darkRow);
+if (!roughV.length || !roughH.length) throw new Error('found no table of panels on the sheet');
+const tableX = [roughV[0][0], roughV[roughV.length - 1][1] + 1];
+const tableY = [roughH[0][0], roughH[roughH.length - 1][1] + 1];
+const vert = lines(W, tableY[0], tableY[1], 0.9, darkCol);
+const horz = lines(H, tableX[0], tableX[1], 0.9, darkRow);
 if (vert.length !== 5 || horz.length !== 6) {
   throw new Error(`expected a 4x5 table of panels, found ${vert.length - 1} columns and ${horz.length - 1} rows`);
 }
