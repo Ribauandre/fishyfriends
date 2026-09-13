@@ -60,11 +60,13 @@ const LIFT = {
   // solid thing; a beard is a moustache and a chin and a pair of sideburns, and keeping only the
   // biggest piece of that throws away three of the four. A beard sheet puts him in no hat at
   // all, because a hat's own line work is the same brown as his whiskers and sits among them.
-  // `shiftLum` reaches lower here than it dares on a hat. A hat's own keyline is as black as
-  // the head's and testing it would eat the hat's outline; a beard's line work is darker still,
-  // and between the two lies the ear the artist redrew — which a dye lights up when it comes
-  // along with a moustache and there is no beard over it to hide in.
-  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, shift: 1, shiftLum: 40, shiftTol: 45, dir: 'beards' },
+  // The shift test keeps the *ear* out, which the artist redraws a pixel over and a dye then
+  // lights up as a grey blob on the side of his head. On a beard it has to be the narrowest
+  // form of itself: this pixel only (`shift: 0`, no neighbourhood) and only where the pixel is
+  // light enough to be skin. Given any reach it eats the beard, which is dark brown lying on a
+  // dark brown jaw shadow, and any dark pixel it eats the *moustache*, which sits exactly on
+  // the mouth line.
+  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, shift: 0, shiftLum: 100, shiftTol: 60, dir: 'beards' },
   hair: { box: 'head', test: 'brown', below: 0 },
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
@@ -292,7 +294,7 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
         // dark as the leather, and they are in the same place in both sheets, so the bald
         // frame's own mask is what says which is which.
         const onSkin = (mask && lift.avoid && mask.data[to] === lift.avoid)
-          || (lift.shift && base.data[to + 3] && shifted(px[p * 4], px[p * 4 + 1], px[p * 4 + 2], to));
+          || (typeof lift.shift === 'number' && base.data[to + 3] && shifted(px[p * 4], px[p * 4 + 1], px[p * 4 + 2], to));
         // Where this sheet is allowed to have drawn. A hue test needs one — the rod is brown too
         // and crosses right past the head, and the waders are olive down to the boots — and a
         // diff needs one just as much, since a redraw differs faintly everywhere.
