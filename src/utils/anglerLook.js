@@ -75,15 +75,15 @@ export const HAIR_STYLES = {
 // assets/angler/beard, so a style is only which part of it to keep: `all`, the `chin` below the
 // mouth, or the `lip` above it. `dither` thins what is kept to stubble.
 // Facial hair is a drawing of him wearing it, one sheet per style, the same way hats go —
-// `overlay` names the folder under assets/angler/beards. Only the full beard has its sheet so
-// far, off the dressed one; until the rest arrive they are windows cut out of it, and **those
-// windows are the last invented shapes on this character**. A goatee the artist draws is not
-// the corner of a full beard, and stubble is its footprint let down into the skin rather than a
-// shape of its own, so that one may well stay a window for good.
+// `overlay` names the folder under assets/angler/beards. The full beard and the moustache have
+// their sheets; the goatee is still a window cut out of the full one, and **that window is the
+// last invented shape on this character**. Stubble is a window too, but an honest one: it is
+// the full beard's own footprint let down into the skin rather than a shape of its own, so it
+// may well stay that way.
 export const BEARD_STYLES = {
   none: { label: 'Clean shaven', keep: 'none' },
   stubble: { label: 'Stubble', overlay: 'full', keep: 'all', shade: 0.24 },
-  mustache: { label: 'Moustache', overlay: 'full', keep: 'lip' },
+  mustache: { label: 'Moustache', overlay: 'mustache', keep: 'all' },
   goatee: { label: 'Goatee', overlay: 'full', keep: 'chin' },
   full: { label: 'Full beard', overlay: 'full', keep: 'all' },
 };

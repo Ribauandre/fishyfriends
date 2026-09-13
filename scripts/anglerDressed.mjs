@@ -69,7 +69,11 @@ const LIFT = {
   // solid thing; a beard is a moustache and a chin and a pair of sideburns, and keeping only the
   // biggest piece of that throws away three of the four. A beard sheet puts him in no hat at
   // all, because a hat's own line work is the same brown as his whiskers and sits among them.
-  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, dir: 'beards' },
+  // `shiftLum` reaches lower here than it dares on a hat. A hat's own keyline is as black as
+  // the head's and testing it would eat the hat's outline; a beard's line work is darker still,
+  // and between the two lies the ear the artist redrew — which a dye lights up when it comes
+  // along with a moustache and there is no beard over it to hide in.
+  beard: { box: 'head', test: 'brown', from: 0.3, below: 0.55, shift: 1, shiftLum: 40, shiftTol: 45, dir: 'beards' },
   hair: { box: 'head', test: 'brown', below: 0 },
   outfit: { box: 'body', test: 'diff' },
   boots: { box: 'band', test: 'brown', part: 4, above: 10, reach: 34, clean: 40, avoid: 1 },
@@ -238,14 +242,14 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
       // Only what is light enough to be mistaken for skin or an eye. A hat's own keyline is as
       // black as the head's and would always look like it shifted — and a dark stray never
       // shows anyway, since a dye leaves line work alone.
-      if (0.299 * r + 0.587 * g + 0.114 * b < 100) return false;
+      if (0.299 * r + 0.587 * g + 0.114 * b < (lift.shiftLum || 100)) return false;
       for (let dy = -lift.shift; dy <= lift.shift; dy += 1) for (let dx = -lift.shift; dx <= lift.shift; dx += 1) {
         const n = to + (dy * base.width + dx) * 4;
         if (n < 0 || n >= base.data.length || !base.data[n + 3]) continue;
         // Tight, because this is looking for the *same* colour moved over, not a near one: a
         // tan hat lands close to skin without being it, and a loose match punches the skin
         // through the crown of one in speckles.
-        if (Math.abs(r - base.data[n]) + Math.abs(g - base.data[n + 1]) + Math.abs(b - base.data[n + 2]) <= 12) return true;
+        if (Math.abs(r - base.data[n]) + Math.abs(g - base.data[n + 1]) + Math.abs(b - base.data[n + 2]) <= (lift.shiftTol || 12)) return true;
       }
       return false;
     };

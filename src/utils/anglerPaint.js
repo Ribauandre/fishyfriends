@@ -46,6 +46,11 @@ import castBeard from '../assets/angler/beards/full/cast.png';
 import reelBeard from '../assets/angler/beards/full/reel.png';
 import celebrateBeard from '../assets/angler/beards/full/celebrate.png';
 import hurtBeard from '../assets/angler/beards/full/hurt.png';
+import idleMustache from '../assets/angler/beards/mustache/idle.png';
+import castMustache from '../assets/angler/beards/mustache/cast.png';
+import reelMustache from '../assets/angler/beards/mustache/reel.png';
+import celebrateMustache from '../assets/angler/beards/mustache/celebrate.png';
+import hurtMustache from '../assets/angler/beards/mustache/hurt.png';
 import idleHair from '../assets/angler/hair/idle.png';
 import castHair from '../assets/angler/hair/cast.png';
 import reelHair from '../assets/angler/hair/reel.png';
@@ -103,6 +108,7 @@ const FRAMES = Object.fromEntries(Object.entries(anchors).map(([action, list]) =
 // styles that have no sheet yet are windows on it — the last invented shapes on this character.
 const BEARD_ART = {
   full: { idle: idleBeard, cast: castBeard, reel: reelBeard, celebrate: celebrateBeard, hurt: hurtBeard },
+  mustache: { idle: idleMustache, cast: castMustache, reel: reelMustache, celebrate: celebrateMustache, hurt: hurtMustache },
 };
 const HAIR = { idle: idleHair, cast: castHair, reel: reelHair, celebrate: celebrateHair, hurt: hurtHair };
 const OUTFITS = { idle: idleOutfit, cast: castOutfit, reel: reelOutfit, celebrate: celebrateOutfit, hurt: hurtOutfit };
