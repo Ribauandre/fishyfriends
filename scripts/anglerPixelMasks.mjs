@@ -203,8 +203,17 @@ function maskFrame(hue, w, h, on) {
 
   // His jeans: the blue that is not his cap's brim. Then his boots are what is under them —
   // taken per column, so a boot swung forward in a stride is still under its own trouser leg.
-  const jeans = [];
-  for (let i = 0; i < w * h; i += 1) if (on[i] && hue[i] === HUE.blue && !capSet.has(i)) jeans.push(i);
+  //
+  // It has to be the trousers and not merely the blue, because his *reel* is blue too, and it
+  // hangs at chest height: read every blue pixel as trouser and the reel sets a hem of its own
+  // in the two or three columns it occupies, so everything below it down that narrow strip —
+  // his hip, his hand, the hem of his vest — comes out as boot, and a red boot puts a red smear
+  // across the middle of him. It moves side to side with the pose, which is why it showed up on
+  // his right in the idle frames and on his left in the celebrate ones. So the trousers are the
+  // big blue, by the same stray rule the garments use: two legs, and nothing a quarter their size.
+  const blueBlobs = components(w, h, (i) => on[i] && hue[i] === HUE.blue && !capSet.has(i));
+  const biggestBlue = Math.max(0, ...blueBlobs.map((g) => g.length));
+  const jeans = blueBlobs.filter((g) => g.length * 4 >= biggestBlue).flat();
   const hemBy = new Int16Array(w).fill(-1);
   jeans.forEach((i) => { const x = i % w; const y = (i / w) | 0; if (y > hemBy[x]) hemBy[x] = y; });
   // A column with no trouser in it — between his boots, or out past them — takes the hem of the

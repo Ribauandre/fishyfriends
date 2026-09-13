@@ -324,8 +324,7 @@ function bounds(img) {
 }
 
 const frames = ROWS.map((action, r) => COLS.map((col, i) => {
-  const cut = stripLine(native(col, ROWBANDS[r]));
-  const img = process.env.NOKEEP ? cut : keepFigure(cut);
+  const img = keepFigure(stripLine(native(col, ROWBANDS[r])));
   if (img.dropped > 10) console.log(`  ! ${action} frame ${i + 1}: ${img.dropped}px came off as detached`);
   return { img, feet: feet(img), bounds: bounds(img) };
 }));
