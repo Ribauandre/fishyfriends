@@ -127,6 +127,18 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
   }
   const on = new Uint8Array(W * H);
   for (let p = 0; p < W * H; p += 1) on[p] = cutOut ? (px[p * 4 + 3] >= 60 ? 1 : 0) : (bg[p] ? 0 : 1);
+  // The figure less its outermost pixel. A sheet fades to its background over the last pixel or
+  // two of the silhouette, and where the bald frame has nothing to compare against, that fringe
+  // is all a diff can see — so out past the bald figure, only what is a pixel inside counts.
+  let inner = on;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const next = new Uint8Array(W * H); const prev = inner;
+    for (let y = 1; y < H - 1; y += 1) for (let x = 1; x < W - 1; x += 1) {
+      const p = y * W + x;
+      next[p] = prev[p] && prev[p - 1] && prev[p + 1] && prev[p - W] && prev[p + W] && prev[p - W - 1] && prev[p - W + 1] && prev[p + W - 1] && prev[p + W + 1] ? 1 : 0;
+    }
+    inner = next;
+  }
 
   const componentsOf = (mask, w, h) => {
     const seen = new Int32Array(w * h).fill(-1); const found = [];
@@ -267,7 +279,9 @@ const report = await page.evaluate(async ({ data, bald, masks, rows, keep, box, 
             ? Boolean(head) && y > head.y1
             : Boolean(head) && lx >= head.x0 - (lift.pad || 14) && lx <= head.x1 + (lift.pad || 14) && y >= head.y0 - (lift.rise || 18) && y <= head.y1 + (head.y1 - head.y0) * (lift.below || 0));
         const drawn = lift.test === 'diff'
-          ? !base.data[to + 3] || Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60
+          ? (base.data[to + 3]
+            ? Math.abs(px[p * 4] - base.data[to]) + Math.abs(px[p * 4 + 1] - base.data[to + 1]) + Math.abs(px[p * 4 + 2] - base.data[to + 2]) > 60
+            : inner[p] === 1)
           : lift.test === 'olive' ? isCap(p) : isBeard(p);
         if (inBox && drawn) { hit.add(to); for (let k = 0; k < 3; k += 1) image.data[to + k] = px[p * 4 + k]; image.data[to + 3] = 255; }
         else if (lift.test !== 'diff' && isDark(p)) line.add(to);
