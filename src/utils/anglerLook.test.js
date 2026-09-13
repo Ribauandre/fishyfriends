@@ -1,9 +1,8 @@
-import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, SKIN_BODY, SLOTS, PART, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor } from './anglerLook';
-import hairSprites from './hairSprites.json';
+import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, SKIN_TONES, SKIN_BODY, SLOTS, PART, PART_BASE, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor } from './anglerLook';
 
 test('a look you cannot wear falls back to the free defaults, slot by slot', () => {
   expect(normalizeLook(null)).toEqual(DEFAULT_LOOK);
-  expect(normalizeLook({ skin: 'nope', hat: 'hat_cowboy', beard: 'goatee' })).toEqual({ ...DEFAULT_LOOK, beard: 'goatee' });
+  expect(normalizeLook({ skin: 'nope', hat: 'hat_cowboy' })).toEqual(DEFAULT_LOOK);
   expect(normalizeLook({ hat: 'hat_cowboy' }, ['hat_cowboy']).hat).toBe('hat_cowboy');
   // A rod key in the hat slot is not a hat.
   expect(normalizeLook({ hat: 'rod_gold' }, ['rod_gold']).hat).toBe(DEFAULT_LOOK.hat);
@@ -12,89 +11,106 @@ test('a look you cannot wear falls back to the free defaults, slot by slot', () 
   expect(isOwned('cap_red', ['cap_red'])).toBe(true);
 });
 
-test('the look key is the normalized look in a fixed order, so it can cache paints', () => {
-  expect(lookKey(DEFAULT_LOOK)).toBe('medium|bald|brown|none|hat_none|shirt_grey|rod_graphite|boots_green|waders_khaki');
-  expect(lookKey({ skin: 'deep', hat: 'hat_straw' })).toBe('deep|bald|brown|none|hat_straw|shirt_grey|rod_graphite|boots_green|waders_khaki');
-  expect(isDefaultLook({})).toBe(true);
-  expect(isDefaultLook({ beard: 'full' })).toBe(false);
+test('a look saved against the old sheet still loads, retired keys and all', () => {
+  // The sheet before this one drew him bald and clean-shaven, so a look could carry a hairstyle,
+  // a beard and no hat at all. This one draws one of each on him and there is no bare head to go
+  // back to, so those fields are read past rather than rejected — the rest of the look survives.
+  const old = { skin: 'deep', hairstyle: 'topknot', hair: 'blond', beard: 'goatee', hat: 'hat_none', shirt: 'shirt_navy' };
+  const worn = normalizeLook(old, ['shirt_navy']);
+  expect(worn.skin).toBe('deep');
+  expect(worn.hair).toBe('blond');
+  expect(worn.shirt).toBe('shirt_navy');
+  expect(worn.hat).toBe('cap_green');
+  expect(worn.hairstyle).toBeUndefined();
+  expect(worn.beard).toBeUndefined();
 });
 
-test('every rack item has a slot, a price and, for a hat, a drawing of him wearing it', () => {
-  Object.values(WARDROBE).forEach((item) => {
+test('the look key is the normalized look in a fixed order, so it can cache paints', () => {
+  expect(lookKey(DEFAULT_LOOK)).toBe('medium|brown|cap_green|shirt_grey|vest_olive|rod_graphite|boots_green|waders_khaki');
+  // lookKey reckons every item owned — it is a cache key for a paint, not a check on a purchase.
+  expect(lookKey({ skin: 'deep', hat: 'hat_straw' })).toBe('deep|brown|hat_straw|shirt_grey|vest_olive|rod_graphite|boots_green|waders_khaki');
+  expect(isDefaultLook({})).toBe(true);
+  expect(isDefaultLook({ skin: 'deep' })).toBe(false);
+});
+
+test('every rack item is a colour in a slot with a price, and every slot has a free one', () => {
+  Object.entries(WARDROBE).forEach(([key, item]) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
-    // Nothing is stamped any more: a hat is a drawing of him wearing it, or it is the bare head.
-    if (item.slot !== 'hat') return;
-    if (item.key === 'hat_none' || item.sprite === null) return;
-    expect(typeof item.overlay).toBe('string');
-    // A tinted hat says which drawing's colour it is measured against.
-    if (item.tint) expect(item.base).toHaveLength(3);
+    // Nothing is a shape any more. An item either dyes its part or is the art's own colour.
+    expect('tint' in item).toBe(true);
+    if (item.tint) expect(item.tint).toHaveLength(3);
+    else expect(item.cost).toBe(0);
+    expect(item.label).toEqual(expect.any(String));
+    expect(key).not.toMatch(/\s/);
   });
-  SLOTS.forEach((slot) => expect(itemsFor(slot).some((item) => item.cost === 0)).toBe(true));
-  // Every hairstyle but the bald one names a drawing too.
-  Object.values(HAIR_STYLES).forEach((style) => { if (style.sprite) expect(hairSprites.order).toContain(style.sprite); });
+  SLOTS.forEach((slot) => expect(itemsFor(slot).filter((item) => item.cost === 0)).toHaveLength(1));
 });
 
-test('the default look is the art as drawn: nothing dyed and nothing on the head', () => {
+test('every key the old hat rack sold still buys something', () => {
+  // The promise is that a purchase is never orphaned by an art swap. The old rack's twenty-three
+  // hats were shapes and this sheet has one cap, so each key is that cap in the nearest colour —
+  // relabelled to say so, but still there and still in the hat slot.
+  const sold = ['hat_none', 'cap_green', 'cap_red', 'cap_navy', 'cap_black', 'cap_orange', 'cap_brown', 'cap_camo',
+    'hat_beanie', 'hat_beanie_olive', 'hat_beanie_red', 'hat_beanie_navy', 'hat_beanie_grey', 'hat_visor',
+    'hat_bucket', 'hat_boonie', 'hat_straw', 'hat_straw_red', 'hat_wide_olive', 'hat_wide_navy', 'hat_cowboy',
+    'hat_boonie_white', 'hat_boonie_olive'];
+  sold.forEach((key) => expect(normalizeLook({ hat: key }, [key]).hat).not.toBe(undefined));
+  // ...and every one of them puts something on his head rather than falling back.
+  sold.filter((key) => key !== 'hat_none').forEach((key) => {
+    expect(WARDROBE[key].slot).toBe('hat');
+    expect(normalizeLook({ hat: key }, [key]).hat).toBe(key);
+  });
+  // The other racks kept their keys too.
+  ['shirt_grey', 'shirt_white', 'shirt_navy', 'shirt_red', 'shirt_olive',
+    'rod_graphite', 'rod_red', 'rod_blue', 'rod_white', 'rod_gold',
+    'boots_green', 'boots_black', 'boots_brown', 'boots_yellow', 'boots_red',
+    'waders_khaki', 'waders_jeans', 'waders_olive', 'waders_grey', 'waders_navy', 'waders_brown',
+  ].forEach((key) => expect(WARDROBE[key]).toBeTruthy());
+});
+
+test('the default look is the art exactly as drawn, so the stock strips can show unpainted', () => {
   const palette = paletteFor(DEFAULT_LOOK);
   expect(Object.values(palette.targets).every((target) => target === null)).toBe(true);
-  expect(palette.head).toMatchObject({ hair: null, hat: null });
-  expect(palette.head.beard.keep).toBe('none');
+  expect(palette.skinRamp).toBe(null);
+  expect(isDefaultLook(DEFAULT_LOOK)).toBe(true);
 });
 
-test('the head plan names the drawing to stamp and the part of the beard to keep', () => {
-  expect(paletteFor({ hat: 'cap_red' }).head.hat).toMatchObject({ overlay: 'cap_red', tint: null });
-  // Every hat in the rack is a drawing of him wearing one, over six of them.
-  const art = new Set(itemsFor('hat').filter((item) => item.overlay).map((item) => item.overlay));
-  expect(art.size).toBe(6);
-  expect(itemsFor('hat').filter((item) => item.sprite === null)).toHaveLength(1);
-  // The caps are drawings of him wearing one now; the rest are still stamped until their sheets land.
-  expect(paletteFor({ hat: 'cap_black' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: WARDROBE.cap_black.tint });
-  expect(paletteFor({ hat: 'cap_green' }).head.hat).toMatchObject({ overlay: 'cap_olive', tint: null });
-  // Four beanies are one drawing in four colours, which a solid knit hat can be and a cap with
-  // a white front panel cannot.
-  ['hat_beanie', 'hat_beanie_red', 'hat_beanie_navy', 'hat_beanie_olive', 'hat_beanie_grey']
-    .forEach((key) => expect(WARDROBE[key].overlay).toBe('beanie_black'));
-  // Hair goes on whether or not a hat does — a cap leaves plenty of it showing.
-  // The stock style is the artist's own, lifted pose by pose; the rest are stamped hairpieces.
-  expect(paletteFor({ hairstyle: 'short' }).head.hair).toMatchObject({ overlay: true });
-  expect(paletteFor({ hat: 'cap_red', hairstyle: 'long' }).head.hair).toMatchObject({ sprite: 'long' });
-  expect(paletteFor({ hairstyle: 'bald' }).head.hair).toBeNull();
-  expect(paletteFor({ beard: 'full' }).head.beard.keep).toBe('all');
-  // Facial hair names the drawing it wears, the way a hat does; only the full beard has a sheet
-  // so far, so the cut-down styles are windows on it.
-  expect(paletteFor({ beard: 'goatee' }).head.beard.overlay).toBe('goatee');
-  // Stubble is the one style with no drawing of its own: it is the full beard's footprint.
-  expect(paletteFor({ beard: 'stubble' }).head.beard.overlay).toBe('full');
-  // The moustache has a sheet of its own, so it is the drawing rather than a window on one.
-  expect(paletteFor({ beard: 'mustache' }).head.beard).toMatchObject({ overlay: 'mustache', keep: 'all' });
-  expect(paletteFor({ beard: 'none' }).head.beard.overlay).toBeUndefined();
-  // Every style that is a shape has its own drawing, so nothing is windowed out of any of them.
-  expect(paletteFor({ beard: 'goatee' }).head.beard.keep).toBe('all');
-  // The moustache is its own drawing now, so nothing is windowed out of it.
-  expect(paletteFor({ beard: 'mustache' }).head.beard.keep).toBe('all');
-  expect(paletteFor({ beard: 'stubble' }).head.beard.shade).toBeGreaterThan(0);
-  expect(paletteFor({ hair: 'grey' }).hair).toEqual(HAIR_COLORS.grey.rgb);
+test('gear is a dye, skin is a ramp, and the art is never dyed to its own colour', () => {
+  const palette = paletteFor({ skin: 'deep', hair: 'blond', hat: 'cap_red', shirt: 'shirt_navy', vest: 'vest_rust', rod: 'rod_gold', boots: 'boots_red', waders: 'waders_olive' });
+  expect(palette.targets[PART.cap]).toEqual(WARDROBE.cap_red.tint);
+  expect(palette.targets[PART.shirt]).toEqual(WARDROBE.shirt_navy.tint);
+  expect(palette.targets[PART.vest]).toEqual(WARDROBE.vest_rust.tint);
+  expect(palette.targets[PART.rod]).toEqual(WARDROBE.rod_gold.tint);
+  expect(palette.targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);
+  // The trousers are stored under the slot the waders used to have, and dye the jeans.
+  expect(palette.targets[PART.jeans]).toEqual(WARDROBE.waders_olive.tint);
+  expect(palette.targets[PART.hair]).toEqual(HAIR_COLORS.blond.rgb);
+  // Skin is a ramp to move to, not a colour to dye with.
+  expect(palette.skinRamp).toEqual(skinRampFor('deep'));
+  expect(palette.skinRamp).toHaveLength(SKIN_BODY.length);
+  // Brown hair is what the sheet draws, so choosing it asks for no dye at all.
+  expect(paletteFor({ hair: 'brown' }).targets[PART.hair]).toBe(null);
 });
 
-test('gear is a dye, skin is a ramp, and the art\'s own colours are never changed to themselves', () => {
-  // A tone is one of the ramps the sheet draws, swapped in whole; the stock one is the art.
-  expect(paletteFor({ skin: 'deep' }).skinRamp).toEqual(skinRampFor('deep'));
-  expect(skinRampFor('deep')).toHaveLength(SKIN_BODY.length);
-  expect(paletteFor({ skin: 'medium' }).skinRamp).toBeNull();
-  expect(paletteFor({ skin: 'deep' }).targets[PART.skin]).toBeUndefined();
-  // Olive is the one tone the sheet has no head for, mixed from the two it draws either side.
+test('olive skin is mixed from the two drawn ramps either side of it', () => {
   const olive = skinRampFor('olive');
-  olive.forEach((band, i) => band.forEach((v, k) => {
-    const [lo, hi] = [skinRampFor('brown')[i][k], skinRampFor('medium')[i][k]].sort((a, b) => a - b);
-    expect(v).toBeGreaterThanOrEqual(lo); expect(v).toBeLessThanOrEqual(hi);
+  const [from, to] = [skinRampFor('medium'), skinRampFor('brown')];
+  olive.forEach((band, i) => band.forEach((value, k) => {
+    const low = Math.min(from[i][k], to[i][k]); const high = Math.max(from[i][k], to[i][k]);
+    expect(value).toBeGreaterThanOrEqual(low);
+    expect(value).toBeLessThanOrEqual(high);
   }));
-  const geared = paletteFor({ rod: 'rod_gold', boots: 'boots_red', waders: 'waders_navy', shirt: 'shirt_navy' }, ['rod_gold', 'boots_red', 'waders_navy', 'shirt_navy']);
-  expect(geared.targets[PART.rod]).toEqual(WARDROBE.rod_gold.tint);
-  expect(geared.targets[PART.boots]).toEqual(WARDROBE.boots_red.tint);
-  // A drawn garment is copied on instead, so the dye under it is dropped.
-  expect(paletteFor({ boots: 'boots_brown' }, ['boots_brown']).targets[PART.boots]).toBeNull();
-  expect(paletteFor({ boots: 'boots_brown' }, ['boots_brown']).boots).toEqual({ overlay: true });
-  expect(geared.targets[PART.waders]).toEqual(WARDROBE.waders_navy.tint);
-  expect(geared.targets[PART.shirt]).toEqual(WARDROBE.shirt_navy.tint);
+  Object.keys(SKIN_TONES).forEach((key) => expect(skinRampFor(key)).toHaveLength(4));
+});
+
+test('every part the painter can dye knows the colour it was drawn in', () => {
+  // A dye is reckoned against the part's own painted mid-tone, so a part with a target but no
+  // base would be dyed against nothing.
+  [PART.skin, PART.cap, PART.hair, PART.shirt, PART.vest, PART.jeans, PART.boots, PART.rod].forEach((part) => {
+    expect(PART_BASE[part]).toHaveLength(3);
+    PART_BASE[part].forEach((channel) => expect(channel).toBeGreaterThanOrEqual(0));
+  });
+  // The outline is never dyed, so it has no base and needs none.
+  expect(PART_BASE[PART.outline]).toBeUndefined();
 });

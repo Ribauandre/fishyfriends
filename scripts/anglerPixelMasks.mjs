@@ -1,0 +1,395 @@
+// Build the part masks for the angler's strips: for every pixel, which garment it belongs to.
+// Marina's Outfitters recolours what the artist drew, so the painter needs to know which pixels
+// are the cap and which are the shirt — and at this size that cannot come from colour alone.
+// The sheet reuses the same colours for different things:
+//
+//   cream   the cap's crown, and the shirt's sleeves
+//   blue    the cap's brim, and his jeans
+//   green   the cap's front panel, and the vest
+//   brown   his hair and beard, his boots, and the rod
+//   tan     his skin, and the lighter leather of the boots
+//
+// So colour narrows a pixel to a short list and *position* settles it, and the positions are
+// taken from the figure rather than from the frame: a band of rows would be wrong the moment he
+// raises an arm, which he does in eight of these twenty frames — a green sleeve held up beside
+// his ear is at cap height without being a cap.
+//
+// Two anchors do nearly all of it. His face is the largest patch of skin in the upper part of the
+// figure, and everything that is his head — the beard against it, the cap above it — is the patch
+// of its own colour that actually touches it. And his boots are simply what is below his jeans,
+// which is why the jeans are found first: blue is unambiguous once the cap's brim has been taken
+// off it, and no pose puts a boot above a trouser leg.
+//
+// Run: node scripts/anglerPixelMasks.mjs   (writes masks/*.png beside the strips, and previews)
+
+import { readPng, writePng } from './png.mjs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+
+const DIR = new URL('../src/assets/angler/', import.meta.url).pathname;
+const strips = JSON.parse(readFileSync(`${DIR}strips.json`, 'utf8'));
+const ACTIONS = Object.keys(strips);
+
+// The part a pixel belongs to. Stored in the mask's red channel, so these are small integers and
+// they are the contract between this script and utils/anglerPaint.js.
+export const PART = { outline: 1, skin: 2, cap: 3, hair: 4, shirt: 5, vest: 6, jeans: 7, boots: 8, rod: 9 };
+
+// What colour a pixel is, before anything is known about where it is. `other` is everything the
+// sheet uses once and nothing recolours — the reel, the fish, the rod's guides.
+const HUE = { key: 1, skin: 2, cream: 3, blue: 4, green: 5, brown: 6, other: 7 };
+function hueOf(r, g, b) {
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  if (lum < 42) return HUE.key;
+  // Light tan. The boots' own leather runs to 155 and his shaded cheek down to 183, so this is
+  // the one pair the threshold cannot separate on its own — below it they are told apart by
+  // being above or below the jeans.
+  if (r - b > 55 && r > 140 && g > b) return HUE.skin;
+  if (b - r > 18 && b >= g) return HUE.blue;
+  // Cream before olive: the cap's crown is bright enough that the olive test would take it.
+  if (lum > 135 && Math.max(r, g, b) - Math.min(r, g, b) < 75) return HUE.cream;
+  if (Math.abs(r - g) < 32 && g > b + 18) return HUE.green;
+  if (r > g && g >= b && r - b > 26) return HUE.brown;
+  return HUE.other;
+}
+
+// Connected runs of pixels a test accepts, eight-connected so a diagonal still counts as joined —
+// at this size the artist draws plenty of one-pixel diagonal steps.
+function components(w, h, accepts) {
+  const seen = new Uint8Array(w * h); const out = [];
+  for (let start = 0; start < w * h; start += 1) {
+    if (seen[start] || !accepts(start)) continue;
+    const stack = [start]; seen[start] = 1; const group = [];
+    while (stack.length) {
+      const i = stack.pop(); group.push(i);
+      const x = i % w; const y = (i / w) | 0;
+      for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+        if (!ox && !oy) continue;
+        const nx = x + ox; const ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const n = ny * w + nx;
+        if (seen[n] || !accepts(n)) continue;
+        seen[n] = 1; stack.push(n);
+      }
+    }
+    out.push(group);
+  }
+  return out;
+}
+
+const touches = (group, set, w, h) => group.some((i) => {
+  const x = i % w; const y = (i / w) | 0;
+  for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+    const nx = x + ox; const ny = y + oy;
+    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+    if (set.has(ny * w + nx)) return true;
+  }
+  return false;
+});
+
+function maskFrame(hue, w, h, on) {
+  const part = new Uint8Array(w * h);
+  let top = h;
+  for (let i = 0; i < w * h; i += 1) if (on[i] && ((i / w) | 0) < top) top = (i / w) | 0;
+
+  // An opening — worn away by a pixel and grown back — keeps everything solid and loses anything
+  // drawn one pixel wide. The rod is the only such thing on him, so this is what tells the rod
+  // from his hair further down; it is measured here because picking his face out needs it too.
+  const erodeOnce = (mask) => {
+    const out = new Uint8Array(w * h);
+    for (let y = 1; y < h - 1; y += 1) for (let x = 1; x < w - 1; x += 1) {
+      const i = y * w + x;
+      if (mask[i] && mask[i - 1] && mask[i + 1] && mask[i - w] && mask[i + w]) out[i] = 1;
+    }
+    return out;
+  };
+  const dilateOnce = (mask) => {
+    const out = new Uint8Array(w * h);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
+      const i = y * w + x;
+      if (!mask[i]) continue;
+      out[i] = 1;
+      if (x > 0) out[i - 1] = 1;
+      if (x < w - 1) out[i + 1] = 1;
+      if (y > 0) out[i - w] = 1;
+      if (y < h - 1) out[i + w] = 1;
+    }
+    return out;
+  };
+  const openBy = (radius) => {
+    let mask = on;
+    for (let k = 0; k < radius; k += 1) mask = erodeOnce(mask);
+    for (let k = 0; k < radius; k += 1) mask = dilateOnce(mask);
+    return mask;
+  };
+  const opened = openBy(1);
+  // Opening by two, for the rod. One round loses a line a pixel wide, which is most of it, but
+  // where he grips it the drawing thickens it to two and lays it alongside a fist, and a single
+  // round hands that stretch back — so the rod came out dyed from the tip to about his hands and
+  // left dark from there in, a dashed line down the middle of the frame. Two rounds lose anything
+  // under about four pixels across, and there is nothing that thin on him: his forearm is five
+  // across at the wrist and everything else is thicker.
+  const openedRod = openBy(2);
+
+  // His face is the patch of skin with hair against it. Size is not the test and height is not
+  // the test: crouched into a cast he holds a bare forearm out in front of him, and that is both
+  // a bigger patch of skin than his face and no lower down, so both of those pick the arm — and
+  // then his cap hangs off his elbow and comes out as a band of denim across his forehead. What
+  // is only ever true of the face is that it has a beard on it. The brown must be blobby to
+  // count, so that a fist closed around the rod does not score for gripping something brown.
+  const hairish = (i) => hue[i] === HUE.brown && opened[i];
+  const beardScore = (g) => {
+    const seen = new Set();
+    g.forEach((i) => {
+      const x = i % w; const y = (i / w) | 0;
+      for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+        const nx = x + ox; const ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const n = ny * w + nx;
+        if (on[n] && hairish(n)) seen.add(n);
+      }
+    });
+    return seen.size;
+  };
+  const skinBlobs = components(w, h, (i) => on[i] && hue[i] === HUE.skin);
+  const face = skinBlobs.sort((a, b) => beardScore(b) - beardScore(a) || b.length - a.length)[0] || [];
+  const faceSet = new Set(face);
+
+  // His hair and beard: the brown that touches his face. The rod is brown too and passes close
+  // by his head in several poses, but it is held in a hand, not grown on a chin.
+  const brownBlobs = components(w, h, (i) => on[i] && hue[i] === HUE.brown);
+  const hair = brownBlobs.filter((g) => touches(g, faceSet, w, h));
+  const hairSet = new Set(hair.flat());
+
+  // Where his hat ends and his face begins. On this sheet that cannot be asked of colour at all:
+  // the bucket hat is drawn in the same tan as the skin under it — (225,187,131) against
+  // (221,188,136) — so the two are one patch, and the patch picked out above as his face is really
+  // his whole head. What separates them is shape. A hat is wider than the head it is worn on, so
+  // the brim is the widest row of that patch, and everything from the crown down to it is hat
+  // while everything below it is face.
+  //
+  // The search is held to the upper part of the head, because lower down his beard widens the jaw
+  // and in the celebrate poses he brings a bare fist up beside his ear; either can match a brim
+  // for width, and neither is one. Ties go to the lowest row, the brim being the last thing the
+  // hat does on the way down.
+  const headRows = face.map((i) => (i / w) | 0);
+  const headTop = face.length ? Math.min(...headRows) : top;
+  const headBottom = face.length ? Math.max(...headRows) : top;
+  const rowWidth = new Int16Array(h);
+  headRows.forEach((y) => { rowWidth[y] += 1; });
+  let brim = headTop;
+  const brimLimit = headTop + Math.round((headBottom - headTop) * 0.6);
+  for (let y = headTop; y <= brimLimit; y += 1) if (rowWidth[y] >= rowWidth[brim]) brim = y;
+
+  // The hat is then everything inside the head's own width, down to that row — not merely the tan.
+  // Its crown carries a darker band and the shadow under its brim is darker still, and neither of
+  // those reads as skin; left out, a dyed hat comes out moth-eaten. What is excluded is his hair
+  // where it shows under the crown, the keyline, and thin brown, which is the rod crossing the box
+  // — it passes right by his head in the cast poses and is the same brown as the band.
+  let capLeft = w; let capRight = -1;
+  face.forEach((i) => {
+    if (((i / w) | 0) > brim) return;
+    const x = i % w;
+    if (x < capLeft) capLeft = x;
+    if (x > capRight) capRight = x;
+  });
+  const capSet = new Set();
+  for (let i = 0; i < w * h; i += 1) {
+    if (!on[i]) continue;
+    const y = (i / w) | 0; const x = i % w;
+    if (y < headTop || y > brim || x < capLeft || x > capRight) continue;
+    if (hue[i] === HUE.key || hairSet.has(i)) continue;
+    if ((hue[i] === HUE.brown || hue[i] === HUE.key) && !opened[i]) continue;
+    capSet.add(i);
+  }
+
+  // His jeans: the blue that is not his cap's brim. Then his boots are what is under them —
+  // taken per column, so a boot swung forward in a stride is still under its own trouser leg.
+  //
+  // It has to be the trousers and not merely the blue, because his *reel* is blue too, and it
+  // hangs at chest height: read every blue pixel as trouser and the reel sets a hem of its own
+  // in the two or three columns it occupies, so everything below it down that narrow strip —
+  // his hip, his hand, the hem of his vest — comes out as boot, and a red boot puts a red smear
+  // across the middle of him. It moves side to side with the pose, which is why it showed up on
+  // his right in the idle frames and on his left in the celebrate ones. So the trousers are the
+  // big blue, by the same stray rule the garments use: two legs, and nothing a quarter their size.
+  const blueBlobs = components(w, h, (i) => on[i] && hue[i] === HUE.blue && !capSet.has(i));
+  const biggestBlue = Math.max(0, ...blueBlobs.map((g) => g.length));
+  const jeans = blueBlobs.filter((g) => g.length * 4 >= biggestBlue).flat();
+  const hemBy = new Int16Array(w).fill(-1);
+  jeans.forEach((i) => { const x = i % w; const y = (i / w) | 0; if (y > hemBy[x]) hemBy[x] = y; });
+  // A column with no trouser in it — between his boots, or out past them — takes the hem of the
+  // nearest column that has one, so the band follows the legs instead of breaking up.
+  const hem = new Int16Array(w);
+  for (let x = 0; x < w; x += 1) {
+    if (hemBy[x] >= 0) { hem[x] = hemBy[x]; continue; }
+    let near = -1; let best = Infinity;
+    for (let k = 0; k < w; k += 1) if (hemBy[k] >= 0 && Math.abs(k - x) < best) { best = Math.abs(k - x); near = hemBy[k]; }
+    hem[x] = near;
+  }
+
+  const belowHem = (i) => { const x = i % w; return hem[x] >= 0 && ((i / w) | 0) > hem[x]; };
+
+  // The rod is found by its shape, not by joining it up. It is drawn one pixel wide and its own
+  // dark edge breaks the brown into single pixels a step apart, so there is no component there to
+  // find — the first attempt at this came back with fourteen rod pixels in a whole strip. What is
+  // true of it is that it is thin: erode the figure and a one-pixel line disappears, where his
+  // body, his hair and his boots all survive and come back under the matching dilation. So the
+  // rod is the brown that the opening does not give back. Taking every brown that is not hair
+  // instead also takes the shadow in a fold of his vest, and a red rod would scatter red across
+  // his chest.
+  // Its own dark edge is thin in the same way and belongs to it: left out, a dyed rod comes out a
+  // dashed line, because the sheet draws about half of it in the near-black it draws outlines in.
+  // His body's outline is thin too, but an opening gives that back — it is the ring around a
+  // solid thing, not a line on its own.
+  // Opening by two costs one thing, and it is paid for here. Where the crown of his hat is only a
+  // couple of pixels tall the opening takes its keyline too, and a keyline is near-black like half
+  // the rod, so the top of every hat in the sheet came out as rod and a red rod put red pixels on
+  // his head. Inside the hat, then, only *brown* counts as rod: the rod does cross the head box in
+  // the cast poses and its brown core is still found there, and all that is given up is its own
+  // dark edge for those few pixels, which is a pixel wide and against a dark hat.
+  const inHat = (i) => {
+    const y = (i / w) | 0; const x = i % w;
+    return y <= brim && x >= capLeft && x <= capRight;
+  };
+  const thin = new Set();
+  for (let i = 0; i < w * h; i += 1) {
+    if (!on[i] || openedRod[i] || hairSet.has(i) || belowHem(i)) continue;
+    if (hue[i] === HUE.key && inHat(i)) continue;
+    if (hue[i] === HUE.brown || hue[i] === HUE.key) thin.add(i);
+  }
+  // A rod is long. The fish he holds up in the celebrate frames is drawn with a thin dark fin and
+  // a thinner tail, and those are as narrow as a rod and the same near-black, so they answer to
+  // everything above — leaving a scatter of rod-coloured flecks across a fish that would light up
+  // the moment anyone bought a red rod. Nothing else the test finds is more than a few pixels
+  // across, so the rod is simply the runs of it long enough to be one.
+  const ROD_RUN = 5;
+  const rodSet = new Set(components(w, h, (i) => thin.has(i)).filter((g) => g.length >= ROD_RUN).flat());
+
+  // A garment is one thing, or at most a few — two sleeves, two trouser legs. So each is the
+  // pieces of its colour that are a real part of it, and anything smaller than a quarter of the
+  // biggest piece is a stray the hue test picked up: a flake of shading, or the fish he is
+  // holding up, which is green like his vest and would otherwise be dyed along with it. A stray
+  // is left undyed rather than guessed at, because an undyed pixel is invisible and a wrongly
+  // dyed one is a coloured fleck in the middle of him.
+  function garment(accepts) {
+    const groups = components(w, h, (i) => on[i] && accepts(i));
+    if (!groups.length) return new Set();
+    const biggest = Math.max(...groups.map((g) => g.length));
+    return new Set(groups.filter((g) => g.length * 4 >= biggest).flat());
+  }
+  const free = (i) => !capSet.has(i) && !hairSet.has(i) && !rodSet.has(i) && !belowHem(i);
+  const jeansSet = garment((i) => free(i) && hue[i] === HUE.blue);
+  const skinSet = garment((i) => free(i) && hue[i] === HUE.skin);
+
+  // The fish he holds up on three of these frames is the same green as his vest and the same
+  // cream as his sleeves, and it is big enough to survive the stray test on both. What separates
+  // a garment from a caught fish is that a garment is joined to the rest of what he is wearing —
+  // a sleeve meets the vest, the vest meets the waist of his jeans — where a fish held out at
+  // eye level meets nothing but his fist, and his fist is skin. So each of these is the colour
+  // that either reaches something already known to be clothing, or lies below his chin at all.
+  function worn(want, anchor) {
+    const blobs = components(w, h, (i) => on[i] && free(i) && hue[i] === want)
+      .filter((g) => touches(g, anchor, w, h) || g.reduce((s, i) => s + ((i / w) | 0), 0) / g.length > headBottom);
+    const biggest = Math.max(0, ...blobs.map((g) => g.length));
+    return new Set(blobs.filter((g) => g.length * 4 >= biggest).flat());
+  }
+  const vestSet = worn(HUE.green, jeansSet);
+  const shirtSet = worn(HUE.cream, new Set([...vestSet, ...jeansSet]));
+
+  for (let i = 0; i < w * h; i += 1) {
+    if (!on[i]) continue;
+    // The rod is asked before the outline, because half of it is drawn in the outline's own
+    // near-black and asking the other way round leaves a dyed rod dashed.
+    if (capSet.has(i)) { part[i] = PART.cap; continue; }
+    if (hairSet.has(i)) { part[i] = PART.hair; continue; }
+    if (rodSet.has(i)) { part[i] = PART.rod; continue; }
+    if (hue[i] === HUE.key) { part[i] = PART.outline; continue; }
+    if (belowHem(i)) { part[i] = PART.boots; continue; }
+    if (jeansSet.has(i)) { part[i] = PART.jeans; continue; }
+    if (skinSet.has(i)) { part[i] = PART.skin; continue; }
+    if (shirtSet.has(i)) { part[i] = PART.shirt; continue; }
+    if (vestSet.has(i)) { part[i] = PART.vest; continue; }
+    part[i] = 0;
+  }
+  return part;
+}
+
+const PREVIEW = {
+  [PART.outline]: [18, 18, 22], [PART.skin]: [255, 176, 96], [PART.cap]: [250, 250, 240],
+  [PART.hair]: [150, 92, 50], [PART.shirt]: [190, 214, 236], [PART.vest]: [116, 168, 62],
+  [PART.jeans]: [64, 122, 216], [PART.boots]: [120, 66, 32], [PART.rod]: [226, 72, 180],
+};
+
+mkdirSync(`${DIR}masks/`, { recursive: true });
+const Z = 10; const cols = Math.max(...ACTIONS.map((a) => strips[a].frames));
+const BW = strips[ACTIONS[0]].w; const BH = strips[ACTIONS[0]].h;
+const pw = cols * BW * Z; const ph = ACTIONS.length * BH * Z;
+const preview = Buffer.alloc(pw * ph * 4);
+for (let i = 0; i < pw * ph; i += 1) { preview[i * 4] = 28; preview[i * 4 + 1] = 28; preview[i * 4 + 2] = 34; preview[i * 4 + 3] = 255; }
+
+// Every pixel of each part, gathered across all twenty frames, so the dye bases and the skin
+// ramp below are measured off the art rather than guessed at.
+const pool = {};
+
+ACTIONS.forEach((action, ri) => {
+  const img = readPng(`${DIR}${action}.png`);
+  const { width: w, height: h, data } = img;
+  const on = new Uint8Array(w * h); const hue = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i += 1) {
+    on[i] = data[i * 4 + 3] ? 1 : 0;
+    if (on[i]) hue[i] = hueOf(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+  }
+  const out = Buffer.alloc(w * h * 4);
+  const counts = {};
+  for (let f = 0; f < strips[action].frames; f += 1) {
+    // One frame at a time, so a component never runs from one pose into the next.
+    const fw = BW;
+    const fOn = new Uint8Array(fw * h); const fHue = new Uint8Array(fw * h);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
+      fOn[y * fw + x] = on[y * w + f * BW + x]; fHue[y * fw + x] = hue[y * w + f * BW + x];
+    }
+    const part = maskFrame(fHue, fw, h, fOn);
+    for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
+      const p = part[y * fw + x]; if (!p) continue;
+      counts[p] = (counts[p] || 0) + 1;
+      const src = (y * w + f * BW + x) * 4;
+      (pool[p] = pool[p] || []).push([data[src], data[src + 1], data[src + 2]]);
+      const t = (y * w + f * BW + x) * 4;
+      out[t] = p; out[t + 3] = 255;
+      const c = PREVIEW[p];
+      for (let j = 0; j < Z; j += 1) for (let i2 = 0; i2 < Z; i2 += 1) {
+        const q = (((ri * BH + y) * Z + j) * pw + (f * BW + x) * Z + i2) * 4;
+        for (let k = 0; k < 3; k += 1) preview[q + k] = c[k];
+      }
+    }
+  }
+  writePng(`${DIR}masks/${action}.png`, { width: w, height: h, data: out });
+  const name = Object.fromEntries(Object.entries(PART).map(([k, v]) => [v, k]));
+  console.log(`${action}: ${Object.entries(counts).map(([p, n]) => `${name[p]} ${n}`).join(', ')}`);
+});
+writePng(`${DIR}masks/preview.png`, { width: pw, height: ph, data: preview });
+
+// What each part is painted in, which is what its dye is measured against. Taken from the
+// lighter half of the part rather than its middle, so that dyeing a pale colour onto it lands
+// under white instead of blowing out — the same reading the previous sheet's bases were taken at.
+const lum = ([r, g, b]) => 0.299 * r + 0.587 * g + 0.114 * b;
+const mean = (list) => list.reduce((acc, c) => acc.map((v, k) => v + c[k]), [0, 0, 0]).map((v) => Math.round(v / list.length));
+const base = {};
+Object.entries(pool).forEach(([p, list]) => {
+  const sorted = [...list].sort((a, b) => lum(a) - lum(b));
+  base[p] = mean(sorted.slice(Math.floor(sorted.length / 2)));
+});
+
+// His skin, as a ramp: the tones sorted by brightness and cut into four bands at the quartiles,
+// each band the mean of the tones actually used in it. A skin tone is not a dye — a dye keeps
+// only brightness and rebuilds the colour, which flattens a face — so the painter moves a pixel
+// from its band in this ramp to the same band in the one being worn. The five ramps it can be
+// moved to are the ones the previous sheet's artist drew as five separate heads, in
+// utils/skinRamps.json: real drawn skin, and the only measured skin tones there are.
+const skin = [...(pool[PART.skin] || [])].sort((a, b) => lum(a) - lum(b));
+const body = [0, 1, 2, 3].map((q) => mean(skin.slice(Math.floor(skin.length * q / 4), Math.max(Math.floor(skin.length * (q + 1) / 4), Math.floor(skin.length * q / 4) + 1))));
+
+const named = Object.fromEntries(Object.entries(PART).map(([k, v]) => [v, k]));
+const out = { base: Object.fromEntries(Object.entries(base).map(([p, c]) => [named[p], c])), body };
+writeFileSync(`${DIR}paint.json`, `${JSON.stringify(out, null, 2)}\n`);
+console.log('masks/preview.png and paint.json written');
+console.log(JSON.stringify(out));
