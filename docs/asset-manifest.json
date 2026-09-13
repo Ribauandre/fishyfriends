@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.80be1fdd.css",
-    "main.js": "/static/js/main.bc6625b2.js",
+    "main.js": "/static/js/main.8b28b5ca.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
@@ -28,8 +28,13 @@
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
+    "static/media/celebrate.png": "/static/media/celebrate.adcbd57f707c2eaea415.png",
+    "static/media/walk.png": "/static/media/walk.42166773cd34e1b80c74.png",
+    "static/media/idle.png": "/static/media/idle.c6b97817e5f9cf52813b.png",
+    "static/media/cast.png": "/static/media/cast.aabafbc5438be8b676fd.png",
     "static/media/mountainlake.webp": "/static/media/mountainlake.1174425a080435a0e5f4.webp",
     "static/media/swamp.webp": "/static/media/swamp.d7339f8bf407ddba1099.webp",
+    "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
     "static/media/outfitter.png": "/static/media/outfitter.8b728897568f1081921d.png",
     "static/media/offshore.webp": "/static/media/offshore.d93e052d039f4a70395a.webp",
     "static/media/trout.png": "/static/media/trout.42c2facb6b96e10c6a3d.png",
@@ -63,7 +68,6 @@
     "static/media/questicon.png": "/static/media/questicon.b649e3283e2b3e24c14b.png",
     "static/media/livebait.png": "/static/media/livebait.11f2412961dddca06acf.png",
     "static/media/line.png": "/static/media/line.41daa5107d0716b3101a.png",
-    "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
     "static/media/bait.png": "/static/media/bait.7476c4f2330f75a5fc24.png",
     "static/media/book.png": "/static/media/book.b6c84298ae429071e939.png",
     "static/media/trophyicon.png": "/static/media/trophyicon.e563932d87caceeeb759.png",
@@ -74,11 +78,11 @@
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
     "main.80be1fdd.css.map": "/static/css/main.80be1fdd.css.map",
-    "main.bc6625b2.js.map": "/static/js/main.bc6625b2.js.map",
+    "main.8b28b5ca.js.map": "/static/js/main.8b28b5ca.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.80be1fdd.css",
-    "static/js/main.bc6625b2.js"
+    "static/js/main.8b28b5ca.js"
   ]
 }
