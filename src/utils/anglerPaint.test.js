@@ -1,5 +1,5 @@
-import { paintPixels, tintPixel, shiftPixel, dyeDrawn, bandOf, canPaint, renderAngler, renderStill, keylineHold, KEYLINE_HOLD, KEYLINE_FADE } from './anglerPaint';
-import { PART, PART_BASE, SKIN_BODY, DEFAULT_LOOK, paletteFor, skinRampFor } from './anglerLook';
+import { paintPixels, tintPixel, shiftPixel, swapShade, bandOf, canPaint, renderAngler, renderStill, keylineHold, KEYLINE_HOLD, KEYLINE_FADE } from './anglerPaint';
+import { PART, PART_BASE, PART_SHADES, SKIN_BODY, DEFAULT_LOOK, paletteFor, skinRampFor } from './anglerLook';
 
 // A strip four pixels wide, one high, with one pixel per part we care about.
 function strip(parts, colours) {
@@ -21,12 +21,12 @@ test('each part is recoloured the way that part is meant to be', () => {
   const palette = paletteFor({ skin: 'deep', hair: 'blond', hat: 'cap_red' });
   paintPixels({ pixels, mask, width: parts.length, height: 1, palette });
 
-  // Gear is dyed: a pixel sitting on its part's mid-tone lands on the target itself.
-  expect(read(pixels, 0)).toEqual(tintPixel(PART_BASE[PART.cap], PART_BASE[PART.cap], palette.targets[PART.cap]));
+  // Gear swaps shades: a pixel of the shade the part is mostly drawn in lands on the target itself.
+  expect(read(pixels, 0)).toEqual(swapShade(PART_BASE[PART.cap], PART_SHADES[PART.cap], palette.targets[PART.cap]));
   // Skin is moved between ramps rather than dyed, so it keeps its modelling.
   expect(read(pixels, 1)).toEqual(shiftPixel(PART_BASE[PART.skin], SKIN_BODY, skinRampFor('deep')));
-  // Hair is dyed with its contrast pulled in first, because it is drawn dark.
-  expect(read(pixels, 2)).toEqual(dyeDrawn(PART_BASE[PART.hair], PART_BASE[PART.hair], palette.targets[PART.hair]));
+  // Hair swaps shades too.
+  expect(read(pixels, 2)).toEqual(swapShade(PART_BASE[PART.hair], PART_SHADES[PART.hair], palette.targets[PART.hair]));
   // His keyline is never touched, whatever he is wearing.
   expect(read(pixels, 3)).toEqual([20, 20, 22]);
 });
@@ -124,4 +124,25 @@ test('a skin pixel off the ramp is scaled, not pushed: half black stays half bla
   // down than blue.
   moved.forEach((v) => expect(v).toBeGreaterThan(0));
   expect(moved[0]).toBeGreaterThan(moved[2]);
+});
+
+test('a dye on flat art is a palette swap: every drawn shade lands on one shade of the target', () => {
+  const shades = PART_SHADES[PART.hair];
+  const target = [156, 156, 156];
+  const main = shades.list[shades.main];
+  // The shade the part is mostly drawn in becomes the target exactly.
+  expect(swapShade(main, shades, target)).toEqual(target);
+  // Every darker shade becomes a darker grey, never a brown — that is the patch this replaces.
+  shades.list.slice(0, shades.main).forEach((c) => {
+    const out = swapShade(c, shades, target);
+    expect(out[0]).toBe(out[1]); expect(out[1]).toBe(out[2]);
+    expect(out[0]).toBeLessThan(target[0]);
+  });
+  // A softened pixel between two shades snaps to one of them rather than landing in between.
+  const between = main.map((v, k) => Math.round((v + shades.list[0][k]) / 2));
+  const outs = shades.list.map((c) => swapShade(c, shades, target).join(','));
+  expect(outs).toContain(swapShade(between, shades, target).join(','));
+  // And a lighter shade lightens, but never all the way to white.
+  const top = shades.list[shades.list.length - 1];
+  if (shades.list.length - 1 > shades.main) { const out = swapShade(top, shades, target); expect(out[0]).toBeGreaterThan(target[0]); expect(out[0]).toBeLessThan(255); }
 });

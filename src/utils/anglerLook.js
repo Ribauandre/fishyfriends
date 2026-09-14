@@ -54,6 +54,9 @@ export const PART_BASE = {
 
 // His own skin, as a ramp, and the five the other artist drew.
 export const SKIN_BODY = paint.body;
+// Each dyed part's drawn shades, darkest first, and which of them it is mostly drawn in — the
+// table a dye swaps through (see anglerPaint's swapShade).
+export const PART_SHADES = Object.fromEntries(Object.entries(paint.shades || {}).map(([name, s]) => [PART[name], s]));
 export const SKIN_TONES = {
   fair: { label: 'Fair', rgb: [248, 176, 128], tone: 0 },
   light: { label: 'Light', rgb: [232, 164, 112], tone: 1 },
