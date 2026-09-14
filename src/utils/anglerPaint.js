@@ -101,10 +101,18 @@ export function tintPixel(rgb, base, target) {
 // bright as its leather and carrying that ratio onto any target is white. The per-pixel dye this
 // replaces kept each pixel's own step from the part's mid-tone, which on flat art turned the
 // beard's shadow shade into a dark brown patch inside a grey beard and blew every highlight out.
+//
+// A pixel near none of the part's shades is not a shade of the part: it is the softened ring
+// where the part meets another — the beard against the cheek — carried into the part's mask.
+// Snapped to its nearest shade it landed on the lightest, since it is a blend with something
+// lighter, and was painted a step lighter still: a pale rim round a grey beard on a deep face.
+// It is painted as the main shade instead, which is what a crisp edge is.
+export const SHADE_REACH = 32;
 export function swapShade(rgb, shades, target) {
   const { list, main } = shades;
   let best = 0; let near = Infinity;
   list.forEach((c, i) => { const d = Math.abs(c[0] - rgb[0]) + Math.abs(c[1] - rgb[1]) + Math.abs(c[2] - rgb[2]); if (d < near) { near = d; best = i; } });
+  if (near > SHADE_REACH) best = main;
   const ratio = luminance(...list[best]) / Math.max(1, luminance(...list[main]));
   if (ratio <= 1) return target.map((v) => clamp(v * ratio));
   return mix(target, [255, 255, 255], Math.min(0.55, (ratio - 1) * 0.6));
