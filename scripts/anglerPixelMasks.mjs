@@ -197,6 +197,31 @@ function maskFrame(fam, col, w, h, on, label) {
 
   for (let i = 0; i < w * h; i += 1) if (on[i] && fam[i] === 'key') part[i] = PART.outline;
 
+  // Skin is his face, his hands and arms, the neck under his chin, and nothing else. The lit
+  // edge of a vest pocket, the toe of a boot and the buckle of his belt are all a tan that reads
+  // as skin, and under a deep skin tone every one of them went dark. So a piece of skin has to
+  // be big (a hand or a forearm is hundreds of pixels), or lie just under the face (the neck at
+  // his collar), or touch a big piece (the fingers round a rod grip, which the rod splits off
+  // the hand); any other piece is a highlight on whatever surrounds it, and takes that label.
+  {
+    const pieces = components(w, h, (i) => part[i] === PART.skin);
+    const big = new Set(pieces.filter((g) => g.length >= 200).flat());
+    pieces.forEach((g) => {
+      if (big.has(g[0])) return;
+      const b = boxOf(g, w);
+      const votes = new Map();
+      g.forEach((i) => { const x = i % w; const y = (i / w) | 0; for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue; const q = part[ny * w + nx]; if (on[ny * w + nx] && q && q !== PART.skin && q !== PART.outline) votes.set(q, (votes.get(q) || 0) + 1); } });
+      const to = votes.size ? [...votes].sort((a, b) => b[1] - a[1])[0][0] : 0;
+      // The neck shows at his open collar, against the shirt; a pocket flap under his chin in
+      // the celebrate frames sits against the vest, and is the vest's.
+      const underFace = b.y0 <= fb.y1 + 30 && b.y0 >= fb.y0 && b.x1 >= fb.x0 - 10 && b.x0 <= fb.x1 + 10 && to !== PART.vest;
+      if (underFace) return;
+      const near = g.some((i) => { const x = i % w; const y = (i / w) | 0; for (let oy = -3; oy <= 3; oy += 1) for (let ox = -3; ox <= 3; ox += 1) { const nx = x + ox; const ny = y + oy; if (nx >= 0 && ny >= 0 && nx < w && ny < h && big.has(ny * w + nx)) return true; } return false; });
+      if (near) return;
+      g.forEach((i) => { part[i] = to; });
+    });
+  }
+
   // The softened ring between two blocks snaps to one side or the other, and now and then to a
   // third colour altogether — a pixel of olive between orange and black. A fleck that small of
   // a part it is not takes the label most of its neighbours carry.
