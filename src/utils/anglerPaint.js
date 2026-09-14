@@ -17,7 +17,7 @@
 // The canvas half below renders those strips to data URLs and caches them per look. Where there is
 // no canvas — jsdom, in the tests — everything returns null and the components fall back to the
 // stock strips, which is also what the stock look itself does, since painting it would be a no-op.
-import { PART, PART_BASE, SKIN_BODY, paletteFor, lookKey, isDefaultLook } from './anglerLook';
+import { PART, PART_BASE, PART_SHADES, SKIN_BODY, paletteFor, lookKey, isDefaultLook } from './anglerLook';
 import { ANGLER_SPRITES, SPRITE_FRAME } from './anglerSprites';
 
 import idleMask from '../assets/angler/masks/idle.png';
@@ -90,7 +90,27 @@ export function tintPixel(rgb, base, target) {
   return mix(target, [255, 255, 255], Math.min(1, (want - lt) / Math.max(1, 255 - lt)));
 }
 
-// Hair and the beard take the same additive dye as gear. There used to be a step here that pulled
+// A dye on flat pixel art is a palette swap. The art draws each part in a few shades — the beard
+// in three browns, the cap in a cream, a navy and a green, the boots in a brown and the tan of
+// their tops — and a recoloured part is the same shades, in the same places, of the new colour.
+// So a pixel is first snapped to the nearest of its part's drawn shades (the softened ring
+// between two blocks lands on one of them, which is what keeps an edge crisp), and that shade
+// maps to the target by rank: the shade the part is mostly drawn in becomes the target itself, a
+// darker shade the target scaled down by the same brightness ratio, and a lighter one the target
+// mixed a fixed step toward white — capped, because the tan top of a boot is more than twice as
+// bright as its leather and carrying that ratio onto any target is white. The per-pixel dye this
+// replaces kept each pixel's own step from the part's mid-tone, which on flat art turned the
+// beard's shadow shade into a dark brown patch inside a grey beard and blew every highlight out.
+export function swapShade(rgb, shades, target) {
+  const { list, main } = shades;
+  let best = 0; let near = Infinity;
+  list.forEach((c, i) => { const d = Math.abs(c[0] - rgb[0]) + Math.abs(c[1] - rgb[1]) + Math.abs(c[2] - rgb[2]); if (d < near) { near = d; best = i; } });
+  const ratio = luminance(...list[best]) / Math.max(1, luminance(...list[main]));
+  if (ratio <= 1) return target.map((v) => clamp(v * ratio));
+  return mix(target, [255, 255, 255], Math.min(0.55, (ratio - 1) * 0.6));
+}
+
+// Hair and the beard take the same additive dye as gear where a part has no shade table. There used to be a step here that pulled
 // the drawing's contrast in toward its middle first, because under the old ratio dye a dark strand
 // times a pale target came out olive; the additive dye carries a strand's darkness as the same
 // step below the target that it was below the drawn mid-tone, so blond reads as blond with its
@@ -112,8 +132,12 @@ export function dyeDrawn(rgb, base, target) {
 // entry in its palette but one: the line stays black. So does it here — fully where the pixel is
 // the line's own colour, and by a fading share through the few steps of softening the render put
 // around every line, where a pixel is part line and part whatever it lies against.
-export const KEYLINE_HOLD = 12;
-export const KEYLINE_FADE = 36;
+//
+// The line on this sheet is black outright and the masks label it outline, so the hold only has
+// to catch the softened ring round it; the beard's darkest shade sits at a brightness of 30, and
+// a hold that faded out at 36 kept it brown inside a grey beard.
+export const KEYLINE_HOLD = 8;
+export const KEYLINE_FADE = 20;
 export function keylineHold(rgb) {
   return Math.max(0, Math.min(1, (KEYLINE_FADE - luminance(...rgb)) / (KEYLINE_FADE - KEYLINE_HOLD)));
 }
@@ -131,11 +155,9 @@ export function paintPixels({ pixels, mask, width, height, palette }) {
     let out = null;
     if (part === PART.skin) {
       if (palette.skinRamp) out = shiftPixel(rgb, SKIN_BODY, palette.skinRamp);
-    } else if (part === PART.hair) {
-      if (palette.targets[PART.hair]) out = dyeDrawn(rgb, PART_BASE[PART.hair], palette.targets[PART.hair]);
     } else {
       const target = palette.targets[part];
-      if (target) out = tintPixel(rgb, PART_BASE[part], target);
+      if (target) out = PART_SHADES[part] ? swapShade(rgb, PART_SHADES[part], target) : part === PART.hair ? dyeDrawn(rgb, PART_BASE[part], target) : tintPixel(rgb, PART_BASE[part], target);
     }
     if (!out) continue;
     if (hold > 0) out = mix(out, rgb, hold);

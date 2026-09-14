@@ -21,7 +21,7 @@
 //           fish nothing
 //   brown   is his hair and beard, his boots and his rod — hair within a head's reach of the
 //           face, boots under the trouser hem, rod for the rest
-// White is his teeth and belongs to no part; a skin tone should not darken them.
+// His teeth are the cream inside the face, and belong to no part; a skin tone should not darken them.
 import { readPng, writePng } from './png.mjs';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
@@ -43,13 +43,14 @@ const dist = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(
 function family([r, g, b]) {
   const l = lum([r, g, b]); const sat = Math.max(r, g, b) - Math.min(r, g, b);
   if (l < 40 && sat < 24) return 'key';
-  if (r > 235 && g > 235 && b > 235) return 'white';
   if (b > r + 30 && b >= g) return 'blue';
   if (r - b > 90 && r > 200) return 'skin';
   if (l > 150 && sat < 60) return 'cream';
   if (g > r + 8 && b > r) return 'green';
   if (g >= r - 25 && r > b + 15 && g > b + 15) return 'khaki';
-  if (r > g && g >= b) return 'brown';
+  // Brown has to be brown: the softened ring where the cap's cream meets its black line is a
+  // warm grey, and read as brown it came out as flecks of hair across the crown of a black cap.
+  if (r > g && g >= b && r - b >= 25) return 'brown';
   return 'other';
 }
 
@@ -103,9 +104,10 @@ const boxOf = (g, w) => { let x0 = Infinity; let x1 = -1; let y0 = Infinity; let
 const touches = (g, w, h, test) => g.some((i) => { const x = i % w; const y = (i / w) | 0; return FOUR.some(([ox, oy]) => { const nx = x + ox; const ny = y + oy; return nx >= 0 && ny >= 0 && nx < w && ny < h && test(ny * w + nx); }); });
 
 // One frame: `fam` is the family of every lit pixel, `on` whether it is lit.
-function maskFrame(fam, w, h, on, label) {
+function maskFrame(fam, col, w, h, on, label) {
   const part = new Uint8Array(w * h);
   const is = (f) => (i) => on[i] && fam[i] === f;
+  const teeth = new Set();
 
   // His face is the skin with the most beard against it — a hand is skin too, and in the cast
   // frames a forearm is bigger than the face.
@@ -125,9 +127,24 @@ function maskFrame(fam, w, h, on, label) {
   // passes his chin and the two are one piece of brown.
   const browns = components(w, h, is('brown'));
   const hairSet = new Set();
+  // ...and not the rod where it passes the head. In the walk frames he carries it upright past
+  // his ear, touching, and in the cast wind-up it crosses his chin, so within a head's reach it
+  // is as much "brown against the face" as the beard is, and no thickness tells them apart —
+  // the hair behind his ear is as thin as the rod. What does is the shade: the rod is lit in
+  // (135,56,12) and (155,66,18), his hair goes no lighter than (119,58,27). Pixels of the rod's
+  // lit shades are rod and pixels of the hair's darker shades are hair, and the shades the two
+  // share — the rod's shadow is (105,48,16), a beard brown — go with whichever is nearer.
+  const ROD_RED = 128; const HAIR_RED = 112;
   browns.forEach((g) => {
     const within = g.filter(onHead).length;
-    if (touches(g, w, h, (n) => faceSet.has(n)) || within * 5 >= g.length * 3) g.forEach((i) => { if (onHead(i)) hairSet.add(i); });
+    if (!touches(g, w, h, (n) => faceSet.has(n)) && within * 5 < g.length * 3) return;
+    const set = new Set(g); const cls = new Map(); const queue = [];
+    g.forEach((i) => { const r = col[i][0]; if (r >= ROD_RED) { cls.set(i, 'rod'); queue.push(i); } else if (r < HAIR_RED) { cls.set(i, 'hair'); queue.push(i); } });
+    for (let q = 0; q < queue.length; q += 1) {
+      const i = queue[q]; const x = i % w; const y = (i / w) | 0;
+      FOUR.forEach(([ox, oy]) => { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) return; const n = ny * w + nx; if (!set.has(n) || cls.has(n)) return; cls.set(n, cls.get(i)); queue.push(n); });
+    }
+    g.forEach((i) => { if (onHead(i) && cls.get(i) !== 'rod') hairSet.add(i); });
   });
   hairSet.forEach((i) => { part[i] = PART.hair; });
   const headSet = new Set([...faceSet, ...hairSet]);
@@ -135,7 +152,11 @@ function maskFrame(fam, w, h, on, label) {
 
   // The cap: cream, blue and green above the chin and at the head.
   const aboveChin = (g) => boxOf(g, w).y1 <= chin + 2;
-  components(w, h, is('cream')).forEach((g) => { if (aboveChin(g) && nearHead(g)) g.forEach((i) => { part[i] = PART.cap; }); });
+  // ...except the cream inside the face itself, which is his teeth and belongs to no part. They
+  // are not told from the cap by colour — the crown's brightest cream merges with their white
+  // — but by where they are: a piece of cream whose box lies within the face's.
+  const inFace = (g) => { const b = boxOf(g, w); return b.x0 >= fb.x0 && b.x1 <= fb.x1 && b.y0 >= fb.y0 && b.y1 <= fb.y1; };
+  components(w, h, is('cream')).forEach((g) => { if (inFace(g)) g.forEach((i) => teeth.add(i)); else if (aboveChin(g) && nearHead(g)) g.forEach((i) => { part[i] = PART.cap; }); });
   components(w, h, is('green')).forEach((g) => { if (aboveChin(g) && nearHead(g)) g.forEach((i) => { part[i] = PART.cap; }); });
   const blues = components(w, h, is('blue'));
   blues.forEach((g) => { if (aboveChin(g) && nearHead(g)) g.forEach((i) => { part[i] = PART.cap; }); });
@@ -151,7 +172,7 @@ function maskFrame(fam, w, h, on, label) {
   // fish's pale belly is not.
   components(w, h, is('khaki')).forEach((g) => g.forEach((i) => { part[i] = PART.vest; }));
   components(w, h, is('cream')).forEach((g) => {
-    if (g.some((i) => part[i] === PART.cap)) return;
+    if (g.some((i) => part[i] === PART.cap || teeth.has(i))) return;
     if (touches(g, w, h, (n) => part[n] === PART.vest || part[n] === PART.jeans)) g.forEach((i) => { part[i] = PART.shirt; });
   });
 
@@ -197,6 +218,30 @@ function maskFrame(fam, w, h, on, label) {
     piece.forEach((i) => { part[i] = to; });
   }
 
+  // What is left in no part and is thin — the softened ring between a block and the line, or
+  // between two blocks of different parts, which is a colour that is neither — takes the label
+  // of what it lies against. Only the thin: the reel and a held fish are in no part and stay so,
+  // and they are told from a ring by having pixels with nothing but more of themselves around.
+  {
+    const loose = components(w, h, (i) => on[i] && !part[i] && !teeth.has(i));
+    loose.forEach((g) => {
+      const set = new Set(g);
+      const fat = g.some((i) => { const x = i % w; const y = (i / w) | 0; return FOUR.every(([ox, oy]) => { const nx = x + ox; const ny = y + oy; return nx >= 0 && ny >= 0 && nx < w && ny < h && set.has(ny * w + nx); }); });
+      if (fat) return;
+      const take = g.map((i) => {
+        const x = i % w; const y = (i / w) | 0; const votes = new Map();
+        for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) {
+          const nx = x + ox; const ny = y + oy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const q = part[ny * w + nx];
+          if (on[ny * w + nx] && q && q !== PART.outline) votes.set(q, (votes.get(q) || 0) + 1);
+        }
+        return votes.size ? [...votes].sort((a, b) => b[1] - a[1])[0][0] : PART.outline;
+      });
+      g.forEach((i, k) => { part[i] = take[k]; });
+    });
+  }
+
   if (process.env.PROBE) console.log(`  ${label}: face x${fb.x0}-${fb.x1} y${fb.y0}-${fb.y1}, hair ${hairSet.size}px, jeans hem ${Math.max(...hem)}`);
   return part;
 }
@@ -232,13 +277,14 @@ ACTIONS.forEach((action, ri) => {
   const tally = {};
   for (let f = 0; f < strips[action].frames; f += 1) {
     const fw = BW;
-    const on = new Uint8Array(fw * h); const fam = new Array(fw * h).fill('');
+    const on = new Uint8Array(fw * h); const fam = new Array(fw * h).fill(''); const col = new Array(fw * h);
     for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
       const src = (y * w + f * BW + x) * 4;
       if (!data[src + 3]) continue;
-      on[y * fw + x] = 1; fam[y * fw + x] = snap([data[src], data[src + 1], data[src + 2]]).f;
+      const entry = snap([data[src], data[src + 1], data[src + 2]]);
+      on[y * fw + x] = 1; fam[y * fw + x] = entry.f; col[y * fw + x] = entry.c;
     }
-    const part = maskFrame(fam, fw, h, on, `${action}[${f}]`);
+    const part = maskFrame(fam, col, fw, h, on, `${action}[${f}]`);
     if (f === HELD[action]) console.log(`  ${action} rodTip: ${JSON.stringify(rodTip(part, fw, h, strips[action].feetX, strips[action].feetY))}`);
     for (let y = 0; y < h; y += 1) for (let x = 0; x < fw; x += 1) {
       const p = part[y * fw + x]; if (!p) continue;
@@ -265,9 +311,24 @@ writePng(`${DIR}masks/preview.png`, { width: pw, height: ph, data: preview });
 const mean = (list) => list.reduce((acc, c) => acc.map((v, k) => v + c[k]), [0, 0, 0]).map((v) => Math.round(v / list.length));
 const base = {};
 Object.entries(pool).forEach(([p, list]) => { const sorted = [...list].sort((a, b) => lum(a) - lum(b)); base[NAME[p]] = mean(sorted.slice(Math.floor(sorted.length / 2))); });
-const KEYLINE_FADE = 36;
+const KEYLINE_FADE = 20;
 const skin = (pool[PART.skin] || []).filter((c) => lum(c) >= KEYLINE_FADE).sort((a, b) => lum(a) - lum(b));
 const body = [0, 1, 2, 3].map((q) => mean(skin.slice(Math.floor(skin.length * q / 4), Math.max(Math.floor(skin.length * (q + 1) / 4), Math.floor(skin.length * q / 4) + 1))));
-writeFileSync(`${DIR}paint.json`, `${JSON.stringify({ base, body }, null, 2)}\n`);
+
+// Each part's shades: the palette colours it is drawn in, darkest first, with `main` the one it
+// is mostly drawn in. A dye on flat art is a palette swap — every shade of the part maps to a
+// shade of the target, by rank — and this is the table it swaps through. Shades under two
+// percent of the part are the softened ring between blocks and are not shades.
+const shades = {};
+Object.entries(pool).forEach(([p, list]) => {
+  if (Number(p) === PART.outline || Number(p) === PART.skin) return;
+  const merged = [];
+  list.forEach((c) => { const near = merged.find((e) => dist(e.c, c) <= MERGE); if (near) { near.n += 1; near.sum = near.sum.map((v, k) => v + c[k]); } else merged.push({ c, n: 1, sum: [...c] }); });
+  const total = merged.reduce((s, e) => s + e.n, 0);
+  const kept = merged.filter((e) => e.n / total >= 0.02).map((e) => ({ c: e.sum.map((v) => Math.round(v / e.n)), n: e.n })).sort((a, b) => lum(a.c) - lum(b.c));
+  const main = kept.reduce((best, e, i) => (e.n > kept[best].n ? i : best), 0);
+  shades[NAME[p]] = { main, list: kept.map((e) => e.c) };
+});
+writeFileSync(`${DIR}paint.json`, `${JSON.stringify({ base, body, shades }, null, 2)}\n`);
 console.log('masks/preview.png and paint.json written');
 console.log(JSON.stringify({ base, body }));
