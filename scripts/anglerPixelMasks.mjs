@@ -129,22 +129,34 @@ function maskFrame(fam, col, w, h, on, label) {
   const hairSet = new Set();
   // ...and not the rod where it passes the head. In the walk frames he carries it upright past
   // his ear, touching, and in the cast wind-up it crosses his chin, so within a head's reach it
-  // is as much "brown against the face" as the beard is, and no thickness tells them apart —
-  // the hair behind his ear is as thin as the rod. What does is the shade: the rod is lit in
-  // (135,56,12) and (155,66,18), his hair goes no lighter than (119,58,27). Pixels of the rod's
-  // lit shades are rod and pixels of the hair's darker shades are hair, and the shades the two
-  // share — the rod's shadow is (105,48,16), a beard brown — go with whichever is nearer.
-  const ROD_RED = 128; const HAIR_RED = 112;
+  // is as much "brown against the face" as the beard is. No thickness tells them apart (the
+  // hair behind his ear is as thin as the rod) and no shade does either (the beard's lit edge is
+  // (131,68,35), the rod's shaft (127,57,16)). What does is that the rod *comes from outside*:
+  // it is the one piece of brown that runs on past the head, and where it enters it is straight.
+  // So a line is fitted through the part of the piece outside the head's reach and nearest to
+  // it, and within reach the pixels along that line — not the dark beard shades the line may
+  // cross, which are hair whatever lies over them — are rod. A piece with nothing outside is
+  // all hair.
+  const ROD_HALF = 7; const LINE_NEAR = 60; const ROD_RED = 100;
   browns.forEach((g) => {
-    const within = g.filter(onHead).length;
-    if (!touches(g, w, h, (n) => faceSet.has(n)) && within * 5 < g.length * 3) return;
-    const set = new Set(g); const cls = new Map(); const queue = [];
-    g.forEach((i) => { const r = col[i][0]; if (r >= ROD_RED) { cls.set(i, 'rod'); queue.push(i); } else if (r < HAIR_RED) { cls.set(i, 'hair'); queue.push(i); } });
-    for (let q = 0; q < queue.length; q += 1) {
-      const i = queue[q]; const x = i % w; const y = (i / w) | 0;
-      FOUR.forEach(([ox, oy]) => { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) return; const n = ny * w + nx; if (!set.has(n) || cls.has(n)) return; cls.set(n, cls.get(i)); queue.push(n); });
-    }
-    g.forEach((i) => { if (onHead(i) && cls.get(i) !== 'rod') hairSet.add(i); });
+    const within = g.filter(onHead);
+    if (!touches(g, w, h, (n) => faceSet.has(n)) && within.length * 5 < g.length * 3) return;
+    const outside = g.filter((i) => !onHead(i));
+    if (outside.length < 50) { within.forEach((i) => hairSet.add(i)); return; }
+    const hx0 = fb.x0 - reach; const hx1 = fb.x1 + reach; const hy0 = fb.y0 - reach; const hy1 = fb.y1 + reach;
+    const gap = (i) => { const x = i % w; const y = (i / w) | 0; return Math.max(hx0 - x, x - hx1, hy0 - y, y - hy1, 0); };
+    let near = outside.filter((i) => gap(i) <= LINE_NEAR);
+    if (near.length < 30) near = outside;
+    let mx = 0; let my = 0; near.forEach((i) => { mx += i % w; my += (i / w) | 0; }); mx /= near.length; my /= near.length;
+    let sxx = 0; let sxy = 0; let syy = 0;
+    near.forEach((i) => { const dx = (i % w) - mx; const dy = ((i / w) | 0) - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; });
+    const angle = 0.5 * Math.atan2(2 * sxy, sxx - syy); const vx = Math.cos(angle); const vy = Math.sin(angle);
+    within.forEach((i) => {
+      const dx = (i % w) - mx; const dy = ((i / w) | 0) - my;
+      const off = Math.abs(dx * -vy + dy * vx);
+      if (off <= ROD_HALF && col[i][0] >= ROD_RED) return;
+      hairSet.add(i);
+    });
   });
   hairSet.forEach((i) => { part[i] = PART.hair; });
   const headSet = new Set([...faceSet, ...hairSet]);
