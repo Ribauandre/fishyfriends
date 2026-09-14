@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/static/css/main.80be1fdd.css",
-    "main.js": "/static/js/main.dc1e9db1.js",
+    "main.js": "/static/js/main.93d7e14f.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/yellowperch.png": "/static/media/yellowperch.c8bb3f7f0164ff8d7c36.png",
     "static/media/bluegill.png": "/static/media/bluegill.b298cc951941b81167b7.png",
@@ -21,17 +21,17 @@
     "static/media/mahimahi.png": "/static/media/mahimahi.a716f25d08930a383c9d.png",
     "static/media/salmon.png": "/static/media/salmon.b62153970530e31e535c.png",
     "static/media/stripedbass.png": "/static/media/stripedbass.38624bde52753be409d6.png",
-    "static/media/celebrate.png": "/static/media/celebrate.0a91470b2d1d32fe03bd.png",
+    "static/media/celebrate.png": "/static/media/celebrate.58154dc1e200febe40f8.png",
     "static/media/largemouth.png": "/static/media/largemouth.2ed8ca3a3fee82925e1b.png",
     "static/media/shark.png": "/static/media/shark.016101da65007edfbf3b.png",
     "static/media/map.webp": "/static/media/map.ac6a1cb539dddfdb94f3.webp",
     "static/media/pike.png": "/static/media/pike.fec7a5b2f35d14406730.png",
-    "static/media/idle.png": "/static/media/idle.41fc8b60db673ff0a728.png",
+    "static/media/idle.png": "/static/media/idle.3482b0817e707c52dfe9.png",
     "static/media/catfish.png": "/static/media/catfish.59f10455299303c293e1.png",
     "static/media/tuna.png": "/static/media/tuna.22529b646fe532b394bb.png",
-    "static/media/walk.png": "/static/media/walk.7e0992098315f9e3b3a1.png",
+    "static/media/walk.png": "/static/media/walk.f1bc619f9f41194bf590.png",
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
-    "static/media/cast.png": "/static/media/cast.e1b56870d6491a6bf748.png",
+    "static/media/cast.png": "/static/media/cast.37dc35a0468bafe263a9.png",
     "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
     "static/media/mountainlake.webp": "/static/media/mountainlake.1174425a080435a0e5f4.webp",
     "static/media/swamp.webp": "/static/media/swamp.d7339f8bf407ddba1099.webp",
@@ -78,11 +78,11 @@
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
     "main.80be1fdd.css.map": "/static/css/main.80be1fdd.css.map",
-    "main.dc1e9db1.js.map": "/static/js/main.dc1e9db1.js.map",
+    "main.93d7e14f.js.map": "/static/js/main.93d7e14f.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.80be1fdd.css",
-    "static/js/main.dc1e9db1.js"
+    "static/js/main.93d7e14f.js"
   ]
 }
