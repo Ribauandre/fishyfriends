@@ -106,6 +106,13 @@ const touches = (g, w, h, test) => g.some((i) => { const x = i % w; const y = (i
 // One frame: `fam` is the family of every lit pixel, `on` whether it is lit.
 function maskFrame(fam, col, w, h, on, label) {
   const part = new Uint8Array(w * h);
+  const probe = (() => {
+    if (!process.env.PROBE_PX) return () => {};
+    const [a, f, x, y] = process.env.PROBE_PX.split(',');
+    if (label !== `${a}[${f}]`) return () => {};
+    const i = Number(y) * w + Number(x);
+    return (stage) => console.log(`    probe ${label} (${x},${y}) fam ${fam[i]} col ${col[i]} after ${stage}: ${NAME[part[i]] || 'none'}`);
+  })();
   const is = (f) => (i) => on[i] && fam[i] === f;
   const teeth = new Set();
 
@@ -208,6 +215,7 @@ function maskFrame(fam, col, w, h, on, label) {
   skins.forEach((g) => { if (g !== face && midY(g) > jeansMid && nearJeans(g)) g.forEach((i) => { part[i] = PART.boots; }); });
 
   for (let i = 0; i < w * h; i += 1) if (on[i] && fam[i] === 'key') part[i] = PART.outline;
+  probe('families and position');
 
   // Skin is his face, his hands and arms, the neck under his chin, and nothing else. The lit
   // edge of a vest pocket, the toe of a boot and the buckle of his belt are all a tan that reads
@@ -221,6 +229,10 @@ function maskFrame(fam, col, w, h, on, label) {
     pieces.forEach((g) => {
       if (big.has(g[0])) return;
       const b = boxOf(g, w);
+      // A small piece of skin on the head — between two strands of beard, the lobe of his ear
+      // — is skin, whatever surrounds it; absorbed into the beard it stayed orange under a
+      // deep tone. The pocket flaps under his chin are further down than this.
+      if (b.x0 >= fb.x0 - 10 && b.x1 <= fb.x1 + 10 && b.y0 >= fb.y0 - 10 && b.y1 <= fb.y1 + 10) return;
       const votes = new Map();
       g.forEach((i) => { const x = i % w; const y = (i / w) | 0; for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue; const q = part[ny * w + nx]; if (on[ny * w + nx] && q && q !== PART.skin && q !== PART.outline) votes.set(q, (votes.get(q) || 0) + 1); } });
       const to = votes.size ? [...votes].sort((a, b) => b[1] - a[1])[0][0] : 0;
@@ -234,27 +246,35 @@ function maskFrame(fam, col, w, h, on, label) {
     });
   }
 
-  // The softened ring between two blocks snaps to one side or the other, and now and then to a
-  // third colour altogether — a pixel of olive between orange and black. A fleck that small of
-  // a part it is not takes the label most of its neighbours carry.
-  const ISLAND = 6;
-  const seen = new Uint8Array(w * h);
-  for (let s = 0; s < w * h; s += 1) {
-    if (seen[s] || !on[s] || !part[s]) continue;
-    const label = part[s]; const run = [s]; const piece = []; seen[s] = 1;
-    while (run.length && piece.length <= ISLAND) {
-      const i = run.pop(); piece.push(i);
-      const x = i % w; const y = (i / w) | 0;
-      FOUR.forEach(([ox, oy]) => { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) return; const n = ny * w + nx; if (seen[n] || !on[n] || part[n] !== label) return; seen[n] = 1; run.push(n); });
+  probe('skin cleanup');
+  // The softened ring round his skin — where a hand meets its line, where the cheek meets the
+  // beard — is skin darkened, and reads as brown, so it was hair or rod and a skin tone left it
+  // as an orange rim round a deep face. A brown pixel against skin is skin if its *chroma* is
+  // skin's: normalise by red and the blend of skin and black keeps skin's proportions of green
+  // and blue (0.56, 0.28 for the shadow shade) where the beard's are lower (0.47, 0.20). Two
+  // passes, since the ring is two pixels deep.
+  {
+    const chroma = (c) => [c[1] / Math.max(1, c[0]), c[2] / Math.max(1, c[0])];
+    const skinC = common.filter((e) => e.f === 'skin').map((e) => chroma(e.c));
+    // ...against the browns that are actually brown: the tan tops of his boots are in the brown
+    // family too, and their chroma is skin's.
+    const brownC = common.filter((e) => e.f === 'brown').map((e) => chroma(e.c)).filter(([g]) => g < 0.6);
+    const nearest = (cc, list) => Math.min(...list.map(([g, b]) => Math.abs(g - cc[0]) + Math.abs(b - cc[1])));
+    for (let pass = 0; pass < 2; pass += 1) {
+      const take = [];
+      for (let i = 0; i < w * h; i += 1) {
+        if (!on[i] || (fam[i] !== 'brown' && fam[i] !== 'other')) continue;
+        if (part[i] !== PART.hair && part[i] !== PART.rod && part[i] !== 0) continue;
+        const x = i % w; const y = (i / w) | 0;
+        const againstSkin = FOUR.some(([ox, oy]) => { const nx = x + ox; const ny = y + oy; return nx >= 0 && ny >= 0 && nx < w && ny < h && part[ny * w + nx] === PART.skin; });
+        if (!againstSkin) continue;
+        const cc = chroma(col[i]);
+        if (nearest(cc, skinC) < nearest(cc, brownC)) take.push(i);
+      }
+      take.forEach((i) => { part[i] = PART.skin; });
     }
-    if (piece.length > ISLAND || run.length) continue;
-    const votes = new Map();
-    piece.forEach((i) => { const x = i % w; const y = (i / w) | 0; FOUR.forEach(([ox, oy]) => { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) return; const n = ny * w + nx; if (on[n] && part[n] !== label && part[n] !== PART.outline) votes.set(part[n], (votes.get(part[n]) || 0) + 1); }); });
-    // A fleck with nothing round it but the line is in the line, and is never dyed.
-    const to = votes.size ? [...votes].sort((a, b) => b[1] - a[1])[0][0] : PART.outline;
-    piece.forEach((i) => { part[i] = to; });
   }
-
+  probe('skin ring');
   // What is left in no part and is thin — the softened ring between a block and the line, or
   // between two blocks of different parts, which is a colour that is neither — takes the label
   // of what it lies against. Only the thin: the reel and a held fish are in no part and stay so,
@@ -279,6 +299,37 @@ function maskFrame(fam, col, w, h, on, label) {
     });
   }
 
+  probe('thin rings');
+  // The softened ring between two blocks snaps to one side or the other, and now and then to a
+  // third colour altogether — a pixel of olive between orange and black. A fleck that small of
+  // a part it is not takes the label most of its neighbours carry.
+  const ISLAND = 6;
+  const seen = new Uint8Array(w * h);
+  for (let s = 0; s < w * h; s += 1) {
+    if (seen[s] || !on[s] || !part[s]) continue;
+    const label = part[s]; const run = [s]; const piece = []; seen[s] = 1;
+    while (run.length && piece.length <= ISLAND) {
+      const i = run.pop(); piece.push(i);
+      const x = i % w; const y = (i / w) | 0;
+      // Eight-connected: the staircase where the beard meets the cheek joins skin to skin by
+      // the diagonal, and read four-connected those steps were islands, absorbed into the
+      // beard, and stayed orange under a deep tone.
+      for (let oy = -1; oy <= 1; oy += 1) for (let ox = -1; ox <= 1; ox += 1) { const nx = x + ox; const ny = y + oy; if ((!ox && !oy) || nx < 0 || ny < 0 || nx >= w || ny >= h) continue; const n = ny * w + nx; if (seen[n] || !on[n] || part[n] !== label) continue; seen[n] = 1; run.push(n); }
+    }
+    if (piece.length > ISLAND || run.length) continue;
+    // Skin on the head is skin however little of it shows — a sliver beside an eyebrow, absorbed
+    // into the brow, stayed orange under a deep tone.
+    if (label === PART.skin && piece.every((i) => { const x = i % w; const y = (i / w) | 0; return x >= fb.x0 - 10 && x <= fb.x1 + 10 && y >= fb.y0 - 10 && y <= fb.y1 + 10; })) continue;
+    const votes = new Map();
+    piece.forEach((i) => { const x = i % w; const y = (i / w) | 0; FOUR.forEach(([ox, oy]) => { const nx = x + ox; const ny = y + oy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) return; const n = ny * w + nx; if (on[n] && part[n] !== label && part[n] !== PART.outline) votes.set(part[n], (votes.get(part[n]) || 0) + 1); }); });
+    // A fleck with nothing labelled round it yet is left as it is — it used to be made outline,
+    // and a pixel of his cheek ringed by not-yet-settled pixels came out undyed under every tone.
+    if (!votes.size) continue;
+    const to = [...votes].sort((a, b) => b[1] - a[1])[0][0];
+    piece.forEach((i) => { part[i] = to; });
+  }
+
+  probe('islands');
   if (process.env.PROBE) console.log(`  ${label}: face x${fb.x0}-${fb.x1} y${fb.y0}-${fb.y1}, hair ${hairSet.size}px, jeans hem ${Math.max(...hem)}`);
   return part;
 }
