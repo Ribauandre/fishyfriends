@@ -4,7 +4,7 @@ import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
 import { OFFSHORE_CHARTER_COST, BIOMES } from '../utils/gameBiomes';
-import { isNewRecord, speciesLabel, sizeLabel } from '../utils/gameSpecies';
+import { isNewRecord, speciesLabel, sizeLabel, rarityOf } from '../utils/gameSpecies';
 import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
 import { rankDerby, previousDerby } from '../utils/gameDerby';
 import { LURES, FLY_ROD } from '../utils/gameLures';
@@ -498,13 +498,27 @@ export function AuthProvider({ children }) {
     return fallback;
   }
 
-  async function listMyGameCatches(limit = 50) {
+  // The trophy case hangs one fish per species — the biggest you've landed — and that is
+  // what game_profiles.records already names, catch_id by species, so the wall is those rows
+  // by id: one small query however long the catch log grows, instead of the last fifty catches.
+  // The log itself keeps every catch, because the weekly derby (this week's biggest, whether
+  // or not it beat your all-time best) and the legendary feed are read off it. A record whose
+  // row never came back from its insert still hangs, off the record alone.
+  async function listMyTrophies(records = {}) {
     if (!isSupabaseConfigured || !user) return [];
-    const { data } = await supabase.from('game_catches').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
-    return data || [];
+    const entries = Object.entries(records || {}).filter(([, record]) => record && typeof record === 'object');
+    const ids = entries.map(([, record]) => record.catch_id).filter(Boolean);
+    const { data } = ids.length ? await supabase.from('game_catches').select('*').eq('user_id', user.id).in('id', ids) : { data: [] };
+    const rowById = new Map((data || []).map((row) => [row.id, row]));
+    return entries
+      .map(([species, record]) => rowById.get(record.catch_id) || {
+        id: `record-${species}`, species, rarity: rarityOf(species), size_in: Number(record.size_in) || 0,
+        size_label: sizeLabel(Number(record.size_in) || 0), points_earned: null, created_at: record.at || null,
+      })
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
   }
 
-  // Logs a trophy-case entry and credits its points to the tackle balance, then rolls the
+  // Logs the catch and credits its points to the tackle balance, then rolls the
   // catch into the almanac (a new species or a bigger one than before is a record) and every
   // open NPC quest, all in the same profile write. Purely a fun side game — this never
   // touches fish_year_catches or tournament_entries.
@@ -877,7 +891,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
-    getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
+    getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;

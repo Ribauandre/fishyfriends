@@ -549,6 +549,30 @@ describe('Cast & Catch world', () => {
     expect(response.completedQuests).toEqual(['sals_wall']);
   });
 
+  test('listMyTrophies reads the record catch of each species by id, and hangs a record whose row is missing off the record itself', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_catches', { data: [
+      { id: 'gc-2', species: 'walleye', rarity: 'uncommon', size_in: 22, size_label: '22.0 in', points_earned: 12, created_at: '2026-06-02T00:00:00Z' },
+      { id: 'gc-1', species: 'largemouth', rarity: 'common', size_in: 17.5, size_label: '17.5 in', points_earned: 6, created_at: '2026-06-01T00:00:00Z' },
+    ], error: null });
+    const trophies = await result.current.listMyTrophies({
+      largemouth: { size_in: 17.5, catch_id: 'gc-1', at: '2026-06-01T00:00:00Z' },
+      walleye: { size_in: 22, catch_id: 'gc-2', at: '2026-06-02T00:00:00Z' },
+      shark: { size_in: 61, catch_id: null, at: '2026-06-03T00:00:00Z' },
+    });
+    expect(builderFor('game_catches').in).toHaveBeenCalledWith('id', ['gc-1', 'gc-2']);
+    expect(builderFor('game_catches').eq).toHaveBeenCalledWith('user_id', 'user-1');
+    expect(trophies.map((row) => row.id)).toEqual(['record-shark', 'gc-2', 'gc-1']);
+    expect(trophies[0]).toEqual(expect.objectContaining({ species: 'shark', rarity: 'legendary', size_label: '61.0 in', points_earned: null }));
+  });
+
+  test('listMyTrophies makes no query when there are no records yet', async () => {
+    const result = await setupSignedIn();
+    __mock.current.from.mockClear();
+    expect(await result.current.listMyTrophies({})).toEqual([]);
+    expect(__mock.current.from).not.toHaveBeenCalledWith('game_catches');
+  });
+
   test('claimQuestReward pays once and refuses an unfinished or already-claimed quest', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, quests: { sals_wall: { progress: 1, done: true, claimed: false } } }, error: null });
