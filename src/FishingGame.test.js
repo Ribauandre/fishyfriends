@@ -28,7 +28,7 @@ function makeBaseAuth(overrides = {}) {
     profile: { display_name: 'Andre', avatar_url: '' },
     personalBests: [],
     getGameProfile: jest.fn().mockResolvedValue(makeGameProfile()),
-    listMyGameCatches: jest.fn().mockResolvedValue([]),
+    listMyTrophies: jest.fn().mockResolvedValue([]),
     logGameCatch: jest.fn().mockResolvedValue({
       error: null,
       catchEntry: { id: 'gc-1', species: 'trout', rarity: 'common', size_label: '8.0 in', points_earned: 5 },
@@ -80,7 +80,7 @@ test('shows a loading state, then one game frame with the shop and trophy case a
   expect(screen.queryByRole('dialog')).toBeNull();
 
   await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
-  expect(screen.getByRole('dialog', { name: /real bests and game catches/i })).toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: /real bests and game bests/i })).toBeInTheDocument();
   expect(screen.getByText(/nothing on the wall yet/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /close real bests/i }));
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -471,7 +471,7 @@ test('the angler on the stage is the signed-in person', async () => {
 test('real personal bests hang in the trophy case, tagged apart from game catches', async () => {
   useAuth.mockReturnValue(makeBaseAuth({
     personalBests: [{ id: 'pb-1', species: 'Striped Bass', size_label: '34 in', photo_url: '' }],
-    listMyGameCatches: jest.fn().mockResolvedValue([{ id: 'gc-1', species: 'walleye', rarity: 'uncommon', size_label: '18.0 in', points_earned: 12 }]),
+    listMyTrophies: jest.fn().mockResolvedValue([{ id: 'gc-1', species: 'walleye', rarity: 'uncommon', size_label: '18.0 in', points_earned: 12 }]),
   }));
   render(<FishingGame clock={NOON} />);
   await act(async () => { await Promise.resolve(); });
@@ -503,7 +503,7 @@ test('the shop owner reacts to a purchase and the captain pitches the charter', 
 
 test('renders past catches in the trophy case', async () => {
   useAuth.mockReturnValue(makeBaseAuth({
-    listMyGameCatches: jest.fn().mockResolvedValue([
+    listMyTrophies: jest.fn().mockResolvedValue([
       { id: 'gc-1', species: 'shark', rarity: 'legendary', size_label: '50.0 in', points_earned: 150 },
     ]),
   }));
@@ -594,6 +594,56 @@ test('landing your biggest of a species is called out as a record', async () => 
   expect(await screen.findByText('NEW RECORD')).toBeInTheDocument();
   expect(logGameCatch).toHaveBeenCalledWith(expect.objectContaining({ sizeIn: expect.any(Number), biome: 'river' }));
   expect(screen.getByText(/your biggest yet/i)).toBeInTheDocument();
+});
+
+test('a record takes its species\' hook on the trophy wall; a smaller catch leaves the wall alone', async () => {
+  const wall = [{ id: 'gc-old', species: 'trout', rarity: 'common', size_label: '9.0 in', points_earned: 5, created_at: '2026-06-01T00:00:00Z' }];
+  const land = async (logGameCatch) => {
+    useAuth.mockReturnValue(makeBaseAuth({ logGameCatch, listMyTrophies: jest.fn().mockResolvedValue(wall) }));
+    render(<FishingGame clock={NOON} />);
+    await act(async () => { await Promise.resolve(); });
+    await reachWaiting();
+    await advance(4000);
+    await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+    stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+    await advance(80);
+    expect(await screen.findByText(/landed!/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  };
+
+  await land(jest.fn().mockResolvedValue({
+    error: null, isRecord: true, completedQuests: [],
+    catchEntry: { id: 'gc-new', species: 'trout', rarity: 'common', size_label: '14.0 in', points_earned: 5 },
+    gameProfile: makeGameProfile({ records: { trout: { size_in: 14, catch_id: 'gc-new' } } }),
+  }));
+  expect(document.querySelectorAll('.trophy-card:not(.is-real)')).toHaveLength(1);
+  expect(screen.getByText(/14\.0 in · \+5 pts/)).toBeInTheDocument();
+  expect(screen.queryByText(/9\.0 in/)).toBeNull();
+});
+
+test('a catch smaller than the record is logged but does not hang on the wall', async () => {
+  const wall = [{ id: 'gc-old', species: 'trout', rarity: 'common', size_label: '9.0 in', points_earned: 5, created_at: '2026-06-01T00:00:00Z' }];
+  const logGameCatch = jest.fn().mockResolvedValue({
+    error: null, isRecord: false, completedQuests: [],
+    catchEntry: { id: 'gc-small', species: 'trout', rarity: 'common', size_label: '7.0 in', points_earned: 5 },
+    gameProfile: makeGameProfile({ records: { trout: { size_in: 9, catch_id: 'gc-old' } } }),
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ logGameCatch, listMyTrophies: jest.fn().mockResolvedValue(wall) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await reachWaiting();
+  await advance(4000);
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+  await advance(80);
+  expect(await screen.findByText(/landed!/i)).toBeInTheDocument();
+  expect(logGameCatch).toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Back to the dock' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(document.querySelectorAll('.trophy-card:not(.is-real)')).toHaveLength(1);
+  expect(screen.getByText(/9\.0 in · \+5 pts/)).toBeInTheDocument();
+  expect(screen.queryByText(/7\.0 in/)).toBeNull();
 });
 
 test('the trophy case opens on this week\'s derby board', async () => {

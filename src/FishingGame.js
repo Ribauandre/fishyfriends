@@ -44,12 +44,13 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 // leaving the screen. `clock` is injectable so the harness and tests can pick the hour.
 export default function FishingGame({ clock = () => new Date() }) {
   const {
-    profile, personalBests = [], getGameProfile, listMyGameCatches, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
+    profile, personalBests = [], getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin, purchaseApparel, saveLook,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
-  const [catches, setCatches] = useState([]);
+  // One card per species on the trophy wall: the biggest landed, per game_profiles.records.
+  const [trophies, setTrophies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState('ready');
   const [overlay, setOverlay] = useState(null);
@@ -93,10 +94,12 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   useEffect(() => {
     let active = true;
-    Promise.all([getGameProfile(), listMyGameCatches(), listFishYearBounties ? listFishYearBounties() : []]).then(([profileData, catchData, bountyData]) => {
+    const profilePromise = getGameProfile();
+    const trophiesPromise = profilePromise.then((profileData) => listMyTrophies(profileData?.records || {}));
+    Promise.all([profilePromise, trophiesPromise, listFishYearBounties ? listFishYearBounties() : []]).then(([profileData, trophyData, bountyData]) => {
       if (!active) return;
       setGameProfile({ ...DEFAULT_GAME_PROFILE, ...(profileData || {}) });
-      setCatches(catchData);
+      setTrophies(trophyData || []);
       setBounties(bountyData || []);
       setLoading(false);
       // Last week's board is final now — if you topped it, the pennant is yours this week.
@@ -494,7 +497,11 @@ export default function FishingGame({ clock = () => new Date() }) {
     let completedQuests = [];
     if (!response?.error) {
       if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
-      if (response.catchEntry) setCatches((previous) => [response.catchEntry, ...previous]);
+      // Only a record changes the wall: it takes that species' hook. Anything smaller is
+      // logged for the derby and the points, but the trophy stays the bigger one.
+      if (response.catchEntry && response.isRecord) {
+        setTrophies((previous) => [response.catchEntry, ...previous.filter((row) => row.species !== response.catchEntry.species)]);
+      }
       isRecord = Boolean(response.isRecord);
       completedQuests = response.completedQuests || [];
     }
@@ -958,7 +965,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         })}
       </GameOverlay>}
 
-      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game catches" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
+      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game bests" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
         <section className="derby-board" aria-label="Club derby">
           <div className="derby-head">
             <img src={DERBY_FLAG} alt="" />
@@ -990,18 +997,18 @@ export default function FishingGame({ clock = () => new Date() }) {
             })}
           </ul>
         </section>}
-        {catches.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
+        {trophies.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
             {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}
             <span className="rarity-tag is-real">Real PB</span>
             <strong>{entry.species}</strong>
             <span>{entry.sizeLabel || 'Logged for real'}</span>
           </div>)}
-          {catches.map((entry) => <div className="trophy-card" key={entry.id}>
+          {trophies.map((entry) => <div className="trophy-card" key={entry.id}>
             <FishIllustration species={entry.species} />
             <span className="rarity-tag" style={{ background: RARITY_INFO[entry.rarity]?.color, color: RARITY_INFO[entry.rarity]?.text }}>{RARITY_INFO[entry.rarity]?.label || entry.rarity}</span>
             <strong>{speciesLabel(entry.species)}</strong>
-            <span>{entry.size_label} · +{entry.points_earned} pts</span>
+            <span>{entry.size_label}{entry.points_earned == null ? '' : ` · +${entry.points_earned} pts`}</span>
           </div>)}
         </div>}
       </GameOverlay>}
