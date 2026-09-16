@@ -832,6 +832,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene-svg { display: block; height: 100%; inset: 0; overflow: visible; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: auto; }
 .game-scene .scene-fish { height: auto; position: absolute; transform: translate(-50%, -50%); transition: left .08s linear; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
+/* The shadow on the line: dark, soft, under the surface, tail working while the fight lasts,
+   flipped to face the way it is running. Interaction-driven — it only exists mid-fight. */
+.game-scene .scene-shadow { filter: blur(.8px); opacity: .62; }
+.game-scene .scene-shadow img { animation: shadow-swim .55s ease-in-out infinite alternate; display: block; height: auto; transform-origin: 30% 50%; width: 100%; }
+.game-scene .scene-shadow.is-left img { animation-name: shadow-swim-left; }
+@keyframes shadow-swim { from { transform: skewX(-6deg) scaleY(.96); } to { transform: skewX(6deg) scaleY(1.03); } }
+@keyframes shadow-swim-left { from { transform: scaleX(-1) skewX(-6deg) scaleY(.96); } to { transform: scaleX(-1) skewX(6deg) scaleY(1.03); } }
 /* The landed fish: centre stage, its width set by its size within its species (GameScene),
    with a plaque under it. One hard shadow, not a glow — two filters on a big sticker was a
    visible hitch on a phone right when the catch landed. */

@@ -1,4 +1,7 @@
-import { stepReel } from './reelPhysics';
+import { stepReel, INITIAL_REEL_STATE, MAX_FISH_VEL, RUN_CHANCE } from './reelPhysics';
+
+// A random source that returns the given values in order (and the last one forever after).
+const sequence = (...values) => { let i = 0; return () => values[Math.min(i++, values.length - 1)]; };
 
 const BASE_PARAMS = { fishSpeed: 1, drainRate: 1, zoneWidth: 20 };
 
@@ -53,6 +56,35 @@ describe('stepReel', () => {
     expect(atFloor.zonePos).toBe(0);
     const atCeiling = stepReel({ fishPos: 50, fishVel: 0, zonePos: 99, progress: 0, tension: 0 }, { ...BASE_PARAMS, holding: true });
     expect(atCeiling.zonePos).toBe(100);
+  });
+
+  test('a hooked fish bolts: a run is a burst the zone cannot follow, held for several ticks', () => {
+    // First roll starts the run (below the chance), second picks the direction (left), the
+    // rest set its length and strength.
+    jest.spyOn(Math, 'random').mockImplementation(sequence(0.01, 0.2, 0.5, 0.5, 0.5));
+    const bolt = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: true });
+    expect(bolt.run).toBeGreaterThanOrEqual(3);
+    expect(bolt.fishVel).toBeLessThan(-4);
+    expect(Math.abs(bolt.fishVel)).toBeGreaterThan(5.5); // faster than the zone's 5.5 pull
+    // The run carries on without a new roll going its way, and closes on its own speed.
+    Math.random.mockImplementation(() => 0.5);
+    const next = stepReel(bolt, { ...BASE_PARAMS, holding: true });
+    expect(next.run).toBe(bolt.run - 1);
+    expect(next.fishVel).toBeLessThan(bolt.fishVel);
+    expect(next.fishPos).toBeLessThan(bolt.fishPos);
+    expect(Math.abs(next.fishVel)).toBeLessThanOrEqual(MAX_FISH_VEL);
+  });
+
+  test('a faster fish runs more often and jinks back on itself', () => {
+    // Just under the common fish's run chance: a common fish drifts, a legendary bolts.
+    jest.spyOn(Math, 'random').mockImplementation(sequence(RUN_CHANCE * 1.5, 0.9, 0.5, 0.5, 0.5));
+    expect(stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, fishSpeed: 1, holding: true }).run).toBe(0);
+    Math.random.mockImplementation(sequence(RUN_CHANCE * 1.5, 0.9, 0.5, 0.5, 0.5));
+    expect(stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, fishSpeed: 2.5, holding: true }).run).toBeGreaterThan(0);
+    // No run; a wander to the right, then a jink roll under the chance flips it hard left.
+    Math.random.mockImplementation(sequence(0.9, 1, 0.001));
+    const jink = stepReel({ ...INITIAL_REEL_STATE, fishVel: 2 }, { ...BASE_PARAMS, fishSpeed: 1, holding: true });
+    expect(jink.fishVel).toBeLessThan(-2);
   });
 
   test('bounces the fish back into range instead of letting it run past the edges', () => {
