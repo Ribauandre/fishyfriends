@@ -25,6 +25,26 @@ import yellowperch from '../assets/fish/yellowperch.png';
 import weakfish from '../assets/fish/weakfish.png';
 import chainpickerel from '../assets/fish/chainpickerel.png';
 import swordfish from '../assets/fish/swordfish.png';
+import muskie from '../assets/fish/muskie.png';
+import americanshad from '../assets/fish/americanshad.png';
+import arcticchar from '../assets/fish/arcticchar.png';
+import crappie from '../assets/fish/crappie.png';
+import bowfin from '../assets/fish/bowfin.png';
+import longnosegar from '../assets/fish/longnosegar.png';
+import alligatorgar from '../assets/fish/alligatorgar.png';
+import porgy from '../assets/fish/porgy.png';
+import blackdrum from '../assets/fish/blackdrum.png';
+import cobia from '../assets/fish/cobia.png';
+import wahoo from '../assets/fish/wahoo.png';
+import bluemarlin from '../assets/fish/bluemarlin.png';
+import bonefish from '../assets/fish/bonefish.png';
+import permit from '../assets/fish/permit.png';
+import tarpon from '../assets/fish/tarpon.png';
+import snook from '../assets/fish/snook.png';
+import redfish from '../assets/fish/redfish.png';
+import barracuda from '../assets/fish/barracuda.png';
+import jackcrevalle from '../assets/fish/jackcrevalle.png';
+import mangrovesnapper from '../assets/fish/mangrovesnapper.png';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -58,6 +78,26 @@ const fishDetails = {
   weakfish: { label: 'Weakfish', src: weakfish },
   chainpickerel: { label: 'Chain pickerel', src: chainpickerel },
   swordfish: { label: 'Swordfish', src: swordfish },
+  muskie: { label: 'Muskellunge', src: muskie },
+  americanshad: { label: 'American shad', src: americanshad },
+  arcticchar: { label: 'Arctic char', src: arcticchar },
+  crappie: { label: 'Crappie', src: crappie },
+  bowfin: { label: 'Bowfin', src: bowfin },
+  longnosegar: { label: 'Longnose gar', src: longnosegar },
+  alligatorgar: { label: 'Alligator gar', src: alligatorgar },
+  porgy: { label: 'Porgy', src: porgy },
+  blackdrum: { label: 'Black drum', src: blackdrum },
+  cobia: { label: 'Cobia', src: cobia },
+  wahoo: { label: 'Wahoo', src: wahoo },
+  bluemarlin: { label: 'Blue marlin', src: bluemarlin },
+  bonefish: { label: 'Bonefish', src: bonefish },
+  permit: { label: 'Permit', src: permit },
+  tarpon: { label: 'Tarpon', src: tarpon },
+  snook: { label: 'Snook', src: snook },
+  redfish: { label: 'Redfish', src: redfish },
+  barracuda: { label: 'Barracuda', src: barracuda },
+  jackcrevalle: { label: 'Jack crevalle', src: jackcrevalle },
+  mangrovesnapper: { label: 'Mangrove snapper', src: mangrovesnapper },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails);

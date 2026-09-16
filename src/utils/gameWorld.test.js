@@ -39,25 +39,41 @@ test('the first of a species is a record, and only a bigger one beats it', () =>
   expect(isNewRecord({ walleye: { size_in: '18.0' } }, 'walleye', 18.1)).toBe(true);
 });
 
-test('the canyon is the only locked ground, costs more, and is the only swordfish water', () => {
+test('the canyon and the flats are the locked grounds, each dearer than the last, and each the only water for its fish', () => {
   expect(biomeUnlocked('canyon', {})).toBe(false);
   expect(biomeUnlocked('canyon', { rays_proving: { done: true } })).toBe(true);
+  expect(biomeUnlocked('flats', { rays_proving: { done: true } })).toBe(false);
+  expect(biomeUnlocked('flats', { rays_southern_run: { done: true } })).toBe(true);
+  expect(Object.values(BIOMES).filter((biome) => biome.requiresQuest).map((biome) => biome.key)).toEqual(['canyon', 'flats']);
   expect(BIOMES.canyon.charterCost).toBe(CANYON_CHARTER_COST);
   expect(BIOMES.canyon.charterCost).toBeGreaterThan(BIOMES.offshore.charterCost);
-  const swordfishWaters = Object.values(BIOMES).filter((biome) => biome.species.includes('swordfish')).map((biome) => biome.key);
-  expect(swordfishWaters).toEqual(['canyon']);
+  expect(BIOMES.flats.charterCost).toBeGreaterThan(BIOMES.canyon.charterCost);
+  const watersFor = (species) => Object.values(BIOMES).filter((biome) => biome.species.includes(species)).map((biome) => biome.key);
+  expect(watersFor('swordfish')).toEqual(['canyon']);
+  expect(watersFor('bluemarlin')).toEqual(['canyon']);
+  ['tarpon', 'permit', 'bonefish'].forEach((species) => expect(watersFor(species)).toEqual(['flats']));
+  // Every species on every ground has a fixed rarity and a size range of its own.
+  const all = new Set(Object.values(BIOMES).flatMap((biome) => biome.species));
+  expect(all.size).toBe(46);
+  all.forEach((species) => { expect(SPECIES_SIZE[species]).toBeDefined(); expect(rarityOf(species)).toBeDefined(); });
 });
 
-test('the fly box only opens on trout water, and only with the fly rod', () => {
-  expect(FLIES.map((fly) => fly.key)).toEqual(['dryfly', 'nymph', 'streamer']);
+test('the fly box only opens on fly water, only with the fly rod, and holds the flies for that water', () => {
+  expect(FLIES.map((fly) => fly.key)).toEqual(['dryfly', 'nymph', 'streamer', 'shrimpfly']);
   expect(FLY_ROD.cost).toBeGreaterThan(0);
-  expect(BIOMES.river.flyWater).toBe(true);
-  expect(BIOMES.mountainlake.flyWater).toBe(true);
+  expect(BIOMES.river.flyWater).toBe('fresh');
+  expect(BIOMES.mountainlake.flyWater).toBe('fresh');
+  expect(BIOMES.flats.flyWater).toBe('salt');
   expect(BIOMES.bay.flyWater).toBeUndefined();
   expect(luresFor('river', { fly_rod: false }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait']);
   expect(luresFor('river', { fly_rod: true }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait', 'dryfly', 'nymph', 'streamer']);
+  // The salt box: the shrimp fly on the flats, and none of the trout flies.
+  expect(luresFor('flats', { fly_rod: true }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait', 'shrimpfly']);
   expect(luresFor('bay', { fly_rod: true }).map((lure) => lure.key)).toEqual(['livebait', 'jerkbait', 'crankbait']);
   expect(lureAllowedOn('dryfly', 'bay')).toBe(false);
+  expect(lureAllowedOn('dryfly', 'flats')).toBe(false);
+  expect(lureAllowedOn('shrimpfly', 'river')).toBe(false);
+  expect(lureAllowedOn('shrimpfly', 'flats')).toBe(true);
   expect(lureAllowedOn('dryfly', 'mountainlake')).toBe(true);
   expect(lureAllowedOn('crankbait', 'bay')).toBe(true);
   expect(isFly('nymph')).toBe(true);

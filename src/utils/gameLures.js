@@ -5,21 +5,23 @@
 // mastering rather than just a cosmetic choice. Live bait always scores 0.
 //
 // Flies are lures too, but they need the fly rod (bought once at Sal's, `fly_rod` on the
-// profile) and only come out on trout water (`flyWater` in utils/gameBiomes.js). Each fly
-// has a hatch — the hours it matches what the trout are eating — and the streamer favours
-// the big fish. Off-hatch a fly still works, just slower (see hatchMatch and the drift in
-// utils/lurePhysics.js).
+// profile) and only come out on fly water (`flyWater` in utils/gameBiomes.js), and each fly
+// is tied for one kind of it: the trout flies for 'fresh', the shrimp fly for the 'salt' of
+// the flats. Each fly has a hatch — the hours it matches what the fish are eating — and the
+// streamer and the shrimp favour the big fish. Off-hatch a fly still works, just slower (see
+// hatchMatch and the drift in utils/lurePhysics.js).
 import { BIOMES } from './gameBiomes';
 
-export const FLY_ROD = { key: 'flyrod', label: 'Fly rod', cost: 120, blurb: 'Opens the fly box: dry flies, nymphs and streamers on the river and the mountain lake. Cast to the rise, then mend the drift.' };
+export const FLY_ROD = { key: 'flyrod', label: 'Fly rod', cost: 120, blurb: 'Opens the fly box: dry flies, nymphs and streamers on the river and the mountain lake, and the shrimp fly on the flats. Cast to the rise, then mend the drift.' };
 
 export const LURES = {
   livebait: { key: 'livebait', label: 'Live bait', cost: 0, interaction: 'wait', blurb: 'Cast it out and wait it out. No bonus, no fuss.' },
   jerkbait: { key: 'jerkbait', label: 'Jerk bait', cost: 60, interaction: 'twitch', blurb: 'Twitch it on the beat — a clean rhythm draws bigger fish.' },
   crankbait: { key: 'crankbait', label: 'Crank bait', cost: 90, interaction: 'crank', blurb: 'Hold to crank and keep the retrieve inside the strike zone.' },
-  dryfly: { key: 'dryfly', label: 'Dry fly', cost: 40, interaction: 'drift', rod: 'fly', hatch: ['dawn', 'dusk'], blurb: 'Rides the surface. Cast to the rise at dawn or dusk and mend to keep it drifting clean.' },
-  nymph: { key: 'nymph', label: 'Nymph', cost: 50, interaction: 'drift', rod: 'fly', hatch: ['day'], blurb: 'Drifts under the surface — trout eat these all day long.' },
-  streamer: { key: 'streamer', label: 'Streamer', cost: 70, interaction: 'drift', rod: 'fly', hatch: ['night'], favors: ['browntrout', 'laketrout'], blurb: 'Swim it after dark for the big browns and lakers.' },
+  dryfly: { key: 'dryfly', label: 'Dry fly', cost: 40, interaction: 'drift', rod: 'fly', water: 'fresh', hatch: ['dawn', 'dusk'], blurb: 'Rides the surface. Cast to the rise at dawn or dusk and mend to keep it drifting clean.' },
+  nymph: { key: 'nymph', label: 'Nymph', cost: 50, interaction: 'drift', rod: 'fly', water: 'fresh', hatch: ['day'], blurb: 'Drifts under the surface — trout eat these all day long.' },
+  streamer: { key: 'streamer', label: 'Streamer', cost: 70, interaction: 'drift', rod: 'fly', water: 'fresh', hatch: ['night'], favors: ['browntrout', 'laketrout'], blurb: 'Swim it after dark for the big browns and lakers.' },
+  shrimpfly: { key: 'shrimpfly', label: 'Shrimp fly', cost: 80, interaction: 'drift', rod: 'fly', water: 'salt', hatch: ['dawn', 'day', 'dusk'], favors: ['bonefish', 'permit'], blurb: 'Lead the fish on the flat and let the tide carry it — bonefish and permit eat these in daylight.' },
 };
 
 export const LURE_LIST = Object.values(LURES);
@@ -33,15 +35,16 @@ export function lureOwned(gameProfile, lureKey) {
 
 export function hasFlyRod(gameProfile) { return Boolean(gameProfile?.fly_rod); }
 
-// Whether a lure can even be tied on here: flies need fly water; everything else goes anywhere.
+// Whether a lure can even be tied on here: a fly needs its own kind of fly water (a nymph is
+// no use on the flats, a shrimp no use on the river); everything else goes anywhere.
 export function lureAllowedOn(lureKey, biome) {
-  return !isFly(lureKey) || Boolean(BIOMES[biome]?.flyWater);
+  return !isFly(lureKey) || BIOMES[biome]?.flyWater === LURES[lureKey].water;
 }
 
 // The chips the dock shows for this ground: the conventional lures always, the fly box only on
-// fly water and only once the fly rod is owned.
+// fly water — the box for that water — and only once the fly rod is owned.
 export function luresFor(biome, gameProfile) {
-  return LURE_LIST.filter((lure) => !isFly(lure.key) || (BIOMES[biome]?.flyWater && hasFlyRod(gameProfile)));
+  return LURE_LIST.filter((lure) => !isFly(lure.key) || (lureAllowedOn(lure.key, biome) && hasFlyRod(gameProfile)));
 }
 
 // "Match the hatch": true when the fly suits the hour. Off-hatch it still catches, slower.

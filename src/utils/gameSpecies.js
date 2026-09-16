@@ -17,10 +17,12 @@ export const RARITY_INFO = {
 // fishSpeed: how erratically the fish darts around during reel-in.
 // drainRate: how fast line tension climbs while the fish is out of the zone.
 // points: [min, max] tackle points awarded on a landed catch.
-// epic/legendary are offshore-exclusive (see utils/gameBiomes.js), so a charter guarantees one
-// of these two on every attempt — hookWindowMs floors were raised for both so paying for a trip
-// doesn't mean facing a near-unreactable hookset window (the button only appears on the bite,
-// there's no chance to pre-position a click) on every single cast.
+// The charter grounds hold nothing but epic/legendary species (see utils/gameBiomes.js), so a
+// charter guarantees one of these two on every attempt — hookWindowMs floors were raised for
+// both so paying for a trip doesn't mean facing a near-unreactable hookset window (the button
+// only appears on the bite, there's no chance to pre-position a click) on every single cast.
+// A couple of epics also lurk in free water (the alligator gar, the cobia) as the long shot
+// that keeps those grounds worth a cast late in the game.
 const RARITY_DIFFICULTY = {
   common: { spawnWeight: 46, hookWindowMs: 850, zoneWidth: 42, fishSpeed: 1.0, drainRate: 0.5, points: [4, 8] },
   uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, drainRate: 0.65, points: [10, 18] },
@@ -37,6 +39,11 @@ const SPECIES_LABELS = {
   stripedbass: 'Striped bass', bluefish: 'Bluefish', laketrout: 'Lake trout', rainbowtrout: 'Rainbow trout',
   tautog: 'Tautog', snakehead: 'Northern snakehead', salmon: 'Atlantic salmon', mahimahi: 'Mahi mahi',
   tuna: 'Tuna', shark: 'Shark', swordfish: 'Swordfish',
+  muskie: 'Muskellunge', americanshad: 'American shad', arcticchar: 'Arctic char', crappie: 'Crappie', bowfin: 'Bowfin',
+  longnosegar: 'Longnose gar', alligatorgar: 'Alligator gar', porgy: 'Porgy', blackdrum: 'Black drum', cobia: 'Cobia',
+  wahoo: 'Wahoo', bluemarlin: 'Blue marlin',
+  bonefish: 'Bonefish', permit: 'Permit', tarpon: 'Tarpon', snook: 'Snook', redfish: 'Redfish', barracuda: 'Barracuda',
+  jackcrevalle: 'Jack crevalle', mangrovesnapper: 'Mangrove snapper',
 };
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
@@ -52,13 +59,19 @@ const SPECIES_RARITY = {
   laketrout: 'rare', snakehead: 'rare', stripedbass: 'rare', salmon: 'rare',
   mahimahi: 'epic', tuna: 'epic',
   shark: 'legendary', swordfish: 'legendary',
+  // The second wave: more to find on every ground, and the flats down south.
+  americanshad: 'common', crappie: 'common', porgy: 'common', jackcrevalle: 'common', mangrovesnapper: 'common',
+  bowfin: 'uncommon', snook: 'uncommon', redfish: 'uncommon',
+  muskie: 'rare', arcticchar: 'rare', longnosegar: 'rare', blackdrum: 'rare', bonefish: 'rare', barracuda: 'rare',
+  alligatorgar: 'epic', cobia: 'epic', wahoo: 'epic', permit: 'epic',
+  bluemarlin: 'legendary', tarpon: 'legendary',
 };
 
 // Fish that feed after dark. At night the roll leans hard toward these within whatever tier
 // it lands on; at dawn and dusk a little; in full daylight it leans away from them. Which
 // tier you roll is still bait and rarity's business (see rollSpecies) — night changes what's
 // moving, not how hard it fights.
-export const NOCTURNAL = ['catfish', 'walleye', 'snakehead', 'stripedbass', 'weakfish', 'shark', 'swordfish'];
+export const NOCTURNAL = ['catfish', 'walleye', 'snakehead', 'stripedbass', 'weakfish', 'shark', 'swordfish', 'bowfin', 'blackdrum', 'snook', 'tarpon'];
 
 const PERIOD_NOCTURNAL_WEIGHT = { night: 3, dusk: 1.7, dawn: 1.7, day: 0.6 };
 
@@ -127,6 +140,10 @@ export const SPECIES_SIZE = {
   pike: [18, 44], walleye: [14, 30], brooktrout: [7, 20], browntrout: [10, 28], rainbowtrout: [10, 28],
   blackseabass: [10, 22], tautog: [12, 26], bluefish: [14, 34], laketrout: [18, 40], snakehead: [16, 34],
   stripedbass: [18, 48], salmon: [20, 42], mahimahi: [24, 54], tuna: [30, 80], shark: [40, 110], swordfish: [60, 140],
+  muskie: [28, 54], americanshad: [12, 24], arcticchar: [12, 30], crappie: [7, 17], bowfin: [14, 32], longnosegar: [24, 60],
+  alligatorgar: [48, 96], porgy: [8, 18], blackdrum: [16, 50], cobia: [30, 66], wahoo: [36, 80], bluemarlin: [90, 170],
+  bonefish: [16, 32], permit: [16, 40], tarpon: [40, 90], snook: [16, 44], redfish: [16, 48], barracuda: [20, 60],
+  jackcrevalle: [12, 36], mangrovesnapper: [8, 20],
 };
 
 export function rollSize(species, random = Math.random) {

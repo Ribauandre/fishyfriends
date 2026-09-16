@@ -762,7 +762,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
-          {(biome === 'offshore' || biome === 'canyon' || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result, period, quests, isRecord: result.isRecord })} compact />}
+          {(biomeConfig.charterCost > 0 || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result, period, quests, isRecord: result.isRecord })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </div>
@@ -876,7 +876,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <strong>{FLY_ROD.label}</strong>
               <p>{FLY_ROD.blurb}</p>
               {gameProfile.fly_rod
-                ? <span className="quest-progress">Owned · flies are on the dock at the river and the lake</span>
+                ? <span className="quest-progress">Owned · flies are on the dock at the river, the lake and the flats</span>
                 : <button type="button" className="button button-quiet" disabled={flyRodBusy} onClick={handleFlyRodPurchase}>Buy · {FLY_ROD.cost} pts</button>}
             </div>
           </section>

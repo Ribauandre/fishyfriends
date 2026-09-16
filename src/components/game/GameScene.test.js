@@ -109,6 +109,9 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('canyon'));
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
+  rerender(<GameScene biome="flats" phase="ready" displayName="Andre" period="day" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('flats'));
+  expect(container.querySelector('.scene-ambience')).toHaveAttribute('data-critter', 'seagull');
 });
 
 test('the stage is the tap surface for the current phase, and the meters sit where the action is', async () => {

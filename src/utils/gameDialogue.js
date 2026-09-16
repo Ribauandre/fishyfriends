@@ -30,11 +30,12 @@ export function shopkeeperLine({ gameProfile, event, personalBests = [], bountie
   if (event?.type === 'error') return `${event.message} Don't take it personal.`;
   if (event?.type === 'upgrade') return `That ${event.label.toLowerCase()} will treat you right. Anything else?`;
   if (event?.type === 'lure') return `Good eye. The ${event.label.toLowerCase()} takes practice, but it pulls the big ones.`;
-  if (event?.type === 'flyrod') return "A fly rod. Now you're an angler. The flies are on the dock at the river and the lake — match the hatch and mend that drift.";
+  if (event?.type === 'flyrod') return "A fly rod. Now you're an angler. The flies are on the dock at the river and the lake, and the shrimp fly's for the flats — match the hatch and mend that drift.";
   if (event?.type === 'quest') return `${event.points} points, as promised. She's going right over the counter.`;
   if (event?.type === 'bounty') return `${event.count === 1 ? 'One real fish' : `${event.count} real fish`} on the books — ${event.points} points. Keep logging them.`;
   const quests = gameProfile?.quests || {};
-  if (claimableQuests(quests).some((quest) => quest.giver === 'shopkeeper')) return "Is that my bass? Hand it over and I'll square up.";
+  const due = claimableQuests(quests).find((quest) => quest.giver === 'shopkeeper');
+  if (due) return due.key === 'sals_bull_red' ? "Is that my bull red? Hand it over and I'll square up." : "Is that my bass? Hand it over and I'll square up.";
   if (bounties.length > 0) return `Saw ${bounties.length === 1 ? 'that real catch' : `${bounties.length} real catches`} in your logbook. Bounty board's paying — cash it in.`;
   const points = gameProfile?.tackle_points || 0;
   const maxedOut = ['rod_level', 'line_level', 'reel_level', 'bait_level'].every((column) => (gameProfile?.[column] || 1) >= 5);
@@ -56,11 +57,19 @@ const BIOME_TIPS = {
 
 const NIGHT_TIPS = {
   river: 'Catfish and walleye come out after dark. Fish slow.',
-  swamp: 'Snakeheads hunt at night. So do the catfish.',
+  swamp: 'Snakeheads hunt at night. So do the catfish, and the bowfin under the moss.',
   bay: 'Night tide — the stripers are up on the flats.',
   shoreline: 'Big stripers hit the surf after dark.',
   offshore: "Sharks own the dark water. Hold on.",
   canyon: 'Swordfish come up from the deep at night. This is the hour.',
+  flats: 'Tarpon roll in the channel after dark. Big fly, big fish, hold on.',
+};
+
+// The flats by daylight, for anyone with the shrimp fly tied on.
+const FLATS_TIPS = {
+  dawn: "Tails up on the flat — bonefish. Lead them with the shrimp and let it sit.",
+  day: "Sun's high, you'll see them coming. Land the shrimp soft, they spook.",
+  dusk: 'Permit on the edge at dusk. Same shrimp, longer lead.',
 };
 
 // What's hatching, for anyone carrying the fly rod on trout water.
@@ -75,17 +84,31 @@ export function captainLine({ biome, chartered, charterError, phase, result, per
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
   if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
-  if (phase === 'result' && result?.success && (biome === 'offshore' || biome === 'canyon')) return `A ${speciesLabel(result.species).toLowerCase()}. That's why you charter.`;
-  if (phase === 'result' && result && !result.success && (biome === 'offshore' || biome === 'canyon')) return "Big water doesn't hand them over. We can go back out.";
+  const charter = (BIOMES[biome]?.charterCost || 0) > 0;
+  if (phase === 'result' && result?.success && charter) return `A ${speciesLabel(result.species).toLowerCase()}. That's why you charter.`;
+  if (phase === 'result' && result && !result.success && charter) return biome === 'flats' ? "Spooked it. Skinny water's like that. Pole on, there's more." : "Big water doesn't hand them over. We can go back out.";
   const proving = questState(quests, 'rays_proving');
+  const southern = questState(quests, 'rays_southern_run');
+  if (biome === 'flats') {
+    if (!chartered) return `${BIOMES.flats.charterCost} points and we trailer the skiff south. Skinny water, spooky fish, and nothing like it.`;
+    if (period === 'night') return NIGHT_TIPS.flats;
+    if (flyRod && lure === 'shrimpfly') return FLATS_TIPS[period] || FLATS_TIPS.day;
+    return "Pole's up. Bones on the flat, permit on the edge, tarpon in the channel. Cast soft — they spook.";
+  }
   if (biome === 'canyon') {
     if (!chartered) return `${BIOMES.canyon.charterCost} points and we run the shelf. Nobody else knows this spot.`;
-    return period === 'night' ? NIGHT_TIPS.canyon : "The drop-off's under us. Swordfish come up at night; daytime it's tuna and sharks.";
+    if (period === 'night') return NIGHT_TIPS.canyon;
+    if (!southern.done) {
+      const left = QUEST_BY_KEY.rays_southern_run.goal.count - southern.progress;
+      return `${left} more over the gunwale out here and I'll trailer the skiff south. There's a flat I know.`;
+    }
+    return "The drop-off's under us. Swordfish come up at night; daytime it's tuna, wahoo and sharks.";
   }
   if (biome === 'offshore') {
     if (!chartered) return `${BIOMES.offshore.charterCost} points gets you past the reef. Big water, big fish.`;
     if (period === 'night') return NIGHT_TIPS.offshore;
-    return "Welcome aboard. Tuna, mahi — maybe a shark, if you've got the nerve.";
+    if (southern.done && !questState(quests, 'flats_slam').done) return "The Flats are on the map. Bring the fly rod.";
+    return "Welcome aboard. Tuna, mahi, wahoo — maybe a shark, if you've got the nerve.";
   }
   if (biome === 'bay' && !proving.done) {
     const left = QUEST_BY_KEY.rays_proving.goal.count - proving.progress;

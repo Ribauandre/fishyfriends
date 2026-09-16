@@ -76,6 +76,21 @@ describe('the world talks back', () => {
     expect(captainLine({ biome: 'canyon', chartered: true, phase: 'ready', period: 'night' })).toMatch(/swordfish/i);
   });
 
+  test('the captain counts the southern run on the canyon and runs the flats on the shrimp fly', () => {
+    const opened = { rays_proving: { progress: 3, done: true }, rays_southern_run: { progress: 3, done: false } };
+    expect(captainLine({ biome: 'canyon', chartered: true, phase: 'ready', period: 'day', quests: opened })).toMatch(/2 more over the gunwale/i);
+    expect(captainLine({ biome: 'canyon', chartered: true, phase: 'ready', period: 'night', quests: opened })).toMatch(/swordfish/i);
+    const south = { ...opened, rays_southern_run: { progress: 5, done: true } };
+    expect(captainLine({ biome: 'canyon', chartered: true, phase: 'ready', period: 'day', quests: south })).toMatch(/wahoo/i);
+    expect(captainLine({ biome: 'offshore', chartered: true, phase: 'ready', period: 'day', quests: south })).toMatch(/flats are on the map/i);
+    expect(captainLine({ biome: 'flats', chartered: false, phase: 'ready' })).toMatch(/100 points/);
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'ready', period: 'day' })).toMatch(/pole's up/i);
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'ready', period: 'dawn', flyRod: true, lure: 'shrimpfly' })).toMatch(/bonefish/i);
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'ready', period: 'night' })).toMatch(/tarpon/i);
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'result', result: { success: true, species: 'permit' } })).toMatch(/a permit\. that's why you charter/i);
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'result', result: { success: false } })).toMatch(/spooked it/i);
+  });
+
   test('a record gets its own line wherever it happens', () => {
     expect(captainLine({ biome: 'river', chartered: false, phase: 'result', result: { success: true, species: 'walleye' }, isRecord: true })).toMatch(/your biggest yet/i);
   });
@@ -90,6 +105,8 @@ describe('the world talks back', () => {
     const done = { ...profile, quests: { sals_wall: { progress: 1, done: true, claimed: false } } };
     expect(shopkeeperLine({ gameProfile: done, event: null })).toMatch(/is that my bass/i);
     expect(shopkeeperLine({ gameProfile: done, event: { type: 'quest', points: 75 } })).toMatch(/75 points, as promised/i);
+    const red = { ...profile, quests: { sals_bull_red: { progress: 1, done: true, claimed: false } } };
+    expect(shopkeeperLine({ gameProfile: red, event: null })).toMatch(/is that my bull red/i);
   });
 });
 
