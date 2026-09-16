@@ -6,6 +6,9 @@
 // from each landed catch (advanceQuests), then persisted by the same write that logs the
 // catch. Points rewards are turned in by hand with the giver (claimQuestReward in
 // AuthContext) so the moment happens in dialogue; unlock rewards are simply live once done.
+import { BIOMES } from './gameBiomes';
+import { speciesLabel } from './gameSpecies';
+
 export const QUESTS = [
   {
     key: 'sals_wall',
@@ -67,6 +70,31 @@ export const QUESTS = [
 ];
 
 export const QUEST_BY_KEY = Object.fromEntries(QUESTS.map((quest) => [quest.key, quest]));
+
+// What the quest actually asks for, in one line built from its rule rather than written by
+// hand, so the board can never drift from what advanceQuests counts. Players were reading a
+// title and a "0 / 3" and guessing at the rest.
+export function questGoalLabel(quest, quests) {
+  const { goal } = quest;
+  const state = questState(quests, quest.key);
+  if (goal.type === 'species') {
+    const size = goal.minSize > 0 ? ` of ${goal.minSize} in or better` : '';
+    return `Land ${goal.count === 1 ? 'a' : goal.count} ${speciesLabel(goal.species).toLowerCase()}${size}, on any ground.`;
+  }
+  if (goal.type === 'biome') return `Land ${goal.count} fish in ${BIOMES[goal.biome]?.label || goal.biome} — any species, any size.`;
+  if (goal.type === 'slam') {
+    const landed = state.landed || [];
+    return `Land one of each: ${goal.species.map((species) => `${speciesLabel(species).toLowerCase()}${landed.includes(species) ? ' ✓' : ''}`).join(', ')}.`;
+  }
+  return '';
+}
+
+// The reward, as the board reads it.
+export function questRewardLabel(quest) {
+  if (quest.reward.points) return `${quest.reward.points} tackle points`;
+  if (quest.reward.unlocks) return `Opens ${BIOMES[quest.reward.unlocks]?.label || quest.reward.unlocks} on the map`;
+  return '';
+}
 
 const EMPTY = { progress: 0, done: false, claimed: false };
 

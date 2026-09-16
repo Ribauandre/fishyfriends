@@ -1,4 +1,4 @@
-import { QUESTS, advanceQuests, questState, questsFor, claimableQuests, questProgressLabel, QUEST_BY_KEY } from './gameQuests';
+import { QUESTS, advanceQuests, questState, questsFor, claimableQuests, questProgressLabel, questGoalLabel, questRewardLabel, QUEST_BY_KEY } from './gameQuests';
 import { biomeUnlocked } from './gameBiomes';
 
 test("Sal's wall wants a largemouth of size, and a small one doesn't count", () => {
@@ -70,6 +70,20 @@ test("Sal's bull red wants 27 inches, from any water", () => {
   ({ quests } = advanceQuests(quests, { species: 'redfish', sizeIn: 28.5, biome: 'shoreline' }));
   expect(questState(quests, 'sals_bull_red').done).toBe(true);
   expect(questsFor('shopkeeper', {}).map((quest) => quest.key)).toEqual(['sals_wall', 'sals_bull_red']);
+});
+
+test('every quest says in one line what to do and what it pays, built from its rule', () => {
+  expect(questGoalLabel(QUEST_BY_KEY.sals_wall, {})).toBe('Land a largemouth bass of 16 in or better, on any ground.');
+  expect(questGoalLabel(QUEST_BY_KEY.rays_proving, {})).toBe('Land 3 fish in Bay — any species, any size.');
+  expect(questGoalLabel(QUEST_BY_KEY.rays_southern_run, {})).toBe('Land 5 fish in The Canyon — any species, any size.');
+  expect(questGoalLabel(QUEST_BY_KEY.canyon_sword, {})).toBe('Land a swordfish, on any ground.');
+  expect(questGoalLabel(QUEST_BY_KEY.flats_slam, {})).toBe('Land one of each: bonefish, permit, tarpon.');
+  // The slam ticks off what has been landed so far.
+  expect(questGoalLabel(QUEST_BY_KEY.flats_slam, { flats_slam: { progress: 1, done: false, claimed: false, landed: ['permit'] } })).toBe('Land one of each: bonefish, permit ✓, tarpon.');
+  expect(questRewardLabel(QUEST_BY_KEY.sals_wall)).toBe('75 tackle points');
+  expect(questRewardLabel(QUEST_BY_KEY.rays_proving)).toBe('Opens The Canyon on the map');
+  expect(questRewardLabel(QUEST_BY_KEY.rays_southern_run)).toBe('Opens The Flats on the map');
+  QUESTS.forEach((quest) => { expect(questGoalLabel(quest, {})).not.toBe(''); expect(questRewardLabel(quest)).not.toBe(''); });
 });
 
 test('a finished quest stops counting', () => {

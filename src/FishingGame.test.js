@@ -693,6 +693,9 @@ test("Cap'n Ray tracks the proving quest on the dock and it completes on the thi
   await userEvent.click(screen.getByRole('button', { name: 'Quests · 1 on the board' }));
   expect(screen.getByRole('list', { name: /cap'n ray's quests/i })).toBeInTheDocument();
   expect(screen.getByText('2 / 3')).toBeInTheDocument();
+  // The board says what to do and what it pays, not just a title and a count.
+  expect(screen.getByText(/land 3 fish in bay — any species, any size/i)).toBeInTheDocument();
+  expect(screen.getByText(/opens the canyon on the map/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Close quests' }));
   await reachWaiting();
   await advance(4000);

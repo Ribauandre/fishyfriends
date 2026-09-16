@@ -960,6 +960,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .quest-row.is-done { border-color: var(--mint); }
 .quest-title { flex: 1; font-weight: 700; text-align: left; }
 .quest-progress { color: var(--mint); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.quest-brief, .quest-goal { color: var(--muted); flex-basis: 100%; font-size: 11px; line-height: 1.5; margin: 0; text-align: left; }
+.quest-brief em { color: var(--ink); font-style: normal; }
+.quest-goal strong { color: var(--mint); font-family: var(--font-head); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+.quest-card .quest-goal { text-align: left; }
 .quest-turn-in { min-height: 32px; padding: 4px 10px; width: auto; }
 .game-panel .quest-turn-in { min-height: 32px; width: auto; }
 .shop-boards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
