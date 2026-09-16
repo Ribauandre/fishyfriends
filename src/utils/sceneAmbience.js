@@ -1,7 +1,7 @@
 // What keeps each Cast & Catch stage alive between the player's own actions. The paintings
 // are not the same place and they do not breathe the same way: the river runs, the mountain
-// lake sits still and rings, the swamp hangs and blinks, the beach breaks, and the bay and
-// the charter grounds ride the swell. On top of that each ground has whatever sky its
+// lake sits still and rings, the swamp hangs and blinks, the beach breaks, the bay and
+// the charter grounds ride the swell, and the flats lift on the tide and ring. On top of that each ground has whatever sky its
 // backdrop actually has, gulls over salt water and dragonflies over fresh, the dock lamp's
 // glow, and the occasional fish jumping in the distance — always a species that really lives
 // in that biome, so the world quietly shows you what's in it. This is the one place in the app with ambient looping motion, on
@@ -17,9 +17,9 @@ const LANE_MOTION = [{ duration: 95, delay: -20 }, { duration: 130, delay: -75 }
 
 const CRITTERS = {
   river: 'dragonfly', mountainlake: 'dragonfly', swamp: 'dragonfly',
-  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull',
+  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull', flats: 'seagull',
 };
-const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2 };
+const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2 };
 
 // The water each ground moves in. `sparkle` is how much of the shimmer layer to run: a
 // river's broken surface catches little of it, a bay's swell a lot. Everything else is a
@@ -32,6 +32,8 @@ const SCENES = {
   bay: { swell: { seconds: 9 }, sparkle: 0.44 },
   offshore: { swell: { seconds: 6.5 }, sparkle: 0.4 },
   canyon: { current: { lines: 4, seconds: 19, band: [0.08, 0.42] }, sparkle: 0.24 },
+  // Skinny water: a slow lift of the tide, and rings where something pushed a wake.
+  flats: { rings: { count: 4, seconds: 9 }, swell: { seconds: 14 }, sparkle: 0.5 },
 };
 
 const round2 = (value) => Math.round(value * 100) / 100;

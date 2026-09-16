@@ -1,8 +1,8 @@
 // Canonical species list shared by every "what did you catch" form on the site, so a
 // catch logged on one page matches the same name (and fish icon) everywhere else. Every
 // icon here is either its own dedicated render or an intentional shared fallback (Steelhead/
-// Snook/Coho Salmon reuse a close relative's dedicated art) — never a crop pulled out
-// of a shared multi-fish reference sheet.
+// Coho Salmon reuse a close relative's dedicated art) — never a crop pulled out of a shared
+// multi-fish reference sheet.
 export const SPECIES_OPTIONS = [
   { label: 'Largemouth Bass', icon: 'largemouth' },
   { label: 'Smallmouth Bass', icon: 'smallmouth' },
@@ -31,7 +31,7 @@ export const SPECIES_OPTIONS = [
   { label: 'Fluke / Flounder', icon: 'flounder' },
   { label: 'Tautog', icon: 'tautog' },
   { label: 'Black Sea Bass', icon: 'blackseabass' },
-  { label: 'Snook', icon: 'largemouth' },
+  { label: 'Snook', icon: 'snook' },
 ];
 
 const BY_LABEL = new Map(SPECIES_OPTIONS.map((option) => [option.label.toLowerCase(), option.icon]));
@@ -79,7 +79,32 @@ const ICON_ALIASES = [
   ['black sea bass', 'blackseabass'],
   ['blackseabass', 'blackseabass'],
   ['sea bass', 'blackseabass'],
-  ['snook', 'largemouth'],
+  ['snook', 'snook'],
+  ['muskellunge', 'muskie'],
+  ['muskie', 'muskie'],
+  ['musky', 'muskie'],
+  ['shad', 'americanshad'],
+  ['arctic char', 'arcticchar'],
+  ['char', 'arcticchar'],
+  ['crappie', 'crappie'],
+  ['bowfin', 'bowfin'],
+  ['alligator gar', 'alligatorgar'],
+  ['gar', 'longnosegar'],
+  ['porgy', 'porgy'],
+  ['scup', 'porgy'],
+  ['black drum', 'blackdrum'],
+  ['cobia', 'cobia'],
+  ['wahoo', 'wahoo'],
+  ['marlin', 'bluemarlin'],
+  ['bonefish', 'bonefish'],
+  ['permit', 'permit'],
+  ['tarpon', 'tarpon'],
+  ['redfish', 'redfish'],
+  ['red drum', 'redfish'],
+  ['barracuda', 'barracuda'],
+  ['crevalle', 'jackcrevalle'],
+  ['jack', 'jackcrevalle'],
+  ['snapper', 'mangrovesnapper'],
   ['pike', 'pike'],
   ['tuna', 'tuna'],
   ['bass', 'largemouth'],

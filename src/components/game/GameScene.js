@@ -19,10 +19,11 @@ import bayArt from '../../assets/scenes/bay.webp';
 import shorelineArt from '../../assets/scenes/shoreline.webp';
 import offshoreArt from '../../assets/scenes/offshore.webp';
 import canyonArt from '../../assets/scenes/canyon.webp';
+import flatsArt from '../../assets/scenes/flats.webp';
 
 // The 2D stage for Cast & Catch: a pixel-art backdrop per biome, the angler sprite, and an SVG
 // overlay for the line, bobber, strike splash and the real person's name tag. The five shore
-// paintings share one dock; the charter and the Canyon put the angler on a boat. The fish stays
+// paintings share one dock; the charter, the Canyon and the Flats put the angler on a boat. The fish stays
 // the site's PNG sticker art laid over the water, per the repo rule that fish are never
 // abstract glyphs. The angler, line and splash only move on the player's actions; the world
 // around them (SceneAmbience) is what keeps the stage alive.
@@ -32,7 +33,7 @@ import canyonArt from '../../assets/scenes/canyon.webp';
 // and draws everything in stage units. The world layer (backdrop, ambience, sprites, line,
 // fish) is what the camera moves; the meters, callout, trophy and tap surface stay in screen
 // space above it.
-const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt };
+const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt };
 const CREW_SCALE = 0.9;
 const RECENT_CATCH_MS = 9000;
 const round2 = (value) => Math.round(value * 100) / 100;

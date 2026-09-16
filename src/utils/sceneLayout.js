@@ -71,6 +71,26 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
   },
+  // The Flats from the skiff: the bow's casting platform fills the lower left (its flat top
+  // runs y 150-200, the cockpit with the cooler and the rope below it), the hull's edge runs
+  // from the bow tip at (235, 128) down to (270, 270), and skinny water fills everything else
+  // out to the mangrove line at y 40-55 on the right. The angler stands on the platform with
+  // a crew slot at its left; the fish comes up in the water past the bow.
+  flats: {
+    crop: 'center',
+    angler: { x: 196, y: 196 },
+    crew: [-105],
+    spriteH: 92,
+    cast: { min: 310, max: 450, y: 150 },
+    water: { x0: 300, x1: 470, y0: 62, y1: 258 },
+    fishY: 165,
+    sparkle: { x0: 270, y0: 55, x1: 480, y1: 270 },
+    lamp: null,
+    sky: [{ y0: 4, y1: 22, from: -22 }, { y0: 20, y1: 34, from: -22 }],
+    gulls: { y0: 8, y1: 40 },
+    dragonflies: [],
+    tagAbove: false,
+  },
 };
 
 export function layoutFor(biome) { return SCENE_LAYOUTS[biome] || SCENE_LAYOUTS.river; }

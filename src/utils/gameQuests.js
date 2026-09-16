@@ -1,5 +1,7 @@
 // NPC quests in Cast & Catch. Sal and Cap'n Ray each want something, and doing it is how the
-// map grows: Ray's proving run on the bay unlocks The Canyon. Progress lives on
+// map grows: Ray's proving run on the bay unlocks The Canyon, and fishing The Canyon with him
+// unlocks the trip south to The Flats. A 'slam' goal counts distinct species off its list once
+// each (the ones landed so far ride along on the quest state as `landed`). Progress lives on
 // game_profiles.quests as { key: { progress, done, claimed } } and is advanced client-side
 // from each landed catch (advanceQuests), then persisted by the same write that logs the
 // catch. Points rewards are turned in by hand with the giver (claimQuestReward in
@@ -33,6 +35,35 @@ export const QUESTS = [
     reward: { points: 250 },
     requires: 'rays_proving',
   },
+  {
+    key: 'rays_southern_run',
+    giver: 'captain',
+    title: 'Five from the drop-off',
+    brief: 'Land five fish in The Canyon and Ray will trailer the skiff south for the winter — there is a flat he knows.',
+    hint: 'Anything that comes over the gunwale out there counts.',
+    goal: { type: 'biome', biome: 'canyon', count: 5 },
+    reward: { unlocks: 'flats' },
+    requires: 'rays_proving',
+  },
+  {
+    key: 'flats_slam',
+    giver: 'captain',
+    title: 'The grand slam',
+    brief: 'A bonefish, a permit and a tarpon from The Flats. Ray has guided two slams in thirty years.',
+    hint: 'Shrimp fly in daylight for the bones and permit; the tarpon roll after dark.',
+    goal: { type: 'slam', species: ['bonefish', 'permit', 'tarpon'], count: 3 },
+    reward: { points: 400 },
+    requires: 'rays_southern_run',
+  },
+  {
+    key: 'sals_bull_red',
+    giver: 'shopkeeper',
+    title: 'A bull red for Sal',
+    brief: 'Sal wants a redfish of 27 inches or better — a bull red — for the wall beside the bass.',
+    hint: 'Reds run the surf on the beach, and every flat down south.',
+    goal: { type: 'species', species: 'redfish', minSize: 27, count: 1 },
+    reward: { points: 150 },
+  },
 ];
 
 export const QUEST_BY_KEY = Object.fromEntries(QUESTS.map((quest) => [quest.key, quest]));
@@ -52,9 +83,10 @@ export function questsFor(giver, quests) {
   return QUESTS.filter((quest) => quest.giver === giver && questAvailable(quest, quests));
 }
 
-function catchCounts(quest, { species, sizeIn = 0, biome }) {
+function catchCounts(quest, { species, sizeIn = 0, biome }, state) {
   if (quest.goal.type === 'species') return species === quest.goal.species && sizeIn >= (quest.goal.minSize || 0);
   if (quest.goal.type === 'biome') return biome === quest.goal.biome;
+  if (quest.goal.type === 'slam') return quest.goal.species.includes(species) && !(state.landed || []).includes(species);
   return false;
 }
 
@@ -65,10 +97,11 @@ export function advanceQuests(quests, catchInfo) {
   const completed = [];
   QUESTS.forEach((quest) => {
     const state = questState(next, quest.key);
-    if (state.done || !questAvailable(quest, next) || !catchCounts(quest, catchInfo)) return;
+    if (state.done || !questAvailable(quest, next) || !catchCounts(quest, catchInfo, state)) return;
     const progress = state.progress + 1;
     const done = progress >= quest.goal.count;
     next[quest.key] = { ...state, progress, done };
+    if (quest.goal.type === 'slam') next[quest.key].landed = [...(state.landed || []), catchInfo.species];
     if (done) completed.push(quest.key);
   });
   return { quests: next, completed };

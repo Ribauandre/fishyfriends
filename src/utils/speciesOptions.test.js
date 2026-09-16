@@ -1,13 +1,10 @@
 import speciesIcon, { SPECIES_OPTIONS } from './speciesOptions';
+import { HERO_SPECIES } from '../components/FishIllustration';
 
 describe('SPECIES_OPTIONS', () => {
   test('every option has a non-empty label and a recognized icon key', () => {
-    const validIcons = new Set([
-      'pike', 'largemouth', 'smallmouth', 'stripedbass', 'bluegill', 'snakehead', 'catfish',
-      'carp', 'browntrout', 'rainbowtrout', 'brooktrout', 'laketrout', 'trout', 'salmon',
-      'bluefish', 'mahimahi', 'shark', 'flounder', 'tautog', 'blackseabass', 'tuna',
-      'walleye', 'yellowperch', 'weakfish', 'chainpickerel', 'swordfish',
-    ]);
+    // Every icon key has to be a species FishIllustration actually has dedicated art for.
+    const validIcons = new Set(HERO_SPECIES);
     for (const option of SPECIES_OPTIONS) {
       expect(option.label.trim()).toBe(option.label);
       expect(option.label.length).toBeGreaterThan(0);
@@ -42,7 +39,7 @@ describe('speciesIcon', () => {
     expect(speciesIcon('Tautog')).toBe('tautog');
     expect(speciesIcon('Mahi Mahi')).toBe('mahimahi');
     expect(speciesIcon('Tuna')).toBe('tuna');
-    expect(speciesIcon('Snook')).toBe('largemouth');
+    expect(speciesIcon('Snook')).toBe('snook');
     expect(speciesIcon('Black Sea Bass')).toBe('blackseabass');
     expect(speciesIcon('Weakfish')).toBe('weakfish');
     expect(speciesIcon('Yellow Perch')).toBe('yellowperch');
@@ -91,9 +88,10 @@ describe('speciesIcon', () => {
     // Regression guard: species that used to have their own SPECIES_OPTIONS entry and icon
     // (pulled from a shared reference sheet) were retired, but any catch someone already
     // logged with that name must still render something reasonable, not crash. Walleye and
-    // Yellow Perch were later re-added with real dedicated art (see the exact-match test
-    // above) — Crappie hasn't been, so it's still the case covered here.
-    expect(speciesIcon('Crappie')).toBe('largemouth');
+    // Yellow Perch and Crappie were both later given real dedicated art (Crappie's came with
+    // the game's second wave of species), so a made-up name is the case covered here.
+    expect(speciesIcon('Crappie')).toBe('crappie');
+    expect(speciesIcon('Mystery fish')).toBe('largemouth');
   });
 
   test('handles empty, null, and undefined input without throwing', () => {

@@ -21,14 +21,16 @@ import pennant from '../assets/props/pennant.png';
 import dryfly from '../assets/props/dryfly.png';
 import nymph from '../assets/props/nymph.png';
 import streamer from '../assets/props/streamer.png';
+import shrimpfly from '../assets/props/shrimpfly.png';
 import flyrod from '../assets/props/flyrod.png';
 import outfit from '../assets/props/outfit.png';
 import crewicon from '../assets/props/crewicon.png';
 import questicon from '../assets/props/questicon.png';
+import { BIOMES } from './gameBiomes';
 
 
 export const GEAR_ICONS = { rod, line, reel, bait };
-export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer };
+export const LURE_ICONS = { livebait, jerkbait, crankbait, dryfly, nymph, streamer, shrimpfly };
 // The fly rod on Sal's wall.
 export const FLY_ROD_ICON = flyrod;
 export const VEHICLES = { truck, boat };
@@ -43,7 +45,8 @@ export const DERBY_FLAG = flag;
 // The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3 };
 
-// Getting offshore (or back from it) means the charter boat; every other trip is the pickup.
+// Getting to a charter ground (or back from one) means Ray's boat; every other trip is the pickup.
 export function vehicleFor(fromBiome, toBiome) {
-  return fromBiome === 'offshore' || toBiome === 'offshore' ? 'boat' : 'truck';
+  const charter = (biome) => (BIOMES[biome]?.charterCost || 0) > 0;
+  return charter(fromBiome) || charter(toBiome) ? 'boat' : 'truck';
 }

@@ -6,8 +6,10 @@ import mapArt from '../../assets/scenes/map.webp';
 // The fishing-grounds map is the biome picker: one hotspot per ground, laid over the map's own
 // signposts (positions are percentages of the painting), plus the tackle shop, which just
 // scrolls you down to Sal. Beach on the map is the 'shoreline' biome key. The Canyon sits out
-// past the charter boat and stays a locked rumor until Cap'n Ray's proving quest is done.
-// The week's derby grounds fly the pennant.
+// past the charter boat and The Flats off the bottom of the map to the south-west; both stay
+// locked rumors until Cap'n Ray's quests are done. The two open-water spots are kept far
+// enough apart that their labels clear each other at phone widths, where a label is a fifth
+// of the map wide. The week's derby grounds fly the pennant.
 const HOTSPOTS = [
   { biome: 'mountainlake', x: 22.7, y: 10.3 },
   { biome: 'swamp', x: 80.8, y: 16.9 },
@@ -15,7 +17,8 @@ const HOTSPOTS = [
   { biome: 'shoreline', x: 36.5, y: 65 },
   { biome: 'bay', x: 80.6, y: 66.7 },
   { biome: 'offshore', x: 85, y: 89.3 },
-  { biome: 'canyon', x: 52, y: 93 },
+  { biome: 'canyon', x: 58, y: 94 },
+  { biome: 'flats', x: 40, y: 84 },
 ];
 const SHOP_HOTSPOT = { x: 23.3, y: 34.8 };
 
