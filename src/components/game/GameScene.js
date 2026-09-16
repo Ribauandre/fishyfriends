@@ -246,7 +246,11 @@ export default function GameScene({
       </div>}
       {phase === 'hookset' && <span className="scene-hook-ring" style={{ left: pctX(strikeX, frame), top: pctY(surfaceY), animationDuration: `${hooksetWindowMs || 600}ms` }} aria-hidden="true" />}
       {phase === 'reeling' && reel && <>
-        <div className="reel-zone scene-zone" style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }} />
+        {/* The zone the fish has to be held in: a bright frame on the water, mint while the fish
+            is inside it and coral, pulsing, the moment it isn't — the edge is the whole game. */}
+        <div className={`reel-zone scene-zone ${Math.abs((reel.fishPos || 0) - (reel.zonePos || 0)) <= zoneWidth / 2 ? 'is-in' : 'is-out'}`} style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }}>
+          <span className="scene-zone-cap is-top" aria-hidden="true" /><span className="scene-zone-cap is-bottom" aria-hidden="true" />
+        </div>
         {/* What's on the line is a shadow until it's landed — sized to the fish, facing the way
             it's running — so the fight reads as a fight and the sticker is the reveal. */}
         <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(40 + 44 * sizeFraction(species, catchSize), frame) }}>

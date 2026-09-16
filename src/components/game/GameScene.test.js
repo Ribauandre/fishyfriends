@@ -58,6 +58,11 @@ test('only loops the reel animation while the player is actually holding', () =>
   expect(parseFloat(fish.style.left)).toBeGreaterThan((river.water.x0 / 480) * 100);
   const [a, z] = waterSpan(river, FULL);
   expect(parseFloat(container.querySelector('.scene-zone').style.width)).toBeCloseTo((0.3 * (z - a) / 480) * 100, 1);
+  // The zone says whether the fish is inside it: mint in, coral out.
+  expect(container.querySelector('.scene-zone')).toHaveClass('is-in');
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 80, zonePos: 45 }} zoneWidth={30} holding={false} />);
+  expect(container.querySelector('.scene-zone')).toHaveClass('is-out');
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding={false} />);
   // The zone is the painted water, not the whole stage.
   expect(parseFloat(container.querySelector('.scene-zone').style.top)).toBeCloseTo((river.water.y0 / 270) * 100, 1);
 

@@ -830,7 +830,17 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    the rest. The tint is laid on the same box. */
 .scene-backdrop { display: block; object-fit: fill; position: absolute; }
 .game-scene-svg { display: block; height: 100%; inset: 0; overflow: visible; position: absolute; width: 100%; }
-.game-scene .scene-zone { bottom: auto; }
+/* The catch zone on the stage: a hard mint frame with a dark keyline round it so it reads on
+   bright water and dark alike, caps top and bottom, and a coral, pulsing frame the moment the
+   fish is outside it. The fill stays faint so the shadow under it is still the shadow. */
+.game-scene .scene-zone { background: rgba(227,251,20,.16); border: 3px solid var(--mint); bottom: auto; box-shadow: 0 0 0 2px rgba(3,8,11,.7), inset 0 0 0 2px rgba(3,8,11,.45); box-sizing: border-box; transition: left .08s linear, border-color .12s, background-color .12s; }
+.game-scene .scene-zone-cap { background: var(--mint); border: 2px solid rgba(3,8,11,.7); box-sizing: border-box; height: 10px; left: -7px; position: absolute; right: -7px; transition: background-color .12s; }
+.game-scene .scene-zone-cap.is-top { top: -9px; }
+.game-scene .scene-zone-cap.is-bottom { bottom: -9px; }
+.game-scene .scene-zone.is-out { animation: zone-alarm .35s ease-in-out infinite alternate; background: rgba(255,90,31,.16); border-color: var(--coral); }
+.game-scene .scene-zone.is-out .scene-zone-cap { background: var(--coral); }
+@keyframes zone-alarm { from { box-shadow: 0 0 0 2px rgba(3,8,11,.7), inset 0 0 0 2px rgba(3,8,11,.45); } to { box-shadow: 0 0 0 2px rgba(3,8,11,.7), 0 0 0 6px rgba(255,90,31,.35), inset 0 0 0 2px rgba(3,8,11,.45); } }
+@media (prefers-reduced-motion: reduce) { .game-scene .scene-zone.is-out { animation: none; } }
 .game-scene .scene-fish { height: auto; position: absolute; transform: translate(-50%, -50%); transition: left .08s linear; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
 /* The shadow on the line: dark, soft, under the surface, tail working while the fight lasts,
    flipped to face the way it is running. Interaction-driven — it only exists mid-fight. */
