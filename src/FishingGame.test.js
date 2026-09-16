@@ -108,6 +108,30 @@ test('missing the hookset window lets the fish steal the bait', async () => {
   expect(screen.getByText(/stole the bait/i)).toBeInTheDocument();
 });
 
+test('the catch is up the moment it is landed, before the log answers, and a tap after a beat returns to the dock', async () => {
+  const logGameCatch = jest.fn(() => new Promise(() => {}));
+  useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await reachWaiting();
+  await advance(4000);
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+  await advance(80);
+  expect(logGameCatch).toHaveBeenCalled();
+  // The plaque is on the stage while the round trip is still out.
+  expect(document.querySelector('.scene-plaque')).toHaveTextContent(/in$|tackle points/i);
+  expect(document.querySelector('.scene-catch')).toBeInTheDocument();
+  expect(screen.getByText(/landed!/i)).toBeInTheDocument();
+  // The release of the hold that landed it does not dismiss it...
+  expect(screen.queryByRole('button', { name: 'Tap to continue' })).toBeNull();
+  await advance(700);
+  // ...but a tap after that does.
+  await userEvent.click(screen.getByRole('button', { name: 'Tap to continue' }));
+  expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
+  expect(document.querySelector('.scene-catch')).toBeNull();
+});
+
 test('landing the fish logs the catch and shows the trophy result', async () => {
   const logGameCatch = jest.fn().mockResolvedValue({
     error: null,

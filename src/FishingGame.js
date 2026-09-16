@@ -15,7 +15,7 @@ import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
 import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
 import { useAuth } from './context/AuthContext';
-import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL } from './utils/gameSpecies';
+import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
@@ -28,13 +28,16 @@ import {
 import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
 import { derbyFor, isChampion, dateOfWeekKey, PENNANT_PRIZE } from './utils/gameDerby';
-import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questState, claimableQuests, QUEST_BY_KEY } from './utils/gameQuests';
+import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questState, claimableQuests, advanceQuests, QUEST_BY_KEY } from './utils/gameQuests';
 
 const CAST_SWEET_SPOT = [40, 60];
 const REEL_TICK_MS = 80;
 const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
 const REEL_SOUND_MS = 110;
+// How long the landed fish ignores the stage after it goes up, so the release of the hold that
+// landed it doesn't dismiss it.
+const RESULT_ARM_MS = 700;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
@@ -487,30 +490,50 @@ export default function FishingGame({ clock = () => new Date() }) {
     return () => clearInterval(ticker);
   }, [reelHolding]);
 
-  async function landFish() {
+  // The fish is landed the instant the reel fills: the result goes up right away, worked out
+  // from the same pure rules the provider applies (a record is a record, a quest completes),
+  // and the log's round trip catches up underneath. It used to wait on that round trip —
+  // three requests — before showing anything, which on a phone read as the game freezing.
+  function landFish() {
     let pointsEarned = Math.round(pointsFor(pendingCatch.rarity) * qualityPointsMultiplier(presentationQuality));
     if (perfectCast) pointsEarned = Math.round(pointsEarned * 1.2);
-    const sizeIn = rollSize(pendingCatch.species);
+    const { species, rarity } = pendingCatch;
+    const sizeIn = rollSize(species);
     const label = sizeLabel(sizeIn);
-    const response = await logGameCatch({ species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel: label, pointsEarned, sizeIn, biome });
-    let isRecord = false;
-    let completedQuests = [];
-    if (!response?.error) {
+    const isRecord = isNewRecord(gameProfile.records || {}, species, sizeIn);
+    const { completed } = advanceQuests(gameProfile.quests || {}, { species, sizeIn, biome });
+    sfx.land(rarity);
+    if (isRecord) sfx.record();
+    setLastCatch({ species: speciesLabel(species), at: Date.now() });
+    setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests: completed, derbyFish: species === derby.species });
+    setPhase('result');
+    Promise.resolve(logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn, biome })).then((response) => {
+      if (!response || response.error) return;
       if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
       // Only a record changes the wall: it takes that species' hook. Anything smaller is
       // logged for the derby and the points, but the trophy stays the bigger one.
       if (response.catchEntry && response.isRecord) {
         setTrophies((previous) => [response.catchEntry, ...previous.filter((row) => row.species !== response.catchEntry.species)]);
       }
-      isRecord = Boolean(response.isRecord);
-      completedQuests = response.completedQuests || [];
-    }
-    sfx.land(pendingCatch.rarity);
-    if (isRecord) sfx.record();
-    setLastCatch({ species: speciesLabel(pendingCatch.species), at: Date.now() });
-    setResult({ success: true, species: pendingCatch.species, rarity: pendingCatch.rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests });
-    setPhase('result');
+    });
   }
+
+  // The catch stays up until the next tap — but not the release of the hold that landed it,
+  // which lands on the same surface a beat later, so the stage only listens after a moment.
+  const [resultArmed, setResultArmed] = useState(false);
+  useEffect(() => {
+    if (phase !== 'result') { setResultArmed(false); return undefined; }
+    const timer = setTimeout(() => setResultArmed(true), RESULT_ARM_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
+
+  // iOS Safari's pinch-to-zoom fires its own gesture events, outside touch-action; while the
+  // game is up, the frame is the game and nothing on it should zoom.
+  useEffect(() => {
+    const block = (event) => event.preventDefault();
+    document.addEventListener('gesturestart', block, { passive: false });
+    return () => document.removeEventListener('gesturestart', block);
+  }, []);
 
   function finishRound({ success, message }) {
     if (!success) { if (/snapped/i.test(message)) sfx.snap(); else sfx.lost(); }
@@ -589,6 +612,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     if (phase === 'waiting' && lureInteraction === 'drift') return { label: 'Mend the line', onTap: mend };
     if (phase === 'hookset') return { label: 'Set the hook now', onTap: setHook };
     if (phase === 'reeling') return { label: 'Hold to reel in', onHoldStart: startReel, onHoldEnd: stopReel };
+    if (phase === 'result' && resultArmed) return { label: 'Tap to continue', onTap: returnToReady };
     return null;
   })();
   const flyOn = isFly(lure);
@@ -753,13 +777,9 @@ export default function FishingGame({ clock = () => new Date() }) {
 
         {phase === 'result' && result && <div className="game-panel game-result">
           {result.success ? <>
-            <div className="result-tags">
-              <span className="status-badge rarity-tag" style={{ background: RARITY_INFO[result.rarity].color, color: RARITY_INFO[result.rarity].text }}>{RARITY_INFO[result.rarity].label.toUpperCase()}</span>
-              {result.isRecord && <span className="status-badge rarity-tag is-record">NEW RECORD</span>}
-              {result.species === derby.species && <span className="status-badge rarity-tag is-derby">DERBY FISH</span>}
-            </div>
+            {/* The fish itself, its size, rarity and points are on the stage's plaque; the deck
+                keeps what the plaque doesn't say. */}
             <h3>{speciesLabel(result.species)} landed!</h3>
-            <p>{result.sizeLabel} · +{result.pointsEarned} tackle points</p>
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
           {(biomeConfig.charterCost > 0 || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result, period, quests, isRecord: result.isRecord })} compact />}

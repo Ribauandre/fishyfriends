@@ -153,6 +153,16 @@ export function rollSize(species, random = Math.random) {
 
 export function sizeLabel(sizeIn) { return `${Number(sizeIn).toFixed(1)} in`; }
 
+// Where a catch sits in its species' range, 0 (the smallest of its kind) to 1 (the biggest):
+// the stage draws a landed fish at that size, so a 9-inch bluegill and a 60-inch tarpon each
+// read as what they are. Unknown or missing sizes sit in the middle.
+export function sizeFraction(species, sizeIn) {
+  const [min, max] = SPECIES_SIZE[species] || [6, 18];
+  const size = Number(sizeIn);
+  if (!Number.isFinite(size) || max <= min) return 0.5;
+  return Math.max(0, Math.min(1, (size - min) / (max - min)));
+}
+
 // A record is the biggest of a species you've personally landed in the game (the almanac keeps
 // them, see game_profiles.records). The first of a species is a record by definition.
 export function isNewRecord(records, species, sizeIn) {

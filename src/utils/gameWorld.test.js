@@ -1,4 +1,4 @@
-import { rollSpecies, rollSize, isNewRecord, sizeLabel, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
+import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
@@ -31,6 +31,15 @@ test('sizes come from the species, skewed small, and read as inches', () => {
   expect(rollSize('shark', () => 0.5)).toBeGreaterThan(SPECIES_SIZE.shark[0]);
   expect(sizeLabel(23.46)).toBe('23.5 in');
   expect(rollSize('mystery', () => 0)).toBe(6);
+});
+
+test('a catch knows where it sits in its species, smallest to biggest', () => {
+  expect(sizeFraction('bluegill', 5)).toBe(0);
+  expect(sizeFraction('bluegill', 11)).toBe(1);
+  expect(sizeFraction('bluegill', 8)).toBe(0.5);
+  expect(sizeFraction('tarpon', 200)).toBe(1);
+  expect(sizeFraction('bluegill', undefined)).toBe(0.5);
+  expect(sizeFraction('nosuchfish', 12)).toBe(0.5);
 });
 
 test('the first of a species is a record, and only a bigger one beats it', () => {

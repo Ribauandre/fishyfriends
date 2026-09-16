@@ -789,7 +789,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* Phones: a hold on the reel or crank is a long press, which the browser reads as "select
    text" or "show the callout" — the whole game frame is a control surface, not prose. */
 .game-frame, .game-frame * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* Touch: the game frame never zooms. pan-y on the frame lets the deck scroll and nothing
+   else (no pinch, no double-tap zoom); the stage and the hold buttons take no gesture at all,
+   and a long press on the fish must not open the image callout. */
+.game-page, .game-frame { touch-action: pan-y; }
 .game-frame button { touch-action: manipulation; }
+.game-scene { touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.game-scene img { -webkit-user-drag: none; }
 .game-reel-button, .game-hookset-button, .dock-cast { touch-action: none; }
 
 .game-result { padding-top: 12px; }
@@ -826,8 +832,19 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene-svg { display: block; height: 100%; inset: 0; overflow: visible; position: absolute; width: 100%; }
 .game-scene .scene-zone { bottom: auto; }
 .game-scene .scene-fish { height: auto; position: absolute; transform: translate(-50%, -50%); transition: left .08s linear; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
-.game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(0 0 14px rgba(227,251,20,.35)) drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; left: 16%; position: absolute; top: 2%; transform: rotate(-8deg); width: 24%; }
-.game-scene .scene-trophy { left: 24%; top: 4%; }
+/* The landed fish: centre stage, its width set by its size within its species (GameScene),
+   with a plaque under it. One hard shadow, not a glow — two filters on a big sticker was a
+   visible hitch on a phone right when the catch landed. */
+.game-scene .scene-catch { left: 50%; pointer-events: none; position: absolute; top: 36%; transform: translate(-50%, -50%); z-index: 1; }
+.game-scene .scene-trophy { animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; display: block; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); height: auto; width: 100%; }
+/* Centred with auto margins, not translateX: panel-in animates transform and its final frame
+   would overwrite the centring (which is what had been nudging the stage callout off-centre). */
+.scene-plaque { align-items: center; animation: panel-in .3s ease-out both; background: rgba(3,8,11,.82); border: 2px solid var(--mint); box-shadow: var(--sticker-shadow); color: var(--ink); display: flex; flex-direction: column; gap: 3px; left: 0; margin: 0 auto; max-width: 92%; padding: 8px 16px 9px; pointer-events: none; position: absolute; right: 0; text-align: center; top: 64%; width: max-content; z-index: 1; }
+.scene-plaque-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.scene-plaque-tags:empty { display: none; }
+.scene-plaque strong { font-family: var(--font-head); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; }
+.scene-plaque-size { color: var(--mint); font-family: var(--font-head); font-size: 24px; font-weight: 800; letter-spacing: .04em; line-height: 1; }
+.scene-plaque small { color: var(--muted); font-size: 11px; }
 .scene-sprite { background-repeat: no-repeat; pointer-events: none; position: absolute; }
 .scene-sprite.is-playing { animation-fill-mode: forwards; animation-name: sprite-play; }
 .scene-sprite.is-looping { animation-iteration-count: infinite; animation-name: sprite-play; }
@@ -1070,7 +1087,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .fly-rod-card.is-done { border-color: var(--mint); }
 .scene-hook-ring { animation: hook-ring linear forwards; border: 3px solid var(--coral); border-radius: 50%; box-shadow: 0 0 10px rgba(255,90,31,.6); height: 12%; pointer-events: none; position: absolute; transform: translate(-50%, -50%) scale(2.6); width: 6.75%; z-index: 1; }
 @keyframes hook-ring { from { opacity: 1; transform: translate(-50%, -50%) scale(2.6); } to { opacity: .3; transform: translate(-50%, -50%) scale(.6); } }
-.stage-callout { animation: panel-in .25s ease-out both; background: rgba(3,8,11,.72); border: 1px solid var(--line); bottom: 4%; color: var(--ink); font-size: 12px; font-weight: 700; left: 50%; margin: 0; max-width: 90%; padding: 6px 12px; pointer-events: none; position: absolute; text-align: center; transform: translateX(-50%); white-space: nowrap; z-index: 1; }
+.stage-callout { animation: panel-in .25s ease-out both; background: rgba(3,8,11,.72); border: 1px solid var(--line); bottom: 4%; color: var(--ink); font-size: 12px; font-weight: 700; left: 0; margin: 0 auto; max-width: 90%; padding: 6px 12px; pointer-events: none; position: absolute; right: 0; text-align: center; white-space: nowrap; width: max-content; z-index: 1; }
 .stage-callout.is-alert { animation: game-alert-pulse .4s ease-in-out infinite alternate; border-color: var(--coral); color: var(--coral); font-family: var(--font-head); font-size: 15px; letter-spacing: .06em; text-transform: uppercase; }
 .game-panel.is-play { gap: 10px; padding-top: 14px; }
 .game-panel.is-play > p { font-size: 12px; }
