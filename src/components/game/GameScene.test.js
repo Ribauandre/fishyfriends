@@ -62,6 +62,20 @@ test('only loops the reel animation while the player is actually holding', () =>
   expect(container.querySelector('.scene-sprite')).toHaveClass('is-looping');
 });
 
+test('the landed fish sits centre stage at its size, with its plaque', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'bluegill', sizeIn: 5, sizeLabel: '5.0 in', rarity: 'common', pointsEarned: 6, isRecord: true }} />);
+  const small = parseFloat(container.querySelector('.scene-catch').style.width);
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('Bluegill');
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('5.0 in');
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('NEW RECORD');
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('+6 tackle points');
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent(/tap to continue/i);
+  rerender(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'bluegill', sizeIn: 11, sizeLabel: '11.0 in', rarity: 'common', pointsEarned: 6, derbyFish: true }} />);
+  expect(parseFloat(container.querySelector('.scene-catch').style.width)).toBeGreaterThan(small);
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('DERBY FISH');
+  expect(container.querySelector('.scene-plaque')).not.toHaveTextContent('NEW RECORD');
+});
+
 test('celebrates a landed fish and holds it up, and straightens up after a loss', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'celebrate');

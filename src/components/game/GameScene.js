@@ -5,6 +5,7 @@ import TravelTransition from './TravelTransition';
 import useAnglerSheets from './useAnglerSheets';
 import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
 import { LURES } from '../../utils/gameLures';
+import { RARITY_INFO, sizeFraction, speciesLabel } from '../../utils/gameSpecies';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import { lookKey } from '../../utils/anglerLook';
@@ -121,6 +122,15 @@ export default function GameScene({
   const layout = layoutFor(biome);
   const art = ART[biome] || ART.river;
   const stageRef = useRef(null);
+  // iOS: a finger moving on the stage is play, never a scroll or a pinch. touch-action on the
+  // tap surface covers most of it; this catches the second finger that lands beside it.
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node) return undefined;
+    const block = (event) => { if (interaction) event.preventDefault(); };
+    node.addEventListener('touchmove', block, { passive: false });
+    return () => node.removeEventListener('touchmove', block);
+  }, [interaction]);
   const [viewW, setViewW] = useState(480);
   useEffect(() => {
     const node = stageRef.current;
@@ -254,7 +264,21 @@ export default function GameScene({
     {callout && <p key={phase} className={`stage-callout ${phase === 'hookset' ? 'is-alert' : ''}`} data-phase={phase}>{callout}</p>}
 
     {phase === 'result' && result?.success && <>
-      <FishIllustration species={result.species} className="scene-trophy" />
+      {/* The catch, centre stage, drawn at its size within its species — and its plaque. It
+          stays up until the next tap; the stage is the tap surface for that. */}
+      <div className="scene-catch" style={{ width: `${round2(40 + 30 * sizeFraction(result.species, result.sizeIn))}%` }}>
+        <FishIllustration species={result.species} className="scene-trophy" />
+      </div>
+      <div className="scene-plaque" role="status">
+        <span className="scene-plaque-tags">
+          {result.rarity && RARITY_INFO[result.rarity] && <span className="rarity-tag" style={{ background: RARITY_INFO[result.rarity].color, color: RARITY_INFO[result.rarity].text }}>{RARITY_INFO[result.rarity].label.toUpperCase()}</span>}
+          {result.isRecord && <span className="rarity-tag is-record">NEW RECORD</span>}
+          {result.derbyFish && <span className="rarity-tag is-derby">DERBY FISH</span>}
+        </span>
+        <strong>{speciesLabel(result.species)}</strong>
+        {result.sizeLabel && <span className="scene-plaque-size">{result.sizeLabel}</span>}
+        <small>{result.pointsEarned != null ? `+${result.pointsEarned} tackle points · ` : ''}tap to continue</small>
+      </div>
       <div className={`scene-sparkles is-${result.rarity || 'common'}`} aria-hidden="true">
         {SPARKLES.map((sparkle, index) => <span key={index} style={{ left: `${sparkle.x}%`, top: `${sparkle.y}%`, animationDelay: `${sparkle.delay}s` }} />)}
       </div>
