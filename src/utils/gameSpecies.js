@@ -14,7 +14,10 @@ export const RARITY_INFO = {
 // spawnWeight: relative odds before bait level shifts them toward rarer tiers.
 // hookWindowMs: how long the hookset flash stays clickable.
 // zoneWidth: width (0-100 scale) of the forgiving reel-in zone.
-// fishSpeed: how erratically the fish darts around during reel-in.
+// fishSpeed: how far the fish wanders between runs during reel-in.
+// runChance: the chance per tick that it bolts (see utils/reelPhysics.js) — a common fish
+//   mostly sulks, a legendary one is never still.
+// runPower: how hard a run hits, as a multiple of the base burst.
 // drainRate: how fast line tension climbs while the fish is out of the zone.
 // points: [min, max] tackle points awarded on a landed catch.
 // The charter grounds hold nothing but epic/legendary species (see utils/gameBiomes.js), so a
@@ -24,11 +27,11 @@ export const RARITY_INFO = {
 // A couple of epics also lurk in free water (the alligator gar, the cobia) as the long shot
 // that keeps those grounds worth a cast late in the game.
 const RARITY_DIFFICULTY = {
-  common: { spawnWeight: 46, hookWindowMs: 850, zoneWidth: 42, fishSpeed: 1.0, drainRate: 0.5, points: [4, 8] },
-  uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, drainRate: 0.65, points: [10, 18] },
-  rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, drainRate: 0.85, points: [24, 40] },
-  epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 21, fishSpeed: 2.0, drainRate: 1.1, points: [55, 90] },
-  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 16, fishSpeed: 2.5, drainRate: 1.4, points: [120, 200] },
+  common: { spawnWeight: 46, hookWindowMs: 850, zoneWidth: 42, fishSpeed: 1.0, runChance: 0.03, runPower: 0.8, drainRate: 0.5, points: [4, 8] },
+  uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, runChance: 0.05, runPower: 1.0, drainRate: 0.65, points: [10, 18] },
+  rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, runChance: 0.08, runPower: 1.2, drainRate: 0.85, points: [24, 40] },
+  epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 21, fishSpeed: 2.0, runChance: 0.11, runPower: 1.4, drainRate: 1.1, points: [55, 90] },
+  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 16, fishSpeed: 2.5, runChance: 0.15, runPower: 1.6, drainRate: 1.4, points: [120, 200] },
 };
 
 const SPECIES_LABELS = {
@@ -156,6 +159,17 @@ export function sizeLabel(sizeIn) { return `${Number(sizeIn).toFixed(1)} in`; }
 // Where a catch sits in its species' range, 0 (the smallest of its kind) to 1 (the biggest):
 // the stage draws a landed fish at that size, so a 9-inch bluegill and a 60-inch tarpon each
 // read as what they are. Unknown or missing sizes sit in the middle.
+// Where a length sits among every fish in the game, 0 (a 5-inch panfish) to 1 (a marlin),
+// on a log scale so the small end still spreads out: the shadow on the line is drawn at
+// this, so a bluegill is a smudge and a marlin fills the water. Missing sizes read middling.
+export const LENGTH_RANGE = [5, 170];
+export function lengthFraction(sizeIn) {
+  const size = Number(sizeIn);
+  if (!Number.isFinite(size) || size <= 0) return 0.4;
+  const [min, max] = LENGTH_RANGE;
+  return Math.max(0, Math.min(1, Math.log(size / min) / Math.log(max / min)));
+}
+
 export function sizeFraction(species, sizeIn) {
   const [min, max] = SPECIES_SIZE[species] || [6, 18];
   const size = Number(sizeIn);

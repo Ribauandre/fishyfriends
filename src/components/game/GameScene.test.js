@@ -53,6 +53,12 @@ test('only loops the reel animation while the player is actually holding', () =>
   // What's on the line is a shadow, not the pike's sticker: the landing is the reveal.
   expect(fish.querySelector('img')).toHaveAttribute('src', expect.stringContaining('fishshadow'));
   expect(fish.querySelector('img').getAttribute('src')).not.toContain('pike');
+  // The shadow is the size of what's on the line, on the scale of every fish in the game.
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="bluegill" reel={reel} zoneWidth={30} holding={false} catchSize={7} />);
+  const small = parseFloat(container.querySelector('.scene-fish').style.width);
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="bluemarlin" reel={reel} zoneWidth={30} holding={false} catchSize={150} />);
+  expect(parseFloat(container.querySelector('.scene-fish').style.width)).toBeGreaterThan(small * 2.5);
+  rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding={false} />);
   const river = layoutFor('river');
   expect(parseFloat(fish.style.left)).toBeCloseTo((reelX(river, 40, FULL) / 480) * 100, 1);
   expect(parseFloat(fish.style.left)).toBeGreaterThan((river.water.x0 / 480) * 100);

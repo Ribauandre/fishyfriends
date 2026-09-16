@@ -5,7 +5,7 @@ import TravelTransition from './TravelTransition';
 import useAnglerSheets from './useAnglerSheets';
 import { LURE_ICONS, GOLDEN_PENNANT, FISH_SHADOW } from '../../utils/gameProps';
 import { LURES } from '../../utils/gameLures';
-import { RARITY_INFO, sizeFraction, speciesLabel } from '../../utils/gameSpecies';
+import { RARITY_INFO, sizeFraction, lengthFraction, speciesLabel } from '../../utils/gameSpecies';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
 import { lookKey } from '../../utils/anglerLook';
@@ -251,9 +251,11 @@ export default function GameScene({
         <div className={`reel-zone scene-zone ${Math.abs((reel.fishPos || 0) - (reel.zonePos || 0)) <= zoneWidth / 2 ? 'is-in' : 'is-out'}`} style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }}>
           <span className="scene-zone-cap is-top" aria-hidden="true" /><span className="scene-zone-cap is-bottom" aria-hidden="true" />
         </div>
-        {/* What's on the line is a shadow until it's landed — sized to the fish, facing the way
-            it's running — so the fight reads as a fight and the sticker is the reveal. */}
-        <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(40 + 44 * sizeFraction(species, catchSize), frame) }}>
+        {/* What's on the line is a shadow until it's landed — drawn at the fish's actual length
+            on the scale of every fish in the game, so a panfish is a smudge and a marlin fills
+            the water, facing the way it's running — the fight reads as a fight and the sticker
+            is the reveal. */}
+        <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(24 + 100 * lengthFraction(catchSize), frame) }}>
           <img src={FISH_SHADOW} alt="" />
         </span>
         <div className="stage-progress" style={{ left: pctX(waterA, frame), width: pctX(waterZ - waterA, frame), top: pctY(stageY(layout.water.y0, frame) - 8) }} aria-hidden="true">

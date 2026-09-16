@@ -87,6 +87,19 @@ describe('stepReel', () => {
     expect(jink.fishVel).toBeLessThan(-2);
   });
 
+  test('a species\' temperament sets how often and how hard it runs', () => {
+    // The same roll starts a run for a legendary temperament and not for a common one.
+    jest.spyOn(Math, 'random').mockImplementation(sequence(0.04, 0.9, 0.5, 0.5, 0.5));
+    expect(stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, runChance: 0.03, runPower: 0.8, holding: true }).run).toBe(0);
+    Math.random.mockImplementation(sequence(0.04, 0.9, 0.5, 0.5, 0.5));
+    const hot = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, runChance: 0.15, runPower: 1.6, holding: true });
+    expect(hot.run).toBeGreaterThan(0);
+    Math.random.mockImplementation(sequence(0.01, 0.9, 0.5, 0.5, 0.5));
+    const mild = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, runChance: 0.03, runPower: 0.8, holding: true });
+    expect(mild.run).toBeGreaterThan(0);
+    expect(Math.abs(hot.fishVel)).toBeGreaterThan(Math.abs(mild.fishVel));
+  });
+
   test('bounces the fish back into range instead of letting it run past the edges', () => {
     jest.spyOn(Math, 'random').mockReturnValue(1); // pushes velocity as positive as possible
     const next = stepReel({ fishPos: 99, fishVel: 5, zonePos: 50, progress: 0, tension: 0 }, { ...BASE_PARAMS, holding: false });

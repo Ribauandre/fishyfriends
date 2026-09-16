@@ -1,4 +1,4 @@
-import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
+import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
@@ -40,6 +40,21 @@ test('a catch knows where it sits in its species, smallest to biggest', () => {
   expect(sizeFraction('tarpon', 200)).toBe(1);
   expect(sizeFraction('bluegill', undefined)).toBe(0.5);
   expect(sizeFraction('nosuchfish', 12)).toBe(0.5);
+});
+
+test('a length sits on one scale for every fish, and a rarer fish is a wilder one', () => {
+  expect(lengthFraction(5)).toBe(0);
+  expect(lengthFraction(170)).toBe(1);
+  expect(lengthFraction(40)).toBeGreaterThan(lengthFraction(20));
+  expect(lengthFraction(20)).toBeGreaterThan(lengthFraction(8));
+  // Log scale: the small end spreads out rather than every panfish reading as nothing.
+  expect(lengthFraction(20) - lengthFraction(5)).toBeGreaterThan(lengthFraction(170) - lengthFraction(80));
+  expect(lengthFraction(undefined)).toBe(0.4);
+  const tiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'].map(difficultyFor);
+  for (let i = 1; i < tiers.length; i += 1) {
+    expect(tiers[i].runChance).toBeGreaterThan(tiers[i - 1].runChance);
+    expect(tiers[i].runPower).toBeGreaterThan(tiers[i - 1].runPower);
+  }
 });
 
 test('the first of a species is a record, and only a bigger one beats it', () => {
