@@ -28,7 +28,7 @@ import {
 import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
 import { derbyFor, isChampion, dateOfWeekKey, PENNANT_PRIZE } from './utils/gameDerby';
-import { questsFor, questProgressLabel, questState, claimableQuests, QUEST_BY_KEY } from './utils/gameQuests';
+import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questState, claimableQuests, QUEST_BY_KEY } from './utils/gameQuests';
 
 const CAST_SWEET_SPOT = [40, 60];
 const REEL_TICK_MS = 80;
@@ -833,6 +833,8 @@ export default function FishingGame({ clock = () => new Date() }) {
           {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
             <span className="quest-title">{quest.title}</span>
             <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
+            <p className="quest-brief">{quest.brief} <em>{quest.hint}</em></p>
+            <p className="quest-goal"><strong>To do:</strong> {questGoalLabel(quest, quests)} <strong>Reward:</strong> {questRewardLabel(quest)}.</p>
             {captainClaimable.some((candidate) => candidate.key === quest.key) && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
           </li>)}
         </ul>}
@@ -864,6 +866,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               return <div className={`quest-card ${state.done ? 'is-done' : ''}`} key={quest.key}>
                 <strong>{quest.title}</strong>
                 <p>{quest.brief} <em>{quest.hint}</em></p>
+                <p className="quest-goal"><strong>To do:</strong> {questGoalLabel(quest, quests)} <strong>Reward:</strong> {questRewardLabel(quest)}.</p>
                 <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
                 {state.done && !state.claimed && <button type="button" className="button button-quiet" disabled={questBusy} onClick={() => handleQuestTurnIn(quest.key)}>Turn in · {quest.reward.points} pts</button>}
               </div>;
