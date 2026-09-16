@@ -4,13 +4,16 @@
 // environment and is never read from or written to the repo.
 //
 //   OPENAI_API_KEY=... node scripts/generateImage.mjs --out src/assets/scenes/foo.png \
-//     [--size 1536x1024] [--quality medium] [--transparent] [--image ref.png] [--mask mask.png] "prompt text"
+//     [--size 1536x1024] [--quality medium] [--transparent] [--image ref.png]... [--mask mask.png] "prompt text"
 //
 // --transparent asks for a real alpha channel (sprites); omit it for backdrops.
 // --image sends a reference image through the edits endpoint instead, so a new piece can be
 // drawn as "the same character as this, now doing X"; with --mask (a PNG the same size whose
 // transparent pixels mark the area to redraw) only that area is regenerated — how the angler's
-// base strips were made bald and clean-shaven without touching the rest of the art.
+// base strips were made bald and clean-shaven without touching the rest of the art. --image
+// may be repeated (up to sixteen): with several, the model sees them all and the prompt can
+// ask for "a new piece in the style of these" — how the second wave of fish stickers was
+// matched to the first, which a text description of the style alone did not manage.
 //
 // Behind an egress proxy (e.g. Claude Code on the web), Node's fetch does not read
 // HTTPS_PROXY on its own — run with NODE_USE_ENV_PROXY=1 (and NODE_EXTRA_CA_CERTS pointing at
@@ -22,6 +25,7 @@ const args = process.argv.slice(2);
 const option = (name, fallback) => { const i = args.indexOf(name); return i === -1 ? fallback : args[i + 1]; };
 const flag = (name) => args.includes(name);
 const prompt = args.filter((arg, i) => !arg.startsWith('--') && !['--out', '--size', '--quality', '--image', '--mask'].includes(args[i - 1])).join(' ');
+const references = args.flatMap((arg, i) => (arg === '--image' ? [args[i + 1]] : []));
 const out = option('--out');
 if (!process.env.OPENAI_API_KEY) { console.error('OPENAI_API_KEY is not set.'); process.exit(1); }
 if (!out || !prompt) { console.error('Usage: generateImage.mjs --out <file.png> [--size WxH] [--quality low|medium|high] [--transparent] "prompt"'); process.exit(1); }
@@ -36,13 +40,12 @@ const body = {
   ...(flag('--transparent') ? { background: 'transparent' } : {}),
 };
 
-const reference = option('--image');
-const response = reference
+const response = references.length
   ? await (() => {
-    // The edits endpoint is multipart: the same fields, plus the reference image.
+    // The edits endpoint is multipart: the same fields, plus the reference image(s).
     const form = new FormData();
     Object.entries(body).forEach(([key, value]) => form.append(key, String(value)));
-    form.append('image', new Blob([readFileSync(reference)], { type: 'image/png' }), 'reference.png');
+    references.forEach((reference, i) => form.append(references.length > 1 ? 'image[]' : 'image', new Blob([readFileSync(reference)], { type: 'image/png' }), `reference${i}.png`));
     if (option('--mask')) form.append('mask', new Blob([readFileSync(option('--mask'))], { type: 'image/png' }), 'mask.png');
     return fetch('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` }, body: form });
   })()
