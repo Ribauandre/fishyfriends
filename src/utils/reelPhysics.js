@@ -2,14 +2,39 @@
 // actual skill mechanic (keep the fish inside a moving catch zone) can be tested without
 // timers or DOM. The component just calls stepReel on a fixed interval and renders the
 // result; it holds no game logic of its own.
-export const INITIAL_REEL_STATE = { fishPos: 50, fishVel: 0, zonePos: 50, progress: 0, tension: 0 };
+export const INITIAL_REEL_STATE = { fishPos: 50, fishVel: 0, zonePos: 50, progress: 0, tension: 0, run: 0, runVel: 0 };
+
+// A hooked fish does not wander: it sulks, then bolts. Between runs the fish drifts on a
+// damped random walk; each tick there is a chance (scaled by its speed) it starts a run — a
+// burst of velocity in one direction for a few ticks, well past what the zone can follow, so
+// the player has to read where it is going rather than chase where it is — and a smaller
+// chance it jinks, snapping back the way it came. All of it goes through Math.random, so a
+// mocked 0.5 keeps the fish still and the zone maths testable.
+export const RUN_CHANCE = 0.06;
+export const JINK_CHANCE = 0.035;
+export const MAX_FISH_VEL = 12;
 
 export function stepReel(state, { holding, fishSpeed, drainRate, zoneWidth }) {
-  let velocity = state.fishVel + ((Math.random() * 2 - 1) - state.fishVel * 0.15) * fishSpeed;
-  velocity = Math.max(-6, Math.min(6, velocity));
+  let run = state.run || 0;
+  let runVel = state.runVel || 0;
+  let velocity = state.fishVel;
+  if (run > 0) {
+    run -= 1;
+    velocity = velocity * 0.55 + runVel * 0.45;
+  } else if (Math.random() < RUN_CHANCE * fishSpeed) {
+    const direction = Math.random() < 0.5 ? -1 : 1;
+    run = 3 + Math.floor(Math.random() * 5);
+    runVel = direction * (7 + Math.random() * 5) * Math.min(1.6, fishSpeed);
+    velocity = runVel * 0.6;
+  } else {
+    velocity += ((Math.random() * 2 - 1) - velocity * 0.15) * fishSpeed;
+    if (Math.random() < JINK_CHANCE * fishSpeed) velocity = -velocity * 1.5;
+  }
+  velocity = Math.max(-MAX_FISH_VEL, Math.min(MAX_FISH_VEL, velocity));
   let fishPos = state.fishPos + velocity;
-  if (fishPos < 0) { fishPos = -fishPos; velocity = -velocity; }
-  if (fishPos > 100) { fishPos = 200 - fishPos; velocity = -velocity; }
+  // Off either edge the fish turns, and a run turns with it.
+  if (fishPos < 0) { fishPos = -fishPos; velocity = -velocity; runVel = -runVel; }
+  if (fishPos > 100) { fishPos = 200 - fishPos; velocity = -velocity; runVel = -runVel; }
 
   const pull = holding ? 5.5 : -4.5;
   const zonePos = Math.max(0, Math.min(100, state.zonePos + pull));
@@ -18,5 +43,5 @@ export function stepReel(state, { holding, fishSpeed, drainRate, zoneWidth }) {
   const progress = Math.max(0, Math.min(100, state.progress + (inZone ? 3.2 : -1.6)));
   const tension = Math.max(0, state.tension + (inZone ? -2.5 : drainRate * 4.5));
 
-  return { fishPos, fishVel: velocity, zonePos, progress, tension };
+  return { fishPos, fishVel: velocity, zonePos, progress, tension, run, runVel };
 }

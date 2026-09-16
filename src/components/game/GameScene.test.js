@@ -50,6 +50,9 @@ test('only loops the reel animation while the player is actually holding', () =>
   // Reel positions (0-100) are mapped into the painted water right of the dock, never under it.
   const fish = container.querySelector('.scene-fish');
   expect(fish).toHaveAttribute('data-species', 'pike');
+  // What's on the line is a shadow, not the pike's sticker: the landing is the reveal.
+  expect(fish.querySelector('img')).toHaveAttribute('src', expect.stringContaining('fishshadow'));
+  expect(fish.querySelector('img').getAttribute('src')).not.toContain('pike');
   const river = layoutFor('river');
   expect(parseFloat(fish.style.left)).toBeCloseTo((reelX(river, 40, FULL) / 480) * 100, 1);
   expect(parseFloat(fish.style.left)).toBeGreaterThan((river.water.x0 / 480) * 100);

@@ -26,6 +26,7 @@ import flyrod from '../assets/props/flyrod.png';
 import outfit from '../assets/props/outfit.png';
 import crewicon from '../assets/props/crewicon.png';
 import questicon from '../assets/props/questicon.png';
+import fishshadow from '../assets/props/fishshadow.png';
 import { BIOMES } from './gameBiomes';
 
 
@@ -42,6 +43,9 @@ export const HUD_ICONS = { map: mapicon, shop: tacklebox, outfit, almanac: book,
 // The deck's own signposts: who's on the water and Cap'n Ray's notice board.
 export const DOCK_ICONS = { crew: crewicon, quests: questicon };
 export const DERBY_FLAG = flag;
+// The shape under the water while a fish is on: one silhouette for every species, so the
+// fight gives nothing away and never loads a sticker — the reveal is the landing.
+export const FISH_SHADOW = fishshadow;
 // The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3 };
 

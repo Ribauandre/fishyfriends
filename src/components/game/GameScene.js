@@ -3,7 +3,7 @@ import FishIllustration from '../FishIllustration';
 import SceneAmbience from './SceneAmbience';
 import TravelTransition from './TravelTransition';
 import useAnglerSheets from './useAnglerSheets';
-import { LURE_ICONS, GOLDEN_PENNANT } from '../../utils/gameProps';
+import { LURE_ICONS, GOLDEN_PENNANT, FISH_SHADOW } from '../../utils/gameProps';
 import { LURES } from '../../utils/gameLures';
 import { RARITY_INFO, sizeFraction, speciesLabel } from '../../utils/gameSpecies';
 import { MEND_ZONE } from '../../utils/lurePhysics';
@@ -115,7 +115,7 @@ function crewAction(other) {
 export default function GameScene({
   biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day',
   interaction = null, castFillRef = null, castDistance = 60, lure = 'livebait', lureDisplay = null, lureFeedback = '',
-  hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false,
+  hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false, catchSize = null,
   castBand = [40, 60], rise = null, look = null,
 }) {
   const sheets = useAnglerSheets(look);
@@ -247,7 +247,11 @@ export default function GameScene({
       {phase === 'hookset' && <span className="scene-hook-ring" style={{ left: pctX(strikeX, frame), top: pctY(surfaceY), animationDuration: `${hooksetWindowMs || 600}ms` }} aria-hidden="true" />}
       {phase === 'reeling' && reel && <>
         <div className="reel-zone scene-zone" style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }} />
-        <FishIllustration species={species} className="reel-fish scene-fish" style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(66, frame) }} />
+        {/* What's on the line is a shadow until it's landed — sized to the fish, facing the way
+            it's running — so the fight reads as a fight and the sticker is the reveal. */}
+        <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(40 + 44 * sizeFraction(species, catchSize), frame) }}>
+          <img src={FISH_SHADOW} alt="" />
+        </span>
         <div className="stage-progress" style={{ left: pctX(waterA, frame), width: pctX(waterZ - waterA, frame), top: pctY(stageY(layout.water.y0, frame) - 8) }} aria-hidden="true">
           <span style={{ width: `${round2(reel.progress || 0)}%` }} />
         </div>

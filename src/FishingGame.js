@@ -315,7 +315,9 @@ export default function FishingGame({ clock = () => new Date() }) {
   function triggerBite(quality, favor = []) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
-    setPendingCatch(rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, favor }));
+    // The size is rolled at the bite, so the shadow on the line is the size of what's on it.
+    const bite = rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, favor });
+    setPendingCatch({ ...bite, sizeIn: rollSize(bite.species) });
     setPhase('hookset');
   }
 
@@ -498,7 +500,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     let pointsEarned = Math.round(pointsFor(pendingCatch.rarity) * qualityPointsMultiplier(presentationQuality));
     if (perfectCast) pointsEarned = Math.round(pointsEarned * 1.2);
     const { species, rarity } = pendingCatch;
-    const sizeIn = rollSize(species);
+    const sizeIn = pendingCatch.sizeIn ?? rollSize(species);
     const label = sizeLabel(sizeIn);
     const isRecord = isNewRecord(gameProfile.records || {}, species, sizeIn);
     const { completed } = advanceQuests(gameProfile.quests || {}, { species, sizeIn, biome });
@@ -649,6 +651,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         zoneWidth={zoneWidthRef.current}
         result={result}
         holding={reelHolding}
+        catchSize={pendingCatch?.sizeIn ?? null}
         travel={travel}
         period={period}
         interaction={stageInteraction}
