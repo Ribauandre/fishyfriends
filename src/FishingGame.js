@@ -451,6 +451,9 @@ export default function FishingGame({ clock = () => new Date() }) {
     if (phase !== 'reeling' || !pendingCatch) return undefined;
     const difficulty = difficultyFor(pendingCatch.rarity);
     const fishSpeed = difficulty.fishSpeed * fishSpeedMultiplier(gameProfile.reel_level);
+    // The fish's temperament is its rarity's; a better reel takes some of the sting out of a run.
+    const runChance = difficulty.runChance;
+    const runPower = difficulty.runPower * fishSpeedMultiplier(gameProfile.reel_level);
     const drainRate = difficulty.drainRate * drainMultiplier(gameProfile.reel_level);
     zoneWidthRef.current = difficulty.zoneWidth;
     tensionMaxRef.current = tensionMaxFor(gameProfile.line_level);
@@ -462,7 +465,7 @@ export default function FishingGame({ clock = () => new Date() }) {
 
     reelIntervalRef.current = setInterval(() => {
       reelElapsedRef.current += REEL_TICK_MS;
-      const nextState = stepReel(reelStateRef.current, { holding: holdingRef.current, fishSpeed, drainRate, zoneWidth: zoneWidthRef.current });
+      const nextState = stepReel(reelStateRef.current, { holding: holdingRef.current, fishSpeed, runChance, runPower, drainRate, zoneWidth: zoneWidthRef.current });
       reelStateRef.current = nextState;
       setReelDisplay(nextState);
 
