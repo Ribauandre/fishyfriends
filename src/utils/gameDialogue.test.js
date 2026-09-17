@@ -99,6 +99,17 @@ describe('the world talks back', () => {
     expect(captainLine({ biome: 'creek', chartered: false, phase: 'ready', period: 'night' })).toMatch(/eels/i);
   });
 
+  test('the captain counts the western run on the flats, pitches Baja, and calls a stick a stick', () => {
+    const south = { rays_proving: { done: true }, rays_southern_run: { progress: 5, done: true }, rays_western_run: { progress: 3, done: false } };
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'ready', period: 'day', quests: south })).toMatch(/2 more off this flat/i);
+    const west = { ...south, rays_western_run: { progress: 5, done: true } };
+    expect(captainLine({ biome: 'flats', chartered: true, phase: 'ready', period: 'day', quests: west })).toMatch(/baja's on the map/i);
+    expect(captainLine({ biome: 'baja', chartered: false, phase: 'ready' })).toMatch(/120 points/);
+    expect(captainLine({ biome: 'baja', chartered: true, phase: 'ready', period: 'day' })).toMatch(/roosterfish/i);
+    expect(captainLine({ biome: 'baja', chartered: true, phase: 'ready', period: 'night' })).toMatch(/giant sea bass/i);
+    expect(captainLine({ biome: 'river', chartered: false, phase: 'result', result: { success: true, species: 'stick', rarity: 'junk' } })).toMatch(/that's a stick/i);
+  });
+
   test('a record gets its own line wherever it happens', () => {
     expect(captainLine({ biome: 'river', chartered: false, phase: 'result', result: { success: true, species: 'walleye' }, isRecord: true })).toMatch(/your biggest yet/i);
   });

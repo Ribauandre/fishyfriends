@@ -24,6 +24,7 @@ import flatsArt from '../../assets/scenes/flats.webp';
 import pierArt from '../../assets/scenes/pier.webp';
 import creekArt from '../../assets/scenes/creek.webp';
 import mountainlakeWinterArt from '../../assets/scenes/mountainlake_winter.webp';
+import bajaArt from '../../assets/scenes/baja.webp';
 import { sceneKeyFor } from '../../utils/sceneLayout';
 
 // The 2D stage for Cast & Catch: a pixel-art backdrop per biome, the angler sprite, and an SVG
@@ -38,7 +39,7 @@ import { sceneKeyFor } from '../../utils/sceneLayout';
 // and draws everything in stage units. The world layer (backdrop, ambience, sprites, line,
 // fish) is what the camera moves; the meters, callout, trophy and tap surface stay in screen
 // space above it.
-const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt, pier: pierArt, creek: creekArt, 'mountainlake:winter': mountainlakeWinterArt };
+const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt, pier: pierArt, creek: creekArt, 'mountainlake:winter': mountainlakeWinterArt, baja: bajaArt };
 const CREW_SCALE = 0.9;
 const RECENT_CATCH_MS = 9000;
 const round2 = (value) => Math.round(value * 100) / 100;

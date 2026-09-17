@@ -81,6 +81,7 @@ const NIGHT_TIPS = {
   offshore: "Sharks own the dark water. Hold on.",
   canyon: 'Swordfish come up from the deep at night. This is the hour.',
   flats: 'Tarpon roll in the channel after dark. Big fly, big fish, hold on.',
+  baja: 'Nothing on the beach after dark. Drop deep for the giant sea bass.',
 };
 
 // The flats by daylight, for anyone with the shrimp fly tied on.
@@ -101,15 +102,24 @@ const HATCH_TIPS = {
 export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', season = null, quests = {}, isRecord = false, champion = false, justWon = null, flyRod = false, lure = 'livebait' }) {
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
   if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
+  if (phase === 'result' && result?.success && result.rarity === 'junk') return "That's a stick. Happens to the best of us. Cast again.";
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
   const charter = (BIOMES[biome]?.charterCost || 0) > 0;
   if (phase === 'result' && result?.success && charter) return `A ${speciesLabel(result.species).toLowerCase()}. That's why you charter.`;
   if (phase === 'result' && result && !result.success && charter) return biome === 'flats' ? "Spooked it. Skinny water's like that. Pole on, there's more." : "Big water doesn't hand them over. We can go back out.";
   const proving = questState(quests, 'rays_proving');
   const southern = questState(quests, 'rays_southern_run');
+  const western = questState(quests, 'rays_western_run');
+  if (biome === 'baja') {
+    if (!chartered) return `${BIOMES.baja.charterCost} points covers the flight and my cousin's panga. Roosters on the beach, marlin off the point.`;
+    if (period === 'night') return NIGHT_TIPS.baja;
+    return "Cousin's water. Roosterfish chase bait right up the beach; yellowtail on the reef, marlin off the point.";
+  }
   if (biome === 'flats') {
     if (!chartered) return `${BIOMES.flats.charterCost} points and we trailer the skiff south. Skinny water, spooky fish, and nothing like it.`;
     if (period === 'night') return NIGHT_TIPS.flats;
+    if (southern.done && !western.done) return `${QUEST_BY_KEY.rays_western_run.goal.count - western.progress} more off this flat and I'll call my cousin in Baja.`;
+    if (western.done && !questState(quests, 'baja_rooster').done) return "Baja's on the map. Bring sunscreen.";
     if (flyRod && lure === 'shrimpfly') return FLATS_TIPS[period] || FLATS_TIPS.day;
     return "Pole's up. Bones on the flat, permit on the edge, tarpon in the channel. Cast soft — they spook.";
   }

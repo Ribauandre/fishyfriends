@@ -90,6 +90,13 @@ test('the landed fish sits centre stage at its size, with its plaque', () => {
   expect(container.querySelector('.scene-plaque')).not.toHaveTextContent('NEW RECORD');
 });
 
+test('a stick on the plaque is tagged junk and worth nothing', () => {
+  const { container } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'stick', rarity: 'junk', sizeIn: 14, sizeLabel: '14.0 in', pointsEarned: 0 }} />);
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('JUNK');
+  expect(container.querySelector('.scene-plaque')).toHaveTextContent('A stick');
+  expect(container.querySelector('.scene-trophy')).toHaveAttribute('data-species', 'stick');
+});
+
 test('celebrates a landed fish and holds it up, and straightens up after a loss', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="result" displayName="Andre" result={{ success: true, species: 'walleye' }} />);
   expect(container.querySelector('.scene-sprite')).toHaveAttribute('data-action', 'celebrate');

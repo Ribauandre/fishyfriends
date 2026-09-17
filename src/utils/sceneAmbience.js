@@ -17,9 +17,9 @@ const LANE_MOTION = [{ duration: 95, delay: -20 }, { duration: 130, delay: -75 }
 
 const CRITTERS = {
   river: 'dragonfly', mountainlake: 'dragonfly', swamp: 'dragonfly',
-  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull', flats: 'seagull', pier: 'seagull', creek: 'seagull',
+  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull', flats: 'seagull', pier: 'seagull', creek: 'seagull', baja: 'seagull',
 };
-const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2, pier: 3, creek: 1 };
+const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2, pier: 3, creek: 1, baja: 4 };
 
 // The water each ground moves in. `sparkle` is how much of the shimmer layer to run: a
 // river's broken surface catches little of it, a bay's swell a lot. Everything else is a
@@ -34,6 +34,8 @@ const SCENES = {
   canyon: { current: { lines: 4, seconds: 19, band: [0.08, 0.42] }, sparkle: 0.24 },
   // Skinny water: a slow lift of the tide, and rings where something pushed a wake.
   flats: { rings: { count: 4, seconds: 9 }, swell: { seconds: 14 }, sparkle: 0.5 },
+  // Baja: a long Pacific swell and hard sun on it, and the surf line on the beach.
+  baja: { swell: { seconds: 11 }, surf: { count: 1, seconds: 9 }, sparkle: 0.55 },
   // The pier stands in the surf and the swell at once; the creek runs with the tide, slow.
   pier: { surf: { count: 2, seconds: 7.5 }, swell: { seconds: 8 }, sparkle: 0.34 },
   creek: { current: { lines: 3, seconds: 24, band: [0.1, 0.5] }, rings: { count: 2, seconds: 12 }, sparkle: 0.18 },

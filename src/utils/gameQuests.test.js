@@ -59,9 +59,25 @@ test("five canyon fish send Ray south and open The Flats, and the slam counts ea
   expect(questState(quests, 'flats_slam').progress).toBe(1);
   ({ quests } = advanceQuests(quests, { species: 'permit', sizeIn: 30, biome: 'flats' }));
   const slam = advanceQuests(quests, { species: 'tarpon', sizeIn: 70, biome: 'flats' });
-  expect(slam.completed).toEqual(['flats_slam']);
+  // The fifth flats fish also finishes Ray's western run.
+  expect(slam.completed).toEqual(['flats_slam', 'rays_western_run']);
   expect(questState(slam.quests, 'flats_slam').landed).toEqual(['bonefish', 'permit', 'tarpon']);
   expect(claimableQuests(slam.quests).map((quest) => quest.key)).toEqual(['flats_slam']);
+});
+
+test('five flats fish open Baja, and the rooster is the last of the captain\'s asks', () => {
+  let quests = { rays_proving: { progress: 3, done: true }, rays_southern_run: { progress: 5, done: true } };
+  expect(questsFor('captain', quests).map((quest) => quest.key)).toContain('rays_western_run');
+  expect(questsFor('captain', quests).map((quest) => quest.key)).not.toContain('baja_rooster');
+  expect(biomeUnlocked('baja', quests)).toBe(false);
+  for (let i = 0; i < 5; i += 1) ({ quests } = advanceQuests(quests, { species: 'bonefish', sizeIn: 20, biome: 'flats' }));
+  expect(questState(quests, 'rays_western_run').done).toBe(true);
+  expect(biomeUnlocked('baja', quests)).toBe(true);
+  expect(questsFor('captain', quests).map((quest) => quest.key)).toContain('baja_rooster');
+  const rooster = advanceQuests(quests, { species: 'roosterfish', sizeIn: 40, biome: 'baja' });
+  expect(rooster.completed).toEqual(['baja_rooster']);
+  expect(questGoalLabel(QUEST_BY_KEY.rays_western_run, {})).toBe('Land 5 fish in The Flats — any species, any size.');
+  expect(questRewardLabel(QUEST_BY_KEY.rays_western_run)).toBe('Opens Baja on the map');
 });
 
 test("Sal's bull red wants 27 inches, from any water", () => {

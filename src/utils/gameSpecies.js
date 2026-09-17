@@ -9,7 +9,18 @@ export const RARITY_INFO = {
   rare: { label: 'Rare', color: '#4fa8ff', text: '#071419' },
   epic: { label: 'Epic', color: '#c58bff', text: '#071419' },
   legendary: { label: 'Legendary', color: '#e3fb14', text: '#071419' },
+  // Not a fish. A stick comes up now and then on any water: an easy, dead-weight reel and
+  // nothing for it — no points, no record, no quest, no log. Nice one.
+  junk: { label: 'Junk', color: '#6d7a80', text: '#071419' },
 };
+
+// The chance any bite is the stick rather than a fish.
+export const JUNK_CHANCE = 0.05;
+export const JUNK_SPECIES = 'stick';
+export function isJunk(rarity) { return rarity === 'junk'; }
+export function rollJunk(random = Math.random) {
+  return random() < JUNK_CHANCE ? { species: JUNK_SPECIES, rarity: 'junk' } : null;
+}
 
 // spawnWeight: relative odds before bait level shifts them toward rarer tiers.
 // hookWindowMs: how long the hookset flash stays clickable.
@@ -32,6 +43,9 @@ const RARITY_DIFFICULTY = {
   rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, runChance: 0.08, runPower: 1.2, drainRate: 0.85, points: [24, 40] },
   epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 21, fishSpeed: 2.0, runChance: 0.11, runPower: 1.4, drainRate: 1.1, points: [55, 90] },
   legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 16, fishSpeed: 2.5, runChance: 0.15, runPower: 1.6, drainRate: 1.4, points: [120, 200] },
+  // Dead weight: it never runs and the zone is wide. It is not in the spawn roll (spawnWeight
+  // 0) — rollJunk decides a stick before the species roll is made.
+  junk: { spawnWeight: 0, hookWindowMs: 1200, zoneWidth: 64, fishSpeed: 0.3, runChance: 0, runPower: 0, drainRate: 0.2, points: [0, 0] },
 };
 
 const SPECIES_LABELS = {
@@ -55,6 +69,9 @@ const SPECIES_LABELS = {
   yellowfintuna: 'Yellowfin tuna', bluefintuna: 'Bluefin tuna', bigeyetuna: 'Bigeye tuna', threshershark: 'Thresher shark', makoshark: 'Mako shark', tilefish: 'Golden tilefish',
   whitemarlin: 'White marlin', sailfish: 'Sailfish', opah: 'Opah',
   spottedseatrout: 'Spotted seatrout', ladyfish: 'Ladyfish', lemonshark: 'Lemon shark',
+  roosterfish: 'Roosterfish', yellowtail: 'Yellowtail', calicobass: 'Calico bass', californiahalibut: 'California halibut',
+  lingcod: 'Lingcod', cabezon: 'Cabezon', giantseabass: 'Giant sea bass', stripedmarlin: 'Striped marlin', corvina: 'Corvina', sierra: 'Sierra mackerel',
+  stick: 'A stick',
 };
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
@@ -86,6 +103,10 @@ const SPECIES_RARITY = {
   floridabass: 'epic', sandbarshark: 'epic', yellowfintuna: 'epic', bigeyetuna: 'epic', threshershark: 'epic', tilefish: 'epic',
   whitemarlin: 'epic', sailfish: 'epic', opah: 'epic', lemonshark: 'epic',
   bluefintuna: 'legendary', makoshark: 'legendary',
+  // Baja, the Pacific trip.
+  calicobass: 'common', corvina: 'common', sierra: 'uncommon', lingcod: 'uncommon', cabezon: 'uncommon',
+  yellowtail: 'rare', californiahalibut: 'rare', roosterfish: 'epic', stripedmarlin: 'legendary', giantseabass: 'legendary',
+  stick: 'junk',
 };
 
 // Fish that are only in for part of the year (see seasonFor in utils/gameClock.js): the shad
@@ -203,6 +224,9 @@ export const SPECIES_SIZE = {
   yellowfintuna: [30, 80], bluefintuna: [60, 130], bigeyetuna: [36, 84], threshershark: [70, 200], makoshark: [60, 140], tilefish: [20, 44],
   whitemarlin: [60, 110], sailfish: [70, 130], opah: [30, 60],
   spottedseatrout: [14, 32], ladyfish: [14, 32], lemonshark: [60, 120],
+  roosterfish: [24, 60], yellowtail: [20, 48], calicobass: [10, 24], californiahalibut: [22, 50], lingcod: [20, 48], cabezon: [12, 30],
+  giantseabass: [48, 90], stripedmarlin: [80, 140], corvina: [12, 28], sierra: [14, 30],
+  stick: [8, 30],
 };
 
 export function rollSize(species, random = Math.random) {
