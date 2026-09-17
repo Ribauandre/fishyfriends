@@ -184,6 +184,22 @@ test('uploadFishingLicense fails closed once state and expiration are given', as
   expect(response.error.message).toMatch(/sign in before adding a license/i);
 });
 
+test('uploadFishingLicense rejects a file that is neither an image nor a PDF', async () => {
+  const result = await setup();
+  const textFile = new File(['hello'], 'notes.txt', { type: 'text/plain' });
+  let response;
+  await waitFor(async () => { response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31', file: textFile }); });
+  expect(response.error.message).toMatch(/image or pdf/i);
+});
+
+test('uploadFishingLicense accepts a PDF and fails closed after that, same as an image', async () => {
+  const result = await setup();
+  const pdfFile = new File(['%PDF-1.4'], 'license.pdf', { type: 'application/pdf' });
+  let response;
+  await waitFor(async () => { response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31', file: pdfFile }); });
+  expect(response.error.message).toMatch(/sign in before adding a license/i);
+});
+
 test('deleteFishingLicense fails closed', async () => {
   const result = await setup();
   let response;

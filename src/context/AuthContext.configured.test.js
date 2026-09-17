@@ -852,6 +852,21 @@ describe('fishing licenses', () => {
     expect(response.license.photo_url).toBe('https://example.com/signed-photo.jpg');
   });
 
+  test('uploadFishingLicense uploads a scanned PDF without running it through image compression', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: { id: 'lic-new', state: 'New Jersey', expires_at: '2026-12-31', photo_path: 'user-1/123-license.pdf' }, error: null });
+    const file = new File(['%PDF-1.4'], 'license.pdf', { type: 'application/pdf' });
+
+    const response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31', file });
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageUpload).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/.*\.pdf$/),
+      file,
+      expect.objectContaining({ contentType: 'application/pdf' }),
+    );
+  });
+
   test('uploadFishingLicense surfaces a Supabase error instead of throwing', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('fishing_licenses', { data: null, error: { message: 'insert failed' } });

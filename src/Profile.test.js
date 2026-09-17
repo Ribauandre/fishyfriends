@@ -130,6 +130,19 @@ describe('fishing licenses', () => {
     expect(screen.getByText('✓ VALID')).toBeInTheDocument();
   });
 
+  test('"Show to warden" links to the PDF instead of rendering it as an image when the license was uploaded as a PDF', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', expires_at: '2099-01-01', photo_path: 'user-1/1.pdf', photo_url: 'https://example.com/signed.pdf' },
+      ]),
+    }));
+    renderProfile();
+    await userEvent.click(await screen.findByRole('button', { name: /show to warden/i }));
+    const link = screen.getByRole('link', { name: /view license pdf/i });
+    expect(link).toHaveAttribute('href', 'https://example.com/signed.pdf');
+    expect(screen.queryByRole('img', { name: /new jersey fishing license/i })).not.toBeInTheDocument();
+  });
+
   test('deleting a license asks for confirmation, then removes it from the list', async () => {
     const deleteFishingLicense = jest.fn().mockResolvedValue({ error: null });
     useAuth.mockReturnValue(makeBaseAuth({
