@@ -964,8 +964,16 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-firefly { animation-iteration-count: infinite, infinite; animation-name: firefly-drift, firefly-glow; animation-timing-function: ease-in-out, ease-in-out; background: radial-gradient(closest-side, rgba(226,255,140,.95), rgba(180,255,80,.35) 55%, transparent); border-radius: 50%; position: absolute; }
 @keyframes firefly-drift { 0% { transform: translate(0, 0); } 25% { transform: translate(190%, -140%); } 50% { transform: translate(340%, 30%); } 75% { transform: translate(130%, 160%); } 100% { transform: translate(0, 0); } }
 @keyframes firefly-glow { 0%, 100% { opacity: .12; } 45% { opacity: 1; } 62% { opacity: .28; } }
-.scene-lamp { animation: lamp-flicker 3.4s ease-in-out infinite; background: radial-gradient(closest-side, rgba(255,198,90,.62), rgba(255,170,60,.2) 55%, transparent); mix-blend-mode: screen; position: absolute; }
+/* The dock lamp after dark: the glow at the lamp head, and the pool of light it throws on the
+   deck below, both screened over the tinted world (they are drawn after the tint in
+   GameScene). Both are centred on their point and flicker together, gently. */
+.scene-lamp { animation: lamp-flicker 3.4s ease-in-out infinite; background: radial-gradient(closest-side, rgba(255,214,120,.9), rgba(255,180,70,.35) 55%, transparent); mix-blend-mode: screen; pointer-events: none; position: absolute; transform: translate(-50%, -50%); }
 @keyframes lamp-flicker { 0%, 100% { opacity: .55; } 38% { opacity: .9; } 52% { opacity: .62; } 70% { opacity: .82; } }
+.scene-lamp-pool { animation: lamp-pool-flicker 3.4s ease-in-out infinite; background: radial-gradient(ellipse closest-side, rgba(255,196,110,.58), rgba(255,168,80,.3) 42%, rgba(255,140,60,.1) 72%, transparent); mix-blend-mode: screen; pointer-events: none; position: absolute; transform: translate(-50%, -50%); }
+.scene-lamp-pool.is-dawn { opacity: .3; }
+.scene-lamp-pool.is-dusk { opacity: .7; }
+.scene-lamp-pool.is-night { opacity: 1; }
+@keyframes lamp-pool-flicker { 0%, 100% { filter: brightness(1); } 38% { filter: brightness(1.14); } 52% { filter: brightness(.95); } 70% { filter: brightness(1.08); } }
 
 .scene-sparkles { inset: 0; pointer-events: none; position: absolute; }
 .scene-sparkles span { animation: sparkle-pop .9s ease-out both; aspect-ratio: 1; background: var(--mint); clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); display: none; height: 4.5%; opacity: 0; position: absolute; }
@@ -1003,7 +1011,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes box-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water, .scene-water:before, .scene-water:after, .scene-lamp, .scene-current, .scene-ring, .scene-mist, .scene-surf, .scene-moss, .scene-firefly, .travel-road, .game-loading-box { animation: none; }
+  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water, .scene-water:before, .scene-water:after, .scene-lamp, .scene-lamp-pool, .scene-current, .scene-ring, .scene-mist, .scene-surf, .scene-moss, .scene-firefly, .travel-road, .game-loading-box { animation: none; }
   .scene-world { transition: none; }
   .scene-rise-ring, .scene-bobber, .game-panel, .stage-meter, .stage-callout { animation: none; }
 }
@@ -1018,10 +1026,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-tint.is-night { background: linear-gradient(#14224f, #1a2b5e 60%, #0d1a3a); opacity: .82; }
 .scene-stars { background-image: radial-gradient(#fff 0.8px, transparent 1.2px), radial-gradient(rgba(255,255,255,.7) 0.6px, transparent 1px); background-position: 0 0, 17px 9px; background-size: 41px 29px, 67px 43px; inset: 0 0 auto 0; animation: stars-twinkle 4s ease-in-out infinite alternate; opacity: .8; position: absolute; }
 @keyframes stars-twinkle { from { opacity: .55; } to { opacity: .95; } }
-.game-scene[data-period="night"] .scene-lamp { opacity: 1; transform: scale(1.5); }
+.game-scene[data-period="night"] .scene-lamp { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
 .game-scene[data-period="night"] .scene-cloud { filter: brightness(.45); }
 .game-scene[data-period="night"] .scene-water { opacity: .18; }
-.game-scene[data-period="dusk"] .scene-lamp { transform: scale(1.2); }
+.game-scene[data-period="dusk"] .scene-lamp { transform: translate(-50%, -50%) scale(1.2); }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
 .hud-chip.is-dawn { color: #ffe1b8; }
 .hud-button-sound { min-width: 50px; }

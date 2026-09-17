@@ -2,16 +2,15 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import SceneAmbience from './SceneAmbience';
 
-test('salt water gets gulls and the dock lamp; offshore has no dock to light', () => {
+test('salt water gets gulls; the dock lamp is not the ambience\'s to draw (GameScene lights it over the tint)', () => {
   const { container, rerender } = render(<SceneAmbience biome="bay" />);
   expect(container.querySelectorAll('.scene-gull').length).toBe(2);
   expect(container.querySelector('.scene-dragonfly')).toBeNull();
-  expect(container.querySelector('.scene-lamp')).toBeInTheDocument();
+  expect(container.querySelector('.scene-lamp')).toBeNull();
   expect(container.querySelectorAll('.scene-cloud').length).toBe(2);
 
   rerender(<SceneAmbience biome="offshore" />);
   expect(container.querySelectorAll('.scene-gull').length).toBe(3);
-  expect(container.querySelector('.scene-lamp')).toBeNull();
 });
 
 test('fresh water gets dragonflies, and the swamp canopy hides the sky', () => {

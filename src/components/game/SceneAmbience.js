@@ -79,7 +79,6 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
       className="scene-firefly"
       style={{ left: pctX(stageX(bug.x, frame), frame), top: pctY(stageY(bug.y, frame)), width: pctW(bug.size, frame), height: pctH(bug.size, frame), animationDuration: `${bug.duration}s, ${bug.duration / 4}s`, animationDelay: `${bug.delay}s, ${bug.delay / 2}s` }}
     />)}
-    {config.lamp && <div className="scene-lamp" style={box({ x0: config.lamp.x - config.lamp.r, x1: config.lamp.x + config.lamp.r, y0: config.lamp.y - config.lamp.r, y1: config.lamp.y + config.lamp.r })} />}
     {Array.from({ length: gullCount }, (_, index) => <div
       key={index}
       className="scene-gull"
