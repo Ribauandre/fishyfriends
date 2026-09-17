@@ -313,6 +313,8 @@ button { cursor: pointer; }
 .warden-view-card .modal-close { position: absolute; right: 14px; top: 10px; }
 .warden-view-name { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
 .warden-view-photo { border: 1px solid var(--line); margin-bottom: 16px; max-height: 220px; object-fit: contain; width: 100%; }
+.warden-view-pdf-link { border: 1px solid var(--line); color: var(--mint); display: block; font-size: 13px; font-weight: 800; margin-bottom: 16px; padding: 14px; text-decoration: none; }
+.warden-view-pdf-link:hover { border-color: var(--mint); }
 .warden-view-facts { display: grid; gap: 6px 16px; grid-template-columns: auto auto; justify-content: center; margin: 0 0 20px; text-align: left; }
 .warden-view-facts dt { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .warden-view-facts dd { font-size: 13px; font-weight: 700; margin: 0; }

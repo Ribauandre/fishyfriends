@@ -40,7 +40,7 @@ function AddLicenseModal({ onClose, onSaved }) {
       <label>License number (optional)<input value={form.licenseNumber} onChange={(event) => setForm({ ...form, licenseNumber: event.target.value })} /></label>
       <label>Issued (optional)<input type="date" value={form.issuedAt} onChange={(event) => setForm({ ...form, issuedAt: event.target.value })} /></label>
       <label>Expires<input required type="date" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} /></label>
-      <label>Photo (optional)<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} /></label>
+      <label>Photo or PDF (optional)<input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Add license'} <span>→</span></button></div>
     </form>
@@ -63,6 +63,10 @@ function DeleteLicenseModal({ license, deleting, onCancel, onConfirm }) {
   </div>;
 }
 
+function isPdfPath(path) {
+  return /\.pdf$/i.test(path || '');
+}
+
 // A quick, at-a-glance card meant to be handed over on the dock — big state name and a
 // status banner that reads clean from arm's length, rather than the compact list row.
 function WardenView({ license, anglerName, onClose }) {
@@ -73,7 +77,9 @@ function WardenView({ license, anglerName, onClose }) {
       <span className="eyebrow">FISHING LICENSE</span>
       <h2>{license.state}</h2>
       <p className="warden-view-name">{anglerName}</p>
-      {license.photo_url && <img className="warden-view-photo" src={license.photo_url} alt={`${license.state} fishing license`} />}
+      {license.photo_url && (isPdfPath(license.photo_path)
+        ? <a className="warden-view-pdf-link" href={license.photo_url} target="_blank" rel="noopener noreferrer">View license PDF ↗</a>
+        : <img className="warden-view-photo" src={license.photo_url} alt={`${license.state} fishing license`} />)}
       <dl className="warden-view-facts">
         {license.license_number && <><dt>License #</dt><dd>{license.license_number}</dd></>}
         {license.issued_at && <><dt>Issued</dt><dd>{license.issued_at}</dd></>}

@@ -752,9 +752,13 @@ export function AuthProvider({ children }) {
     const trimmedState = state?.trim();
     if (!trimmedState) return { error: new Error('Choose which state this license is for.') };
     if (!expiresAt) return { error: new Error('Add the expiration date.') };
-    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = rawFile && await compressImage(rawFile);
-    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('License photos must be smaller than 5 MB.') };
+    const isImage = rawFile?.type.startsWith('image/');
+    const isPdf = rawFile?.type === 'application/pdf';
+    if (rawFile && !isImage && !isPdf) return { error: new Error('Choose an image or PDF file.') };
+    // A scanned license is often a PDF, not a photo — only images go through compressImage,
+    // which assumes it can decode the file as a bitmap.
+    const file = isImage ? await compressImage(rawFile) : rawFile;
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('License files must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a license.') };
     let photoPath = '';
     if (file) {
