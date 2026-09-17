@@ -91,6 +91,14 @@ describe('the world talks back', () => {
     expect(captainLine({ biome: 'flats', chartered: true, phase: 'result', result: { success: false } })).toMatch(/spooked it/i);
   });
 
+  test('the captain reads the calendar where it changes what is biting', () => {
+    expect(captainLine({ biome: 'river', chartered: false, phase: 'ready', season: 'spring' })).toMatch(/shad are running/i);
+    expect(captainLine({ biome: 'river', chartered: false, phase: 'ready', season: 'summer' })).toMatch(/smallmouth/i);
+    expect(captainLine({ biome: 'mountainlake', chartered: false, phase: 'ready', season: 'winter' })).toMatch(/ice fishing/i);
+    expect(captainLine({ biome: 'pier', chartered: false, phase: 'ready' })).toMatch(/kingfish/i);
+    expect(captainLine({ biome: 'creek', chartered: false, phase: 'ready', period: 'night' })).toMatch(/eels/i);
+  });
+
   test('a record gets its own line wherever it happens', () => {
     expect(captainLine({ biome: 'river', chartered: false, phase: 'result', result: { success: true, species: 'walleye' }, isRecord: true })).toMatch(/your biggest yet/i);
   });

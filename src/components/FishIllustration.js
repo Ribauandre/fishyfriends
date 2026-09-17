@@ -45,6 +45,40 @@ import redfish from '../assets/fish/redfish.png';
 import barracuda from '../assets/fish/barracuda.png';
 import jackcrevalle from '../assets/fish/jackcrevalle.png';
 import mangrovesnapper from '../assets/fish/mangrovesnapper.png';
+import whiteperch from '../assets/fish/whiteperch.png';
+import fallfish from '../assets/fish/fallfish.png';
+import rockbass from '../assets/fish/rockbass.png';
+import channelcatfish from '../assets/fish/channelcatfish.png';
+import landlockedsalmon from '../assets/fish/landlockedsalmon.png';
+import splake from '../assets/fish/splake.png';
+import tigertrout from '../assets/fish/tigertrout.png';
+import pumpkinseed from '../assets/fish/pumpkinseed.png';
+import warmouth from '../assets/fish/warmouth.png';
+import whitecatfish from '../assets/fish/whitecatfish.png';
+import floridabass from '../assets/fish/floridabass.png';
+import winterflounder from '../assets/fish/winterflounder.png';
+import northernkingfish from '../assets/fish/northernkingfish.png';
+import searobin from '../assets/fish/searobin.png';
+import oystertoadfish from '../assets/fish/oystertoadfish.png';
+import americaneel from '../assets/fish/americaneel.png';
+import spanishmackerel from '../assets/fish/spanishmackerel.png';
+import bonito from '../assets/fish/bonito.png';
+import littletunny from '../assets/fish/littletunny.png';
+import pompano from '../assets/fish/pompano.png';
+import sandbarshark from '../assets/fish/sandbarshark.png';
+import kingmackerel from '../assets/fish/kingmackerel.png';
+import yellowfintuna from '../assets/fish/yellowfintuna.png';
+import bluefintuna from '../assets/fish/bluefintuna.png';
+import bigeyetuna from '../assets/fish/bigeyetuna.png';
+import threshershark from '../assets/fish/threshershark.png';
+import makoshark from '../assets/fish/makoshark.png';
+import tilefish from '../assets/fish/tilefish.png';
+import whitemarlin from '../assets/fish/whitemarlin.png';
+import sailfish from '../assets/fish/sailfish.png';
+import opah from '../assets/fish/opah.png';
+import spottedseatrout from '../assets/fish/spottedseatrout.png';
+import ladyfish from '../assets/fish/ladyfish.png';
+import lemonshark from '../assets/fish/lemonshark.png';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -98,6 +132,40 @@ const fishDetails = {
   barracuda: { label: 'Barracuda', src: barracuda },
   jackcrevalle: { label: 'Jack crevalle', src: jackcrevalle },
   mangrovesnapper: { label: 'Mangrove snapper', src: mangrovesnapper },
+  whiteperch: { label: 'White perch', src: whiteperch },
+  fallfish: { label: 'Fallfish', src: fallfish },
+  rockbass: { label: 'Rock bass', src: rockbass },
+  channelcatfish: { label: 'Channel catfish', src: channelcatfish },
+  landlockedsalmon: { label: 'Landlocked salmon', src: landlockedsalmon },
+  splake: { label: 'Splake', src: splake },
+  tigertrout: { label: 'Tiger trout', src: tigertrout },
+  pumpkinseed: { label: 'Pumpkinseed', src: pumpkinseed },
+  warmouth: { label: 'Warmouth', src: warmouth },
+  whitecatfish: { label: 'White catfish', src: whitecatfish },
+  floridabass: { label: 'Florida bass', src: floridabass },
+  winterflounder: { label: 'Winter flounder', src: winterflounder },
+  northernkingfish: { label: 'Northern kingfish', src: northernkingfish },
+  searobin: { label: 'Sea robin', src: searobin },
+  oystertoadfish: { label: 'Oyster toadfish', src: oystertoadfish },
+  americaneel: { label: 'American eel', src: americaneel },
+  spanishmackerel: { label: 'Spanish mackerel', src: spanishmackerel },
+  bonito: { label: 'Bonito', src: bonito },
+  littletunny: { label: 'False albacore', src: littletunny },
+  pompano: { label: 'Pompano', src: pompano },
+  sandbarshark: { label: 'Sandbar shark', src: sandbarshark },
+  kingmackerel: { label: 'King mackerel', src: kingmackerel },
+  yellowfintuna: { label: 'Yellowfin tuna', src: yellowfintuna },
+  bluefintuna: { label: 'Bluefin tuna', src: bluefintuna },
+  bigeyetuna: { label: 'Bigeye tuna', src: bigeyetuna },
+  threshershark: { label: 'Thresher shark', src: threshershark },
+  makoshark: { label: 'Mako shark', src: makoshark },
+  tilefish: { label: 'Golden tilefish', src: tilefish },
+  whitemarlin: { label: 'White marlin', src: whitemarlin },
+  sailfish: { label: 'Sailfish', src: sailfish },
+  opah: { label: 'Opah', src: opah },
+  spottedseatrout: { label: 'Spotted seatrout', src: spottedseatrout },
+  ladyfish: { label: 'Ladyfish', src: ladyfish },
+  lemonshark: { label: 'Lemon shark', src: lemonshark },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails);

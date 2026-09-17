@@ -47,6 +47,14 @@ const SPECIES_LABELS = {
   wahoo: 'Wahoo', bluemarlin: 'Blue marlin',
   bonefish: 'Bonefish', permit: 'Permit', tarpon: 'Tarpon', snook: 'Snook', redfish: 'Redfish', barracuda: 'Barracuda',
   jackcrevalle: 'Jack crevalle', mangrovesnapper: 'Mangrove snapper',
+  whiteperch: 'White perch', fallfish: 'Fallfish', rockbass: 'Rock bass', channelcatfish: 'Channel catfish',
+  landlockedsalmon: 'Landlocked salmon', splake: 'Splake', tigertrout: 'Tiger trout',
+  pumpkinseed: 'Pumpkinseed', warmouth: 'Warmouth', whitecatfish: 'White catfish', floridabass: 'Florida bass',
+  winterflounder: 'Winter flounder', northernkingfish: 'Northern kingfish', searobin: 'Sea robin', oystertoadfish: 'Oyster toadfish', americaneel: 'American eel',
+  spanishmackerel: 'Spanish mackerel', bonito: 'Bonito', littletunny: 'False albacore', pompano: 'Pompano', sandbarshark: 'Sandbar shark', kingmackerel: 'King mackerel',
+  yellowfintuna: 'Yellowfin tuna', bluefintuna: 'Bluefin tuna', bigeyetuna: 'Bigeye tuna', threshershark: 'Thresher shark', makoshark: 'Mako shark', tilefish: 'Golden tilefish',
+  whitemarlin: 'White marlin', sailfish: 'Sailfish', opah: 'Opah',
+  spottedseatrout: 'Spotted seatrout', ladyfish: 'Ladyfish', lemonshark: 'Lemon shark',
 };
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
@@ -68,13 +76,51 @@ const SPECIES_RARITY = {
   muskie: 'rare', arcticchar: 'rare', longnosegar: 'rare', blackdrum: 'rare', bonefish: 'rare', barracuda: 'rare',
   alligatorgar: 'epic', cobia: 'epic', wahoo: 'epic', permit: 'epic',
   bluemarlin: 'legendary', tarpon: 'legendary',
+  // The third wave: the small fish every ground really has, the pier and the creek, the
+  // deep-water charter box, and the seasons.
+  whiteperch: 'common', fallfish: 'common', rockbass: 'common', pumpkinseed: 'common', warmouth: 'common',
+  winterflounder: 'common', northernkingfish: 'common', searobin: 'common', ladyfish: 'common',
+  channelcatfish: 'uncommon', splake: 'uncommon', whitecatfish: 'uncommon', oystertoadfish: 'uncommon', americaneel: 'uncommon',
+  spanishmackerel: 'uncommon', pompano: 'uncommon', spottedseatrout: 'uncommon',
+  landlockedsalmon: 'rare', tigertrout: 'rare', bonito: 'rare', littletunny: 'rare', kingmackerel: 'rare',
+  floridabass: 'epic', sandbarshark: 'epic', yellowfintuna: 'epic', bigeyetuna: 'epic', threshershark: 'epic', tilefish: 'epic',
+  whitemarlin: 'epic', sailfish: 'epic', opah: 'epic', lemonshark: 'epic',
+  bluefintuna: 'legendary', makoshark: 'legendary',
 };
+
+// Fish that are only in for part of the year (see seasonFor in utils/gameClock.js): the shad
+// run in spring, the warm-water fish show up in summer and leave in the fall, the winter
+// flounder and tautog come in when the water cools. Anything not listed is in all year. Out
+// of season a fish rolls nowhere and the derby never asks for it; the almanac says when it's
+// back.
+export const SEASONS = {
+  americanshad: ['spring'],
+  winterflounder: ['winter', 'spring'],
+  tautog: ['fall', 'winter', 'spring'],
+  landlockedsalmon: ['spring', 'fall'],
+  spanishmackerel: ['summer', 'fall'],
+  bonito: ['summer', 'fall'],
+  littletunny: ['fall'],
+  pompano: ['summer'],
+  sandbarshark: ['summer'],
+  kingmackerel: ['summer', 'fall'],
+  cobia: ['summer', 'fall'],
+  mahimahi: ['summer', 'fall'],
+  bluefintuna: ['summer', 'fall'],
+  whitemarlin: ['summer', 'fall'],
+  sailfish: ['summer', 'fall'],
+};
+
+export function inSeason(species, season) {
+  const seasons = SEASONS[species];
+  return !seasons || !season || seasons.includes(season);
+}
 
 // Fish that feed after dark. At night the roll leans hard toward these within whatever tier
 // it lands on; at dawn and dusk a little; in full daylight it leans away from them. Which
 // tier you roll is still bait and rarity's business (see rollSpecies) — night changes what's
 // moving, not how hard it fights.
-export const NOCTURNAL = ['catfish', 'walleye', 'snakehead', 'stripedbass', 'weakfish', 'shark', 'swordfish', 'bowfin', 'blackdrum', 'snook', 'tarpon'];
+export const NOCTURNAL = ['catfish', 'walleye', 'snakehead', 'stripedbass', 'weakfish', 'shark', 'swordfish', 'bowfin', 'blackdrum', 'snook', 'tarpon', 'channelcatfish', 'whitecatfish', 'oystertoadfish', 'americaneel', 'sandbarshark', 'makoshark'];
 
 const PERIOD_NOCTURNAL_WEIGHT = { night: 3, dusk: 1.7, dawn: 1.7, day: 0.6 };
 
@@ -98,9 +144,11 @@ const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 // without changing how hard any fish fights.
 export const FAVOR_WEIGHT = 2.5;
 
-export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', random = Math.random, favor = [] } = {}) {
+export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', season = null, random = Math.random, favor = [] } = {}) {
   const speciesByRarity = {};
-  biomeSpecies.forEach((species) => {
+  // Out-of-season fish are simply not there — unless that would leave the ground empty.
+  const inWater = biomeSpecies.filter((species) => inSeason(species, season));
+  (inWater.length ? inWater : biomeSpecies).forEach((species) => {
     const rarity = rarityOf(species);
     (speciesByRarity[rarity] || (speciesByRarity[rarity] = [])).push(species);
   });
@@ -147,6 +195,14 @@ export const SPECIES_SIZE = {
   alligatorgar: [48, 96], porgy: [8, 18], blackdrum: [16, 50], cobia: [30, 66], wahoo: [36, 80], bluemarlin: [90, 170],
   bonefish: [16, 32], permit: [16, 40], tarpon: [40, 90], snook: [16, 44], redfish: [16, 48], barracuda: [20, 60],
   jackcrevalle: [12, 36], mangrovesnapper: [8, 20],
+  whiteperch: [7, 16], fallfish: [8, 20], rockbass: [6, 13], channelcatfish: [14, 40],
+  landlockedsalmon: [16, 30], splake: [12, 28], tigertrout: [12, 26],
+  pumpkinseed: [4, 10], warmouth: [5, 12], whitecatfish: [12, 26], floridabass: [18, 30],
+  winterflounder: [10, 22], northernkingfish: [9, 18], searobin: [10, 18], oystertoadfish: [8, 16], americaneel: [16, 48],
+  spanishmackerel: [14, 30], bonito: [16, 32], littletunny: [18, 36], pompano: [10, 24], sandbarshark: [40, 90], kingmackerel: [24, 60],
+  yellowfintuna: [30, 80], bluefintuna: [60, 130], bigeyetuna: [36, 84], threshershark: [70, 200], makoshark: [60, 140], tilefish: [20, 44],
+  whitemarlin: [60, 110], sailfish: [70, 130], opah: [30, 60],
+  spottedseatrout: [14, 32], ladyfish: [14, 32], lemonshark: [60, 120],
 };
 
 export function rollSize(species, random = Math.random) {
@@ -162,7 +218,7 @@ export function sizeLabel(sizeIn) { return `${Number(sizeIn).toFixed(1)} in`; }
 // Where a length sits among every fish in the game, 0 (a 5-inch panfish) to 1 (a marlin),
 // on a log scale so the small end still spreads out: the shadow on the line is drawn at
 // this, so a bluegill is a smudge and a marlin fills the water. Missing sizes read middling.
-export const LENGTH_RANGE = [5, 170];
+export const LENGTH_RANGE = [4, 200];
 export function lengthFraction(sizeIn) {
   const size = Number(sizeIn);
   if (!Number.isFinite(size) || size <= 0) return 0.4;

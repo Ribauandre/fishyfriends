@@ -15,7 +15,7 @@ import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
 import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
 import { useAuth } from './context/AuthContext';
-import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord } from './utils/gameSpecies';
+import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
@@ -25,7 +25,7 @@ import {
   jerkMarker, twitchJerk, decayJerk, jerkQuality, stepCrank, crankQuality,
   DRIFT_TICK_MS, castAccuracy, startDrift, stepDrift, mendLine, driftSpooked, driftDone, driftQuality,
 } from './utils/lurePhysics';
-import { periodFor, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
+import { periodFor, seasonFor, SEASON_LABELS, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
 import { derbyFor, isChampion, dateOfWeekKey, PENNANT_PRIZE } from './utils/gameDerby';
 import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questState, claimableQuests, advanceQuests, QUEST_BY_KEY } from './utils/gameQuests';
@@ -82,6 +82,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   const [upgradeError, setUpgradeError] = useState('');
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [period, setPeriod] = useState(() => periodFor(clock()));
+  // The season is read once per visit: nobody stays on the dock across a solstice.
+  const [season] = useState(() => seasonFor(clock()));
   const [muted, setMuted] = useState(() => isMuted());
   const [audioReady, setAudioReady] = useState(false);
   const [bounties, setBounties] = useState([]);
@@ -316,7 +318,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
     // The size is rolled at the bite, so the shadow on the line is the size of what's on it.
-    const bite = rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, favor });
+    const bite = rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor });
     setPendingCatch({ ...bite, sizeIn: rollSize(bite.species) });
     setPhase('hookset');
   }
@@ -657,6 +659,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         catchSize={pendingCatch?.sizeIn ?? null}
         travel={travel}
         period={period}
+        season={season}
         interaction={stageInteraction}
         castFillRef={castFillRef}
         castDistance={castPower}
@@ -724,7 +727,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <span className="derby-win-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} />
             <div><strong>You won last week's derby!</strong><span>Biggest {speciesLabel(derbyWin.species).toLowerCase()} in the club{derbyWin.sizeIn ? ` at ${sizeLabel(derbyWin.sizeIn)}` : ''}. The Golden Pennant flies from your rod all week.</span></div>
           </div>}
-          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, charterError, phase, period, quests, champion, justWon: derbyWin, flyRod: hasFlyRod(gameProfile), lure })} compact />
+          <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, charterError, phase, period, quests, champion, justWon: derbyWin, flyRod: hasFlyRod(gameProfile), lure })} compact />
           <button className="button button-primary dock-cast" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
         </div>}
 
@@ -788,7 +791,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <h3>{speciesLabel(result.species)} landed!</h3>
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
-          {(biomeConfig.charterCost > 0 || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, phase, result, period, quests, isRecord: result.isRecord })} compact />}
+          {(biomeConfig.charterCost > 0 || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </div>
@@ -969,7 +972,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       </GameOverlay>}
 
       {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
-        <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'}</p>
+        <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'} It's {SEASON_LABELS[season].toLowerCase()}: fish that are only in for part of the year say when.</p>
         {BIOME_LIST.map((ground) => {
           const unlocked = biomeUnlocked(ground.key, quests);
           return <section key={ground.key} className={`almanac-biome ${unlocked ? '' : 'is-locked'}`} aria-label={unlocked ? ground.label : 'Locked ground'}>
@@ -978,7 +981,9 @@ export default function FishingGame({ clock = () => new Date() }) {
               {ground.species.map((species) => {
                 const record = records[species];
                 const rarity = rarityOf(species);
-                return <div key={species} className={`almanac-card ${record ? 'is-known' : 'is-unknown'}`} data-species={species}>
+                const seasons = SEASONS[species];
+                const here = inSeason(species, season);
+                return <div key={species} className={`almanac-card ${record ? 'is-known' : 'is-unknown'} ${here ? '' : 'is-away'}`} data-species={species} data-in-season={here ? 'yes' : 'no'}>
                   <FishIllustration species={species} />
                   <strong>{record && unlocked ? speciesLabel(species) : '???'}</strong>
                   <span className="almanac-meta">
@@ -987,6 +992,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                     {NOCTURNAL.includes(species) && <em title="Feeds after dark"> ☾</em>}
                     {species === derby.species && <img className="almanac-flag" src={DERBY_FLAG} alt="Derby target" />}
                   </span>
+                  {seasons && <span className={`almanac-season ${here ? 'is-in' : 'is-away'}`}>{here ? `In now · ${seasons.map((name) => SEASON_LABELS[name].toLowerCase()).join(', ')}` : `Back in ${SEASON_LABELS[seasons[0]].toLowerCase()}`}</span>}
                 </div>;
               })}
             </div>

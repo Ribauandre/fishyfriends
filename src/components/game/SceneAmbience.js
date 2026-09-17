@@ -16,9 +16,9 @@ const SEAGULL_FRAMES = 3;
 // Clouds, gulls, dragonflies, the lamp, the water and all of those are pure CSS loops laid
 // out in painting units and mapped to this stage's crop (utils/sceneLayout.js). Nothing here
 // is a fish: the only one on the water is the one the player is fighting.
-export default function SceneAmbience({ biome, period = 'day', viewW = 480 }) {
-  const config = ambienceFor(biome);
-  const layout = layoutFor(biome);
+export default function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
+  const config = ambienceFor(biome, season);
+  const layout = layoutFor(biome, season);
   const frame = frameFor(viewW, layout.crop);
   // Gulls roost after dark; the fresh-water bugs keep going (crickets take over the sound).
   const night = period === 'night';
@@ -27,11 +27,11 @@ export default function SceneAmbience({ biome, period = 'day', viewW = 480 }) {
   const skyBottom = stars ? Math.max(...config.clouds.map((lane) => lane.y1)) + 6 : 0;
   // Each ground's own water, laid out in painting units like everything else here.
   const effects = config.effects;
-  const current = planCurrent(biome);
-  const rings = planRings(biome);
-  const surf = planSurf(biome);
-  const moss = planMoss(biome);
-  const fireflies = night ? planFireflies(biome) : [];
+  const current = planCurrent(biome, season);
+  const rings = planRings(biome, season);
+  const surf = planSurf(biome, season);
+  const moss = planMoss(biome, season);
+  const fireflies = night ? planFireflies(biome, season) : [];
   const box = (rect) => ({
     left: pctX(stageX(rect.x0, frame), frame), top: pctY(stageY(rect.y0, frame)),
     width: pctW(rect.x1 - rect.x0, frame), height: pctH(rect.y1 - rect.y0, frame),

@@ -599,7 +599,7 @@ test('the almanac shows silhouettes until a species is landed, then its best siz
   // The locked canyon is listed as a rumor, not by name.
   // The canyon and the flats are both rumors until Ray's quests are done.
   expect(screen.getAllByRole('region', { name: 'Locked ground' })).toHaveLength(2);
-  expect(document.querySelector('.almanac-progress')).toHaveTextContent('1 of 46 species landed');
+  expect(document.querySelector('.almanac-progress')).toHaveTextContent('1 of 80 species landed');
 });
 
 test('landing your biggest of a species is called out as a record', async () => {

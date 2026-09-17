@@ -15,6 +15,20 @@ export function periodFor(date = new Date()) {
 
 export function isDark(period) { return period === 'night' || period === 'dusk'; }
 
+// The season follows the real calendar too (Northern hemisphere, by month): it decides which
+// fish are in (see SEASONS in utils/gameSpecies.js), the derby pool, and whether the mountain
+// lake is frozen over.
+export const SEASONS_OF_YEAR = ['spring', 'summer', 'fall', 'winter'];
+export const SEASON_LABELS = { spring: 'Spring', summer: 'Summer', fall: 'Fall', winter: 'Winter' };
+
+export function seasonFor(date = new Date()) {
+  const month = date.getMonth();
+  if (month >= 2 && month <= 4) return 'spring';
+  if (month >= 5 && month <= 7) return 'summer';
+  if (month >= 8 && month <= 10) return 'fall';
+  return 'winter';
+}
+
 // Milliseconds until the next period boundary, so the scene can re-tint on time rather than
 // polling: 5:00, 7:00, 18:00, 20:30.
 export function msUntilNextPeriod(date = new Date()) {

@@ -36,6 +36,59 @@ export const SCENE_LAYOUTS = {
   swamp: { ...DOCK, dragonflies: [{ x: 30, y: 212 }, { x: 330, y: 226 }] },
   bay: { ...DOCK, sky: [{ y0: 4, y1: 24, from: -22 }, { y0: 22, y1: 44, from: -22 }], gulls: { y0: 10, y1: 45 } },
   shoreline: { ...DOCK, sky: [{ y0: 4, y1: 26, from: -22 }, { y0: 24, y1: 48, from: -22 }], gulls: { y0: 10, y1: 45 } },
+  // The pier's end: a wider deck (x 20-250, y 75-185, rail at the back, bait bucket at the
+  // left, barrel and rope posts at its end), grey-green swell to the right and a strip of
+  // beach in the bottom right corner, which the water box stops above.
+  pier: {
+    crop: 'center',
+    angler: { x: 170, y: 176 },
+    crew: [-100],
+    spriteH: 92,
+    cast: { min: 290, max: 440, y: 150 },
+    water: { x0: 275, x1: 470, y0: 95, y1: 225 },
+    fishY: 165,
+    sparkle: { x0: 260, y0: 90, x1: 480, y1: 235 },
+    lamp: { x: 60, y: 22, r: 26 },
+    sky: [{ y0: 4, y1: 24, from: -22 }, { y0: 22, y1: 44, from: -22 }],
+    gulls: { y0: 8, y1: 42 },
+    dragonflies: [],
+    tagAbove: false,
+  },
+  // The marsh creek: a short dock (x 0-200, y 115-170), the creek's channel right of it
+  // (x 210-330 below y 150) with mud and crabs beyond, the egret and the osprey pole on the
+  // far bank. The two anglers stand apart on a narrow deck.
+  creek: {
+    crop: 'center',
+    angler: { x: 140, y: 155 },
+    crew: [-85],
+    spriteH: 92,
+    cast: { min: 225, max: 320, y: 175 },
+    water: { x0: 212, x1: 328, y0: 150, y1: 262 },
+    fishY: 205,
+    sparkle: { x0: 200, y0: 95, x1: 340, y1: 270 },
+    lamp: { x: 32, y: 30, r: 26 },
+    sky: [{ y0: 4, y1: 22, from: -22 }],
+    gulls: { y0: 10, y1: 40 },
+    dragonflies: [{ x: 420, y: 150 }],
+    tagAbove: false,
+  },
+  // The mountain lake frozen over (winter only): the snowed-in dock ends at x 200 and the
+  // open lead runs x 215-430, y 150-255; everything else is ice.
+  'mountainlake:winter': {
+    crop: 'center',
+    angler: { x: 165, y: 150 },
+    crew: [-95],
+    spriteH: 92,
+    cast: { min: 250, max: 400, y: 162 },
+    water: { x0: 240, x1: 430, y0: 156, y1: 250 },
+    fishY: 200,
+    sparkle: { x0: 215, y0: 150, x1: 435, y1: 258 },
+    lamp: { x: 40, y: 58, r: 26 },
+    sky: [{ y0: 3, y1: 20, from: 100 }],
+    gulls: null,
+    dragonflies: [],
+    tagAbove: false,
+  },
   // The charter: the angler stands on the cockpit floor by the transom; the cooler is the crew's spot.
   offshore: {
     crop: 'center',
@@ -93,7 +146,13 @@ export const SCENE_LAYOUTS = {
   },
 };
 
-export function layoutFor(biome) { return SCENE_LAYOUTS[biome] || SCENE_LAYOUTS.river; }
+// Which painting and layout a ground uses this season: only the mountain lake changes (it
+// freezes), and only in winter.
+export function sceneKeyFor(biome, season) {
+  return biome === 'mountainlake' && season === 'winter' ? 'mountainlake:winter' : biome;
+}
+
+export function layoutFor(biome, season = null) { return SCENE_LAYOUTS[sceneKeyFor(biome, season)] || SCENE_LAYOUTS[biome] || SCENE_LAYOUTS.river; }
 
 const round2 = (value) => Math.round(value * 100) / 100;
 

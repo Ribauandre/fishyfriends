@@ -1,4 +1,4 @@
-import { periodFor, msUntilNextPeriod, isDark, PERIODS } from './gameClock';
+import { periodFor, msUntilNextPeriod, isDark, PERIODS, seasonFor, SEASONS_OF_YEAR, SEASON_LABELS } from './gameClock';
 
 const at = (hour, minute = 0) => new Date(2026, 5, 15, hour, minute, 0);
 
@@ -15,6 +15,17 @@ test('the real clock decides the period on the dock', () => {
   expect(periodFor(at(2))).toBe('night');
   expect(periodFor(at(4, 59))).toBe('night');
   PERIODS.forEach((period) => expect(typeof period).toBe('string'));
+});
+
+test('the calendar decides the season, by month', () => {
+  expect(seasonFor(new Date(2026, 2, 1))).toBe('spring');
+  expect(seasonFor(new Date(2026, 4, 31))).toBe('spring');
+  expect(seasonFor(new Date(2026, 5, 15))).toBe('summer');
+  expect(seasonFor(new Date(2026, 8, 17))).toBe('fall');
+  expect(seasonFor(new Date(2026, 10, 30))).toBe('fall');
+  expect(seasonFor(new Date(2026, 11, 1))).toBe('winter');
+  expect(seasonFor(new Date(2026, 1, 28))).toBe('winter');
+  SEASONS_OF_YEAR.forEach((season) => expect(SEASON_LABELS[season]).toBeTruthy());
 });
 
 test('dusk and night are dark; dawn and day are not', () => {

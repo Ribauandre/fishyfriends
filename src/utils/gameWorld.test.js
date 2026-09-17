@@ -1,4 +1,4 @@
-import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, speciesWeight, rarityOf } from './gameSpecies';
+import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
@@ -43,18 +43,33 @@ test('a catch knows where it sits in its species, smallest to biggest', () => {
 });
 
 test('a length sits on one scale for every fish, and a rarer fish is a wilder one', () => {
-  expect(lengthFraction(5)).toBe(0);
-  expect(lengthFraction(170)).toBe(1);
+  expect(lengthFraction(4)).toBe(0);
+  expect(lengthFraction(200)).toBe(1);
+  expect(lengthFraction(170)).toBeLessThan(1);
   expect(lengthFraction(40)).toBeGreaterThan(lengthFraction(20));
   expect(lengthFraction(20)).toBeGreaterThan(lengthFraction(8));
   // Log scale: the small end spreads out rather than every panfish reading as nothing.
-  expect(lengthFraction(20) - lengthFraction(5)).toBeGreaterThan(lengthFraction(170) - lengthFraction(80));
+  expect(lengthFraction(20) - lengthFraction(4)).toBeGreaterThan(lengthFraction(200) - lengthFraction(80));
   expect(lengthFraction(undefined)).toBe(0.4);
   const tiers = ['common', 'uncommon', 'rare', 'epic', 'legendary'].map(difficultyFor);
   for (let i = 1; i < tiers.length; i += 1) {
     expect(tiers[i].runChance).toBeGreaterThan(tiers[i - 1].runChance);
     expect(tiers[i].runPower).toBeGreaterThan(tiers[i - 1].runPower);
   }
+});
+
+test('a fish out of season is not in the water, and never the whole roster at once', () => {
+  expect(inSeason('americanshad', 'spring')).toBe(true);
+  expect(inSeason('americanshad', 'summer')).toBe(false);
+  expect(inSeason('smallmouth', 'winter')).toBe(true);
+  expect(inSeason('americanshad', null)).toBe(true);
+  Object.keys(SEASONS).forEach((species) => expect(SPECIES_SIZE[species]).toBeDefined());
+  // In summer the shad never rolls on the river, whatever the dice say.
+  const summer = new Set(Array.from({ length: 200 }, (_, i) => rollSpecies(1, ['americanshad', 'smallmouth'], { season: 'summer', random: sequence(i / 200, i / 200) }).species));
+  expect(summer.has('americanshad')).toBe(false);
+  expect(summer.has('smallmouth')).toBe(true);
+  // A ground whose every fish is away still has fish in it rather than nothing.
+  expect(rollSpecies(1, ['americanshad'], { season: 'summer', random: sequence(0.5) }).species).toBe('americanshad');
 });
 
 test('the first of a species is a record, and only a bigger one beats it', () => {
@@ -78,7 +93,8 @@ test('the canyon and the flats are the locked grounds, each dearer than the last
   ['tarpon', 'permit', 'bonefish'].forEach((species) => expect(watersFor(species)).toEqual(['flats']));
   // Every species on every ground has a fixed rarity and a size range of its own.
   const all = new Set(Object.values(BIOMES).flatMap((biome) => biome.species));
-  expect(all.size).toBe(46);
+  expect(all.size).toBe(80);
+  expect(Object.values(BIOMES).filter((biome) => !biome.charterCost).map((biome) => biome.key)).toEqual(['river', 'mountainlake', 'swamp', 'bay', 'shoreline', 'pier', 'creek']);
   all.forEach((species) => { expect(SPECIES_SIZE[species]).toBeDefined(); expect(rarityOf(species)).toBeDefined(); });
 });
 
@@ -115,17 +131,19 @@ test('each fly matches the hatch at its own hours, and the streamer is tied for 
 });
 
 test('a lure\'s favoured species roll heavier within their tier', () => {
-  // Mountain lake uncommons: brooktrout, rainbowtrout, browntrout — weight 1 each, browntrout x2.5 on a streamer.
+  // The lake's uncommons now include the splake; the roll below uses trout water's three
+  // uncommon trout — weight 1 each, browntrout x2.5 on a streamer.
   const uncommons = BIOMES.mountainlake.species.filter((species) => rarityOf(species) === 'uncommon');
-  expect(uncommons).toEqual(['brooktrout', 'rainbowtrout', 'browntrout']);
+  expect(uncommons).toEqual(['brooktrout', 'rainbowtrout', 'browntrout', 'splake']);
+  const troutWater = ['trout', 'brooktrout', 'rainbowtrout', 'browntrout', 'laketrout'];
   const tierPick = 0.6; // 54 of 90: the uncommon tier at bait level 1 (common 46 / uncommon 28 / rare 16)
-  const plain = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 3) });
-  const favored = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 4.5), favor: ['browntrout'] });
+  const plain = rollSpecies(1, troutWater, { random: sequence(tierPick, 2.2 / 3) });
+  const favored = rollSpecies(1, troutWater, { random: sequence(tierPick, 2.2 / 4.5), favor: ['browntrout'] });
   expect(plain.rarity).toBe('uncommon');
   expect(favored.rarity).toBe('uncommon');
   expect(plain.species).toBe('browntrout');
   expect(favored.species).toBe('browntrout');
   // Same 2.2 into the pool, but with the extra weight on the first fish the pick lands on it instead.
-  const shifted = rollSpecies(1, BIOMES.mountainlake.species, { random: sequence(tierPick, 2.2 / 4.5), favor: ['brooktrout'] });
+  const shifted = rollSpecies(1, troutWater, { random: sequence(tierPick, 2.2 / 4.5), favor: ['brooktrout'] });
   expect(shifted.species).toBe('brooktrout');
 });
