@@ -79,6 +79,17 @@ import opah from '../assets/fish/opah.png';
 import spottedseatrout from '../assets/fish/spottedseatrout.png';
 import ladyfish from '../assets/fish/ladyfish.png';
 import lemonshark from '../assets/fish/lemonshark.png';
+import stick from '../assets/fish/stick.png';
+import roosterfish from '../assets/fish/roosterfish.png';
+import yellowtail from '../assets/fish/yellowtail.png';
+import calicobass from '../assets/fish/calicobass.png';
+import californiahalibut from '../assets/fish/californiahalibut.png';
+import lingcod from '../assets/fish/lingcod.png';
+import cabezon from '../assets/fish/cabezon.png';
+import giantseabass from '../assets/fish/giantseabass.png';
+import stripedmarlin from '../assets/fish/stripedmarlin.png';
+import corvina from '../assets/fish/corvina.png';
+import sierra from '../assets/fish/sierra.png';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -166,6 +177,18 @@ const fishDetails = {
   spottedseatrout: { label: 'Spotted seatrout', src: spottedseatrout },
   ladyfish: { label: 'Ladyfish', src: ladyfish },
   lemonshark: { label: 'Lemon shark', src: lemonshark },
+  roosterfish: { label: 'Roosterfish', src: roosterfish },
+  yellowtail: { label: 'Yellowtail', src: yellowtail },
+  calicobass: { label: 'Calico bass', src: calicobass },
+  californiahalibut: { label: 'California halibut', src: californiahalibut },
+  lingcod: { label: 'Lingcod', src: lingcod },
+  cabezon: { label: 'Cabezon', src: cabezon },
+  giantseabass: { label: 'Giant sea bass', src: giantseabass },
+  stripedmarlin: { label: 'Striped marlin', src: stripedmarlin },
+  corvina: { label: 'Corvina', src: corvina },
+  sierra: { label: 'Sierra mackerel', src: sierra },
+  // Not a fish: the junk catch (see rollJunk in utils/gameSpecies.js).
+  stick: { label: 'A stick', src: stick },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails);

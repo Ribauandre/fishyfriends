@@ -108,6 +108,26 @@ test('missing the hookset window lets the fish steal the bait', async () => {
   expect(screen.getByText(/stole the bait/i)).toBeInTheDocument();
 });
 
+test('a stick on the line is landed like a fish, pays nothing, and is never logged', async () => {
+  const logGameCatch = jest.fn().mockResolvedValue({ error: null });
+  useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
+  // Under the junk chance at the bite; the 0.5 default elsewhere keeps the rest deterministic.
+  Math.random.mockReturnValue(0.01);
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await reachWaiting();
+  await advance(4000);
+  Math.random.mockReturnValue(0.5);
+  await userEvent.click(screen.getByRole('button', { name: 'Set the hook!' }));
+  stepReel.mockReturnValueOnce({ fishPos: 50, fishVel: 0, zonePos: 50, progress: 100, tension: 0 });
+  await advance(80);
+  expect(await screen.findByText(/a stick\. not a fish/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-plaque')).toHaveTextContent('JUNK');
+  expect(document.querySelector('.scene-plaque')).toHaveTextContent('+0 tackle points');
+  expect(screen.getByText(/that's a stick/i)).toBeInTheDocument();
+  expect(logGameCatch).not.toHaveBeenCalled();
+});
+
 test('the catch is up the moment it is landed, before the log answers, and a tap after a beat returns to the dock', async () => {
   const logGameCatch = jest.fn(() => new Promise(() => {}));
   useAuth.mockReturnValue(makeBaseAuth({ logGameCatch }));
@@ -597,9 +617,9 @@ test('the almanac shows silhouettes until a species is landed, then its best siz
   expect(pike).toHaveClass('is-unknown');
   expect(pike).toHaveTextContent('???');
   // The locked canyon is listed as a rumor, not by name.
-  // The canyon and the flats are both rumors until Ray's quests are done.
-  expect(screen.getAllByRole('region', { name: 'Locked ground' })).toHaveLength(2);
-  expect(document.querySelector('.almanac-progress')).toHaveTextContent('1 of 80 species landed');
+  // The canyon, the flats and Baja are rumors until Ray's quests are done.
+  expect(screen.getAllByRole('region', { name: 'Locked ground' })).toHaveLength(3);
+  expect(document.querySelector('.almanac-progress')).toHaveTextContent('1 of 90 species landed');
 });
 
 test('landing your biggest of a species is called out as a record', async () => {

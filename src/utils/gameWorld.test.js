@@ -1,4 +1,4 @@
-import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf } from './gameSpecies';
+import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf, rollJunk, isJunk, JUNK_CHANCE, RARITY_INFO } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
@@ -72,6 +72,20 @@ test('a fish out of season is not in the water, and never the whole roster at on
   expect(rollSpecies(1, ['americanshad'], { season: 'summer', random: sequence(0.5) }).species).toBe('americanshad');
 });
 
+test('a stick bites now and then, never runs, and is worth nothing', () => {
+  expect(rollJunk(() => JUNK_CHANCE / 2)).toEqual({ species: 'stick', rarity: 'junk' });
+  expect(rollJunk(() => JUNK_CHANCE * 2)).toBeNull();
+  expect(rollJunk(() => 0.5)).toBeNull();
+  expect(isJunk('junk')).toBe(true);
+  expect(isJunk('legendary')).toBe(false);
+  expect(rarityOf('stick')).toBe('junk');
+  expect(difficultyFor('junk').runChance).toBe(0);
+  expect(difficultyFor('junk').points).toEqual([0, 0]);
+  expect(difficultyFor('junk').zoneWidth).toBeGreaterThan(difficultyFor('common').zoneWidth);
+  expect(RARITY_INFO.junk.label).toBe('Junk');
+  expect(SPECIES_SIZE.stick).toBeDefined();
+});
+
 test('the first of a species is a record, and only a bigger one beats it', () => {
   expect(isNewRecord({}, 'walleye', 18)).toBe(true);
   expect(isNewRecord({ walleye: { size_in: 18 } }, 'walleye', 18)).toBe(false);
@@ -83,7 +97,10 @@ test('the canyon and the flats are the locked grounds, each dearer than the last
   expect(biomeUnlocked('canyon', { rays_proving: { done: true } })).toBe(true);
   expect(biomeUnlocked('flats', { rays_proving: { done: true } })).toBe(false);
   expect(biomeUnlocked('flats', { rays_southern_run: { done: true } })).toBe(true);
-  expect(Object.values(BIOMES).filter((biome) => biome.requiresQuest).map((biome) => biome.key)).toEqual(['canyon', 'flats']);
+  expect(Object.values(BIOMES).filter((biome) => biome.requiresQuest).map((biome) => biome.key)).toEqual(['canyon', 'flats', 'baja']);
+  expect(biomeUnlocked('baja', { rays_southern_run: { done: true } })).toBe(false);
+  expect(biomeUnlocked('baja', { rays_western_run: { done: true } })).toBe(true);
+  expect(BIOMES.baja.charterCost).toBeGreaterThan(BIOMES.flats.charterCost);
   expect(BIOMES.canyon.charterCost).toBe(CANYON_CHARTER_COST);
   expect(BIOMES.canyon.charterCost).toBeGreaterThan(BIOMES.offshore.charterCost);
   expect(BIOMES.flats.charterCost).toBeGreaterThan(BIOMES.canyon.charterCost);
@@ -93,7 +110,10 @@ test('the canyon and the flats are the locked grounds, each dearer than the last
   ['tarpon', 'permit', 'bonefish'].forEach((species) => expect(watersFor(species)).toEqual(['flats']));
   // Every species on every ground has a fixed rarity and a size range of its own.
   const all = new Set(Object.values(BIOMES).flatMap((biome) => biome.species));
-  expect(all.size).toBe(80);
+  expect(all.size).toBe(90);
+  ['roosterfish', 'stripedmarlin', 'giantseabass', 'yellowtail'].forEach((species) => expect(watersFor(species)).toEqual(['baja']));
+  // The stick is not on any ground's roster: it comes from the junk roll, not the species roll.
+  expect(all.has('stick')).toBe(false);
   expect(Object.values(BIOMES).filter((biome) => !biome.charterCost).map((biome) => biome.key)).toEqual(['river', 'mountainlake', 'swamp', 'bay', 'shoreline', 'pier', 'creek']);
   all.forEach((species) => { expect(SPECIES_SIZE[species]).toBeDefined(); expect(rarityOf(species)).toBeDefined(); });
 });

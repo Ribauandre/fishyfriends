@@ -21,6 +21,7 @@ const HOTSPOTS = [
   { biome: 'flats', x: 40, y: 84 },
   { biome: 'pier', x: 14, y: 58 },
   { biome: 'creek', x: 66, y: 52 },
+  { biome: 'baja', x: 10, y: 47 },
 ];
 const SHOP_HOTSPOT = { x: 23.3, y: 34.8 };
 

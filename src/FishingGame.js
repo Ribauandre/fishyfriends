@@ -15,7 +15,7 @@ import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
 import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
 import { useAuth } from './context/AuthContext';
-import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason } from './utils/gameSpecies';
+import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason, rollJunk, isJunk } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
@@ -318,7 +318,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
     // The size is rolled at the bite, so the shadow on the line is the size of what's on it.
-    const bite = rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor });
+    const bite = rollJunk() || rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor });
     setPendingCatch({ ...bite, sizeIn: rollSize(bite.species) });
     setPhase('hookset');
   }
@@ -507,6 +507,13 @@ export default function FishingGame({ clock = () => new Date() }) {
     const { species, rarity } = pendingCatch;
     const sizeIn = pendingCatch.sizeIn ?? rollSize(species);
     const label = sizeLabel(sizeIn);
+    // A stick is not a catch: nothing for it, nothing written down, and no fish to tell the crew about.
+    if (isJunk(rarity)) {
+      sfx.lost();
+      setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned: 0, isRecord: false, completedQuests: [], derbyFish: false });
+      setPhase('result');
+      return;
+    }
     const isRecord = isNewRecord(gameProfile.records || {}, species, sizeIn);
     const { completed } = advanceQuests(gameProfile.quests || {}, { species, sizeIn, biome });
     sfx.land(rarity);
@@ -788,10 +795,10 @@ export default function FishingGame({ clock = () => new Date() }) {
           {result.success ? <>
             {/* The fish itself, its size, rarity and points are on the stage's plaque; the deck
                 keeps what the plaque doesn't say. */}
-            <h3>{speciesLabel(result.species)} landed!</h3>
+            <h3>{result.rarity === 'junk' ? 'A stick. Not a fish.' : `${speciesLabel(result.species)} landed!`}</h3>
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
-          {(biomeConfig.charterCost > 0 || result.isRecord) && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
+          {(biomeConfig.charterCost > 0 || result.isRecord || result.rarity === 'junk') && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
         </div>}
       </div>

@@ -36,6 +36,25 @@ export const SCENE_LAYOUTS = {
   swamp: { ...DOCK, dragonflies: [{ x: 30, y: 212 }, { x: 330, y: 226 }] },
   bay: { ...DOCK, sky: [{ y0: 4, y1: 24, from: -22 }, { y0: 22, y1: 44, from: -22 }], gulls: { y0: 10, y1: 45 } },
   shoreline: { ...DOCK, sky: [{ y0: 4, y1: 26, from: -22 }, { y0: 24, y1: 48, from: -22 }], gulls: { y0: 10, y1: 45 } },
+  // Baja, painted over the flats painting so the skiff's bow platform (x 60-220, y 140-200)
+  // is where it was; deep Pacific blue to the right, the sea-lion rock over the bow at
+  // (95, 75) and the headland with the fish camp along the top right, which the water box
+  // stays under.
+  baja: {
+    crop: 'center',
+    angler: { x: 150, y: 195 },
+    crew: [-90],
+    spriteH: 92,
+    cast: { min: 270, max: 450, y: 150 },
+    water: { x0: 250, x1: 470, y0: 92, y1: 258 },
+    fishY: 165,
+    sparkle: { x0: 240, y0: 60, x1: 480, y1: 270 },
+    lamp: null,
+    sky: [{ y0: 3, y1: 14, from: -22 }],
+    gulls: { y0: 10, y1: 36 },
+    dragonflies: [],
+    tagAbove: false,
+  },
   // The pier's end: a wider deck (x 20-250, y 75-185, rail at the back, bait bucket at the
   // left, barrel and rope posts at its end), grey-green swell to the right and a strip of
   // beach in the bottom right corner, which the water box stops above.

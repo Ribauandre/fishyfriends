@@ -12,6 +12,7 @@
 export const OFFSHORE_CHARTER_COST = 50;
 export const CANYON_CHARTER_COST = 80;
 export const FLATS_CHARTER_COST = 100;
+export const BAJA_CHARTER_COST = 120;
 
 export const BIOMES = {
   river: {
@@ -79,6 +80,17 @@ export const BIOMES = {
     requiresQuest: 'rays_southern_run',
     flyWater: 'salt',
     species: ['mangrovesnapper', 'ladyfish', 'jackcrevalle', 'spottedseatrout', 'snook', 'redfish', 'bonefish', 'barracuda', 'cobia', 'permit', 'lemonshark', 'tarpon'],
+  },
+  // The Pacific trip: Ray's cousin runs pangas out of a Baja fish camp, for anglers who've
+  // fished the flats with Ray. The only water for the roosterfish, the yellowtail, the calico,
+  // the halibut and the striped marlin.
+  baja: {
+    key: 'baja',
+    label: 'Baja',
+    blurb: "Ray's cousin's panga out of a Pacific fish camp: roosterfish on the beach, marlin off the point.",
+    charterCost: BAJA_CHARTER_COST,
+    requiresQuest: 'rays_western_run',
+    species: ['calicobass', 'corvina', 'sierra', 'lingcod', 'cabezon', 'yellowtail', 'californiahalibut', 'mahimahi', 'yellowfintuna', 'wahoo', 'roosterfish', 'stripedmarlin', 'giantseabass'],
   },
   // Two more free grounds on the home coast: the end of the town pier, where the fish that
   // come to the pilings (and after dark, the eels and the sharks) are, and the salt-marsh
