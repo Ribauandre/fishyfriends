@@ -788,3 +788,97 @@ describe('listBugReports', () => {
     expect(reports).toEqual([]);
   });
 });
+
+describe('fishing licenses', () => {
+  test('listFishingLicenses attaches a signed URL to any license with a stored photo', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', {
+      data: [{ id: 'lic-1', user_id: 'user-1', state: 'New Jersey', expires_at: '2026-12-31', photo_path: 'user-1/1.jpg' }],
+      error: null,
+    });
+
+    const licenses = await result.current.listFishingLicenses();
+
+    expect(licenses[0].photo_url).toBe('https://example.com/signed-photo.jpg');
+    expect(__mock.current.storageCreateSignedUrl).toHaveBeenCalledWith('user-1/1.jpg', 3600);
+  });
+
+  test('listFishingLicenses skips signing when a license has no photo', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', {
+      data: [{ id: 'lic-1', user_id: 'user-1', state: 'New Jersey', expires_at: '2026-12-31', photo_path: '' }],
+      error: null,
+    });
+
+    const licenses = await result.current.listFishingLicenses();
+
+    expect(licenses[0].photo_url).toBe('');
+    expect(__mock.current.storageCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  test('listFishingLicenses falls back to an empty list on a Supabase error', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: null, error: { message: 'select failed' } });
+
+    const licenses = await result.current.listFishingLicenses();
+
+    expect(licenses).toEqual([]);
+  });
+
+  test('uploadFishingLicense inserts a license row without uploading anything when no photo is given', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: { id: 'lic-new', state: 'New Jersey', expires_at: '2026-12-31', photo_path: '' }, error: null });
+
+    const response = await result.current.uploadFishingLicense({ state: 'New Jersey', licenseNumber: 'ABC123', issuedAt: '2026-01-01', expiresAt: '2026-12-31' });
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageUpload).not.toHaveBeenCalled();
+    expect(__mock.current.from).toHaveBeenCalledWith('fishing_licenses');
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('fishing_licenses')];
+    expect(call.value.insert).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 'user-1', state: 'New Jersey', license_number: 'ABC123', issued_at: '2026-01-01', expires_at: '2026-12-31', photo_path: '',
+    }));
+  });
+
+  test('uploadFishingLicense uploads a photo to a user-scoped path and returns a signed URL', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: { id: 'lic-new', state: 'New Jersey', expires_at: '2026-12-31', photo_path: 'user-1/123-license.png' }, error: null });
+    const file = new File(['bytes'], 'license.png', { type: 'image/png' });
+
+    const response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31', file });
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageUpload).toHaveBeenCalledWith(expect.stringMatching(/^user-1\//), expect.anything(), expect.objectContaining({ upsert: true }));
+    expect(response.license.photo_url).toBe('https://example.com/signed-photo.jpg');
+  });
+
+  test('uploadFishingLicense surfaces a Supabase error instead of throwing', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: null, error: { message: 'insert failed' } });
+
+    const response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31' });
+
+    expect(response.error.message).toBe('insert failed');
+  });
+
+  test('deleteFishingLicense removes the stored photo and the row', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: null, error: null });
+
+    const response = await result.current.deleteFishingLicense('lic-1', 'user-1/1.jpg');
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageRemove).toHaveBeenCalledWith(['user-1/1.jpg']);
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('fishing_licenses')];
+    expect(call.value.delete).toHaveBeenCalled();
+  });
+
+  test('deleteFishingLicense skips the storage call when there is no photo', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: null, error: null });
+
+    await result.current.deleteFishingLicense('lic-1', '');
+
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+});

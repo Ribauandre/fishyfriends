@@ -731,6 +731,51 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
+  // The fishing-licenses bucket is private (unlike every other photo bucket in this app,
+  // license numbers aren't crew business), so a stored path needs a fresh signed URL on every
+  // read rather than the permanent public URL the other upload* functions save straight to
+  // the row — nothing durable gets cached here, it's regenerated each time.
+  async function signedLicenseUrl(path) {
+    if (!path) return '';
+    const { data } = await supabase.storage.from('fishing-licenses').createSignedUrl(path, 3600);
+    return data?.signedUrl || '';
+  }
+
+  async function listFishingLicenses() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('fishing_licenses').select('*').eq('user_id', user.id).order('expires_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return Promise.all((data || []).map(async (license) => ({ ...license, photo_url: await signedLicenseUrl(license.photo_path) })));
+  }
+
+  async function uploadFishingLicense({ state, licenseNumber, issuedAt, expiresAt, file: rawFile }) {
+    const trimmedState = state?.trim();
+    if (!trimmedState) return { error: new Error('Choose which state this license is for.') };
+    if (!expiresAt) return { error: new Error('Add the expiration date.') };
+    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = rawFile && await compressImage(rawFile);
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('License photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a license.') };
+    let photoPath = '';
+    if (file) {
+      photoPath = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('fishing-licenses').upload(photoPath, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+    }
+    const row = { user_id: user.id, state: trimmedState, license_number: licenseNumber?.trim() || '', issued_at: issuedAt || null, expires_at: expiresAt, photo_path: photoPath };
+    const { data, error } = await supabase.from('fishing_licenses').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, license: { ...data, photo_url: await signedLicenseUrl(data.photo_path) } };
+  }
+
+  async function deleteFishingLicense(id, photoPath) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before managing licenses.') };
+    if (photoPath) await supabase.storage.from('fishing-licenses').remove([photoPath]);
+    const { error } = await supabase.from('fishing_licenses').delete().eq('id', id).eq('user_id', user.id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
   // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
@@ -891,6 +936,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
+    listFishingLicenses, uploadFishingLicense, deleteFishingLicense,
     getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

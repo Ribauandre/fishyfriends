@@ -23,6 +23,9 @@ function makeBaseAuth(overrides = {}) {
     notice: '',
     setNotice: jest.fn(),
     submitBugReport: jest.fn(),
+    listFishingLicenses: jest.fn().mockResolvedValue([]),
+    uploadFishingLicense: jest.fn(),
+    deleteFishingLicense: jest.fn(),
     ...overrides,
   };
 }
@@ -56,4 +59,92 @@ test('shows the server error message and keeps the description when reporting fa
 
   expect(await screen.findByText(/sign in before reporting a bug/i)).toBeInTheDocument();
   expect(field).toHaveValue('Broken thing');
+});
+
+describe('fishing licenses', () => {
+  test('shows an empty state when no licenses are on file', async () => {
+    useAuth.mockReturnValue(makeBaseAuth());
+    renderProfile();
+    expect(await screen.findByText(/no licenses on file yet/i)).toBeInTheDocument();
+  });
+
+  test('lists licenses with a status badge and flags how many need attention', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', expires_at: '2099-01-01', photo_path: '' },
+        { id: 'lic-2', state: 'New York', license_number: '', expires_at: '2020-01-01', photo_path: '' },
+      ]),
+    }));
+    renderProfile();
+    expect(await screen.findByText('New Jersey')).toBeInTheDocument();
+    expect(screen.getByText('#ABC123')).toBeInTheDocument();
+    expect(screen.getByText('New York')).toBeInTheDocument();
+    expect(screen.getByText('Expired')).toBeInTheDocument();
+    expect(screen.getByText(/1 needs attention/i)).toBeInTheDocument();
+  });
+
+  test('adding a license calls uploadFishingLicense and adds it to the list', async () => {
+    const uploadFishingLicense = jest.fn().mockResolvedValue({
+      error: null,
+      license: { id: 'lic-new', state: 'New Jersey', license_number: '', expires_at: '2099-01-01', photo_path: '' },
+    });
+    useAuth.mockReturnValue(makeBaseAuth({ uploadFishingLicense }));
+    renderProfile();
+    await screen.findByText(/no licenses on file yet/i);
+
+    await userEvent.click(screen.getByRole('button', { name: /add a license/i }));
+    await userEvent.selectOptions(screen.getByLabelText(/^state$/i), 'New Jersey');
+    const expiresInput = screen.getByLabelText(/^expires$/i);
+    await userEvent.type(expiresInput, '2099-01-01');
+    await userEvent.click(screen.getByRole('button', { name: /^add license/i }));
+
+    await waitFor(() => expect(uploadFishingLicense).toHaveBeenCalledWith(expect.objectContaining({ state: 'New Jersey', expiresAt: '2099-01-01' })));
+    await waitFor(() => expect(screen.queryByRole('button', { name: /close add license form/i })).not.toBeInTheDocument(), { timeout: 3000 });
+    expect(screen.getByText('New Jersey')).toBeInTheDocument();
+  });
+
+  test('shows the server error and keeps the form open when adding a license fails', async () => {
+    const uploadFishingLicense = jest.fn().mockResolvedValue({ error: new Error('License photos must be smaller than 5 MB.') });
+    useAuth.mockReturnValue(makeBaseAuth({ uploadFishingLicense }));
+    renderProfile();
+    await screen.findByText(/no licenses on file yet/i);
+
+    await userEvent.click(screen.getByRole('button', { name: /add a license/i }));
+    await userEvent.selectOptions(screen.getByLabelText(/^state$/i), 'New Jersey');
+    const expiresInput = screen.getByLabelText(/^expires$/i);
+    await userEvent.type(expiresInput, '2099-01-01');
+    await userEvent.click(screen.getByRole('button', { name: /^add license/i }));
+
+    expect(await screen.findByText(/smaller than 5 mb/i)).toBeInTheDocument();
+  });
+
+  test('"Show to warden" opens a big status view for that license', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', expires_at: '2099-01-01', photo_path: '' },
+      ]),
+    }));
+    renderProfile();
+    await userEvent.click(await screen.findByRole('button', { name: /show to warden/i }));
+    expect(screen.getByRole('dialog', { name: /new jersey fishing license/i })).toBeInTheDocument();
+    expect(screen.getByText('✓ VALID')).toBeInTheDocument();
+  });
+
+  test('deleting a license asks for confirmation, then removes it from the list', async () => {
+    const deleteFishingLicense = jest.fn().mockResolvedValue({ error: null });
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', expires_at: '2099-01-01', photo_path: 'user-1/1.jpg' },
+      ]),
+      deleteFishingLicense,
+    }));
+    renderProfile();
+    await userEvent.click(await screen.findByRole('button', { name: /delete new jersey license/i }));
+    expect(screen.getByText(/are you sure/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /^delete license/i }));
+
+    await waitFor(() => expect(deleteFishingLicense).toHaveBeenCalledWith('lic-1', 'user-1/1.jpg'));
+    await waitFor(() => expect(screen.queryByText('New Jersey')).not.toBeInTheDocument());
+  });
 });
