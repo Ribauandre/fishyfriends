@@ -16,7 +16,7 @@ import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue
 import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason, rollJunk, isJunk } from './utils/gameSpecies';
-import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier } from './utils/gameUpgrades';
+import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier, zonePullFor } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
@@ -32,7 +32,6 @@ import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questS
 
 const CAST_SWEET_SPOT = [40, 60];
 const REEL_TICK_MS = 80;
-const REEL_TIME_LIMIT_MS = 16000;
 const JERK_TICK_MS = 50;
 const REEL_SOUND_MS = 110;
 // How long the landed fish ignores the stage after it goes up, so the release of the hold that
@@ -462,11 +461,15 @@ export default function FishingGame({ clock = () => new Date() }) {
   useEffect(() => {
     if (phase !== 'reeling' || !pendingCatch) return undefined;
     const difficulty = difficultyFor(pendingCatch.rarity);
+    // The fish's temperament is its rarity's. The reel takes some of the sting out of a run
+    // and moves the zone faster; the line takes strain slower and holds more of it; and a
+    // bigger fish gets longer to work the hook loose (utils/gameUpgrades.js).
     const fishSpeed = difficulty.fishSpeed * fishSpeedMultiplier(gameProfile.reel_level);
-    // The fish's temperament is its rarity's; a better reel takes some of the sting out of a run.
     const runChance = difficulty.runChance;
     const runPower = difficulty.runPower * fishSpeedMultiplier(gameProfile.reel_level);
-    const drainRate = difficulty.drainRate * drainMultiplier(gameProfile.reel_level);
+    const zonePull = zonePullFor(gameProfile.reel_level);
+    const drainRate = difficulty.drainRate * drainMultiplier(gameProfile.line_level);
+    const fightMs = difficulty.fightMs;
     zoneWidthRef.current = difficulty.zoneWidth;
     tensionMaxRef.current = tensionMaxFor(gameProfile.line_level);
 
@@ -477,7 +480,7 @@ export default function FishingGame({ clock = () => new Date() }) {
 
     reelIntervalRef.current = setInterval(() => {
       reelElapsedRef.current += REEL_TICK_MS;
-      const nextState = stepReel(reelStateRef.current, { holding: holdingRef.current, fishSpeed, runChance, runPower, drainRate, zoneWidth: zoneWidthRef.current });
+      const nextState = stepReel(reelStateRef.current, { holding: holdingRef.current, fishSpeed, runChance, runPower, drainRate, zonePull, zoneWidth: zoneWidthRef.current });
       reelStateRef.current = nextState;
       setReelDisplay(nextState);
 
@@ -487,7 +490,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       } else if (nextState.tension >= tensionMaxRef.current) {
         clearInterval(reelIntervalRef.current);
         finishRound({ success: false, message: 'The line snapped!' });
-      } else if (reelElapsedRef.current >= REEL_TIME_LIMIT_MS) {
+      } else if (reelElapsedRef.current >= fightMs) {
         clearInterval(reelIntervalRef.current);
         finishRound({ success: false, message: 'It worked the hook loose and swam off.' });
       }
