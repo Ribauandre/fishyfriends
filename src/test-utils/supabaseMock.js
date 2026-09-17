@@ -34,7 +34,9 @@ export function createSupabaseMock() {
 
   const storageUpload = jest.fn().mockResolvedValue({ error: null });
   const storageGetPublicUrl = jest.fn(() => ({ data: { publicUrl: 'https://example.com/photo.jpg' } }));
-  const storage = { from: jest.fn(() => ({ upload: storageUpload, getPublicUrl: storageGetPublicUrl })) };
+  const storageCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://example.com/signed-photo.jpg' }, error: null });
+  const storageRemove = jest.fn().mockResolvedValue({ error: null });
+  const storage = { from: jest.fn(() => ({ upload: storageUpload, getPublicUrl: storageGetPublicUrl, createSignedUrl: storageCreateSignedUrl, remove: storageRemove })) };
 
   // Fake Realtime channel: records the callback registered for each table's postgres_changes
   // subscription (keyed by table, since that's all AuthContext's subscribeToActivity needs)
@@ -81,6 +83,8 @@ export function createSupabaseMock() {
     fromCalls,
     storageUpload,
     storageGetPublicUrl,
+    storageCreateSignedUrl,
+    storageRemove,
     async emitPostgresChange(table, newRow) {
       const callback = channelHandlersByTable.get(table);
       if (callback) await callback({ new: newRow });

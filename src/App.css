@@ -71,7 +71,7 @@ button { cursor: pointer; }
 .button-danger { background: var(--coral); color: var(--deep); }
 .button-danger:hover { background: #ff7a49; box-shadow: 0 0 24px rgba(255,90,31,.35); }
 .button-quiet { background: transparent; border: 1px solid var(--line); color: var(--ink); justify-content: center; margin-top: 22px; width: 100%; }
-.status-badge, .status-badge-muted { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
+.status-badge, .status-badge-muted, .status-badge-warn, .status-badge-danger { clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
 .brand-mark > span { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px)); }
 .navbar:before { background: repeating-linear-gradient(-45deg, var(--mint) 0 8px, var(--rust) 8px 16px); bottom: -3px; content: ''; height: 3px; left: 0; opacity: .8; position: absolute; right: 0; }
 .text-link { color: var(--mint); font-size: 12px; font-weight: 800; }
@@ -200,6 +200,8 @@ button { cursor: pointer; }
 .section-heading, .form-actions { align-items: center; display: flex; justify-content: space-between; }
 .status-badge { background: var(--mint); border: 1px solid var(--deep); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--deep); font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 6px 8px; transform: rotate(-3deg); }
 .status-badge-muted { background: #172a2e; border: 1px solid var(--mint); box-shadow: 2px 3px 0 rgba(3,8,11,.85); color: var(--mint); transform: rotate(-3deg); }
+.status-badge-warn { background: var(--rust); }
+.status-badge-danger { background: var(--coral); }
 .bug-report-list { display: flex; flex-direction: column; gap: 14px; }
 .bug-report-row { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
 .bug-report-list li:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -292,6 +294,37 @@ button { cursor: pointer; }
 .profile-bests-nudge { margin-top: 22px; text-align: center; }
 .bug-report-panel { margin-top: 22px; }
 .bug-report-panel > p { color: var(--muted); font-size: 13px; margin: 0; }
+.fishing-licenses-panel { margin-top: 22px; }
+.fishing-licenses-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+.license-heading-actions { align-items: center; display: flex; gap: 12px; }
+.license-heading-actions .button-quiet { margin-top: 0; width: auto; }
+.license-list { display: flex; flex-direction: column; gap: 12px; }
+.license-row { align-items: center; border: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+.license-row-info { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+.license-row-number { color: var(--muted); font-size: 12px; }
+.license-row-actions { align-items: center; display: flex; gap: 10px; }
+.license-row-actions .button-quiet { margin-top: 0; width: auto; }
+.license-remove { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 4px; transition: color .15s ease-out; }
+.license-remove:hover { color: var(--coral); }
+
+.warden-view-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(3,8,11,.9); display: flex; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 100; }
+.warden-view-card { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); max-width: 380px; padding: 32px 28px 28px; position: relative; text-align: center; width: 100%; }
+.warden-view-card h2 { font-size: 34px; margin: 10px 0 4px; }
+.warden-view-card .modal-close { position: absolute; right: 14px; top: 10px; }
+.warden-view-name { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+.warden-view-photo { border: 1px solid var(--line); margin-bottom: 16px; max-height: 220px; object-fit: contain; width: 100%; }
+.warden-view-facts { display: grid; gap: 6px 16px; grid-template-columns: auto auto; justify-content: center; margin: 0 0 20px; text-align: left; }
+.warden-view-facts dt { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.warden-view-facts dd { font-size: 13px; font-weight: 700; margin: 0; }
+.warden-view-status { border: 1px solid var(--deep); font-family: var(--font-head); font-size: 15px; font-weight: 900; letter-spacing: .1em; margin: 0; padding: 10px; }
+.warden-view-status.is-valid { background: var(--mint); color: var(--deep); }
+.warden-view-status.is-expiring { background: var(--rust); color: var(--deep); }
+.warden-view-status.is-expired { background: var(--coral); color: var(--deep); }
+
+.license-reminder-banner { align-items: center; background: var(--rust); border: 1px solid var(--deep); box-shadow: var(--sticker-shadow); color: var(--deep); display: flex; gap: 12px; margin: 24px 0 -4px; padding: 14px 18px; text-decoration: none; }
+.license-reminder-icon { font-size: 18px; }
+.license-reminder-banner p { flex: 1; font-size: 13px; font-weight: 700; margin: 0; }
+.license-reminder-go { font-size: 12px; font-weight: 900; letter-spacing: .04em; white-space: nowrap; }
 .profile-card { align-items: flex-start; display: flex; flex-direction: column; }
 .avatar-large { font-size: 38px; height: 92px; margin-bottom: 28px; width: 92px; }
 .avatar-upload { color: var(--mint); cursor: pointer; font-size: 11px; font-weight: 800; margin: -14px 0 24px; }

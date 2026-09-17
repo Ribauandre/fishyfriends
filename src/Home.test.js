@@ -18,6 +18,7 @@ function makeBaseAuth(overrides = {}) {
     listRecentActivity: jest.fn().mockResolvedValue([]),
     subscribeToActivity: jest.fn(() => () => {}),
     listFishYearCatches: jest.fn().mockResolvedValue([]),
+    listFishingLicenses: jest.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -117,6 +118,34 @@ test('shows a dash for top species in the season recap when nobody has logged a 
   expect(await screen.findByText('catches logged')).toBeInTheDocument();
   expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('0');
   expect(screen.getByText('top species').previousSibling).toHaveTextContent('—');
+});
+
+test('does not show a license reminder banner when every license is comfortably valid', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listFishingLicenses: jest.fn().mockResolvedValue([{ id: 'lic-1', state: 'New Jersey', expires_at: '2099-01-01' }]),
+  }));
+  renderHome();
+  await screen.findByText('catches logged');
+  expect(screen.queryByText(/manage licenses/i)).not.toBeInTheDocument();
+});
+
+test('shows a license reminder banner for an expiring license', async () => {
+  const soon = new Date();
+  soon.setDate(soon.getDate() + 10);
+  useAuth.mockReturnValue(makeBaseAuth({
+    listFishingLicenses: jest.fn().mockResolvedValue([{ id: 'lic-1', state: 'New Jersey', expires_at: soon.toISOString().slice(0, 10) }]),
+  }));
+  renderHome();
+  expect(await screen.findByText(/manage licenses/i)).toBeInTheDocument();
+  expect(screen.getByText('New Jersey')).toBeInTheDocument();
+});
+
+test('shows a license reminder banner for an already-expired license', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    listFishingLicenses: jest.fn().mockResolvedValue([{ id: 'lic-1', state: 'New York', expires_at: '2020-01-01' }]),
+  }));
+  renderHome();
+  expect(await screen.findByText(/has expired/i)).toBeInTheDocument();
 });
 
 test('merges a live-pushed activity item into the feed without waiting for a refetch', async () => {

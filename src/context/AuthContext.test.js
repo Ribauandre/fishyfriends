@@ -155,3 +155,38 @@ test('listBugReports fails closed to an empty list', async () => {
   await waitFor(async () => { response = await result.current.listBugReports(); });
   expect(response).toEqual([]);
 });
+
+test('listFishingLicenses fails closed to an empty list', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.listFishingLicenses(); });
+  expect(response).toEqual([]);
+});
+
+test('uploadFishingLicense requires a state before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.uploadFishingLicense({ state: '  ', expiresAt: '2026-12-31' }); });
+  expect(response.error.message).toMatch(/choose which state/i);
+});
+
+test('uploadFishingLicense requires an expiration date before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '' }); });
+  expect(response.error.message).toMatch(/add the expiration date/i);
+});
+
+test('uploadFishingLicense fails closed once state and expiration are given', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.uploadFishingLicense({ state: 'New Jersey', expiresAt: '2026-12-31' }); });
+  expect(response.error.message).toMatch(/sign in before adding a license/i);
+});
+
+test('deleteFishingLicense fails closed', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.deleteFishingLicense('lic-1'); });
+  expect(response.error.message).toMatch(/sign in before managing licenses/i);
+});
