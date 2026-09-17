@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.96bcf5e9.css",
-    "main.js": "/static/js/main.119b6b93.js",
+    "main.css": "/static/css/main.e7afc128.css",
+    "main.js": "/static/js/main.a076ac6b.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/crappie.png": "/static/media/crappie.8c50e401d665d5513cd5.png",
     "static/media/opah.png": "/static/media/opah.2669b4b5ce2df69ba98a.png",
@@ -98,6 +98,7 @@
     "static/media/snakehead.png": "/static/media/snakehead.c6d05db6a85ecc7a9091.png",
     "static/media/cast.png": "/static/media/cast.d3b586c24845dfd3d3dd.png",
     "static/media/reel.png": "/static/media/reel.e4f4d9d657ef5ce04727.png",
+    "static/media/logo.webp": "/static/media/logo.02b3cdd3d3ac743b2c97.webp",
     "static/media/mountainlake.webp": "/static/media/mountainlake.1174425a080435a0e5f4.webp",
     "static/media/swamp.webp": "/static/media/swamp.d7339f8bf407ddba1099.webp",
     "static/media/outfitter.png": "/static/media/outfitter.8b728897568f1081921d.png",
@@ -148,12 +149,12 @@
     "static/media/rod.png": "/static/media/rod.358dfd19441f04e51ae9.png",
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
-    "main.96bcf5e9.css.map": "/static/css/main.96bcf5e9.css.map",
-    "main.119b6b93.js.map": "/static/js/main.119b6b93.js.map",
+    "main.e7afc128.css.map": "/static/css/main.e7afc128.css.map",
+    "main.a076ac6b.js.map": "/static/js/main.a076ac6b.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.96bcf5e9.css",
-    "static/js/main.119b6b93.js"
+    "static/css/main.e7afc128.css",
+    "static/js/main.a076ac6b.js"
   ]
 }
