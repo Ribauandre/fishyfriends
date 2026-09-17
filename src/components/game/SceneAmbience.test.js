@@ -26,29 +26,64 @@ test('fresh water gets dragonflies, and the swamp canopy hides the sky', () => {
 
 test('each ground moves in its own way: the river runs, the lake rings, the beach breaks', () => {
   const { container, rerender } = render(<SceneAmbience biome="river" />);
-  expect(container.querySelectorAll('.scene-current').length).toBe(6);
+  const streaks = container.querySelectorAll('.scene-mover.is-current');
+  expect(streaks.length).toBe(7);
+  // A mover is a lane turned to its heading with the piece running along it by --travel.
+  expect(streaks[0].style.transform).toMatch(/rotate\(168deg\)/);
+  expect(streaks[0].style.getPropertyValue('--travel')).toMatch(/%$/);
+  expect(streaks[0].querySelector('i').style.animationDelay).toMatch(/^-/);
+  expect(container.querySelectorAll('.scene-mover.is-leaf').length).toBe(2);
+  expect(container.querySelectorAll('.scene-foam').length).toBe(7);
   expect(container.querySelector('.scene-ring')).toBeNull();
-  expect(container.querySelector('.scene-surf')).toBeNull();
+  expect(container.querySelector('.scene-wash')).toBeNull();
+  expect(container.querySelector('.scene-glitter')).toBeInTheDocument();
 
   rerender(<SceneAmbience biome="mountainlake" />);
-  expect(container.querySelector('.scene-current')).toBeNull();
-  expect(container.querySelectorAll('.scene-ring').length).toBe(3);
-  expect(container.querySelector('.scene-mist')).toBeInTheDocument();
+  expect(container.querySelector('.scene-mover.is-current')).toBeNull();
+  expect(container.querySelectorAll('.scene-ring').length).toBe(4);
+  expect(container.querySelectorAll('.scene-mist').length).toBe(2);
+  expect(container.querySelectorAll('.scene-mover.is-glass').length).toBe(3);
 
   rerender(<SceneAmbience biome="shoreline" />);
-  expect(container.querySelectorAll('.scene-surf').length).toBe(3);
+  expect(container.querySelectorAll('.scene-wash').length).toBe(3);
+  expect(container.querySelectorAll('.scene-mover.is-wave').length).toBe(6);
   expect(container.querySelector('.scene-mist')).toBeNull();
+  // The glint is clipped off the sand.
+  expect(container.querySelector('.scene-glitter').style.clipPath).toMatch(/^polygon\(/);
 
   rerender(<SceneAmbience biome="bay" />);
-  expect(container.querySelector('.scene-water')).toHaveClass('is-swell');
-  expect(container.querySelector('.scene-surf')).toBeNull();
+  expect(container.querySelectorAll('.scene-mover.is-wave').length).toBe(10);
+  expect(container.querySelectorAll('.scene-foam').length).toBe(3);
+  expect(container.querySelector('.scene-wash')).toBeNull();
 
-  // The swamp hangs moss all year and lights up only after dark.
+  rerender(<SceneAmbience biome="offshore" />);
+  expect(container.querySelectorAll('.scene-mover.is-cap').length).toBe(10);
+
+  rerender(<SceneAmbience biome="canyon" />);
+  expect(container.querySelector('.scene-gleam')).toBeInTheDocument();
+  expect(container.querySelector('.scene-caustics')).toBeNull();
+
+  rerender(<SceneAmbience biome="flats" />);
+  expect(container.querySelector('.scene-caustics')).toBeInTheDocument();
+  expect(container.querySelector('.scene-gleam')).toBeNull();
+
+  rerender(<SceneAmbience biome="creek" />);
+  expect(container.querySelectorAll('.scene-grass').length).toBe(12);
+
+  // The swamp hangs moss and bubbles all year and lights up only after dark.
   rerender(<SceneAmbience biome="swamp" />);
-  expect(container.querySelectorAll('.scene-moss').length).toBe(7);
+  expect(container.querySelectorAll('.scene-moss').length).toBe(9);
+  expect(container.querySelectorAll('.scene-bubble').length).toBe(5);
   expect(container.querySelector('.scene-firefly')).toBeNull();
   rerender(<SceneAmbience biome="swamp" period="night" />);
-  expect(container.querySelectorAll('.scene-firefly').length).toBe(8);
+  expect(container.querySelectorAll('.scene-firefly').length).toBe(10);
+
+  // The frozen lake: snow over everything, mist over the lead, nothing on the ice.
+  rerender(<SceneAmbience biome="mountainlake" season="winter" />);
+  expect(container.querySelector('.scene-snow')).toBeInTheDocument();
+  expect(container.querySelectorAll('.scene-mist').length).toBe(2);
+  expect(container.querySelector('.scene-ring')).toBeNull();
+  expect(container.querySelector('.scene-dragonfly')).toBeNull();
 });
 
 test('after dark the gulls roost, the stars come out, and the swamp bugs keep going', () => {

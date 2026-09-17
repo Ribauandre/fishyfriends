@@ -940,30 +940,66 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   0% { transform: translate(0, 0) scaleX(1); } 20% { transform: translate(140%, -70%) scaleX(1); } 45% { transform: translate(330%, 10%) scaleX(1); }
   50% { transform: translate(330%, 10%) scaleX(-1); } 72% { transform: translate(150%, -90%) scaleX(-1); } 95% { transform: translate(0, 0) scaleX(-1); } 100% { transform: translate(0, 0) scaleX(1); }
 }
-.scene-water { mix-blend-mode: screen; opacity: .34; overflow: hidden; position: absolute; -webkit-mask-image: linear-gradient(to right, transparent, #000 14%); mask-image: linear-gradient(to right, transparent, #000 14%); }
-.scene-water:before, .scene-water:after { animation: water-sparkle linear infinite; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='28'%3E%3Crect x='4' y='6' width='6' height='2' fill='%23fff'/%3E%3Crect x='30' y='18' width='5' height='2' fill='%23fff'/%3E%3Crect x='44' y='4' width='3' height='2' fill='%23fff' opacity='.7'/%3E%3C/svg%3E"); background-size: 56px 28px; content: ''; inset: 0; position: absolute; }
-.scene-water:before { animation-duration: 24s; }
-.scene-water:after { animation-direction: reverse; animation-duration: 37s; background-size: 74px 40px; opacity: .6; }
-@keyframes water-sparkle { from { background-position: 0 0; } to { background-position: 224px 28px; } }
-
-/* Each ground moves in its own way (utils/sceneAmbience.js plans them in painting units).
-   The river and the canyon run, the mountain lake rings and mists, the swamp sways and — after
-   dark — blinks, the beach breaks, and the bay and the charter grounds ride the swell. */
-.scene-water.is-swell { animation: swell-lift ease-in-out infinite; }
-@keyframes swell-lift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.4%); } }
-.scene-current { animation: current-run linear infinite; background: linear-gradient(90deg, transparent, rgba(240,252,255,.95) 45%, rgba(240,252,255,.6) 62%, transparent); left: -22%; mix-blend-mode: screen; position: absolute; }
-@keyframes current-run { 0% { left: -22%; } 100% { left: 104%; } }
-.scene-ring { animation: ring-open ease-out infinite; border: 1px solid rgba(240,252,255,.85); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
-@keyframes ring-open { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.16); } 12% { opacity: .8; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
-.scene-mist { animation: mist-drift ease-in-out infinite alternate; background: linear-gradient(90deg, transparent, rgba(255,255,255,.3) 35%, rgba(255,255,255,.38) 60%, transparent); left: 0; mix-blend-mode: screen; position: absolute; right: 0; }
-@keyframes mist-drift { from { opacity: .45; transform: translateX(-5%); } to { opacity: .85; transform: translateX(5%); } }
-.scene-surf { animation: surf-roll ease-out infinite; background: radial-gradient(closest-side, rgba(255,255,255,.9), rgba(255,255,255,.28) 62%, transparent); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
-@keyframes surf-roll { 0% { opacity: 0; transform: translate(7%, -34%) scaleX(.82); } 20% { opacity: .95; } 68% { opacity: .5; } 100% { opacity: 0; transform: translate(-11%, 44%) scaleX(1.14); } }
-.scene-moss { animation: moss-sway ease-in-out infinite alternate; background: linear-gradient(rgba(186,198,132,.85), rgba(128,148,86,.1)); position: absolute; transform-origin: 50% 0; }
-@keyframes moss-sway { from { transform: rotate(-2.6deg); } to { transform: rotate(2.6deg); } }
+/* The water, per ground (utils/sceneAmbience.js). Sun glint: a tiled scatter of pixel glints
+   in two layers sliding against each other, masked soft at its edges and clipped to the water
+   where the box crosses sand or hull. */
+.scene-glitter { mix-blend-mode: screen; overflow: hidden; position: absolute; -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 94%, transparent); mask-image: linear-gradient(to right, transparent, #000 12%, #000 94%, transparent); }
+.scene-glitter:before, .scene-glitter:after { animation: glitter-slide linear infinite; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='48' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Crect x='5' y='7' width='3' height='2'/%3E%3Crect x='21' y='30' width='2' height='2'/%3E%3Crect x='40' y='12' width='4' height='2'/%3E%3Crect x='57' y='38' width='2' height='2'/%3E%3Crect x='70' y='20' width='3' height='2'/%3E%3Crect x='86' y='4' width='2' height='2'/%3E%3Crect x='33' y='44' width='2' height='1'/%3E%3Crect x='78' y='41' width='3' height='2'/%3E%3Crect x='12' y='25' width='2' height='1'/%3E%3Crect x='63' y='9' width='2' height='2'/%3E%3C/g%3E%3C/svg%3E"); background-size: 96px 48px; content: ''; inset: 0; position: absolute; }
+.scene-glitter:before { animation-duration: 21s; }
+.scene-glitter:after { animation-direction: reverse; animation-duration: 33s; background-size: 128px 64px; opacity: .65; }
+@keyframes glitter-slide { from { background-position: 0 0; } to { background-position: 192px 48px; } }
+/* Things that travel: a lane rotated to its heading, the piece running along it and fading in
+   and out at the ends. --travel is the run in the piece's own widths. */
+.scene-mover { pointer-events: none; position: absolute; transform-origin: 0 50%; }
+.scene-mover > i { animation: mover-run linear infinite; display: block; inset: 0; position: absolute; }
+@keyframes mover-run { 0% { opacity: 0; transform: translateX(0); } 18% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; transform: translateX(var(--travel, 200%)); } }
+.scene-mover.is-current > i { background: linear-gradient(90deg, transparent, rgba(240,252,255,.95) 40%, rgba(240,252,255,.7) 65%, transparent); border-radius: 50%; mix-blend-mode: screen; }
+.scene-mover.is-glass > i { background: linear-gradient(90deg, transparent, rgba(255,255,255,.9) 30%, rgba(255,255,255,.9) 70%, transparent); mix-blend-mode: screen; }
+.scene-mover.is-leaf > i { animation-timing-function: linear; background: linear-gradient(135deg, #7c9a3a, #3e5a1e); border-radius: 60% 0 60% 0; }
+/* A roller and a whitecap lie across their lane: x here runs the way the wave goes, so the
+   crest is the x = 0 edge and the face falls away behind it, fading out at both ends. */
+.scene-mover.is-wave > i, .scene-mover.is-cap > i { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); mix-blend-mode: screen; }
+.scene-mover.is-wave > i { background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.55) 22%, rgba(255,255,255,.18) 55%, transparent); border-radius: 0 50% 50% 0; }
+.scene-mover.is-cap > i { animation-timing-function: ease-in-out; background: linear-gradient(90deg, #fff, rgba(255,255,255,.55) 45%, transparent); border-radius: 40%; }
+/* Surf: a bar laid along the sand line and straddling it — foam film over the water above the
+   lip, the lip itself, wet sand below it — running up the beach and draining back. Drawn
+   normal, not screen, so the wet sand darkens and the foam still shows on white sand. */
+.scene-wash { pointer-events: none; position: absolute; transform-origin: 0 0; }
+.scene-wash > i { animation: wash-run ease-in-out infinite; background: linear-gradient(180deg, transparent, rgba(255,255,255,.3) 30%, rgba(255,255,255,.7) 56%, #fff 60%, #fff 64%, rgba(110,84,50,.32) 65%, rgba(110,84,50,.1) 85%, transparent); display: block; inset: 0; -webkit-mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(to right, transparent, #000 22%, #000 78%, transparent); position: absolute; }
+@keyframes wash-run { 0% { opacity: 0; transform: translateY(-22%); } 24% { opacity: 1; transform: translateY(8%); } 52% { opacity: .85; transform: translateY(34%); } 100% { opacity: 0; transform: translateY(-4%); } }
+/* Churn in one place: riffles at a rock, a wake at the transom, a roller hitting a piling. */
+.scene-foam { animation: foam-pulse ease-in-out infinite; background: radial-gradient(closest-side, #fff 0 34%, rgba(255,255,255,.6) 35% 62%, rgba(255,255,255,.2) 63% 84%, transparent 85%); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
+@keyframes foam-pulse { 0%, 100% { opacity: .25; transform: translate(-50%, -50%) scale(.6); } 45% { opacity: .95; transform: translate(-50%, -50%) scale(1.08); } }
+/* A rise: two rings opening out of a dimple. */
+.scene-ring { animation: ring-open ease-out infinite; border: 1.5px solid rgba(255,255,255,.95); border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3); mix-blend-mode: screen; position: absolute; }
+.scene-ring:after { border: 1px solid rgba(255,255,255,.75); border-radius: 50%; content: ''; inset: 28%; position: absolute; }
+@keyframes ring-open { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.1); } 10% { opacity: .95; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+/* Mud gas: a bubble rising to the surface and going. */
+.scene-bubble { animation: bubble-rise ease-out infinite; background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.85), rgba(255,255,255,.15) 60%, transparent); border: 1px solid rgba(255,255,255,.8); border-radius: 50%; mix-blend-mode: screen; position: absolute; }
+@keyframes bubble-rise { 0% { opacity: 0; transform: translate(-50%, 0) scale(.3); } 20% { opacity: .9; } 78% { opacity: .9; transform: translate(-50%, -150%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -170%) scale(1.8); } }
+/* Mist lying on the water in soft bands, breathing sideways. */
+.scene-mist { animation: mist-drift ease-in-out infinite alternate; background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.6), rgba(255,255,255,.28) 50%, transparent 74%); mix-blend-mode: screen; position: absolute; }
+@keyframes mist-drift { from { opacity: .7; transform: translateX(-4%); } to { opacity: 1; transform: translateX(4%); } }
+/* Spanish moss, a tapered strand swinging from the canopy; marsh grass, a blade rooted at the bank. */
+.scene-moss { animation: moss-sway ease-in-out infinite alternate; background: linear-gradient(rgba(178,190,150,.92), rgba(150,165,120,.6) 60%, rgba(120,140,90,.05)); clip-path: polygon(15% 0, 85% 0, 100% 45%, 62% 100%, 38% 100%, 0 45%); position: absolute; transform-origin: 50% 0; }
+@keyframes moss-sway { from { transform: rotate(-3.2deg); } to { transform: rotate(3.2deg); } }
+.scene-grass { animation: grass-sway ease-in-out infinite alternate; background: linear-gradient(to top, rgba(150,102,34,.8), rgba(214,168,62,.85)); clip-path: polygon(0 100%, 100% 100%, 55% 0); position: absolute; transform-origin: 50% 100%; }
+@keyframes grass-sway { from { transform: rotate(-4deg) scaleY(.98); } to { transform: rotate(4deg) scaleY(1); } }
 .scene-firefly { animation-iteration-count: infinite, infinite; animation-name: firefly-drift, firefly-glow; animation-timing-function: ease-in-out, ease-in-out; background: radial-gradient(closest-side, rgba(226,255,140,.95), rgba(180,255,80,.35) 55%, transparent); border-radius: 50%; position: absolute; }
 @keyframes firefly-drift { 0% { transform: translate(0, 0); } 25% { transform: translate(190%, -140%); } 50% { transform: translate(340%, 30%); } 75% { transform: translate(130%, 160%); } 100% { transform: translate(0, 0); } }
 @keyframes firefly-glow { 0%, 100% { opacity: .12; } 45% { opacity: 1; } 62% { opacity: .28; } }
+/* The light net on a sand bottom: two tiled nets sliding against each other. */
+.scene-caustics { animation-iteration-count: infinite, infinite; animation-name: caustics-a, caustics-b; animation-timing-function: linear, linear; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.6' stroke-linejoin='round' opacity='.75'%3E%3Cpath d='M6 20 L20 8 L38 12 L44 28 L30 40 L12 36 Z'/%3E%3Cpath d='M48 50 L62 42 L78 52 L74 70 L56 76 L44 64 Z'/%3E%3Cpath d='M50 6 L70 10 L76 26 L60 32'/%3E%3Cpath d='M4 54 L18 48 L32 58 L26 76 L8 74'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.6' stroke-linejoin='round' opacity='.6'%3E%3Cpath d='M10 30 L34 14 L60 22 L64 48 L40 62 L16 52 Z'/%3E%3Cpath d='M70 80 L92 66 L114 80 L108 106 L82 112 L66 98 Z'/%3E%3Cpath d='M76 10 L104 18 L110 42'/%3E%3C/g%3E%3C/svg%3E"); background-size: 80px 80px, 120px 120px; mix-blend-mode: screen; position: absolute; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%); mask-image: linear-gradient(to bottom, transparent, #000 18%); }
+@keyframes caustics-a { from { background-position: 0 0, 0 0; } to { background-position: 80px 40px, 0 0; } }
+@keyframes caustics-b { from { background-position: 0 0, 0 0; } to { background-position: 0 0, -120px 60px; } }
+/* The afterglow on the horizon: glints sliding along a thin band that swells and fades. */
+.scene-gleam { animation-iteration-count: infinite, infinite; animation-name: gleam-slide, gleam-pulse; animation-timing-function: linear, ease-in-out; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12' shape-rendering='crispEdges'%3E%3Cg fill='%23ffd9a0'%3E%3Crect x='2' y='3' width='3' height='1'/%3E%3Crect x='12' y='7' width='2' height='1'/%3E%3Crect x='20' y='1' width='4' height='1'/%3E%3Crect x='30' y='5' width='3' height='1'/%3E%3Crect x='35' y='10' width='2' height='1'/%3E%3Crect x='8' y='10' width='2' height='1'/%3E%3Crect x='26' y='9' width='3' height='1'/%3E%3C/g%3E%3C/svg%3E"); background-size: 40px 12px; mix-blend-mode: screen; position: absolute; -webkit-mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent), linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent, #000 25%, #000 75%, transparent), linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent); mask-composite: intersect; }
+@keyframes gleam-slide { from { background-position: 0 0; } to { background-position: 80px 0; } }
+@keyframes gleam-pulse { 0%, 100% { opacity: .35; } 50% { opacity: .8; } }
+/* Snow: two scatters of flakes falling at different speeds, with a little drift. */
+.scene-snow { animation-iteration-count: infinite, infinite; animation-name: snow-fall-a, snow-fall-b; animation-timing-function: linear, linear; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' shape-rendering='crispEdges'%3E%3Cg fill='%23fff'%3E%3Crect x='6' y='4' width='2' height='2'/%3E%3Crect x='38' y='14' width='2' height='2'/%3E%3Crect x='20' y='40' width='2' height='2'/%3E%3Crect x='70' y='30' width='2' height='2'/%3E%3Crect x='86' y='58' width='2' height='2'/%3E%3Crect x='52' y='66' width='2' height='2'/%3E%3Crect x='10' y='82' width='2' height='2'/%3E%3Crect x='62' y='90' width='2' height='2'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' shape-rendering='crispEdges'%3E%3Cg fill='%23fff' opacity='.7'%3E%3Crect x='14' y='10' width='1' height='1'/%3E%3Crect x='60' y='26' width='1' height='1'/%3E%3Crect x='30' y='50' width='1' height='1'/%3E%3Crect x='84' y='70' width='1' height='1'/%3E%3Crect x='44' y='88' width='1' height='1'/%3E%3Crect x='72' y='4' width='1' height='1'/%3E%3C/g%3E%3C/svg%3E"); background-size: 96px 96px, 96px 96px; mix-blend-mode: screen; pointer-events: none; position: absolute; }
+@keyframes snow-fall-a { from { background-position: 0 0, 0 0; } to { background-position: 18px 96px, 0 0; } }
+@keyframes snow-fall-b { from { background-position: 0 0, 0 0; } to { background-position: 0 0, -12px 96px; } }
 /* The dock lamp after dark: the glow at the lamp head, and the pool of light it throws on the
    deck below, both screened over the tinted world (they are drawn after the tint in
    GameScene). Both are centred on their point and flicker together, gently. */
@@ -1019,7 +1055,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes box-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-water, .scene-water:before, .scene-water:after, .scene-lamp, .scene-lamp-pool, .scene-current, .scene-ring, .scene-mist, .scene-surf, .scene-moss, .scene-firefly, .travel-road, .game-loading-box { animation: none; }
+  .scene-cloud, .scene-gull, .scene-dragonfly, .scene-glitter, .scene-glitter:before, .scene-glitter:after, .scene-lamp, .scene-lamp-pool, .scene-mover > i, .scene-wash > i, .scene-foam, .scene-ring, .scene-bubble, .scene-mist, .scene-moss, .scene-grass, .scene-firefly, .scene-caustics, .scene-gleam, .scene-snow, .travel-road, .game-loading-box { animation: none; }
   .scene-world { transition: none; }
   .scene-rise-ring, .scene-bobber, .game-panel, .stage-meter, .stage-callout { animation: none; }
 }
@@ -1036,7 +1072,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes stars-twinkle { from { opacity: .55; } to { opacity: .95; } }
 .game-scene[data-period="night"] .scene-lamp { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
 .game-scene[data-period="night"] .scene-cloud { filter: brightness(.45); }
-.game-scene[data-period="night"] .scene-water { opacity: .18; }
+.game-scene[data-period="night"] .scene-glitter, .game-scene[data-period="night"] .scene-caustics { opacity: .12 !important; }
+.game-scene[data-period="night"] .scene-mover.is-wave, .game-scene[data-period="night"] .scene-mover.is-cap { opacity: .35 !important; }
 .game-scene[data-period="dusk"] .scene-lamp { transform: translate(-50%, -50%) scale(1.2); }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
 .hud-chip.is-dawn { color: #ffe1b8; }

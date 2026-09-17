@@ -1,6 +1,6 @@
 import React from 'react';
-import { ambienceFor, planCurrent, planRings, planSurf, planMoss, planFireflies } from '../../utils/sceneAmbience';
-import { frameFor, layoutFor, stageX, stageY, pctX, pctY, pctW, pctH } from '../../utils/sceneLayout';
+import { ambienceFor, planMovers, planFoam, planRings, planWash, planMist, planMoss, planGrass, planBubbles, planFireflies, clipFor } from '../../utils/sceneAmbience';
+import { frameFor, layoutFor, stageX, stageY, pctX, pctY, pctW, pctH, PAINT_W, PAINT_H } from '../../utils/sceneLayout';
 import seagull from '../../assets/ambient/seagull.png';
 import dragonfly from '../../assets/ambient/dragonfly.png';
 import cloud1 from '../../assets/ambient/cloud1.png';
@@ -9,13 +9,18 @@ import cloud3 from '../../assets/ambient/cloud3.png';
 
 const CLOUDS = [cloud1, cloud2, cloud3];
 const SEAGULL_FRAMES = 3;
+const WHOLE_PAINTING = { x0: 0, y0: 0, x1: PAINT_W, y1: PAINT_H };
 
 // Everything on the stage that moves without the player: see utils/sceneAmbience.js for
-// the per-ground plan — no two grounds move the same way, so the river runs, the lake rings
-// and mists, the swamp sways and blinks after dark, the beach breaks and the bay swells.
-// Clouds, gulls, dragonflies, the lamp, the water and all of those are pure CSS loops laid
-// out in painting units and mapped to this stage's crop (utils/sceneLayout.js). Nothing here
-// is a fish: the only one on the water is the one the player is fighting.
+// the per-ground plan — no two grounds move the same way. Every plan is a list of things in
+// painting units, and this maps them onto this stage's crop (utils/sceneLayout.js) as pure
+// CSS loops: a thing that travels (a streak, a roller, a whitecap, a leaf) is a lane rotated
+// to its heading with the piece running along it; surf is a bar rotated along the sand line
+// that runs up it and back; foam, rings, bubbles, mist, moss and grass sit where they were
+// planned and pulse, open, rise, drift or sway in place (the surf bar straddles its line, a third
+// over the water, so the foam shows against the water before it runs up the sand); the sun glint, caustics, horizon
+// gleam and snow are tiled layers over a box. Nothing here is a fish: the only one on the
+// water is the one the player is fighting.
 export default function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
   const config = ambienceFor(biome, season);
   const layout = layoutFor(biome, season);
@@ -25,17 +30,21 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
   const gullCount = config.critter === 'seagull' && !night ? config.critters : 0;
   const stars = night && config.clouds.length > 0;
   const skyBottom = stars ? Math.max(...config.clouds.map((lane) => lane.y1)) + 6 : 0;
-  // Each ground's own water, laid out in painting units like everything else here.
   const effects = config.effects;
-  const current = planCurrent(biome, season);
+  const movers = planMovers(biome, season);
+  const foam = planFoam(biome, season);
   const rings = planRings(biome, season);
-  const surf = planSurf(biome, season);
+  const wash = planWash(biome, season);
+  const mist = planMist(biome, season);
   const moss = planMoss(biome, season);
+  const grass = planGrass(biome, season);
+  const bubbles = planBubbles(biome, season);
   const fireflies = night ? planFireflies(biome, season) : [];
-  const box = (rect) => ({
-    left: pctX(stageX(rect.x0, frame), frame), top: pctY(stageY(rect.y0, frame)),
-    width: pctW(rect.x1 - rect.x0, frame), height: pctH(rect.y1 - rect.y0, frame),
-  });
+  const at = (x, y) => ({ left: pctX(stageX(x, frame), frame), top: pctY(stageY(y, frame)) });
+  const size = (w, h) => ({ width: pctW(w, frame), height: pctH(h, frame) });
+  const box = (rect) => ({ ...at(rect.x0, rect.y0), ...size(rect.x1 - rect.x0, rect.y1 - rect.y0) });
+  const loop = (piece) => ({ animationDuration: `${piece.duration}s`, animationDelay: `${piece.delay}s` });
+  const waterClip = clipFor(effects.clip, config.sparkle);
 
   return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter} data-period={period}>
     {stars && <div className="scene-stars" style={{ height: pctY(Math.max(6, stageY(skyBottom, frame))) }} />}
@@ -49,35 +58,64 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
     {moss.map((strand, index) => <span
       key={`moss-${index}`}
       className="scene-moss"
-      style={{ left: pctX(stageX(strand.x, frame), frame), top: pctY(stageY(strand.y, frame)), height: pctH(strand.length, frame), width: pctW(2, frame), animationDuration: `${strand.duration}s`, animationDelay: `${strand.delay}s` }}
+      style={{ ...at(strand.x, strand.y), ...size(3, strand.length), ...loop(strand) }}
     />)}
-    <div
-      className={`scene-water ${effects.swell ? 'is-swell' : ''}`}
-      style={{ ...box(config.sparkle), opacity: effects.sparkle, animationDuration: effects.swell ? `${effects.swell.seconds}s` : undefined }}
-    />
-    {current.map((line, index) => <span
-      key={`current-${index}`}
-      className="scene-current"
-      style={{ top: pctY(stageY(line.y, frame)), width: pctW(line.width, frame), height: pctH(2.5, frame), opacity: line.opacity, animationDuration: `${line.duration}s`, animationDelay: `${line.delay}s` }}
+    {grass.map((blade, index) => <span
+      key={`grass-${index}`}
+      className="scene-grass"
+      style={{ ...at(blade.x, blade.y - blade.height), ...size(3.5, blade.height), ...loop(blade) }}
     />)}
-    {surf.map((wave, index) => <span
-      key={`surf-${index}`}
-      className="scene-surf"
-      style={{ left: pctX(stageX(wave.x, frame), frame), top: pctY(stageY(wave.y, frame)), width: pctW(wave.width, frame), height: pctH(wave.height, frame), animationDuration: `${wave.duration}s`, animationDelay: `${wave.delay}s` }}
+    {effects.glitter > 0 && <div
+      className="scene-glitter"
+      style={{ ...box(config.sparkle), opacity: effects.glitter, clipPath: waterClip }}
+    />}
+    {effects.caustics && <div
+      className="scene-caustics"
+      style={{ ...box(config.sparkle), opacity: effects.caustics.opacity, clipPath: waterClip, animationDuration: `${effects.caustics.seconds}s, ${effects.caustics.seconds * 1.6}s` }}
+    />}
+    {effects.gleam && <div
+      className="scene-gleam"
+      style={{ ...box(effects.gleam.box), animationDuration: `${effects.gleam.seconds}s, ${effects.gleam.seconds * 0.45}s` }}
+    />}
+    {movers.map((piece, index) => <span
+      key={`mover-${index}`}
+      className={`scene-mover is-${piece.kind}`}
+      data-heading={piece.heading}
+      style={{ ...at(piece.x, piece.y), ...size(piece.across ? piece.h : piece.w, piece.across ? piece.w : piece.h), opacity: piece.opacity, transform: `translateY(-50%) rotate(${piece.heading}deg)`, '--travel': `${Math.round((piece.travel / (piece.across ? piece.h : piece.w)) * 100)}%` }}
+    ><i style={loop(piece)} /></span>)}
+    {wash.map((piece, index) => <span
+      key={`wash-${index}`}
+      className="scene-wash"
+      style={{ ...at(piece.x, piece.y), ...size(piece.length, piece.reach * 1.5), transform: `rotate(${piece.angle}deg) translateY(-33%)` }}
+    ><i style={loop(piece)} /></span>)}
+    {foam.map((spot, index) => <span
+      key={`foam-${index}`}
+      className="scene-foam"
+      style={{ ...at(spot.x, spot.y), ...size(spot.size, spot.size * 0.55), ...loop(spot) }}
     />)}
     {rings.map((ring, index) => <span
       key={`ring-${index}`}
       className="scene-ring"
-      style={{ left: pctX(stageX(ring.x, frame), frame), top: pctY(stageY(ring.y, frame)), width: pctW(ring.size, frame), height: pctH(ring.size * 0.42, frame), animationDuration: `${ring.duration}s`, animationDelay: `${ring.delay}s` }}
+      style={{ ...at(ring.x, ring.y), ...size(ring.size, ring.size * 0.42), ...loop(ring) }}
     />)}
-    {effects.mist && <div
+    {bubbles.map((bubble, index) => <span
+      key={`bubble-${index}`}
+      className="scene-bubble"
+      style={{ ...at(bubble.x, bubble.y), ...size(bubble.size, bubble.size), ...loop(bubble) }}
+    />)}
+    {mist.map((band, index) => <div
+      key={`mist-${index}`}
       className="scene-mist"
-      style={{ top: pctY(stageY(config.water.y0 - effects.mist.height, frame)), height: pctH(effects.mist.height, frame), animationDuration: `${effects.mist.seconds}s` }}
+      style={{ ...at(band.x, band.y), ...size(band.w, band.h), ...loop(band) }}
+    />)}
+    {effects.snow && <div
+      className="scene-snow"
+      style={{ ...box(WHOLE_PAINTING), opacity: effects.snow.opacity, animationDuration: `${effects.snow.seconds}s, ${effects.snow.seconds * 1.7}s` }}
     />}
     {fireflies.map((bug, index) => <span
       key={`firefly-${index}`}
       className="scene-firefly"
-      style={{ left: pctX(stageX(bug.x, frame), frame), top: pctY(stageY(bug.y, frame)), width: pctW(bug.size, frame), height: pctH(bug.size, frame), animationDuration: `${bug.duration}s, ${bug.duration / 4}s`, animationDelay: `${bug.delay}s, ${bug.delay / 2}s` }}
+      style={{ ...at(bug.x, bug.y), ...size(bug.size, bug.size), animationDuration: `${bug.duration}s, ${bug.duration / 4}s`, animationDelay: `${bug.delay}s, ${bug.delay / 2}s` }}
     />)}
     {Array.from({ length: gullCount }, (_, index) => <div
       key={index}
@@ -98,7 +136,7 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
       data-critter="dragonfly"
       src={dragonfly}
       alt=""
-      style={{ left: pctX(stageX(spot.x, frame), frame), top: pctY(stageY(spot.y, frame)), width: pctW(17, frame), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
+      style={{ ...at(spot.x, spot.y), width: pctW(17, frame), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
     />)}
   </div>;
 }

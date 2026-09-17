@@ -140,7 +140,7 @@ test('a trip between grounds drives across the stage in the right vehicle', () =
 test('the world around the angler is alive for the biome they are in', () => {
   const { container } = render(<GameScene biome="shoreline" phase="ready" displayName="Andre" />);
   expect(container.querySelector('.scene-ambience')).toHaveAttribute('data-critter', 'seagull');
-  expect(container.querySelector('.scene-water')).toBeInTheDocument();
+  expect(container.querySelector('.scene-glitter')).toBeInTheDocument();
 });
 
 test('the hour tints the stage and the canyon puts the angler on the cockpit deck', () => {
