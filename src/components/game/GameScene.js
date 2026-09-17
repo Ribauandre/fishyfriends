@@ -8,7 +8,8 @@ import { LURES } from '../../utils/gameLures';
 import { RARITY_INFO, sizeFraction, lengthFraction, speciesLabel } from '../../utils/gameSpecies';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
-import { lookKey } from '../../utils/anglerLook';
+import { lookKey, petOf } from '../../utils/anglerLook';
+import { petSprite, PET_H, PET_OFFSET } from '../../utils/petSprites';
 import {
   PAINT_H, PAINT_W, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, pctX, pctY, pctW, pctH,
   waterSpan, landingX as landingFor, reelX, cameraFor, cameraTransform, REST_CAMERA,
@@ -109,6 +110,25 @@ function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheet
     data-lit={lit > 0 ? lit : undefined}
     style={style}
   />;
+}
+
+// The dock pet a look brings (utils/petSprites.js): sat a little behind the angler's heel at
+// PET_H painting units, looping through its sitting frames, and lit by the lamp like him.
+function PetSprite({ petKey, feet, viewW, frame, lit = 0, className = '' }) {
+  const sprite = petSprite(petKey);
+  if (!sprite) return null;
+  const boxH = stageLen(PET_H, frame);
+  const boxW = boxH * (sprite.w / sprite.h);
+  const left = feet.x - boxW * (sprite.feetX / sprite.w);
+  const bottom = (PAINT_H - feet.y) - boxH * (1 - sprite.feetY / sprite.h);
+  const frameStep = 100 / (sprite.frames - 1);
+  const style = {
+    left: `${round2((left / viewW) * 100)}%`, bottom: pctY(bottom), height: pctY(boxH), width: `${round2((boxW / viewW) * 100)}%`,
+    backgroundImage: `url(${sprite.src})`, backgroundSize: `${sprite.frames * 100}% 100%`,
+    '--sprite-end': `${(sprite.play - 1) * frameStep}%`, animationDuration: `${sprite.durationMs}ms`, animationTimingFunction: `steps(${sprite.play}, jump-none)`,
+  };
+  if (lit > 0) style.filter = `brightness(${round2(1 + 0.45 * lit)}) sepia(${round2(0.3 * lit)}) saturate(${round2(1 + 0.15 * lit)})`;
+  return <div className={`scene-sprite scene-pet is-looping ${className}`} data-pet={petKey} data-lit={lit > 0 ? lit : undefined} style={style} />;
 }
 
 // A club member's sprite in their own look (each needs its own paint job, so its own hook).
@@ -248,6 +268,7 @@ export default function GameScene({
         const recent = other.lastCatch && now() - other.lastCatch.at < RECENT_CATCH_MS;
         const crewTagY = layout.tagAbove ? crewFeet.y - crewH - 4 : crewFeet.y + 8;
         return <React.Fragment key={other.userId}>
+          <PetSprite petKey={petOf(other.look)} feet={{ x: crewFeet.x + stageLen(PET_OFFSET.x * CREW_SCALE, frame), y: crewFeet.y + PET_OFFSET.y }} viewW={viewW} frame={frame} className="is-crew" lit={lampLight(layout.lamp, layout.angler.x + crewSlots[index] + PET_OFFSET.x, layout.angler.y, PET_H, period)} />
           <CrewSprite look={other.look || null} feet={crewFeet} boxH={crewH} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} lit={lampLight(layout.lamp, layout.angler.x + crewSlots[index], layout.angler.y, layout.spriteH, period)} />
           {other.champion && <Pennant tip={rodTipFor(crewFeet, crewH, action.action)} frame={frame} />}
           <span className={`scene-crew-tag ${other.champion ? 'is-champion' : ''}`} data-user={other.userId} style={{ left: pctX(crewFeet.x, frame), top: pctY(crewTagY) }}>{(other.name || 'Angler').toUpperCase()}</span>
@@ -255,6 +276,7 @@ export default function GameScene({
         </React.Fragment>;
       })}
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
+      <PetSprite petKey={petOf(look)} feet={{ x: feet.x + stageLen(PET_OFFSET.x, frame), y: feet.y + PET_OFFSET.y }} viewW={viewW} frame={frame} className="is-you" lit={lampLight(layout.lamp, layout.angler.x + PET_OFFSET.x, layout.angler.y, PET_H, period)} />
       <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} lit={lampLight(layout.lamp, layout.angler.x, layout.angler.y, layout.spriteH, period)} />
       {champion && <Pennant tip={rodTip} frame={frame} />}
       {/* Time of day is a tint (multiply) over everything that is *in* the world — the

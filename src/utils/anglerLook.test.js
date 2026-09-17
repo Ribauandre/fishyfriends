@@ -1,4 +1,4 @@
-import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, SKIN_TONES, SKIN_BODY, SLOTS, PART, PART_BASE, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor } from './anglerLook';
+import { DEFAULT_LOOK, WARDROBE, HAIR_COLORS, SKIN_TONES, SKIN_BODY, SLOTS, PAINT_SLOTS, PART, PART_BASE, normalizeLook, lookKey, isDefaultLook, isOwned, itemsFor, paletteFor, skinRampFor, petOf } from './anglerLook';
 
 test('a look you cannot wear falls back to the free defaults, slot by slot', () => {
   expect(normalizeLook(null)).toEqual(DEFAULT_LOOK);
@@ -37,10 +37,11 @@ test('every rack item is a colour in a slot with a price, and every slot has a f
   Object.entries(WARDROBE).forEach(([key, item]) => {
     expect(SLOTS).toContain(item.slot);
     expect(item.cost).toBeGreaterThanOrEqual(0);
-    // Nothing is a shape any more. An item either dyes its part or is the art's own colour.
+    // Nothing on him is a shape any more. An item either dyes its part or is the art's own
+    // colour — except a pet, which is a sprite of its own beside him and dyes nothing.
     expect('tint' in item).toBe(true);
     if (item.tint) expect(item.tint).toHaveLength(3);
-    else expect(item.cost).toBe(0);
+    else if (item.slot !== 'pet') expect(item.cost).toBe(0);
     expect(item.label).toEqual(expect.any(String));
     expect(key).not.toMatch(/\s/);
   });
@@ -113,4 +114,21 @@ test('every part the painter can dye knows the colour it was drawn in', () => {
   });
   // The outline is never dyed, so it has no base and needs none.
   expect(PART_BASE[PART.outline]).toBeUndefined();
+});
+
+test('a dock pet is a wardrobe item of its own: bought once, worn in the look, never part of the paint', () => {
+  expect(itemsFor('pet').map((item) => item.key)).toEqual(['pet_none', 'pet_dog', 'pet_cat']);
+  expect(WARDROBE.pet_dog.cost).toBeGreaterThan(0);
+  expect(SLOTS).toContain('pet');
+  expect(PAINT_SLOTS).not.toContain('pet');
+  // Unowned, the pet falls back to none like any other slot; owned, it is worn.
+  expect(normalizeLook({ pet: 'pet_dog' }).pet).toBe('pet_none');
+  expect(normalizeLook({ pet: 'pet_dog' }, ['pet_dog']).pet).toBe('pet_dog');
+  expect(petOf({ pet: 'pet_cat' }, ['pet_cat'])).toBe('pet_cat');
+  expect(petOf({ pet: 'pet_cat' }, [])).toBeNull();
+  expect(petOf(DEFAULT_LOOK)).toBeNull();
+  // Choosing a pet never repaints him: the paint key and the palette are the same with or without.
+  expect(lookKey({ ...DEFAULT_LOOK, pet: 'pet_dog' })).toBe(lookKey(DEFAULT_LOOK));
+  expect(paletteFor({ ...DEFAULT_LOOK, pet: 'pet_dog' }).targets).toEqual(paletteFor(DEFAULT_LOOK).targets);
+  expect(paletteFor({ ...DEFAULT_LOOK, pet: 'pet_dog' }).skinRamp).toEqual(paletteFor(DEFAULT_LOOK).skinRamp);
 });
