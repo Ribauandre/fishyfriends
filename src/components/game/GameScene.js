@@ -198,6 +198,7 @@ export default function GameScene({
   const crewShown = others.slice(0, crewSlots.length);
   const crewExtra = others.length - crewShown.length;
   const zoneLeft = reel ? reelX(layout, reel.zonePos - zoneWidth / 2, frame) : 0;
+  const inZone = Boolean(reel) && Math.abs((reel.fishPos || 0) - (reel.zonePos || 0)) <= zoneWidth / 2;
   const zoneRight = reel ? reelX(layout, reel.zonePos + zoneWidth / 2, frame) : 0;
 
   return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
@@ -253,14 +254,19 @@ export default function GameScene({
       {phase === 'reeling' && reel && <>
         {/* The zone the fish has to be held in: a bright frame on the water, mint while the fish
             is inside it and coral, pulsing, the moment it isn't — the edge is the whole game. */}
-        <div className={`reel-zone scene-zone ${Math.abs((reel.fishPos || 0) - (reel.zonePos || 0)) <= zoneWidth / 2 ? 'is-in' : 'is-out'}`} style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }}>
+        <div className={`reel-zone scene-zone ${inZone ? 'is-in' : 'is-out'}`} style={{ left: pctX(zoneLeft, frame), width: pctX(zoneRight - zoneLeft, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }}>
           <span className="scene-zone-cap is-top" aria-hidden="true" /><span className="scene-zone-cap is-bottom" aria-hidden="true" />
         </div>
+        {/* The point that counts: the fish is judged by its centre, and a big shadow straddles
+            the frame, so a line drops through it from the zone's top to its bottom, in the
+            zone's colour, with a pointer at the surface. Inside the frame or not is then a
+            line against an edge, not a guess. */}
+        <span className={`scene-fish-mark ${inZone ? 'is-in' : 'is-out'}`} aria-hidden="true" style={{ left: pctX(fishX, frame), top: pctY(stageY(layout.water.y0, frame)), height: pctH(layout.water.y1 - layout.water.y0, frame) }} />
         {/* What's on the line is a shadow until it's landed — drawn at the fish's actual length
             on the scale of every fish in the game, so a panfish is a smudge and a marlin fills
             the water, facing the way it's running — the fight reads as a fight and the sticker
             is the reveal. */}
-        <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(24 + 100 * lengthFraction(catchSize), frame) }}>
+        <span className={`scene-fish scene-shadow ${(reel.fishVel || 0) < 0 ? 'is-left' : ''} ${inZone ? 'is-in' : 'is-out'}`} data-species={species} style={{ left: pctX(fishX, frame), top: pctY(fishY), width: pctW(24 + 100 * lengthFraction(catchSize), frame) }}>
           <img src={FISH_SHADOW} alt="" />
         </span>
         <div className="stage-progress" style={{ left: pctX(waterA, frame), width: pctX(waterZ - waterA, frame), top: pctY(stageY(layout.water.y0, frame) - 8) }} aria-hidden="true">

@@ -64,10 +64,16 @@ test('only loops the reel animation while the player is actually holding', () =>
   expect(parseFloat(fish.style.left)).toBeGreaterThan((river.water.x0 / 480) * 100);
   const [a, z] = waterSpan(river, FULL);
   expect(parseFloat(container.querySelector('.scene-zone').style.width)).toBeCloseTo((0.3 * (z - a) / 480) * 100, 1);
-  // The zone says whether the fish is inside it: mint in, coral out.
+  // The zone says whether the fish is inside it: mint in, coral out — and so do the mark
+  // through the fish's centre (at the same x as the shadow) and the shadow itself.
   expect(container.querySelector('.scene-zone')).toHaveClass('is-in');
+  expect(container.querySelector('.scene-fish-mark')).toHaveClass('is-in');
+  expect(container.querySelector('.scene-fish-mark').style.left).toBe(fish.style.left);
+  expect(container.querySelector('.scene-shadow')).toHaveClass('is-in');
   rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 80, zonePos: 45 }} zoneWidth={30} holding={false} />);
   expect(container.querySelector('.scene-zone')).toHaveClass('is-out');
+  expect(container.querySelector('.scene-fish-mark')).toHaveClass('is-out');
+  expect(container.querySelector('.scene-shadow')).toHaveClass('is-out');
   rerender(<GameScene biome="river" phase="reeling" displayName="Andre" species="pike" reel={reel} zoneWidth={30} holding={false} />);
   // The zone is the painted water, not the whole stage.
   expect(parseFloat(container.querySelector('.scene-zone').style.top)).toBeCloseTo((river.water.y0 / 270) * 100, 1);
