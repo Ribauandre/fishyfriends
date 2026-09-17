@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import GameScene from './GameScene';
+import GameScene, { lampLight } from './GameScene';
 import { layoutFor, frameFor, landingX, reelX, waterSpan, castWindow } from '../../utils/sceneLayout';
 
 const FULL = frameFor(480);
@@ -156,10 +156,22 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   expect(pool).toHaveClass('is-night');
   expect(Boolean(tint.compareDocumentPosition(pool) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
   expect(container.querySelector('.scene-lamp')).toBeInTheDocument();
+  // The lamp lights him too: brighter at night on the dock, not by day, not on a boat.
+  expect(you).toHaveAttribute('data-lit');
+  expect(parseFloat(you.getAttribute('data-lit'))).toBeGreaterThan(0);
+  expect(you.style.filter).toMatch(/brightness\(1\.\d+\)/);
   rerender(<GameScene biome="bay" phase="ready" displayName="Andre" period="day" />);
   expect(container.querySelector('.scene-lamp-pool')).toBeNull();
+  expect(container.querySelector('.scene-sprite.is-you')).not.toHaveAttribute('data-lit');
   rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" period="night" />);
   expect(container.querySelector('.scene-lamp-pool')).toBeNull();
+  expect(container.querySelector('.scene-sprite.is-you')).not.toHaveAttribute('data-lit');
+  // Pure: the reach falls off with distance and the hour.
+  expect(lampLight({ x: 32, y: 36 }, 60, 136, 92, 'night')).toBeGreaterThan(lampLight({ x: 32, y: 36 }, 178, 136, 92, 'night'));
+  expect(lampLight({ x: 32, y: 36 }, 178, 136, 92, 'night')).toBeGreaterThan(lampLight({ x: 32, y: 36 }, 178, 136, 92, 'dusk'));
+  expect(lampLight({ x: 32, y: 36 }, 178, 136, 92, 'day')).toBe(0);
+  expect(lampLight(null, 60, 136, 92, 'night')).toBe(0);
+  expect(lampLight({ x: 32, y: 36 }, 400, 136, 92, 'night')).toBe(0);
   rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('canyon'));
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
