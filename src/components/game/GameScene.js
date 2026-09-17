@@ -245,6 +245,14 @@ export default function GameScene({
           the play surfaces after it (lure, zone, the fish's mark) stay bright, and the crew's
           name tags float above it by z-index. */}
       <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
+      {/* The dock lamp, after dark: a bright glow at the lamp head and a wide warm pool of
+          light on the deck below it, both screened over the tinted world so they light what
+          is under them — the planks, the barrel, the angler if he stands near enough — the
+          way a lamp does, instead of glowing under the night like they did in the ambience. */}
+      {layout.lamp && period !== 'day' && <>
+        <div className={`scene-lamp-pool is-${period}`} aria-hidden="true" style={{ left: pctX(stageX(layout.lamp.x + 34, frame), frame), top: pctY(stageY(layout.lamp.y + 64, frame)), width: pctW(400, frame), height: pctH(250, frame) }} />
+        <div className={`scene-lamp is-${period}`} aria-hidden="true" style={{ left: pctX(stageX(layout.lamp.x, frame), frame), top: pctY(stageY(layout.lamp.y, frame)), width: pctW(layout.lamp.r * 2, frame), height: pctH(layout.lamp.r * 2, frame) }} />
+      </>}
       {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pctX(lureX, frame), top: pctY(surfaceY), width: pctW(24, frame) }} />}
       {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pctX(lureX, frame), top: pctY(surfaceY - 32) }} aria-hidden="true">
         <span className="stage-gauge-track">

@@ -151,6 +151,15 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   const tint = container.querySelector('.scene-tint');
   const you = container.querySelector('.scene-sprite.is-you');
   expect(Boolean(you.compareDocumentPosition(tint) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  // The dock lamp throws its pool of light over the tint after dark, on grounds that have one.
+  const pool = container.querySelector('.scene-lamp-pool');
+  expect(pool).toHaveClass('is-night');
+  expect(Boolean(tint.compareDocumentPosition(pool) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+  expect(container.querySelector('.scene-lamp')).toBeInTheDocument();
+  rerender(<GameScene biome="bay" phase="ready" displayName="Andre" period="day" />);
+  expect(container.querySelector('.scene-lamp-pool')).toBeNull();
+  rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" period="night" />);
+  expect(container.querySelector('.scene-lamp-pool')).toBeNull();
   rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('canyon'));
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
