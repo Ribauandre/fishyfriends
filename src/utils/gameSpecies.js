@@ -38,14 +38,16 @@ export function rollJunk(random = Math.random) {
 // A couple of epics also lurk in free water (the alligator gar, the cobia) as the long shot
 // that keeps those grounds worth a cast late in the game.
 const RARITY_DIFFICULTY = {
-  common: { spawnWeight: 46, hookWindowMs: 850, zoneWidth: 42, fishSpeed: 1.0, runChance: 0.03, runPower: 0.8, drainRate: 0.5, points: [4, 8] },
-  uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, runChance: 0.05, runPower: 1.0, drainRate: 0.65, points: [10, 18] },
-  rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, runChance: 0.08, runPower: 1.2, drainRate: 0.85, points: [24, 40] },
-  epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 21, fishSpeed: 2.0, runChance: 0.11, runPower: 1.4, drainRate: 1.1, points: [55, 90] },
-  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 16, fishSpeed: 2.5, runChance: 0.15, runPower: 1.6, drainRate: 1.4, points: [120, 200] },
+  // `fightMs` is how long the fish has to work the hook loose: a bigger fish is a longer
+  // fight, and the fight is balanced so an average thumb can bank the progress in that time.
+  common: { spawnWeight: 46, hookWindowMs: 850, zoneWidth: 42, fishSpeed: 1.0, runChance: 0.03, runPower: 0.8, drainRate: 0.5, fightMs: 12000, points: [4, 8] },
+  uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, runChance: 0.05, runPower: 1.0, drainRate: 0.65, fightMs: 14000, points: [10, 18] },
+  rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, runChance: 0.07, runPower: 1.15, drainRate: 0.8, fightMs: 18000, points: [24, 40] },
+  epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 22, fishSpeed: 2.0, runChance: 0.09, runPower: 1.3, drainRate: 0.9, fightMs: 22000, points: [55, 90] },
+  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 18, fishSpeed: 2.5, runChance: 0.1, runPower: 1.4, drainRate: 1.0, fightMs: 28000, points: [120, 200] },
   // Dead weight: it never runs and the zone is wide. It is not in the spawn roll (spawnWeight
   // 0) — rollJunk decides a stick before the species roll is made.
-  junk: { spawnWeight: 0, hookWindowMs: 1200, zoneWidth: 64, fishSpeed: 0.3, runChance: 0, runPower: 0, drainRate: 0.2, points: [0, 0] },
+  junk: { spawnWeight: 0, hookWindowMs: 1200, zoneWidth: 64, fishSpeed: 0.3, runChance: 0, runPower: 0, drainRate: 0.2, fightMs: 12000, points: [0, 0] },
 };
 
 const SPECIES_LABELS = {

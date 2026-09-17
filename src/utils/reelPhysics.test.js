@@ -1,4 +1,4 @@
-import { stepReel, INITIAL_REEL_STATE, MAX_FISH_VEL, RUN_CHANCE } from './reelPhysics';
+import { stepReel, INITIAL_REEL_STATE, MAX_FISH_VEL, RUN_CHANCE, ZONE_PULL, TENSION_RECOVERY, PROGRESS_GAIN, PROGRESS_LOSS } from './reelPhysics';
 
 // A random source that returns the given values in order (and the last one forever after).
 const sequence = (...values) => { let i = 0; return () => values[Math.min(i++, values.length - 1)]; };
@@ -13,15 +13,15 @@ describe('stepReel', () => {
     const state = { fishPos: 50, fishVel: 0, zonePos: 50, progress: 0, tension: 50 };
     const next = stepReel(state, { ...BASE_PARAMS, holding: true });
     expect(next.fishPos).toBe(50);
-    expect(next.progress).toBeCloseTo(3.2);
-    expect(next.tension).toBeCloseTo(47.5);
+    expect(next.progress).toBeCloseTo(PROGRESS_GAIN);
+    expect(next.tension).toBeCloseTo(50 - TENSION_RECOVERY);
   });
 
   test('drains progress and builds tension while the fish is outside the zone', () => {
     jest.spyOn(Math, 'random').mockReturnValue(0.5);
     const state = { fishPos: 50, fishVel: 0, zonePos: 90, progress: 50, tension: 0 };
     const next = stepReel(state, { ...BASE_PARAMS, zoneWidth: 10, holding: false });
-    expect(next.progress).toBeCloseTo(48.4);
+    expect(next.progress).toBeCloseTo(50 - PROGRESS_LOSS);
     expect(next.tension).toBeCloseTo(4.5);
   });
 
@@ -64,8 +64,13 @@ describe('stepReel', () => {
     jest.spyOn(Math, 'random').mockImplementation(sequence(0.01, 0.2, 0.5, 0.5, 0.5));
     const bolt = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: true });
     expect(bolt.run).toBeGreaterThanOrEqual(3);
-    expect(bolt.fishVel).toBeLessThan(-4);
-    expect(Math.abs(bolt.fishVel)).toBeGreaterThan(5.5); // faster than the zone's 5.5 pull
+    expect(bolt.fishVel).toBeLessThan(-3);
+    // A plain fish's run matches the stock reel's pull; a rarer fish's runPower puts it past
+    // what the zone can follow, and a better reel (a bigger zonePull) closes the gap.
+    expect(Math.abs(bolt.runVel)).toBeCloseTo(ZONE_PULL);
+    Math.random.mockImplementation(sequence(0.01, 0.2, 0.5, 0.5, 0.5));
+    const hot = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, runPower: 1.4, holding: true });
+    expect(Math.abs(hot.runVel)).toBeGreaterThan(ZONE_PULL);
     // The run carries on without a new roll going its way, and closes on its own speed.
     Math.random.mockImplementation(() => 0.5);
     const next = stepReel(bolt, { ...BASE_PARAMS, holding: true });
@@ -98,6 +103,15 @@ describe('stepReel', () => {
     const mild = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, runChance: 0.03, runPower: 0.8, holding: true });
     expect(mild.run).toBeGreaterThan(0);
     expect(Math.abs(hot.fishVel)).toBeGreaterThan(Math.abs(mild.fishVel));
+  });
+
+  test('the reel sets how far the zone moves a tick', () => {
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    const stock = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: true });
+    const better = stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: true, zonePull: 7.9 });
+    expect(stock.zonePos).toBeCloseTo(50 + ZONE_PULL);
+    expect(better.zonePos).toBeCloseTo(57.9);
+    expect(stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: false, zonePull: 7.9 }).zonePos).toBeLessThan(stepReel(INITIAL_REEL_STATE, { ...BASE_PARAMS, holding: false }).zonePos);
   });
 
   test('bounces the fish back into range instead of letting it run past the edges', () => {
