@@ -929,7 +929,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    motion, deliberately: it's a game world, not chrome. Clouds, gulls/dragonflies, the lamp and
    each ground's own water live in .scene-ambience; travel, the shop interior and the trophy
    wall tie the map, Sal and the case into the same place. */
-.scene-ambience { inset: 0; overflow: hidden; pointer-events: none; position: absolute; }
+/* Boxed to the painting by SceneAmbience (inline), like the backdrop, not to the stage. */
+.scene-ambience { overflow: hidden; pointer-events: none; position: absolute; }
 .scene-cloud { animation: cloud-drift linear infinite; left: var(--drift-from, -22%); position: absolute; width: auto; }
 @keyframes cloud-drift { 0% { left: var(--drift-from, -22%); opacity: 0; } 8% { opacity: .92; } 92% { opacity: .92; } 100% { left: 104%; opacity: 0; } }
 .scene-gull { animation-direction: alternate, normal; animation-iteration-count: infinite, infinite; animation-name: gull-flap, gull-glide; animation-timing-function: steps(3, jump-none), linear; aspect-ratio: 77 / 60; background-repeat: no-repeat; left: -12%; position: absolute; }
