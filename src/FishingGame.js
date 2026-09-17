@@ -7,7 +7,7 @@ import NpcDialogue from './components/game/NpcDialogue';
 import AnglerPreview from './components/game/AnglerPreview';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, GAME_LOGO, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import outfitterBackdrop from './assets/scenes/outfitter.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
@@ -38,6 +38,8 @@ const REEL_SOUND_MS = 110;
 // How long the landed fish ignores the stage after it goes up, so the release of the hold that
 // landed it doesn't dismiss it.
 const RESULT_ARM_MS = 700;
+// How long the logo stays on the stage after the dock is up.
+const SPLASH_MS = 1800;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
@@ -55,6 +57,14 @@ export default function FishingGame({ clock = () => new Date() }) {
   // One card per species on the trophy wall: the biggest landed, per game_profiles.records.
   const [trophies, setTrophies] = useState([]);
   const [loading, setLoading] = useState(true);
+  // The logo holds on the stage for a beat after the dock loads (the load itself is often too
+  // quick to read), then slides off; it never takes a tap.
+  const [splash, setSplash] = useState(true);
+  useEffect(() => {
+    if (loading) return undefined;
+    const timer = setTimeout(() => setSplash(false), SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, [loading]);
   const [phase, setPhase] = useState('ready');
   const [overlay, setOverlay] = useState(null);
   const [biome, setBiome] = useState('river');
@@ -647,13 +657,17 @@ export default function FishingGame({ clock = () => new Date() }) {
   const almanacCaught = Object.keys(records).length;
 
   if (loading) return <main className="content-shell game-page">
-    <div className="game-loading"><img className="game-loading-box" src={TACKLE_BOX} alt="" /><p className="month-empty">Loading your tackle box...</p></div>
+    <div className="game-loading">
+      <img className="game-logo" src={GAME_LOGO} alt="Cast & Catch" />
+      <div className="game-loading-row"><img className="game-loading-box" src={TACKLE_BOX} alt="" /><p className="month-empty">Loading your tackle box...</p></div>
+    </div>
   </main>;
 
   return <main className="content-shell game-page">
     <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
       <div className="game-body">
       <div className="game-stage">
+      {splash && <div className="game-splash" aria-hidden="true"><img src={GAME_LOGO} alt="" /></div>}
       <GameScene
         biome={biome}
         phase={phase}

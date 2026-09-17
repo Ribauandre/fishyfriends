@@ -1006,8 +1006,16 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-overlay-panel.has-backdrop .trophy-card.is-real { border-color: var(--coral); }
 .game-overlay-panel.has-backdrop .trophy-card strong { background: #c9a24a; color: #2a1c0b; font-family: var(--font-head); font-size: 10px; letter-spacing: .06em; padding: 2px 8px; text-transform: uppercase; }
 .game-overlay-panel.has-backdrop .trophy-card span:last-child { color: #e8d3a8; }
-.game-loading { align-items: center; display: flex; flex-direction: column; gap: 12px; padding: 60px 0; }
+.game-loading { align-items: center; display: flex; flex-direction: column; gap: 18px; padding: 40px 0 60px; }
+.game-loading-row { align-items: center; display: flex; flex-direction: column; gap: 10px; }
 .game-loading-box { animation: box-bob 1.1s ease-in-out infinite; height: 64px; width: auto; }
+/* The game's logo: slapped down on the loading screen, and held on the stage for a beat once
+   the dock is up (the load itself is often too quick to read), then gone. Never a tap target. */
+.game-logo { animation: sticker-slap .55s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(4px 6px 0 rgba(3,8,11,.6)); height: auto; max-width: min(78vw, 300px); transform: rotate(-4deg); width: 100%; }
+.game-splash { align-items: center; animation: splash-hold 1.8s ease-in both; display: flex; inset: 0; justify-content: center; pointer-events: none; position: absolute; z-index: 6; }
+.game-splash img { animation: sticker-slap .55s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(4px 6px 0 rgba(3,8,11,.6)); height: auto; max-height: 70%; max-width: min(60%, 340px); object-fit: contain; transform: rotate(-4deg); }
+@keyframes splash-hold { 0%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-12px); } }
+@media (prefers-reduced-motion: reduce) { .game-logo, .game-splash, .game-splash img { animation: none; } }
 @keyframes box-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 
 @media (prefers-reduced-motion: reduce) {

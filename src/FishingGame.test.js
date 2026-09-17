@@ -74,8 +74,14 @@ afterEach(() => {
 test('shows a loading state, then one game frame with the shop and trophy case as overlays', async () => {
   render(<FishingGame clock={NOON} />);
   expect(screen.getByText(/loading your tackle box/i)).toBeInTheDocument();
+  // The game's logo is on the loading screen...
+  expect(screen.getByAltText('Cast & Catch')).toHaveAttribute('src', expect.stringContaining('logo'));
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
+  // ...and holds on the stage for a beat once the dock is up, without taking a tap.
+  expect(document.querySelector('.game-splash img')).toHaveAttribute('src', expect.stringContaining('logo'));
+  await advance(1800);
+  expect(document.querySelector('.game-splash')).toBeNull();
   expect(screen.getByLabelText('100 tackle points')).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).toBeNull();
 
