@@ -5,6 +5,7 @@ import GameOverlay from './components/game/GameOverlay';
 import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
 import AnglerPreview from './components/game/AnglerPreview';
+import PetPreview from './components/game/PetPreview';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
 import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, GAME_LOGO, vehicleFor } from './utils/gameProps';
@@ -298,7 +299,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     const worn = await saveLook({ ...look, [slot]: itemKey });
     if (worn?.gameProfile) setGameProfile((current) => ({ ...current, ...worn.gameProfile }));
     setOutfitBusy(false);
-    setOutfitEvent({ type: 'buy', label });
+    setOutfitEvent({ type: 'buy', label, slot });
   }
 
   async function handleFlyRodPurchase() {
@@ -986,7 +987,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                 aria-label={`${item.label} · ${status}`}
                 onClick={() => (owned ? handleLook({ [slot]: item.key }) : handleApparelPurchase(item.key, slot, item.label))}
               >
-                <span className="rack-swatch"><AnglerPreview look={{ ...look, [slot]: item.key }} small label="" /></span>
+                <span className="rack-swatch">{slot === 'pet' ? <PetPreview petKey={item.key} /> : <AnglerPreview look={{ ...look, [slot]: item.key }} small label="" />}</span>
                 <strong>{item.label}</strong>
                 <span>{status}</span>
               </button>;

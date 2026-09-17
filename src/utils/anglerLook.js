@@ -155,6 +155,14 @@ export const WARDROBE = {
   waders_grey: { slot: 'waders', label: 'Grey trousers', cost: 60, tint: [124, 128, 134] },
   waders_navy: { slot: 'waders', label: 'Navy trousers', cost: 70, tint: [52, 66, 112] },
   waders_brown: { slot: 'waders', label: 'Brown trousers', cost: 60, tint: [122, 82, 52] },
+
+  // Dock pets: not a dye on him but a sprite of their own beside him (utils/petSprites.js,
+  // drawn by GameScene at his heel and at each crew member's). `pet_none` is the free
+  // default, so a look with no pet is the dock as it was. Presence carries the look, so the
+  // crew's pets sit with them too.
+  pet_none: { slot: 'pet', label: 'No pet', cost: 0, tint: null },
+  pet_dog: { slot: 'pet', label: 'Dock dog', cost: 150, tint: null },
+  pet_cat: { slot: 'pet', label: 'Bait-shop cat', cost: 150, tint: null },
 };
 
 // Keys that no longer name anything wearable, and what they become. `hat_none` was a bare head,
@@ -162,16 +170,20 @@ export const WARDROBE = {
 // cap rather than a look that refuses to load.
 const ALIASES = { hat_none: 'cap_green' };
 
-export const SLOTS = ['hat', 'shirt', 'vest', 'rod', 'boots', 'waders'];
-export const SLOT_LABELS = { hat: 'Caps', shirt: 'Shirts', vest: 'Vests', rod: 'Rods', boots: 'Boots', waders: 'Jeans' };
+// The slots the painter dyes on him, and then the pet, which is its own sprite: the look key
+// (a cache key for a paint) is made of the first six alone, so choosing a pet never repaints him.
+export const PAINT_SLOTS = ['hat', 'shirt', 'vest', 'rod', 'boots', 'waders'];
+export const SLOTS = [...PAINT_SLOTS, 'pet'];
+export const SLOT_LABELS = { hat: 'Caps', shirt: 'Shirts', vest: 'Vests', rod: 'Rods', boots: 'Boots', waders: 'Jeans', pet: 'Dock pets' };
 export const WARDROBE_LIST = Object.entries(WARDROBE).map(([key, item]) => ({ key, ...item }));
 export const itemsFor = (slot) => WARDROBE_LIST.filter((item) => item.slot === slot);
 
 export const DEFAULT_LOOK = {
   skin: 'medium', hair: 'brown',
   hat: 'cap_green', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki',
+  pet: 'pet_none',
 };
-const LOOK_FIELDS = ['skin', 'hair', ...SLOTS];
+const LOOK_FIELDS = ['skin', 'hair', ...PAINT_SLOTS];
 
 export function isOwned(itemKey, wardrobe = []) {
   const item = WARDROBE[itemKey];
@@ -200,6 +212,13 @@ export function lookKey(look) {
 }
 
 export const isDefaultLook = (look) => lookKey(look) === lookKey(DEFAULT_LOOK);
+
+// The pet a look brings to the dock, or null: only one that is actually owned, since a look
+// arriving over presence is another player's word for what they wear.
+export function petOf(look, wardrobe = Object.keys(WARDROBE)) {
+  const pet = normalizeLook(look, wardrobe).pet;
+  return pet === 'pet_none' ? null : pet;
+}
 
 // Everything the painter needs for a look: what each part goes to, null meaning leave the art
 // alone. `skinRamp` is null for the stock tone for the same reason — his own skin is already his.

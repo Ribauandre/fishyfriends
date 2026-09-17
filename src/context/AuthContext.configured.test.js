@@ -623,7 +623,7 @@ describe('Cast & Catch world', () => {
     // rod_gold is not owned, so it falls back to the free rod; `beard` is a field the old sheet
     // had and this one does not, and it is read past rather than saved.
     const saved = await result.current.saveLook({ skin: 'deep', hat: 'cap_red', rod: 'rod_gold', beard: 'goatee' });
-    expect(saved.look).toEqual({ skin: 'deep', hair: 'brown', hat: 'cap_red', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki' });
+    expect(saved.look).toEqual({ skin: 'deep', hair: 'brown', hat: 'cap_red', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki', pet: 'pet_none' });
     expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ look: saved.look }));
   });
 

@@ -416,3 +416,26 @@ test('the angler wears the look he is given, and so does the crew (stock art whe
   expect(you.style.backgroundImage).toContain('idle');
   expect(container.querySelector('.scene-sprite.is-crew').getAttribute('data-look')).toContain('cap_red');
 });
+
+test('a dock pet sits behind its angler\'s heel, and the crew bring theirs; a pet nobody owns stays home', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready', look: { pet: 'pet_cat' } }, { userId: 'u3', name: 'Sal', phase: 'ready', look: { hat: 'cap_red' } }];
+  const { container, rerender } = render(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} others={others} />);
+  const mine = container.querySelector('.scene-pet.is-you');
+  expect(mine).toHaveAttribute('data-pet', 'pet_dog');
+  expect(mine.style.backgroundImage).toContain('dog');
+  // Behind him: further left than his own sprite's box, and standing on the deck.
+  const me = container.querySelector('.scene-sprite.is-you:not(.scene-pet)');
+  expect(parseFloat(mine.style.left)).toBeLessThan(parseFloat(me.style.left) + 20);
+  expect(parseFloat(mine.style.height)).toBeLessThan(parseFloat(me.style.height));
+  const theirs = container.querySelectorAll('.scene-pet.is-crew');
+  expect(theirs.length).toBe(1);
+  expect(theirs[0]).toHaveAttribute('data-pet', 'pet_cat');
+  // The loop steps through the strip's frames on its own.
+  expect(mine.style.animationTimingFunction).toMatch(/^steps\(/);
+
+  rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_none' }} others={[]} />);
+  expect(container.querySelector('.scene-pet')).toBeNull();
+  // At night the pet by the post is lit like him.
+  rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} period="night" />);
+  expect(container.querySelector('.scene-pet.is-you')).toHaveAttribute('data-lit');
+});

@@ -499,6 +499,25 @@ test("Marina's sells apparel for points and the free look changes save straight 
   expect(document.querySelector('.scene-sprite.is-you')).toHaveAttribute('data-look', expect.stringContaining('cap_red'));
 });
 
+test("Marina's sells a dock dog and a cat: bought once, then sat beside the angler on the stage", async () => {
+  const purchaseApparel = jest.fn().mockResolvedValue({ error: null, gameProfile: makeGameProfile({ tackle_points: 50, wardrobe: ['pet_dog'] }) });
+  const saveLook = jest.fn().mockImplementation(async (look) => ({ error: null, look, gameProfile: makeGameProfile({ tackle_points: 50, wardrobe: ['pet_dog'], look }) }));
+  useAuth.mockReturnValue(makeBaseAuth({ purchaseApparel, saveLook }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  expect(document.querySelector('.scene-pet')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
+  expect(screen.getByRole('button', { name: 'No pet · Wearing' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Bait-shop cat · 150 pts' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Dock dog · 150 pts' }));
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(purchaseApparel).toHaveBeenCalledWith('pet_dog');
+  expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ pet: 'pet_dog' }));
+  expect(await screen.findByRole('button', { name: 'Dock dog · Wearing' })).toBeInTheDocument();
+  expect(screen.getByText(/mind the bait bucket/i)).toBeInTheDocument();
+  expect(document.querySelector('.scene-pet.is-you')).toHaveAttribute('data-pet', 'pet_dog');
+});
+
 test('a failed purchase is repeated back by Marina and nothing is worn', async () => {
   const purchaseApparel = jest.fn().mockResolvedValue({ error: new Error('Not enough tackle points yet.') });
   const saveLook = jest.fn();

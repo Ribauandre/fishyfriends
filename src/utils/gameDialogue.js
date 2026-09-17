@@ -17,13 +17,14 @@ export const NPCS = {
 // sizes up your balance.
 export function outfitterLine({ gameProfile, event }) {
   if (event?.type === 'error') return `${event.message} No harm in looking, though.`;
+  if (event?.type === 'buy' && event.slot === 'pet') return `The ${event.label.toLowerCase()} — they'll sit with you on the dock and mind the bait bucket. Go on, off you go together.`;
   if (event?.type === 'buy') return `The ${event.label.toLowerCase()} — good choice. It's yours; wear it out if you like.`;
   if (event?.type === 'look') return "There we go. Looking sharp.";
   const points = gameProfile?.tackle_points || 0;
   const owned = (gameProfile?.wardrobe || []).length;
   if (owned >= 6) return "You've about cleaned out my racks. Try a combination on.";
   if (points < 40) return "Skin, beard, hair — those are on the house. The racks take tackle points; go land a few.";
-  return `Caps, shirts, vests, rods, boots and jeans on the racks, ${points} points in your pocket. Try something on.`;
+  return `Caps, shirts, vests, rods, boots and jeans on the racks, a dog and a cat asleep by the door, and ${points} points in your pocket. Try something on.`;
 }
 
 export function shopkeeperLine({ gameProfile, event, personalBests = [], bounties = [] }) {
