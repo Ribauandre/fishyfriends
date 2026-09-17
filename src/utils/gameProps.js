@@ -27,6 +27,7 @@ import outfit from '../assets/props/outfit.png';
 import crewicon from '../assets/props/crewicon.png';
 import questicon from '../assets/props/questicon.png';
 import fishshadow from '../assets/props/fishshadow.png';
+import logo from '../assets/props/logo.webp';
 import { BIOMES } from './gameBiomes';
 
 
@@ -46,6 +47,8 @@ export const DERBY_FLAG = flag;
 // The shape under the water while a fish is on: one silhouette for every species, so the
 // fight gives nothing away and never loads a sticker — the reveal is the landing.
 export const FISH_SHADOW = fishshadow;
+// The game's own sticker: on the loading screen, and a beat on the stage once it's up.
+export const GAME_LOGO = logo;
 // The derby prize: a 3-frame golden pennant strip that flies from the champion's rod tip.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3 };
 
