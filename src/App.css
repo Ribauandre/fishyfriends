@@ -1009,6 +1009,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Cast & Catch — a world with a clock, a field guide, a derby, quests and a seventh ground. */
 .scene-tint { mix-blend-mode: multiply; opacity: 0; pointer-events: none; position: absolute; transition: opacity 1.2s ease; }
+/* Labels in the world stay readable at night: above the tint, which is a later sibling. */
+.scene-crew-tag, .scene-crew-bubble, .scene-crew-more { z-index: 2; }
 .scene-tint.is-dawn { background: linear-gradient(rgba(255,205,150,1), rgba(255,235,200,1)); opacity: .45; }
 .scene-tint.is-dusk { background: linear-gradient(#ff9d5c, #b46a8c 55%, #5a4a8a); opacity: .6; }
 .scene-tint.is-night { background: linear-gradient(#14224f, #1a2b5e 60%, #0d1a3a); opacity: .82; }
