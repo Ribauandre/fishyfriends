@@ -1,5 +1,7 @@
 import { derbyFor, weekKey, weekStart, rankDerby, DERBY_POOL, dateOfWeekKey, previousDerby, isChampion } from './gameDerby';
 import { BIOMES } from './gameBiomes';
+import { inSeason } from './gameSpecies';
+import { seasonFor } from './gameClock';
 
 test('the week is ISO and Monday-based, in UTC', () => {
   expect(weekKey(new Date('2026-01-01T12:00:00Z'))).toBe('2026-W01');
@@ -19,6 +21,14 @@ test('everyone gets the same target all week, from open grounds only, and it cha
   monday.grounds.forEach((ground) => expect(BIOMES[ground].species).toContain(monday.species));
   const targets = new Set(Array.from({ length: 12 }, (_, week) => derbyFor(new Date(Date.UTC(2026, 0, 5 + week * 7))).species));
   expect(targets.size).toBeGreaterThan(3);
+});
+
+test('the derby never asks for a fish that is out of season that week', () => {
+  const weeks = Array.from({ length: 52 }, (_, week) => new Date(Date.UTC(2026, 0, 5 + week * 7)));
+  weeks.forEach((monday) => {
+    const derby = derbyFor(monday);
+    expect(inSeason(derby.species, seasonFor(monday))).toBe(true);
+  });
 });
 
 test('the leaderboard keeps one row per angler, biggest fish first, ties to the earlier catch', () => {

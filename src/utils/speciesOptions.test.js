@@ -75,9 +75,10 @@ describe('speciesIcon', () => {
     // A generic, non-canonical "pickerel" (e.g. grass or redfin pickerel) is close enough
     // to share the chain pickerel art, the same way "Sea Bass" shares black sea bass's.
     expect(speciesIcon('Redfin Pickerel')).toBe('chainpickerel');
-    // Likewise a plain "White Perch" isn't its own canonical species, so it shares the
-    // closest relative's art rather than falling all the way back to a bass icon.
-    expect(speciesIcon('White Perch')).toBe('yellowperch');
+    // "White Perch" got its own art with the game's third wave, and its name has to beat
+    // the generic "perch" alias to yellow perch.
+    expect(speciesIcon('White Perch')).toBe('whiteperch');
+    expect(speciesIcon('Perch')).toBe('yellowperch');
   });
 
   test('falls back to largemouth for a completely unrecognized species', () => {

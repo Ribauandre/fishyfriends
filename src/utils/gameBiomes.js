@@ -20,7 +20,7 @@ export const BIOMES = {
     blurb: 'Moving water — current-loving fish, and the odd invasive surprise.',
     charterCost: 0,
     flyWater: 'fresh',
-    species: ['smallmouth', 'pike', 'walleye', 'yellowperch', 'catfish', 'carp', 'chainpickerel', 'browntrout', 'rainbowtrout', 'trout', 'snakehead', 'americanshad', 'muskie'],
+    species: ['smallmouth', 'pike', 'walleye', 'yellowperch', 'whiteperch', 'fallfish', 'rockbass', 'catfish', 'channelcatfish', 'carp', 'chainpickerel', 'browntrout', 'rainbowtrout', 'trout', 'snakehead', 'americanshad', 'muskie'],
   },
   mountainlake: {
     key: 'mountainlake',
@@ -28,35 +28,35 @@ export const BIOMES = {
     blurb: 'Cold, clear, high up — trout country.',
     charterCost: 0,
     flyWater: 'fresh',
-    species: ['brooktrout', 'rainbowtrout', 'browntrout', 'laketrout', 'trout', 'arcticchar', 'muskie'],
+    species: ['brooktrout', 'rainbowtrout', 'browntrout', 'laketrout', 'trout', 'yellowperch', 'splake', 'tigertrout', 'landlockedsalmon', 'arcticchar', 'muskie'],
   },
   swamp: {
     key: 'swamp',
     label: 'Swamp',
     blurb: 'Warm, weedy and slow — bass, panfish, and worse.',
     charterCost: 0,
-    species: ['largemouth', 'bluegill', 'crappie', 'catfish', 'carp', 'chainpickerel', 'snakehead', 'bowfin', 'longnosegar', 'alligatorgar'],
+    species: ['largemouth', 'bluegill', 'pumpkinseed', 'warmouth', 'crappie', 'catfish', 'whitecatfish', 'carp', 'chainpickerel', 'snakehead', 'bowfin', 'longnosegar', 'floridabass', 'alligatorgar'],
   },
   bay: {
     key: 'bay',
     label: 'Bay',
     blurb: 'Brackish water where the rivers meet the sea.',
     charterCost: 0,
-    species: ['flounder', 'weakfish', 'porgy', 'blackseabass', 'tautog', 'salmon', 'stripedbass', 'blackdrum', 'cobia'],
+    species: ['flounder', 'winterflounder', 'weakfish', 'porgy', 'northernkingfish', 'searobin', 'blackseabass', 'tautog', 'oystertoadfish', 'americaneel', 'salmon', 'stripedbass', 'blackdrum', 'cobia'],
   },
   shoreline: {
     key: 'shoreline',
     label: 'Beach',
     blurb: 'Surf casting along the open coast.',
     charterCost: 0,
-    species: ['flounder', 'porgy', 'redfish', 'stripedbass', 'bluefish', 'blackdrum', 'cobia'],
+    species: ['flounder', 'porgy', 'northernkingfish', 'redfish', 'pompano', 'spanishmackerel', 'stripedbass', 'bluefish', 'bonito', 'littletunny', 'kingmackerel', 'blackdrum', 'cobia', 'sandbarshark'],
   },
   offshore: {
     key: 'offshore',
     label: 'Offshore',
     blurb: "Open water and the big stuff — you'll need to charter the boat to get out here.",
     charterCost: OFFSHORE_CHARTER_COST,
-    species: ['mahimahi', 'tuna', 'wahoo', 'shark'],
+    species: ['mahimahi', 'tuna', 'yellowfintuna', 'bigeyetuna', 'wahoo', 'tilefish', 'threshershark', 'shark', 'bluefintuna', 'makoshark'],
   },
   // The seventh ground. Cap'n Ray only runs out past the shelf for anglers who've proven
   // themselves on the bay (see utils/gameQuests.js) — until then it's a rumor on the map.
@@ -66,7 +66,7 @@ export const BIOMES = {
     blurb: "Ray's secret: the drop-off past the shelf, run at dusk. Swordfish live here and nowhere else.",
     charterCost: CANYON_CHARTER_COST,
     requiresQuest: 'rays_proving',
-    species: ['tuna', 'mahimahi', 'wahoo', 'shark', 'swordfish', 'bluemarlin'],
+    species: ['tuna', 'bigeyetuna', 'mahimahi', 'wahoo', 'opah', 'whitemarlin', 'sailfish', 'shark', 'swordfish', 'bluemarlin'],
   },
   // The eighth ground, and the far end of the map: Ray trailers the skiff south for anglers
   // who've fished The Canyon with him. Skinny salt water, the fly rod's other home — the
@@ -78,7 +78,24 @@ export const BIOMES = {
     charterCost: FLATS_CHARTER_COST,
     requiresQuest: 'rays_southern_run',
     flyWater: 'salt',
-    species: ['mangrovesnapper', 'jackcrevalle', 'snook', 'redfish', 'bonefish', 'barracuda', 'permit', 'tarpon'],
+    species: ['mangrovesnapper', 'ladyfish', 'jackcrevalle', 'spottedseatrout', 'snook', 'redfish', 'bonefish', 'barracuda', 'cobia', 'permit', 'lemonshark', 'tarpon'],
+  },
+  // Two more free grounds on the home coast: the end of the town pier, where the fish that
+  // come to the pilings (and after dark, the eels and the sharks) are, and the salt-marsh
+  // creek behind the bay at low tide.
+  pier: {
+    key: 'pier',
+    label: 'The Pier',
+    blurb: 'The end of the town pier: pilings, swell, and whatever the tide brings past.',
+    charterCost: 0,
+    species: ['northernkingfish', 'searobin', 'porgy', 'oystertoadfish', 'americaneel', 'spanishmackerel', 'bluefish', 'weakfish', 'bonito', 'kingmackerel', 'stripedbass', 'sandbarshark'],
+  },
+  creek: {
+    key: 'creek',
+    label: 'Tidal Creek',
+    blurb: 'A salt-marsh creek behind the bay, fished on the tide.',
+    charterCost: 0,
+    species: ['whiteperch', 'americaneel', 'winterflounder', 'searobin', 'weakfish', 'spottedseatrout', 'stripedbass', 'redfish', 'blackdrum'],
   },
 };
 

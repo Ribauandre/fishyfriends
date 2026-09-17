@@ -53,6 +53,22 @@ const BIOME_TIPS = {
   swamp: "Bass and panfish in the weeds. Something bigger's in there too, if you're patient.",
   bay: 'Flounder on the bottom, stripers on the tide. Salmon push through when the rivers run.',
   shoreline: 'Surf casting country. Fluke in close, blues and stripers when the bait shows up.',
+  pier: 'Kingfish and porgies on the bottom, macks and blues when the water warms. Watch the pilings.',
+  creek: 'Fish the tide. White perch on the drop, stripers and seatrout when it floods.',
+};
+
+// What the calendar puts in the water, where it changes the story.
+const SEASON_TIPS = {
+  'river:spring': "Shad are running. Small bright lures, fish the seams.",
+  'bay:winter': 'Winter flounder are in the mud. Slow and small.',
+  'bay:spring': 'Tautog on the rocks and winter flounder in the mud — the last of them.',
+  'shoreline:summer': 'Warm water: Spanish macks, pompano in the wash, and sandbar sharks after dark.',
+  'shoreline:fall': 'Fall run. Albies and bonito are crashing bait — cast fast.',
+  'pier:summer': 'Macks and kings past the end of the pier when the water warms.',
+  'pier:fall': 'Fall run off the pier — bonito and kings.',
+  'offshore:summer': 'Bluefin season. Big water, biggest fish. Hold on.',
+  'canyon:summer': 'The billfish are up: whites, sails. This is the season.',
+  'mountainlake:winter': "Ice fishing. Perch and splake through the lead, lakers if you're patient.",
 };
 
 const NIGHT_TIPS = {
@@ -60,6 +76,8 @@ const NIGHT_TIPS = {
   swamp: 'Snakeheads hunt at night. So do the catfish, and the bowfin under the moss.',
   bay: 'Night tide — the stripers are up on the flats.',
   shoreline: 'Big stripers hit the surf after dark.',
+  pier: 'Eels and toadfish under the lights. Sharks past the end.',
+  creek: 'Eels on the mud after dark, and stripers in the creek mouth.',
   offshore: "Sharks own the dark water. Hold on.",
   canyon: 'Swordfish come up from the deep at night. This is the hour.',
   flats: 'Tarpon roll in the channel after dark. Big fly, big fish, hold on.',
@@ -80,7 +98,7 @@ const HATCH_TIPS = {
   night: 'Big browns hunt after dark. Swim a streamer, slow.',
 };
 
-export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', quests = {}, isRecord = false, champion = false, justWon = null, flyRod = false, lure = 'livebait' }) {
+export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', season = null, quests = {}, isRecord = false, champion = false, justWon = null, flyRod = false, lure = 'livebait' }) {
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
   if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
@@ -118,5 +136,6 @@ export function captainLine({ biome, chartered, charterError, phase, result, per
   if (flyRod && BIOMES[biome]?.flyWater && phase === 'ready' && (period !== 'day' || lure !== 'livebait')) return HATCH_TIPS[period] || HATCH_TIPS.day;
   if (period === 'night' && NIGHT_TIPS[biome]) return NIGHT_TIPS[biome];
   if (champion && phase === 'ready' && biome === 'river') return "Everybody on the dock can see that pennant. Defend it.";
+  if (season && SEASON_TIPS[`${biome}:${season}`]) return SEASON_TIPS[`${biome}:${season}`];
   return BIOME_TIPS[biome] || 'Pick your water and I’ll tell you what’s biting.';
 }

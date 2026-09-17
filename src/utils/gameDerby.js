@@ -4,6 +4,8 @@
 // catches of that species since Monday (listDerbyLeaders in AuthContext). Species that need
 // an unlocked ground are left out so the derby is always open to the whole club.
 import { BIOMES } from './gameBiomes';
+import { inSeason } from './gameSpecies';
+import { seasonFor } from './gameClock';
 
 const LOCKED = new Set(Object.values(BIOMES).filter((biome) => biome.requiresQuest).flatMap((biome) => biome.species));
 const OPEN = new Set(Object.values(BIOMES).filter((biome) => !biome.requiresQuest).flatMap((biome) => biome.species));
@@ -35,7 +37,11 @@ function hash(text) {
 
 export function derbyFor(date = new Date()) {
   const key = weekKey(date);
-  const species = DERBY_POOL[hash(key) % DERBY_POOL.length];
+  // Only a fish that is in this season can be the week's target — nobody can land the shad in
+  // August. The season is read off the week's Monday so the whole week agrees.
+  const season = seasonFor(weekStart(date));
+  const pool = DERBY_POOL.filter((candidate) => inSeason(candidate, season));
+  const species = pool[hash(key) % pool.length];
   const since = weekStart(date);
   const until = new Date(since);
   until.setUTCDate(since.getUTCDate() + 7);

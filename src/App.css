@@ -834,6 +834,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    bright water and dark alike, caps top and bottom, and a coral, pulsing frame the moment the
    fish is outside it. The fill stays faint so the shadow under it is still the shadow. */
 .game-scene .scene-zone { background: rgba(227,251,20,.16); border: 3px solid var(--mint); bottom: auto; box-shadow: 0 0 0 2px rgba(3,8,11,.7), inset 0 0 0 2px rgba(3,8,11,.45); box-sizing: border-box; transition: left .08s linear, border-color .12s, background-color .12s; }
+.almanac-season { display: block; font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-top: 2px; }
+.almanac-season.is-in { color: var(--mint); }
+.almanac-season.is-away { color: var(--coral); }
+.almanac-card.is-away { opacity: .72; }
 .game-scene .scene-zone-cap { background: var(--mint); border: 2px solid rgba(3,8,11,.7); box-sizing: border-box; height: 10px; left: -7px; position: absolute; right: -7px; transition: background-color .12s; }
 .game-scene .scene-zone-cap.is-top { top: -9px; }
 .game-scene .scene-zone-cap.is-bottom { bottom: -9px; }

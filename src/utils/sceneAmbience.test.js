@@ -1,4 +1,4 @@
-import { ambienceFor, planCurrent, planRings, planSurf, planMoss, planFireflies } from './sceneAmbience';
+import { sceneKeyFor, ambienceFor, planCurrent, planRings, planSurf, planMoss, planFireflies } from './sceneAmbience';
 import { BIOMES } from './gameBiomes';
 
 test('every biome has an ambience plan, and unknown ones fall back to the river', () => {
@@ -21,6 +21,16 @@ test('no two grounds move the same way, and every effect is laid out on its own 
   expect(named('swamp')).toBe('fireflies,moss,rings');
   expect(named('shoreline')).toBe('surf');
   expect(named('bay')).toBe('swell');
+  expect(named('pier')).toBe('surf,swell');
+  expect(named('creek')).toBe('current,rings');
+  // The frozen lake: mist over the lead and nothing else, and no dragonflies in winter.
+  expect(Object.keys(ambienceFor('mountainlake', 'winter').effects).filter((key) => key !== 'sparkle')).toEqual(['mist']);
+  expect(ambienceFor('mountainlake', 'winter').dragonflies).toEqual([]);
+  expect(ambienceFor('mountainlake', 'summer').dragonflies.length).toBeGreaterThan(0);
+  expect(planRings('mountainlake', 'winter')).toEqual([]);
+  expect(sceneKeyFor('mountainlake', 'winter')).toBe('mountainlake:winter');
+  expect(sceneKeyFor('mountainlake', 'summer')).toBe('mountainlake');
+  expect(sceneKeyFor('river', 'winter')).toBe('river');
 
   Object.keys(BIOMES).forEach((biome) => {
     const { water, effects } = ambienceFor(biome);

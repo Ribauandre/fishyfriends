@@ -21,6 +21,10 @@ import shorelineArt from '../../assets/scenes/shoreline.webp';
 import offshoreArt from '../../assets/scenes/offshore.webp';
 import canyonArt from '../../assets/scenes/canyon.webp';
 import flatsArt from '../../assets/scenes/flats.webp';
+import pierArt from '../../assets/scenes/pier.webp';
+import creekArt from '../../assets/scenes/creek.webp';
+import mountainlakeWinterArt from '../../assets/scenes/mountainlake_winter.webp';
+import { sceneKeyFor } from '../../utils/sceneLayout';
 
 // The 2D stage for Cast & Catch: a pixel-art backdrop per biome, the angler sprite, and an SVG
 // overlay for the line, bobber, strike splash and the real person's name tag. The five shore
@@ -34,7 +38,7 @@ import flatsArt from '../../assets/scenes/flats.webp';
 // and draws everything in stage units. The world layer (backdrop, ambience, sprites, line,
 // fish) is what the camera moves; the meters, callout, trophy and tap surface stay in screen
 // space above it.
-const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt };
+const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt, pier: pierArt, creek: creekArt, 'mountainlake:winter': mountainlakeWinterArt };
 const CREW_SCALE = 0.9;
 const RECENT_CATCH_MS = 9000;
 const round2 = (value) => Math.round(value * 100) / 100;
@@ -116,11 +120,11 @@ export default function GameScene({
   biome, phase, displayName, species, reel, zoneWidth = 0, result, holding = false, travel = null, period = 'day',
   interaction = null, castFillRef = null, castDistance = 60, lure = 'livebait', lureDisplay = null, lureFeedback = '',
   hooksetWindowMs = 0, tension = 0, callout = '', others = [], now = Date.now, champion = false, catchSize = null,
-  castBand = [40, 60], rise = null, look = null,
+  castBand = [40, 60], rise = null, look = null, season = null,
 }) {
   const sheets = useAnglerSheets(look);
-  const layout = layoutFor(biome);
-  const art = ART[biome] || ART.river;
+  const layout = layoutFor(biome, season);
+  const art = ART[sceneKeyFor(biome, season)] || ART[biome] || ART.river;
   const stageRef = useRef(null);
   // iOS: a finger moving on the stage is play, never a scroll or a pinch. touch-action on the
   // tap surface covers most of it; this catches the second finger that lands beside it.
@@ -200,7 +204,7 @@ export default function GameScene({
       <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
       {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
       <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
-      <SceneAmbience biome={biome} period={period} viewW={viewW} />
+      <SceneAmbience biome={biome} period={period} season={season} viewW={viewW} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
         {lineOut && <path
           className="scene-line"

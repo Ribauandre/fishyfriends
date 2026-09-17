@@ -10,16 +10,16 @@
 // so the shadows really are in the water and the dragonfly really is over the reeds, whatever
 // the stage's crop; SceneAmbience turns them into stage positions.
 import { BIOMES } from './gameBiomes';
-import { layoutFor } from './sceneLayout';
+import { layoutFor, sceneKeyFor } from './sceneLayout';
 
 // Cloud lanes: how long a crossing takes and where in the loop each starts, per lane.
 const LANE_MOTION = [{ duration: 95, delay: -20 }, { duration: 130, delay: -75 }, { duration: 110, delay: -45 }];
 
 const CRITTERS = {
   river: 'dragonfly', mountainlake: 'dragonfly', swamp: 'dragonfly',
-  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull', flats: 'seagull',
+  bay: 'seagull', shoreline: 'seagull', offshore: 'seagull', canyon: 'seagull', flats: 'seagull', pier: 'seagull', creek: 'seagull',
 };
-const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2 };
+const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2, pier: 3, creek: 1 };
 
 // The water each ground moves in. `sparkle` is how much of the shimmer layer to run: a
 // river's broken surface catches little of it, a bay's swell a lot. Everything else is a
@@ -34,34 +34,44 @@ const SCENES = {
   canyon: { current: { lines: 4, seconds: 19, band: [0.08, 0.42] }, sparkle: 0.24 },
   // Skinny water: a slow lift of the tide, and rings where something pushed a wake.
   flats: { rings: { count: 4, seconds: 9 }, swell: { seconds: 14 }, sparkle: 0.5 },
+  // The pier stands in the surf and the swell at once; the creek runs with the tide, slow.
+  pier: { surf: { count: 2, seconds: 7.5 }, swell: { seconds: 8 }, sparkle: 0.34 },
+  creek: { current: { lines: 3, seconds: 24, band: [0.1, 0.5] }, rings: { count: 2, seconds: 12 }, sparkle: 0.18 },
+  // The lake frozen over: nothing moves but the mist over the open lead.
+  'mountainlake:winter': { mist: { y: 0.02, height: 9, seconds: 30 }, sparkle: 0.12 },
 };
+
+export { sceneKeyFor };
 
 const round2 = (value) => Math.round(value * 100) / 100;
 // Spread n things evenly across a span, each a little out of step with the last, without a
 // random number in sight: the same ground always breathes the same way.
 const spread = (n, index) => (index + 0.5) / n;
 
-export function ambienceFor(biome) {
+export function ambienceFor(biome, season = null) {
   const key = BIOMES[biome] ? biome : 'river';
-  const layout = layoutFor(key);
+  const layout = layoutFor(key, season);
+  const sceneKey = sceneKeyFor(key, season);
+  // No dragonflies over fresh water in winter, and none over the ice.
   const critter = CRITTERS[key] || 'dragonfly';
+  const dragonflies = critter === 'dragonfly' && season === 'winter' ? [] : layout.dragonflies;
   return {
     biome: key,
     critter,
-    critters: critter === 'seagull' ? (GULL_COUNT[key] || 2) : layout.dragonflies.length,
+    critters: critter === 'seagull' ? (GULL_COUNT[key] || 2) : dragonflies.length,
     clouds: layout.sky.map((lane, index) => ({ ...lane, ...LANE_MOTION[index % LANE_MOTION.length] })),
     gulls: layout.gulls,
-    dragonflies: layout.dragonflies,
+    dragonflies,
     lamp: layout.lamp,
     sparkle: layout.sparkle,
     water: layout.water,
-    effects: SCENES[key] || SCENES.river,
+    effects: SCENES[sceneKey] || SCENES[key] || SCENES.river,
   };
 }
 
 // Streaks running downstream across the water, staggered so they never line up.
-export function planCurrent(biome) {
-  const { effects, water } = ambienceFor(biome);
+export function planCurrent(biome, season = null) {
+  const { effects, water } = ambienceFor(biome, season);
   const spec = effects.current;
   if (!spec) return [];
   const span = water.y1 - water.y0;
@@ -79,8 +89,8 @@ export function planCurrent(biome) {
 }
 
 // Rings opening on still water, spread across it and out of step with each other.
-export function planRings(biome) {
-  const { effects, water } = ambienceFor(biome);
+export function planRings(biome, season = null) {
+  const { effects, water } = ambienceFor(biome, season);
   const spec = effects.rings;
   if (!spec) return [];
   const span = water.y1 - water.y0;
@@ -97,8 +107,8 @@ export function planRings(biome) {
 }
 
 // Surf breaking up the sand, each line a little further along than the one before it.
-export function planSurf(biome) {
-  const { effects, water } = ambienceFor(biome);
+export function planSurf(biome, season = null) {
+  const { effects, water } = ambienceFor(biome, season);
   const spec = effects.surf;
   if (!spec) return [];
   const span = water.y1 - water.y0;
@@ -117,8 +127,8 @@ export function planSurf(biome) {
 
 // Moss hanging from the canopy, over the moss the painting already has, so the whole tree
 // line sways rather than a strip of it. `y` is where the canopy's own moss starts.
-export function planMoss(biome) {
-  const spec = ambienceFor(biome).effects.moss;
+export function planMoss(biome, season = null) {
+  const spec = ambienceFor(biome, season).effects.moss;
   if (!spec) return [];
   return Array.from({ length: spec.count }, (_, index) => {
     const t = spread(spec.count, index);
@@ -133,8 +143,8 @@ export function planMoss(biome) {
 }
 
 // Fireflies over the water after dark.
-export function planFireflies(biome) {
-  const { effects, water } = ambienceFor(biome);
+export function planFireflies(biome, season = null) {
+  const { effects, water } = ambienceFor(biome, season);
   const spec = effects.fireflies;
   if (!spec) return [];
   const span = water.y1 - water.y0;

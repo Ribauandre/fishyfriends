@@ -139,6 +139,13 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
   rerender(<GameScene biome="flats" phase="ready" displayName="Andre" period="day" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('flats'));
+  // The mountain lake freezes over in winter, and only then.
+  rerender(<GameScene biome="mountainlake" phase="ready" displayName="Andre" period="day" season="winter" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('mountainlake_winter'));
+  rerender(<GameScene biome="mountainlake" phase="ready" displayName="Andre" period="day" season="summer" />);
+  expect(container.querySelector('.scene-backdrop').getAttribute('src')).not.toContain('winter');
+  rerender(<GameScene biome="pier" phase="ready" displayName="Andre" period="day" season="winter" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('pier'));
   expect(container.querySelector('.scene-ambience')).toHaveAttribute('data-critter', 'seagull');
 });
 
