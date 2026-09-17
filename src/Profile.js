@@ -12,16 +12,27 @@ function licenseStatusBadgeClass(status) {
   return 'status-badge';
 }
 
-function AddLicenseModal({ onClose, onSaved }) {
-  const { uploadFishingLicense } = useAuth();
+// Also doubles as the renew/edit form — updating a license in place keeps the same row
+// (and its id) instead of making the crew delete an expired one and re-add it from scratch.
+function LicenseFormModal({ license, onClose, onSaved }) {
+  const { uploadFishingLicense, updateFishingLicense } = useAuth();
+  const isEditing = Boolean(license);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ state: '', licenseNumber: '', issuedAt: '', expiresAt: '', file: null });
+  const [form, setForm] = useState({
+    state: license?.state || '',
+    licenseNumber: license?.license_number || '',
+    issuedAt: license?.issued_at || '',
+    expiresAt: license?.expires_at || '',
+    file: null,
+  });
 
   async function handleSubmit(event) {
     event.preventDefault();
     setSaving(true); setError('');
-    const result = await uploadFishingLicense(form);
+    const result = isEditing
+      ? await updateFishingLicense({ id: license.id, previousPhotoPath: license.photo_path, ...form })
+      : await uploadFishingLicense(form);
     setSaving(false);
     if (result?.error) { setError(result.error.message); return; }
     onSaved(result.license);
@@ -30,8 +41,8 @@ function AddLicenseModal({ onClose, onSaved }) {
   return <div className="catch-modal-backdrop" role="presentation" onClick={onClose}>
     <form className="catch-modal" onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()}>
       <div className="section-heading">
-        <div><span className="eyebrow">NEW LICENSE</span><h2>Add a fishing license</h2></div>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Close add license form">×</button>
+        <div><span className="eyebrow">{isEditing ? 'RENEW LICENSE' : 'NEW LICENSE'}</span><h2>{isEditing ? `Update your ${license.state} license` : 'Add a fishing license'}</h2></div>
+        <button className="modal-close" type="button" onClick={onClose} aria-label={isEditing ? 'Close renew license form' : 'Close add license form'}>×</button>
       </div>
       <label>State<select required value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value })}>
         <option value="" disabled>Choose a state</option>
@@ -40,9 +51,9 @@ function AddLicenseModal({ onClose, onSaved }) {
       <label>License number (optional)<input value={form.licenseNumber} onChange={(event) => setForm({ ...form, licenseNumber: event.target.value })} /></label>
       <label>Issued (optional)<input type="date" value={form.issuedAt} onChange={(event) => setForm({ ...form, issuedAt: event.target.value })} /></label>
       <label>Expires<input required type="date" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} /></label>
-      <label>Photo or PDF (optional)<input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} /></label>
+      <label>{isEditing ? 'New photo or PDF (optional)' : 'Photo or PDF (optional)'}<input type="file" accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} /></label>
       {error && <p className="form-error">{error}</p>}
-      <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Add license'} <span>→</span></button></div>
+      <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : isEditing ? 'Save changes' : 'Add license'} <span>→</span></button></div>
     </form>
   </div>;
 }
@@ -94,6 +105,7 @@ function FishingLicensesSection() {
   const { profile, listFishingLicenses, deleteFishingLicense } = useAuth();
   const [licenses, setLicenses] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingLicense, setEditingLicense] = useState(null);
   const [wardenLicense, setWardenLicense] = useState(null);
   const [deletingLicense, setDeletingLicense] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -105,9 +117,10 @@ function FishingLicensesSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleAdded(license) {
-    setLicenses((previous) => [...(previous || []), license].sort((a, b) => a.expires_at.localeCompare(b.expires_at)));
+  function handleSaved(license) {
+    setLicenses((previous) => [...(previous || []).filter((item) => item.id !== license.id), license].sort((a, b) => a.expires_at.localeCompare(b.expires_at)));
     setShowAddForm(false);
+    setEditingLicense(null);
   }
 
   async function handleDelete() {
@@ -141,12 +154,13 @@ function FishingLicensesSection() {
           </div>
           <div className="license-row-actions">
             <button className="button button-quiet" type="button" onClick={() => setWardenLicense(license)}>Show to warden</button>
+            <button className="button button-quiet" type="button" onClick={() => setEditingLicense(license)}>{status === 'valid' ? 'Update' : 'Renew'}</button>
             <button className="license-remove" type="button" onClick={() => setDeletingLicense(license)} aria-label={`Delete ${license.state} license`}>×</button>
           </div>
         </li>;
       })}
     </ul>}
-    {showAddForm && <AddLicenseModal onClose={() => setShowAddForm(false)} onSaved={handleAdded} />}
+    {(showAddForm || editingLicense) && <LicenseFormModal license={editingLicense} onClose={() => { setShowAddForm(false); setEditingLicense(null); }} onSaved={handleSaved} />}
     {wardenLicense && <WardenView license={wardenLicense} anglerName={profile.display_name || 'Angler'} onClose={() => setWardenLicense(null)} />}
     {deletingLicense && <DeleteLicenseModal license={deletingLicense} deleting={deleting} onCancel={() => setDeletingLicense(null)} onConfirm={handleDelete} />}
   </section>;

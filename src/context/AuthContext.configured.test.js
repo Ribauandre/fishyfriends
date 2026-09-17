@@ -897,3 +897,44 @@ describe('fishing licenses', () => {
     expect(__mock.current.storageRemove).not.toHaveBeenCalled();
   });
 });
+
+describe('updateFishingLicense', () => {
+  test('updates the row in place without touching storage when no new file is given', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: { id: 'lic-1', state: 'New Jersey', expires_at: '2027-01-01', photo_path: 'user-1/old.jpg' }, error: null });
+
+    const response = await result.current.updateFishingLicense({ id: 'lic-1', previousPhotoPath: 'user-1/old.jpg', state: 'New Jersey', licenseNumber: 'NJ-2', issuedAt: '2026-01-01', expiresAt: '2027-01-01' });
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageUpload).not.toHaveBeenCalled();
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('fishing_licenses')];
+    expect(call.value.update).toHaveBeenCalledWith(expect.objectContaining({
+      state: 'New Jersey', license_number: 'NJ-2', issued_at: '2026-01-01', expires_at: '2027-01-01',
+    }));
+  });
+
+  test('uploads a renewed file to a fresh path and removes the old one only after the row commits', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: { id: 'lic-1', state: 'New Jersey', expires_at: '2028-01-01', photo_path: 'user-1/new.pdf' }, error: null });
+    const file = new File(['%PDF-1.4'], 'renewed.pdf', { type: 'application/pdf' });
+
+    const response = await result.current.updateFishingLicense({ id: 'lic-1', previousPhotoPath: 'user-1/old.pdf', state: 'New Jersey', expiresAt: '2028-01-01', file });
+
+    expect(response.error).toBeNull();
+    expect(__mock.current.storageUpload).toHaveBeenCalledWith(expect.stringMatching(/^user-1\/.*\.pdf$/), file, expect.objectContaining({ contentType: 'application/pdf' }));
+    expect(__mock.current.storageRemove).toHaveBeenCalledWith(['user-1/old.pdf']);
+    expect(response.license.photo_url).toBe('https://example.com/signed-photo.jpg');
+  });
+
+  test('does not remove the previous file when the update fails', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fishing_licenses', { data: null, error: { message: 'update failed' } });
+    const file = new File(['bytes'], 'renewed.png', { type: 'image/png' });
+
+    const response = await result.current.updateFishingLicense({ id: 'lic-1', previousPhotoPath: 'user-1/old.png', state: 'New Jersey', expiresAt: '2028-01-01', file });
+
+    expect(response.error.message).toBe('update failed');
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+});

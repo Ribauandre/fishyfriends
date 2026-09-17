@@ -748,17 +748,25 @@ export function AuthProvider({ children }) {
     return Promise.all((data || []).map(async (license) => ({ ...license, photo_url: await signedLicenseUrl(license.photo_path) })));
   }
 
+  // A scanned license is often a PDF, not a photo — only images go through compressImage,
+  // which assumes it can decode the file as a bitmap. Shared by upload and update so a
+  // renewed license is validated exactly like a freshly added one.
+  async function prepareLicenseFile(rawFile) {
+    if (!rawFile) return { file: null };
+    const isImage = rawFile.type.startsWith('image/');
+    const isPdf = rawFile.type === 'application/pdf';
+    if (!isImage && !isPdf) return { error: new Error('Choose an image or PDF file.') };
+    const file = isImage ? await compressImage(rawFile) : rawFile;
+    if (file.size > 5 * 1024 * 1024) return { error: new Error('License files must be smaller than 5 MB.') };
+    return { file };
+  }
+
   async function uploadFishingLicense({ state, licenseNumber, issuedAt, expiresAt, file: rawFile }) {
     const trimmedState = state?.trim();
     if (!trimmedState) return { error: new Error('Choose which state this license is for.') };
     if (!expiresAt) return { error: new Error('Add the expiration date.') };
-    const isImage = rawFile?.type.startsWith('image/');
-    const isPdf = rawFile?.type === 'application/pdf';
-    if (rawFile && !isImage && !isPdf) return { error: new Error('Choose an image or PDF file.') };
-    // A scanned license is often a PDF, not a photo — only images go through compressImage,
-    // which assumes it can decode the file as a bitmap.
-    const file = isImage ? await compressImage(rawFile) : rawFile;
-    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('License files must be smaller than 5 MB.') };
+    const { file, error: fileError } = await prepareLicenseFile(rawFile);
+    if (fileError) return { error: fileError };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a license.') };
     let photoPath = '';
     if (file) {
@@ -769,6 +777,30 @@ export function AuthProvider({ children }) {
     const row = { user_id: user.id, state: trimmedState, license_number: licenseNumber?.trim() || '', issued_at: issuedAt || null, expires_at: expiresAt, photo_path: photoPath };
     const { data, error } = await supabase.from('fishing_licenses').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    return { error: null, license: { ...data, photo_url: await signedLicenseUrl(data.photo_path) } };
+  }
+
+  // Renews or edits a license in place (id and previousPhotoPath describe the existing row)
+  // rather than making the caller delete and re-add one — a state's new license keeps the
+  // same row so its history doesn't reset, and only the fields actually filled in change.
+  async function updateFishingLicense({ id, previousPhotoPath, state, licenseNumber, issuedAt, expiresAt, file: rawFile }) {
+    const trimmedState = state?.trim();
+    if (!trimmedState) return { error: new Error('Choose which state this license is for.') };
+    if (!expiresAt) return { error: new Error('Add the expiration date.') };
+    const { file, error: fileError } = await prepareLicenseFile(rawFile);
+    if (fileError) return { error: fileError };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before updating a license.') };
+    const updates = { state: trimmedState, license_number: licenseNumber?.trim() || '', issued_at: issuedAt || null, expires_at: expiresAt };
+    if (file) {
+      updates.photo_path = `${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('fishing-licenses').upload(updates.photo_path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+    }
+    const { data, error } = await supabase.from('fishing_licenses').update(updates).eq('id', id).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    // Only drop the old file once the new row has actually committed, so a failed update
+    // never orphans the license that's still current.
+    if (file && previousPhotoPath) await supabase.storage.from('fishing-licenses').remove([previousPhotoPath]);
     return { error: null, license: { ...data, photo_url: await signedLicenseUrl(data.photo_path) } };
   }
 
@@ -940,7 +972,7 @@ export function AuthProvider({ children }) {
     listLikes, likeTarget, unlikeTarget,
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
-    listFishingLicenses, uploadFishingLicense, deleteFishingLicense,
+    listFishingLicenses, uploadFishingLicense, updateFishingLicense, deleteFishingLicense,
     getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,
