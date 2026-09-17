@@ -204,8 +204,6 @@ export default function GameScene({
   return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
     <div className="scene-world" data-camera={phase === 'casting' ? 'cast' : focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
       <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
-      {/* Time of day is a tint over the painting (multiply), not a second set of backdrops. */}
-      <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
       <SceneAmbience biome={biome} period={period} season={season} viewW={viewW} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
         {lineOut && <path
@@ -241,6 +239,12 @@ export default function GameScene({
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
       <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} />
       {champion && <Pennant tip={rodTip} frame={frame} />}
+      {/* Time of day is a tint (multiply) over everything that is *in* the world — the
+          painting, its ambience, the line, the crew and the angler — not a second set of
+          backdrops. It sits here, after the sprites, so he is lit like the dock he stands on;
+          the play surfaces after it (lure, zone, the fish's mark) stay bright, and the crew's
+          name tags float above it by z-index. */}
+      <div className={`scene-tint is-${period}`} aria-hidden="true" style={paintBox} />
       {working && <img className={`scene-lure ${phase === 'waiting' && lure === 'crankbait' ? 'is-wobbling' : ''}`} src={LURE_ICONS[lure]} alt="" data-lure={lure} style={{ left: pctX(lureX, frame), top: pctY(surfaceY), width: pctW(24, frame) }} />}
       {gauge && <div className={`stage-gauge is-${lure}`} style={{ left: pctX(lureX, frame), top: pctY(surfaceY - 32) }} aria-hidden="true">
         <span className="stage-gauge-track">
