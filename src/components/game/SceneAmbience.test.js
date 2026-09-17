@@ -98,3 +98,16 @@ test('after dark the gulls roost, the stars come out, and the swamp bugs keep go
   expect(container.querySelectorAll('.scene-gull').length).toBe(2);
   expect(container.querySelector('.scene-stars')).toBeNull();
 });
+
+test('the layer is laid out on the painting, not the stage, so a phone crop still covers the water the cast pans to', () => {
+  // A phone stage is 338 units wide: the painting (480) runs past its edge, and so does the layer.
+  const { container } = render(<SceneAmbience biome="river" viewW={338} />);
+  const layer = container.querySelector('.scene-ambience');
+  expect(parseFloat(layer.style.width)).toBeCloseTo((480 / 338) * 100, 0);
+  expect(layer.style.left).toBe('0px');
+  // A streak that starts on the painting's right edge is placed by the painting, whatever the crop.
+  const far = Array.from(container.querySelectorAll('.scene-mover.is-current')).find((el) => el.style.left === '97.5%');
+  expect(far).toBeTruthy();
+  const { container: wide } = render(<SceneAmbience biome="river" viewW={480} />);
+  expect(Array.from(wide.querySelectorAll('.scene-mover.is-current')).map((el) => el.style.left)).toContain('97.5%');
+});

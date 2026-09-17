@@ -1,6 +1,6 @@
 import React from 'react';
 import { ambienceFor, planMovers, planFoam, planRings, planWash, planMist, planMoss, planGrass, planBubbles, planFireflies, clipFor } from '../../utils/sceneAmbience';
-import { frameFor, layoutFor, stageX, stageY, pctX, pctY, pctW, pctH, PAINT_W, PAINT_H } from '../../utils/sceneLayout';
+import { frameFor, layoutFor, stageX, stageLen, pctX, pctY, PAINT_W, PAINT_H } from '../../utils/sceneLayout';
 import seagull from '../../assets/ambient/seagull.png';
 import dragonfly from '../../assets/ambient/dragonfly.png';
 import cloud1 from '../../assets/ambient/cloud1.png';
@@ -9,7 +9,7 @@ import cloud3 from '../../assets/ambient/cloud3.png';
 
 const CLOUDS = [cloud1, cloud2, cloud3];
 const SEAGULL_FRAMES = 3;
-const WHOLE_PAINTING = { x0: 0, y0: 0, x1: PAINT_W, y1: PAINT_H };
+const round2 = (value) => Math.round(value * 100) / 100;
 
 // Everything on the stage that moves without the player: see utils/sceneAmbience.js for
 // the per-ground plan — no two grounds move the same way. Every plan is a list of things in
@@ -21,6 +21,13 @@ const WHOLE_PAINTING = { x0: 0, y0: 0, x1: PAINT_W, y1: PAINT_H };
 // over the water, so the foam shows against the water before it runs up the sand); the sun glint, caustics, horizon
 // gleam and snow are tiled layers over a box. Nothing here is a fish: the only one on the
 // water is the one the player is fighting.
+//
+// The whole layer is laid out on the painting, not the stage: it takes the same box the
+// backdrop does (`paintBox` in GameScene — the painting runs to PAINT_W however narrow the
+// stage is) and everything inside it is placed as a percentage of the painting, so a piece
+// at x 468 sits on the painting's right edge on every crop. It used to fill the stage and
+// clip at its edge, which on a phone is 340 painting units in — the water the cast camera
+// pans across was bare past that line.
 export default function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
   const config = ambienceFor(biome, season);
   const layout = layoutFor(biome, season);
@@ -40,20 +47,23 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
   const grass = planGrass(biome, season);
   const bubbles = planBubbles(biome, season);
   const fireflies = night ? planFireflies(biome, season) : [];
-  const at = (x, y) => ({ left: pctX(stageX(x, frame), frame), top: pctY(stageY(y, frame)) });
-  const size = (w, h) => ({ width: pctW(w, frame), height: pctH(h, frame) });
+  const paintBox = { left: 0, top: pctY(-frame.cropTop * frame.k), width: pctX(stageX(PAINT_W, frame), frame), height: pctY(stageLen(PAINT_H, frame)) };
+  const px = (value) => `${round2((value / PAINT_W) * 100)}%`;
+  const py = (value) => `${round2((value / PAINT_H) * 100)}%`;
+  const at = (x, y) => ({ left: px(x), top: py(y) });
+  const size = (w, h) => ({ width: px(w), height: py(h) });
   const box = (rect) => ({ ...at(rect.x0, rect.y0), ...size(rect.x1 - rect.x0, rect.y1 - rect.y0) });
   const loop = (piece) => ({ animationDuration: `${piece.duration}s`, animationDelay: `${piece.delay}s` });
   const waterClip = clipFor(effects.clip, config.sparkle);
 
-  return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter} data-period={period}>
-    {stars && <div className="scene-stars" style={{ height: pctY(Math.max(6, stageY(skyBottom, frame))) }} />}
+  return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter} data-period={period} style={paintBox}>
+    {stars && <div className="scene-stars" style={{ height: py(Math.max(6, skyBottom)) }} />}
     {config.clouds.map((lane, index) => <img
       key={index}
       className="scene-cloud"
       src={CLOUDS[index % CLOUDS.length]}
       alt=""
-      style={{ top: pctY(stageY(lane.y0, frame)), height: pctH(lane.y1 - lane.y0, frame), animationDuration: `${lane.duration}s`, animationDelay: `${lane.delay}s`, '--drift-from': lane.from > 0 ? pctX(stageX(lane.from, frame), frame) : '-22%' }}
+      style={{ top: py(lane.y0), height: py(lane.y1 - lane.y0), animationDuration: `${lane.duration}s`, animationDelay: `${lane.delay}s`, '--drift-from': lane.from > 0 ? px(lane.from) : '-22%' }}
     />)}
     {moss.map((strand, index) => <span
       key={`moss-${index}`}
@@ -110,7 +120,7 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
     />)}
     {effects.snow && <div
       className="scene-snow"
-      style={{ ...box(WHOLE_PAINTING), opacity: effects.snow.opacity, animationDuration: `${effects.snow.seconds}s, ${effects.snow.seconds * 1.7}s` }}
+      style={{ inset: 0, opacity: effects.snow.opacity, animationDuration: `${effects.snow.seconds}s, ${effects.snow.seconds * 1.7}s` }}
     />}
     {fireflies.map((bug, index) => <span
       key={`firefly-${index}`}
@@ -122,8 +132,8 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
       className="scene-gull"
       data-critter="seagull"
       style={{
-        top: pctY(stageY(config.gulls.y0 + ((config.gulls.y1 - config.gulls.y0) * index) / Math.max(1, config.critters - 1), frame)),
-        width: pctW(28 - index * 4, frame),
+        top: py(config.gulls.y0 + ((config.gulls.y1 - config.gulls.y0) * index) / Math.max(1, config.critters - 1)),
+        width: px(28 - index * 4),
         backgroundImage: `url(${seagull})`,
         backgroundSize: `${SEAGULL_FRAMES * 100}% 100%`,
         animationDuration: `${0.5 + index * 0.08}s, ${26 + index * 9}s`,
@@ -136,7 +146,7 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
       data-critter="dragonfly"
       src={dragonfly}
       alt=""
-      style={{ ...at(spot.x, spot.y), width: pctW(17, frame), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
+      style={{ ...at(spot.x, spot.y), width: px(17), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
     />)}
   </div>;
 }
