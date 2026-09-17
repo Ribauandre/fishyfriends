@@ -67,7 +67,21 @@ function spriteStyle(feet, boxH, viewW) {
 }
 
 // `sheets` are the strips repainted for a look (useAnglerSheets); without them the stock art shows.
-function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheets = null, look = null }) {
+// How much of the dock lamp reaches a sprite, 0 (out of its reach, or daylight) to 1 (under
+// it): by the distance from the lamp to the sprite's middle, in painting units, so the
+// angler by the post is lit and a crew member at the far slot is barely touched. Dawn and
+// dusk get a share of it, night all of it.
+export const LAMP_REACH = 250;
+const LAMP_SHARE = { dawn: 0.35, dusk: 0.7, night: 1 };
+export function lampLight(lamp, feetX, feetY, spriteH, period) {
+  if (!lamp || !LAMP_SHARE[period]) return 0;
+  const dx = feetX - lamp.x;
+  const dy = (feetY - spriteH / 2) - lamp.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  return round2(Math.max(0, 1 - distance / LAMP_REACH) * LAMP_SHARE[period]);
+}
+
+function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheets = null, look = null, lit = 0 }) {
   const { action, frame = 0, play, durationMs, loop } = current;
   const sprite = ANGLER_SPRITES[action];
   const frameStep = 100 / (sprite.frames - 1);
@@ -77,6 +91,9 @@ function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheet
     backgroundSize: `${sprite.frames * 100}% 100%`,
     backgroundPositionX: `${frame * frameStep}%`,
   };
+  // Lamplight on him: brighter and a touch warmer the nearer he stands, drawn before the
+  // night tint multiplies everything down, so he comes out lit against the dark.
+  if (lit > 0) style.filter = `brightness(${round2(1 + 0.45 * lit)}) sepia(${round2(0.3 * lit)}) saturate(${round2(1 + 0.15 * lit)})`;
   if (play) {
     style['--sprite-end'] = `${(play - 1) * frameStep}%`;
     style.animationDuration = `${durationMs}ms`;
@@ -89,6 +106,7 @@ function AnglerSprite({ feet, boxH, phase, current, className = '', viewW, sheet
     data-action={action}
     data-look={look ? lookKey(look) : undefined}
     data-painted={sheets ? 'yes' : 'no'}
+    data-lit={lit > 0 ? lit : undefined}
     style={style}
   />;
 }
@@ -230,14 +248,14 @@ export default function GameScene({
         const recent = other.lastCatch && now() - other.lastCatch.at < RECENT_CATCH_MS;
         const crewTagY = layout.tagAbove ? crewFeet.y - crewH - 4 : crewFeet.y + 8;
         return <React.Fragment key={other.userId}>
-          <CrewSprite look={other.look || null} feet={crewFeet} boxH={crewH} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} />
+          <CrewSprite look={other.look || null} feet={crewFeet} boxH={crewH} phase={`crew-${other.phase || 'ready'}`} current={action} className="is-crew" viewW={viewW} lit={lampLight(layout.lamp, layout.angler.x + crewSlots[index], layout.angler.y, layout.spriteH, period)} />
           {other.champion && <Pennant tip={rodTipFor(crewFeet, crewH, action.action)} frame={frame} />}
           <span className={`scene-crew-tag ${other.champion ? 'is-champion' : ''}`} data-user={other.userId} style={{ left: pctX(crewFeet.x, frame), top: pctY(crewTagY) }}>{(other.name || 'Angler').toUpperCase()}</span>
           {recent && <span className="scene-crew-bubble" style={{ left: pctX(crewFeet.x, frame), top: pctY(crewFeet.y - crewH - 14) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
         </React.Fragment>;
       })}
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
-      <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} />
+      <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} lit={lampLight(layout.lamp, layout.angler.x, layout.angler.y, layout.spriteH, period)} />
       {champion && <Pennant tip={rodTip} frame={frame} />}
       {/* Time of day is a tint (multiply) over everything that is *in* the world — the
           painting, its ambience, the line, the crew and the angler — not a second set of
