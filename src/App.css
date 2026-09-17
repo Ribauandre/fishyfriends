@@ -881,7 +881,15 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene .scene-fish { height: auto; position: absolute; transform: translate(-50%, -50%); transition: left .08s linear; filter: drop-shadow(3px 4px 0 rgba(3,8,11,.6)); }
 /* The shadow on the line: dark, soft, under the surface, tail working while the fight lasts,
    flipped to face the way it is running. Interaction-driven — it only exists mid-fight. */
-.game-scene .scene-shadow { filter: blur(.8px); opacity: .62; }
+/* The shadow wears the zone's colour as a rim, so in or out reads on the fish itself. */
+.game-scene .scene-shadow { filter: blur(.8px); opacity: .72; }
+.game-scene .scene-shadow.is-in { filter: blur(.6px) drop-shadow(0 0 1.5px var(--mint)) drop-shadow(0 0 1px var(--mint)); }
+.game-scene .scene-shadow.is-out { filter: blur(.6px) drop-shadow(0 0 1.5px var(--coral)) drop-shadow(0 0 1px var(--coral)); }
+/* The line through the fish's centre: the point the zone judges. */
+.game-scene .scene-fish-mark { background: var(--mint); box-shadow: -1px 0 0 rgba(3,8,11,.7), 1px 0 0 rgba(3,8,11,.7); pointer-events: none; position: absolute; transform: translateX(-50%); transition: left .08s linear, background-color .12s; width: 3px; z-index: 1; }
+.game-scene .scene-fish-mark::before { border: 7px solid transparent; border-top: 9px solid var(--mint); content: ''; filter: drop-shadow(0 1px 0 rgba(3,8,11,.7)); left: 50%; position: absolute; top: -10px; transform: translateX(-50%); transition: border-top-color .12s; }
+.game-scene .scene-fish-mark.is-out { background: var(--coral); }
+.game-scene .scene-fish-mark.is-out::before { border-top-color: var(--coral); }
 .game-scene .scene-shadow img { animation: shadow-swim .55s ease-in-out infinite alternate; display: block; height: auto; transform-origin: 30% 50%; width: 100%; }
 .game-scene .scene-shadow.is-left img { animation-name: shadow-swim-left; }
 @keyframes shadow-swim { from { transform: skewX(-6deg) scaleY(.96); } to { transform: skewX(6deg) scaleY(1.03); } }
