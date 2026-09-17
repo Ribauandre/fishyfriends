@@ -206,3 +206,32 @@ test('deleteFishingLicense fails closed', async () => {
   await waitFor(async () => { response = await result.current.deleteFishingLicense('lic-1'); });
   expect(response.error.message).toMatch(/sign in before managing licenses/i);
 });
+
+test('updateFishingLicense requires a state before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.updateFishingLicense({ id: 'lic-1', state: '  ', expiresAt: '2026-12-31' }); });
+  expect(response.error.message).toMatch(/choose which state/i);
+});
+
+test('updateFishingLicense requires an expiration date before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.updateFishingLicense({ id: 'lic-1', state: 'New Jersey', expiresAt: '' }); });
+  expect(response.error.message).toMatch(/add the expiration date/i);
+});
+
+test('updateFishingLicense rejects a file that is neither an image nor a PDF', async () => {
+  const result = await setup();
+  const textFile = new File(['hello'], 'notes.txt', { type: 'text/plain' });
+  let response;
+  await waitFor(async () => { response = await result.current.updateFishingLicense({ id: 'lic-1', state: 'New Jersey', expiresAt: '2026-12-31', file: textFile }); });
+  expect(response.error.message).toMatch(/image or pdf/i);
+});
+
+test('updateFishingLicense fails closed once state and expiration are given', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.updateFishingLicense({ id: 'lic-1', state: 'New Jersey', expiresAt: '2026-12-31' }); });
+  expect(response.error.message).toMatch(/sign in before updating a license/i);
+});

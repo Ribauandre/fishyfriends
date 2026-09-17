@@ -25,6 +25,7 @@ function makeBaseAuth(overrides = {}) {
     submitBugReport: jest.fn(),
     listFishingLicenses: jest.fn().mockResolvedValue([]),
     uploadFishingLicense: jest.fn(),
+    updateFishingLicense: jest.fn(),
     deleteFishingLicense: jest.fn(),
     ...overrides,
   };
@@ -141,6 +142,65 @@ describe('fishing licenses', () => {
     const link = screen.getByRole('link', { name: /view license pdf/i });
     expect(link).toHaveAttribute('href', 'https://example.com/signed.pdf');
     expect(screen.queryByRole('img', { name: /new jersey fishing license/i })).not.toBeInTheDocument();
+  });
+
+  test('shows "Renew" instead of "Update" once a license needs attention', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: '', expires_at: '2099-01-01', photo_path: '' },
+        { id: 'lic-2', state: 'New York', license_number: '', expires_at: '2020-01-01', photo_path: '' },
+      ]),
+    }));
+    renderProfile();
+    expect(await screen.findByRole('button', { name: /^update$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^renew$/i })).toBeInTheDocument();
+  });
+
+  test('renewing a license pre-fills the form and replaces the row with the updated license once saved', async () => {
+    const updateFishingLicense = jest.fn().mockResolvedValue({
+      error: null,
+      license: { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', expires_at: '2099-06-01', photo_path: '' },
+    });
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: 'ABC123', issued_at: '2026-01-01', expires_at: '2020-01-01', photo_path: 'user-1/old.jpg' },
+      ]),
+      updateFishingLicense,
+    }));
+    renderProfile();
+
+    await userEvent.click(await screen.findByRole('button', { name: /^renew$/i }));
+    expect(screen.getByRole('heading', { name: /update your new jersey license/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^state$/i)).toHaveValue('New Jersey');
+    expect(screen.getByLabelText(/license number/i)).toHaveValue('ABC123');
+    const expiresInput = screen.getByLabelText(/^expires$/i);
+    expect(expiresInput).toHaveValue('2020-01-01');
+
+    await userEvent.clear(expiresInput);
+    await userEvent.type(expiresInput, '2099-06-01');
+    await userEvent.click(screen.getByRole('button', { name: /^save changes/i }));
+
+    await waitFor(() => expect(updateFishingLicense).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'lic-1', previousPhotoPath: 'user-1/old.jpg', state: 'New Jersey', expiresAt: '2099-06-01',
+    })));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: /update your new jersey license/i })).not.toBeInTheDocument(), { timeout: 3000 });
+    expect(screen.getByText('Valid through 2099-06-01')).toBeInTheDocument();
+  });
+
+  test('shows the server error and keeps the renew form open when the update fails', async () => {
+    const updateFishingLicense = jest.fn().mockResolvedValue({ error: new Error('License files must be smaller than 5 MB.') });
+    useAuth.mockReturnValue(makeBaseAuth({
+      listFishingLicenses: jest.fn().mockResolvedValue([
+        { id: 'lic-1', state: 'New Jersey', license_number: '', expires_at: '2020-01-01', photo_path: '' },
+      ]),
+      updateFishingLicense,
+    }));
+    renderProfile();
+
+    await userEvent.click(await screen.findByRole('button', { name: /^renew$/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^save changes/i }));
+
+    expect(await screen.findByText(/smaller than 5 mb/i)).toBeInTheDocument();
   });
 
   test('deleting a license asks for confirmation, then removes it from the list', async () => {
