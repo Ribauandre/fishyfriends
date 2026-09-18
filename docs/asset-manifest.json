@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.805f2fde.css",
-    "main.js": "/static/js/main.200948e4.js",
+    "main.css": "/static/css/main.27c32f80.css",
+    "main.js": "/static/js/main.8882b42a.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/crappie.png": "/static/media/crappie.8c50e401d665d5513cd5.png",
     "static/media/opah.png": "/static/media/opah.2669b4b5ce2df69ba98a.png",
@@ -125,16 +125,28 @@
     "static/media/boat.png": "/static/media/boat.c6bdd4cb66b6d81fbf9f.png",
     "static/media/bluefish.png": "/static/media/bluefish.d969e368e3cb0d91edf5.png",
     "static/media/truck.png": "/static/media/truck.292f2893f3a8e39b2444.png",
+    "static/media/mountainlake_winter_night.webp": "/static/media/mountainlake_winter_night.8fe5b5f38b95f42fdaa4.webp",
+    "static/media/shoreline_night.webp": "/static/media/shoreline_night.92a150b7c909a2bd3b52.webp",
+    "static/media/offshore_night.webp": "/static/media/offshore_night.ea3a372b202e17de8c7c.webp",
+    "static/media/mountainlake_night.webp": "/static/media/mountainlake_night.3339bfd902218cc95eb6.webp",
     "static/media/outfitter.webp": "/static/media/outfitter.75c4d9f1631204e6960e.webp",
+    "static/media/flats_night.webp": "/static/media/flats_night.30fa661b7964cef06ecd.webp",
+    "static/media/bay_night.webp": "/static/media/bay_night.0bca67c739cd957b7899.webp",
     "static/media/cloud3.png": "/static/media/cloud3.ce55a400e463a9fe6e91.png",
     "static/media/cloud2.png": "/static/media/cloud2.6b13d0695bf4c5cc5fc6.png",
+    "static/media/river_night.webp": "/static/media/river_night.43478c7a93537928600a.webp",
     "static/media/cloud1.png": "/static/media/cloud1.dadfdc03691363ca94dd.png",
     "static/media/trophywall.webp": "/static/media/trophywall.408b3d05869683ee38b8.webp",
     "static/media/streamer.png": "/static/media/streamer.9d3c9d791f12e889ec4c.png",
+    "static/media/swamp_night.webp": "/static/media/swamp_night.c03a25296bb25b88498b.webp",
     "static/media/jerkbait.png": "/static/media/jerkbait.6eb474ea417c5ab48d07.png",
+    "static/media/baja_night.webp": "/static/media/baja_night.a85fdeca54a52ad5dda3.webp",
     "static/media/crankbait.png": "/static/media/crankbait.14b80cdd7c7d7687ce00.png",
+    "static/media/pier_night.webp": "/static/media/pier_night.80c27525dfd91ead5617.webp",
+    "static/media/canyon_night.webp": "/static/media/canyon_night.9bcf4aa708a505fac313.webp",
     "static/media/crewicon.png": "/static/media/crewicon.6727b3b8653e4f2ac273.png",
     "static/media/nymph.png": "/static/media/nymph.108210243848477c9deb.png",
+    "static/media/creek_night.webp": "/static/media/creek_night.bfd80c89a274f3777d2f.webp",
     "static/media/outfit.png": "/static/media/outfit.7b7ba0670c64cee99ba6.png",
     "static/media/tacklebox.png": "/static/media/tacklebox.bd65311e9b86562d8df7.png",
     "static/media/shrimpfly.png": "/static/media/shrimpfly.a7d22529788b1d27be38.png",
@@ -153,12 +165,12 @@
     "static/media/rod.png": "/static/media/rod.358dfd19441f04e51ae9.png",
     "static/media/dryfly.png": "/static/media/dryfly.1f6f49c8373ae2fa232d.png",
     "index.html": "/index.html",
-    "main.805f2fde.css.map": "/static/css/main.805f2fde.css.map",
-    "main.200948e4.js.map": "/static/js/main.200948e4.js.map",
+    "main.27c32f80.css.map": "/static/css/main.27c32f80.css.map",
+    "main.8882b42a.js.map": "/static/js/main.8882b42a.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.805f2fde.css",
-    "static/js/main.200948e4.js"
+    "static/css/main.27c32f80.css",
+    "static/js/main.8882b42a.js"
   ]
 }
