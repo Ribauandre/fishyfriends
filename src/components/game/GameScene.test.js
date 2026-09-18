@@ -147,6 +147,9 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   const { container, rerender } = render(<GameScene biome="bay" phase="ready" displayName="Andre" period="night" />);
   expect(container.querySelector('.game-scene')).toHaveAttribute('data-period', 'night');
   expect(container.querySelector('.scene-tint')).toHaveClass('is-night');
+  // Night is its own painting, not the day one under a tint (that still had a blue sky).
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('bay_night'));
+  expect(container.querySelector('.game-scene')).toHaveAttribute('data-night-art', 'yes');
   // The tint lies over the angler (he is lit like the dock), and under the play surfaces.
   const tint = container.querySelector('.scene-tint');
   const you = container.querySelector('.scene-sprite.is-you');
@@ -180,6 +183,11 @@ test('the hour tints the stage and the canyon puts the angler on the cockpit dec
   // The mountain lake freezes over in winter, and only then.
   rerender(<GameScene biome="mountainlake" phase="ready" displayName="Andre" period="day" season="winter" />);
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('mountainlake_winter'));
+  expect(container.querySelector('.game-scene')).not.toHaveAttribute('data-night-art');
+  rerender(<GameScene biome="mountainlake" phase="ready" displayName="Andre" period="night" season="winter" />);
+  expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('mountainlake_winter_night'));
+  rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
+  expect(container.querySelector('.scene-backdrop').getAttribute('src')).not.toContain('night');
   rerender(<GameScene biome="mountainlake" phase="ready" displayName="Andre" period="day" season="summer" />);
   expect(container.querySelector('.scene-backdrop').getAttribute('src')).not.toContain('winter');
   rerender(<GameScene biome="pier" phase="ready" displayName="Andre" period="day" season="winter" />);

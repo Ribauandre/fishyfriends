@@ -1069,6 +1069,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-tint.is-dawn { background: linear-gradient(rgba(255,205,150,1), rgba(255,235,200,1)); opacity: .45; }
 .scene-tint.is-dusk { background: linear-gradient(#ff9d5c, #b46a8c 55%, #5a4a8a); opacity: .6; }
 .scene-tint.is-night { background: linear-gradient(#14224f, #1a2b5e 60%, #0d1a3a); opacity: .82; }
+/* Over a painting that is already night, the tint is only there to put the sprites in the
+   same light as the deck: the painting carries the dark itself. */
+.game-scene[data-night-art] .scene-tint.is-night { opacity: .3; }
+.game-scene[data-night-art] .scene-stars { opacity: .35; }
 .scene-stars { background-image: radial-gradient(#fff 0.8px, transparent 1.2px), radial-gradient(rgba(255,255,255,.7) 0.6px, transparent 1px); background-position: 0 0, 17px 9px; background-size: 41px 29px, 67px 43px; inset: 0 0 auto 0; animation: stars-twinkle 4s ease-in-out infinite alternate; opacity: .8; position: absolute; }
 @keyframes stars-twinkle { from { opacity: .55; } to { opacity: .95; } }
 .game-scene[data-period="night"] .scene-lamp { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }

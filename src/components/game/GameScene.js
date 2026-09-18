@@ -26,6 +26,18 @@ import pierArt from '../../assets/scenes/pier.webp';
 import creekArt from '../../assets/scenes/creek.webp';
 import mountainlakeWinterArt from '../../assets/scenes/mountainlake_winter.webp';
 import bajaArt from '../../assets/scenes/baja.webp';
+import riverNight from '../../assets/scenes/river_night.webp';
+import mountainlakeNight from '../../assets/scenes/mountainlake_night.webp';
+import swampNight from '../../assets/scenes/swamp_night.webp';
+import bayNight from '../../assets/scenes/bay_night.webp';
+import shorelineNight from '../../assets/scenes/shoreline_night.webp';
+import offshoreNight from '../../assets/scenes/offshore_night.webp';
+import canyonNight from '../../assets/scenes/canyon_night.webp';
+import flatsNight from '../../assets/scenes/flats_night.webp';
+import pierNight from '../../assets/scenes/pier_night.webp';
+import creekNight from '../../assets/scenes/creek_night.webp';
+import mountainlakeWinterNight from '../../assets/scenes/mountainlake_winter_night.webp';
+import bajaNight from '../../assets/scenes/baja_night.webp';
 import { sceneKeyFor } from '../../utils/sceneLayout';
 
 // The 2D stage for Cast & Catch: a pixel-art backdrop per biome, the angler sprite, and an SVG
@@ -41,6 +53,11 @@ import { sceneKeyFor } from '../../utils/sceneLayout';
 // fish) is what the camera moves; the meters, callout, trophy and tap surface stay in screen
 // space above it.
 const ART = { river: riverArt, mountainlake: mountainlakeArt, swamp: swampArt, bay: bayArt, shoreline: shorelineArt, offshore: offshoreArt, canyon: canyonArt, flats: flatsArt, pier: pierArt, creek: creekArt, 'mountainlake:winter': mountainlakeWinterArt, baja: bajaArt };
+// Every ground painted again at night — a moon, stars, the water dark with a moon path, the
+// lamps lit — each repainted from its day painting with the composition held, so the layout
+// read off the day painting still fits. At night this is the backdrop and the tint is only a
+// light one for the sprites; a day painting under a heavy blue tint still had a blue sky.
+const NIGHT_ART = { river: riverNight, mountainlake: mountainlakeNight, swamp: swampNight, bay: bayNight, shoreline: shorelineNight, offshore: offshoreNight, canyon: canyonNight, flats: flatsNight, pier: pierNight, creek: creekNight, 'mountainlake:winter': mountainlakeWinterNight, baja: bajaNight };
 const CREW_SCALE = 0.9;
 const RECENT_CATCH_MS = 9000;
 const round2 = (value) => Math.round(value * 100) / 100;
@@ -177,7 +194,9 @@ export default function GameScene({
 }) {
   const sheets = useAnglerSheets(look);
   const layout = layoutFor(biome, season);
-  const art = ART[sceneKeyFor(biome, season)] || ART[biome] || ART.river;
+  const sceneKey = sceneKeyFor(biome, season);
+  const nightArt = period === 'night' ? NIGHT_ART[sceneKey] || NIGHT_ART[biome] : null;
+  const art = nightArt || ART[sceneKey] || ART[biome] || ART.river;
   const stageRef = useRef(null);
   // iOS: a finger moving on the stage is play, never a scroll or a pinch. touch-action on the
   // tap surface covers most of it; this catches the second finger that lands beside it.
@@ -253,9 +272,9 @@ export default function GameScene({
   const inZone = Boolean(reel) && Math.abs((reel.fishPos || 0) - (reel.zonePos || 0)) <= zoneWidth / 2;
   const zoneRight = reel ? reelX(layout, reel.zonePos + zoneWidth / 2, frame) : 0;
 
-  return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-view-w={viewW}>
+  return <div ref={stageRef} className={`game-scene is-${phase} ${focused ? 'is-focused' : ''}`} data-biome={biome} data-phase={phase} data-period={period} data-night-art={nightArt ? 'yes' : undefined} data-view-w={viewW}>
     <div className="scene-world" data-camera={phase === 'casting' ? 'cast' : focused ? 'fight' : 'rest'} data-camera-x={camera.x} data-camera-scale={camera.scale} style={{ transform: cameraTransform(camera, viewW) }}>
-      <img key={biome} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
+      <img key={`${biome}-${nightArt ? 'night' : 'day'}`} className="scene-backdrop" src={art} alt="" data-crop={layout.crop} style={paintBox} />
       <SceneAmbience biome={biome} period={period} season={season} viewW={viewW} />
       <svg viewBox={`0 0 ${viewW} ${PAINT_H}`} preserveAspectRatio="none" className="game-scene-svg" role="img" aria-label={`${displayName || 'You'} fishing`}>
         {lineOut && <path
