@@ -12,5 +12,19 @@
     "h": 257,
     "feetX": 167,
     "feetY": 256
+  },
+  "dog_cheer": {
+    "frames": 4,
+    "w": 355,
+    "h": 347,
+    "feetX": 178,
+    "feetY": 346
+  },
+  "cat_cheer": {
+    "frames": 4,
+    "w": 233,
+    "h": 364,
+    "feetX": 117,
+    "feetY": 363
   }
 }

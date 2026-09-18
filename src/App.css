@@ -1215,12 +1215,17 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Cast & Catch — presence: club members on the same ground stand on the deck behind you. */
 .scene-sprite.is-crew { filter: brightness(.92) saturate(.85); }
-/* A dock pet sits behind its angler's heel and loops its sitting frames on its own (unlike him,
-   who only moves when the player does — a dog's tail is allowed). */
-.scene-pet { animation-iteration-count: infinite; animation-name: sprite-play; image-rendering: pixelated; }
+/* A dock pet sits behind its angler's heel and moves on its own (unlike him, who only moves
+   when the player does — a dog's tail is allowed). Idle is a long cycle: still on the first
+   frame, then two quick tail flicks to the second and back near the end. Cheering is the
+   celebration strip stepped through on a fast loop while its angler celebrates. */
+.scene-pet { image-rendering: pixelated; }
+.scene-pet.is-idle { animation: pet-idle 1s step-end infinite; }
+@keyframes pet-idle { 0%, 80% { background-position-x: 0; } 80.01%, 84% { background-position-x: var(--pet-flick, 50%); } 84.01%, 88% { background-position-x: 0; } 88.01%, 92% { background-position-x: var(--pet-flick, 50%); } 92.01%, 100% { background-position-x: 0; } }
+.scene-pet.is-cheer { animation-iteration-count: infinite; animation-name: sprite-play; }
 .pet-preview { background-position: 0 0; background-repeat: no-repeat; height: 48px; image-rendering: pixelated; width: 54px; }
 .pet-preview.is-none { align-items: center; color: var(--muted); display: flex; font-family: var(--font-head); font-size: 10px; font-weight: 800; justify-content: center; letter-spacing: .05em; text-transform: uppercase; }
-@media (prefers-reduced-motion: reduce) { .scene-pet { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .scene-pet.is-idle, .scene-pet.is-cheer { animation: none; } }
 .scene-crew-tag { color: #ffb38a; font-family: Oswald, 'Arial Narrow', sans-serif; font-size: 8px; font-weight: 700; letter-spacing: 1px; pointer-events: none; position: absolute; text-shadow: 1px 1px 0 #03080b, -1px -1px 0 #03080b, 1px -1px 0 #03080b, -1px 1px 0 #03080b; transform: translateX(-50%); white-space: nowrap; z-index: 1; }
 .scene-crew-bubble { animation: overlay-rise .3s ease-out both; background: var(--cream); border: 1px solid var(--line); color: var(--ink); font-size: 10px; font-weight: 700; padding: 3px 7px; pointer-events: none; position: absolute; transform: translateX(-50%); white-space: nowrap; z-index: 7; }
 .scene-crew-bubble:after { border: 5px solid transparent; border-top-color: var(--line); content: ''; left: 50%; margin-left: -5px; position: absolute; top: 100%; }

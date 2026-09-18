@@ -430,12 +430,39 @@ test('a dock pet sits behind its angler\'s heel, and the crew bring theirs; a pe
   const theirs = container.querySelectorAll('.scene-pet.is-crew');
   expect(theirs.length).toBe(1);
   expect(theirs[0]).toHaveAttribute('data-pet', 'pet_cat');
-  // The loop steps through the strip's frames on its own.
-  expect(mine.style.animationTimingFunction).toMatch(/^steps\(/);
+  // At rest the pet idles: a long cycle that holds the sitting frame and flicks the tail
+  // (pet-idle in App.css), started at an offset of its own so two pets never flick together.
+  expect(mine).toHaveAttribute('data-mood', 'idle');
+  expect(mine).toHaveClass('is-idle');
+  expect(mine.style.getPropertyValue('--pet-flick')).toMatch(/%$/);
+  expect(parseFloat(mine.style.animationDuration)).toBeGreaterThan(4000);
+  expect(mine.style.animationDelay).toMatch(/^-/);
+  expect(mine.style.animationDelay).not.toBe(theirs[0].style.animationDelay);
 
   rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_none' }} others={[]} />);
   expect(container.querySelector('.scene-pet')).toBeNull();
   // At night the pet by the post is lit like him.
   rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} period="night" />);
   expect(container.querySelector('.scene-pet.is-you')).toHaveAttribute('data-lit');
+});
+
+test('when a fish is landed the pet celebrates with its angler, and settles again after', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'result', species: 'trout', look: { pet: 'pet_cat' } }, { userId: 'u3', name: 'Sal', phase: 'result', species: null, look: { pet: 'pet_dog' } }];
+  const { container, rerender } = render(<GameScene biome="river" phase="result" result={{ success: true, species: 'largemouth' }} displayName="Andre" look={{ pet: 'pet_dog' }} others={others} />);
+  const mine = container.querySelector('.scene-pet.is-you');
+  expect(mine).toHaveAttribute('data-mood', 'cheer');
+  expect(mine.style.backgroundImage).toContain('dog_cheer');
+  // The cheer strip is stepped through on a fast loop, and the animal keeps its pixel size
+  // (the strip is taller than the sitting one, so the box is too).
+  expect(mine.style.animationTimingFunction).toMatch(/^steps\(/);
+  expect(parseFloat(mine.style.animationDuration)).toBeLessThan(1000);
+  const [kevins, sals] = container.querySelectorAll('.scene-pet.is-crew');
+  expect(kevins).toHaveAttribute('data-mood', 'cheer');
+  // Sal lost his fish: no celebration, and his dog stays sat.
+  expect(sals).toHaveAttribute('data-mood', 'idle');
+
+  rerender(<GameScene biome="river" phase="result" result={{ success: false }} displayName="Andre" look={{ pet: 'pet_dog' }} others={[]} />);
+  expect(container.querySelector('.scene-pet.is-you')).toHaveAttribute('data-mood', 'idle');
+  rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} others={[]} />);
+  expect(container.querySelector('.scene-pet.is-you').style.backgroundImage).not.toContain('cheer');
 });
