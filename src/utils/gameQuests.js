@@ -35,7 +35,7 @@ export const QUESTS = [
     brief: 'Land a swordfish in The Canyon. Ray has been trying for eleven years.',
     hint: 'They feed after dark.',
     goal: { type: 'species', species: 'swordfish', minSize: 0, count: 1 },
-    reward: { points: 250 },
+    reward: { points: 200 },
     requires: 'rays_proving',
   },
   {
@@ -55,7 +55,7 @@ export const QUESTS = [
     brief: 'A bonefish, a permit and a tarpon from The Flats. Ray has guided two slams in thirty years.',
     hint: 'Shrimp fly in daylight for the bones and permit; the tarpon roll after dark.',
     goal: { type: 'slam', species: ['bonefish', 'permit', 'tarpon'], count: 3 },
-    reward: { points: 400 },
+    reward: { points: 500 },
     requires: 'rays_southern_run',
   },
   {
@@ -75,7 +75,7 @@ export const QUESTS = [
     brief: "Land a roosterfish off Baja. Ray's cousin says they come right up the beach.",
     hint: 'They chase bait in the surf line in daylight.',
     goal: { type: 'species', species: 'roosterfish', minSize: 0, count: 1 },
-    reward: { points: 300 },
+    reward: { points: 250 },
     requires: 'rays_western_run',
   },
   {

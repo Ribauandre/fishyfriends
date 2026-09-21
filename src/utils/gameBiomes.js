@@ -13,6 +13,18 @@ export const OFFSHORE_CHARTER_COST = 50;
 export const CANYON_CHARTER_COST = 80;
 export const FLATS_CHARTER_COST = 100;
 export const BAJA_CHARTER_COST = 120;
+// A charter ground's fare is the full price until you are a regular there — a record on
+// more than half of its roster — and half after, so the toll gates the first trips and
+// stops taxing the player who has already earned the ground.
+export const REGULAR_FARE = 0.5;
+export function isRegular(biome, records = {}) {
+  const roster = BIOMES[biome]?.species || [];
+  return roster.length > 0 && roster.filter((species) => records[species]).length > roster.length / 2;
+}
+export function charterFare(biome, records = {}) {
+  const cost = BIOMES[biome]?.charterCost || 0;
+  return isRegular(biome, records) ? Math.round(cost * REGULAR_FARE) : cost;
+}
 
 export const BIOMES = {
   river: {

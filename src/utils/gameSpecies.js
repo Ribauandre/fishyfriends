@@ -44,7 +44,7 @@ const RARITY_DIFFICULTY = {
   uncommon: { spawnWeight: 28, hookWindowMs: 700, zoneWidth: 34, fishSpeed: 1.3, runChance: 0.05, runPower: 1.0, drainRate: 0.65, fightMs: 14000, points: [10, 18] },
   rare: { spawnWeight: 16, hookWindowMs: 580, zoneWidth: 27, fishSpeed: 1.6, runChance: 0.07, runPower: 1.15, drainRate: 0.8, fightMs: 18000, points: [24, 40] },
   epic: { spawnWeight: 8, hookWindowMs: 500, zoneWidth: 22, fishSpeed: 2.0, runChance: 0.09, runPower: 1.3, drainRate: 0.9, fightMs: 22000, points: [55, 90] },
-  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 18, fishSpeed: 2.5, runChance: 0.1, runPower: 1.4, drainRate: 1.0, fightMs: 28000, points: [120, 200] },
+  legendary: { spawnWeight: 2, hookWindowMs: 420, zoneWidth: 18, fishSpeed: 2.5, runChance: 0.1, runPower: 1.4, drainRate: 1.0, fightMs: 24000, points: [120, 200] },
   // Dead weight: it never runs and the zone is wide. It is not in the spawn roll (spawnWeight
   // 0) — rollJunk decides a stick before the species roll is made.
   junk: { spawnWeight: 0, hookWindowMs: 1200, zoneWidth: 64, fishSpeed: 0.3, runChance: 0, runPower: 0, drainRate: 0.2, fightMs: 12000, points: [0, 0] },
@@ -167,7 +167,14 @@ const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 // without changing how hard any fish fights.
 export const FAVOR_WEIGHT = 2.5;
 
-export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', season = null, random = Math.random, favor = [] } = {}) {
+// How much of a legendary's weight a dry spell adds back: `pity` is how many bites in a row
+// have not been a legendary (the page keeps it per visit), each one worth PITY_STEP up to
+// PITY_CAP — after forty dry bites the legendary weight has trebled, and it resets on the
+// next one landed or lost. It nudges the long tail, it does not hand one out.
+export const PITY_STEP = 0.1;
+export const PITY_CAP = 4;
+
+export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', season = null, random = Math.random, favor = [], pity = 0 } = {}) {
   const speciesByRarity = {};
   // Out-of-season fish are simply not there — unless that would leave the ground empty.
   const inWater = biomeSpecies.filter((species) => inSeason(species, season));
@@ -176,11 +183,18 @@ export function rollSpecies(baitLevel, biomeSpecies, { period = 'day', season = 
     (speciesByRarity[rarity] || (speciesByRarity[rarity] = [])).push(species);
   });
   const tiers = RARITY_ORDER.filter((tier) => speciesByRarity[tier]);
+  // Each bait level takes weight off the two low tiers (mostly the common) and hands it to the upper ones in
+  // proportion to their own weight, so better bait is mostly more rares and epics and a
+  // legendary goes from one bite in fifty to one in twenty-five at level 5. It used to hand
+  // the upper three tiers the same share each, which made a legendary one bite in six at
+  // level 5 — and the almanac a day's work.
   const shift = Math.max(0, baitLevel - 1) * 6;
+  const upperTotal = tiers.filter((tier) => tier !== 'common' && tier !== 'uncommon').reduce((sum, tier) => sum + RARITY_DIFFICULTY[tier].spawnWeight, 0) || 1;
   const weights = tiers.map((tier) => {
     const base = RARITY_DIFFICULTY[tier].spawnWeight;
     const isLowTier = tier === 'common' || tier === 'uncommon';
-    return Math.max(1, base + (isLowTier ? -shift : shift * 0.6));
+    const shifted = isLowTier ? base - shift * (tier === 'common' ? 0.7 : 0.3) : base + (shift * base) / upperTotal;
+    return Math.max(1, shifted + (tier === 'legendary' ? Math.min(PITY_CAP, Math.max(0, pity) * PITY_STEP) : 0));
   });
   const total = weights.reduce((sum, w) => sum + w, 0);
   let roll = random() * total;

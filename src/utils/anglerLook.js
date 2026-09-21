@@ -161,8 +161,8 @@ export const WARDROBE = {
   // default, so a look with no pet is the dock as it was. Presence carries the look, so the
   // crew's pets sit with them too.
   pet_none: { slot: 'pet', label: 'No pet', cost: 0, tint: null },
-  pet_dog: { slot: 'pet', label: 'Dock dog', cost: 150, tint: null },
-  pet_cat: { slot: 'pet', label: 'Bait-shop cat', cost: 150, tint: null },
+  pet_dog: { slot: 'pet', label: 'Dock dog', cost: 250, tint: null },
+  pet_cat: { slot: 'pet', label: 'Bait-shop cat', cost: 250, tint: null },
 };
 
 // Keys that no longer name anything wearable, and what they become. `hat_none` was a bare head,

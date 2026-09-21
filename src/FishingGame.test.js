@@ -508,8 +508,8 @@ test("Marina's sells a dock dog and a cat: bought once, then sat beside the angl
   expect(document.querySelector('.scene-pet')).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
   expect(screen.getByRole('button', { name: 'No pet · Wearing' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Bait-shop cat · 150 pts' })).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Dock dog · 150 pts' }));
+  expect(screen.getByRole('button', { name: 'Bait-shop cat · 250 pts' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Dock dog · 250 pts' }));
   await act(async () => { await Promise.resolve(); await Promise.resolve(); });
   expect(purchaseApparel).toHaveBeenCalledWith('pet_dog');
   expect(saveLook).toHaveBeenLastCalledWith(expect.objectContaining({ pet: 'pet_dog' }));
