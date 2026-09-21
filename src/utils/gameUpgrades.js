@@ -13,10 +13,11 @@ export const UPGRADE_TRACKS = [
   { key: 'bait', column: 'bait_level', label: 'Bait', blurb: 'Better odds at rarer fish.' },
 ];
 
-// Grows by a shrinking multiple each level (2x, 1.75x, 1.57x, ...) instead of a power curve's
-// steep early jump, so the first upgrade doesn't cost three times the second-to-last.
+// The first level is cheap (a handful of panfish) and each one after costs about twice the
+// last, so maxing a track is 800 points and all four 3,200 — a few weeks of casting, not an
+// afternoon. It was 40/80/140/220 (480 a track) and players maxed everything in a day.
 export function upgradeCost(currentLevel) {
-  return 40 + 30 * (currentLevel - 1) + 10 * (currentLevel - 1) ** 2;
+  return [40, 110, 230, 420][currentLevel - 1] ?? 420;
 }
 
 // Effective, upgrade-adjusted difficulty modifiers layered on top of a rarity's base numbers.

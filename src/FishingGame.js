@@ -18,7 +18,7 @@ import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normali
 import { useAuth } from './context/AuthContext';
 import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason, rollJunk, isJunk } from './utils/gameSpecies';
 import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier, zonePullFor } from './utils/gameUpgrades';
-import { BIOMES, BIOME_LIST, biomeUnlocked } from './utils/gameBiomes';
+import { BIOMES, BIOME_LIST, biomeUnlocked, charterFare, isRegular } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
 import {
@@ -323,12 +323,15 @@ export default function FishingGame({ clock = () => new Date() }) {
   const crankStateRef = useRef(INITIAL_CRANK_STATE);
   const crankHoldingRef = useRef(false);
   const driftStateRef = useRef(startDrift(0));
+  // Bites in a row this visit that were not a legendary: the roll's pity nudge (gameSpecies).
+  const dryBitesRef = useRef(0);
 
   function triggerBite(quality, favor = []) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
     // The size is rolled at the bite, so the shadow on the line is the size of what's on it.
-    const bite = rollJunk() || rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor });
+    const bite = rollJunk() || rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor, pity: dryBitesRef.current });
+    dryBitesRef.current = bite.rarity === 'legendary' ? 0 : dryBitesRef.current + 1;
     setPendingCatch({ ...bite, sizeIn: rollSize(bite.species) });
     setPhase('hookset');
   }
@@ -619,9 +622,9 @@ export default function FishingGame({ clock = () => new Date() }) {
   const tieOn = (key) => { setLure(key); setOverlay(null); };
   const toggleOverlay = (name) => { wakeAudio(); sfx.tap(); setOverlay((current) => (current === name ? null : name)); };
   const biomeConfig = BIOMES[biome];
-  const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${biomeConfig.charterCost} pts`) : 'free';
   const quests = gameProfile.quests || {};
   const records = gameProfile.records || {};
+  const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${charterFare(biome, records)} pts${isRegular(biome, records) ? ' (regular)' : ''}`) : 'free';
   const captainQuests = questsFor('captain', quests);
   const shopQuests = questsFor('shopkeeper', quests);
   const captainClaimable = claimableQuests(quests).filter((quest) => quest.giver === 'captain');
@@ -822,7 +825,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       </div>
 
       {overlay === 'map' && <GameOverlay eyebrow="Travel" title="Fishing grounds" onClose={() => setOverlay(null)}>
-        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} />
+        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} records={records} />
         <p className="dock-hint">{biomeConfig.blurb}</p>
       </GameOverlay>}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BIOMES, biomeUnlocked } from '../../utils/gameBiomes';
+import { BIOMES, biomeUnlocked, charterFare, isRegular } from '../../utils/gameBiomes';
 import { DERBY_FLAG } from '../../utils/gameProps';
 import mapArt from '../../assets/scenes/map.webp';
 
@@ -25,7 +25,7 @@ const HOTSPOTS = [
 ];
 const SHOP_HOTSPOT = { x: 23.3, y: 34.8 };
 
-export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = {}, derby = null }) {
+export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = {}, derby = null, records = {} }) {
   return <div className="biome-map">
     <img className="biome-map-art" src={mapArt} alt="Map of the fishing grounds" />
     {HOTSPOTS.map((spot) => {
@@ -46,7 +46,7 @@ export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = 
           <span>Ask Cap'n Ray</span>
         </button>;
       }
-      const cost = config.charterCost > 0 ? (chartered && active ? 'Chartered for this trip' : `Charter · ${config.charterCost} pts`) : 'Free';
+      const cost = config.charterCost > 0 ? (chartered && active ? 'Chartered for this trip' : `Charter · ${charterFare(config.key, records)} pts${isRegular(config.key, records) ? ' · regular' : ''}`) : 'Free';
       return <button
         key={spot.biome}
         type="button"

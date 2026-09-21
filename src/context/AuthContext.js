@@ -3,7 +3,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
-import { OFFSHORE_CHARTER_COST, BIOMES } from '../utils/gameBiomes';
+import { OFFSHORE_CHARTER_COST, charterFare } from '../utils/gameBiomes';
 import { isNewRecord, speciesLabel, sizeLabel, rarityOf } from '../utils/gameSpecies';
 import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
 import { rankDerby, previousDerby } from '../utils/gameDerby';
@@ -643,8 +643,8 @@ export function AuthProvider({ children }) {
   // trip lasts; FishingGame only calls this again once the player has left and come back.
   async function charterBoat(biome = 'offshore') {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before chartering a boat.') };
-    const cost = BIOMES[biome]?.charterCost || OFFSHORE_CHARTER_COST;
     const currentGameProfile = await getGameProfile();
+    const cost = charterFare(biome, currentGameProfile?.records || {}) || OFFSHORE_CHARTER_COST;
     if ((currentGameProfile?.tackle_points || 0) < cost) return { error: new Error('Not enough tackle points to charter a boat.') };
     const nextPoints = currentGameProfile.tackle_points - cost;
     const { data, error } = await supabase.from('game_profiles')

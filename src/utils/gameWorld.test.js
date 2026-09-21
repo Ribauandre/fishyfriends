@@ -1,5 +1,5 @@
-import { rollSpecies, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf, rollJunk, isJunk, JUNK_CHANCE, RARITY_INFO } from './gameSpecies';
-import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST } from './gameBiomes';
+import { rollSpecies, PITY_CAP, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf, rollJunk, isJunk, JUNK_CHANCE, RARITY_INFO } from './gameSpecies';
+import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST, charterFare, isRegular, REGULAR_FARE } from './gameBiomes';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
 // A random source that returns the given values in order (and the last one forever after).
@@ -166,4 +166,47 @@ test('a lure\'s favoured species roll heavier within their tier', () => {
   // Same 2.2 into the pool, but with the extra weight on the first fish the pick lands on it instead.
   const shifted = rollSpecies(1, troutWater, { random: sequence(tierPick, 2.2 / 4.5), favor: ['brooktrout'] });
   expect(shifted.species).toBe('brooktrout');
+});
+
+// The tier a roll lands in over many evenly spread rolls, on a roster with one fish of every
+// tier (the charter grounds have no common fish, which would skew it): the share of each.
+const ONE_OF_EACH = ['bluegill', 'pike', 'laketrout', 'mahimahi', 'shark'];
+function tierShares(baitLevel, options = {}) {
+  const counts = {};
+  const N = 2000;
+  for (let i = 0; i < N; i += 1) {
+    const t = (i + 0.5) / N;
+    const { rarity } = rollSpecies(baitLevel, ONE_OF_EACH, { random: sequence(t, 0.5), ...options });
+    counts[rarity] = (counts[rarity] || 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, v / N]));
+}
+
+test('better bait is mostly more rares and epics: a legendary stays a long shot, and a dry spell nudges it', () => {
+  const stock = tierShares(1);
+  const best = tierShares(5);
+  expect(stock.legendary).toBeCloseTo(0.02, 2);
+  // Level 5 roughly doubles the legendary and more than doubles the epic, and no more —
+  // it used to make a legendary one bite in six.
+  expect(best.legendary).toBeGreaterThan(0.03);
+  expect(best.legendary).toBeLessThan(0.05);
+  expect(best.epic).toBeGreaterThan(stock.epic * 1.8);
+  expect(best.rare).toBeGreaterThan(stock.rare * 1.5);
+  expect(best.common).toBeLessThan(stock.common * 0.7);
+  // Forty dry bites treble the legendary weight; the cap holds after that.
+  expect(tierShares(1, { pity: 40 }).legendary).toBeGreaterThan(stock.legendary * 2.5);
+  expect(tierShares(1, { pity: 400 }).legendary).toBeCloseTo(tierShares(1, { pity: PITY_CAP / 0.1 }).legendary, 2);
+});
+
+test('a charter is full fare until you are a regular there, then half', () => {
+  const roster = BIOMES.canyon.species;
+  expect(charterFare('canyon', {})).toBe(CANYON_CHARTER_COST);
+  const half = Object.fromEntries(roster.slice(0, Math.floor(roster.length / 2)).map((s) => [s, { sizeIn: 10 }]));
+  expect(isRegular('canyon', half)).toBe(false);
+  const more = Object.fromEntries(roster.slice(0, Math.floor(roster.length / 2) + 1).map((s) => [s, { sizeIn: 10 }]));
+  expect(isRegular('canyon', more)).toBe(true);
+  expect(charterFare('canyon', more)).toBe(Math.round(CANYON_CHARTER_COST * REGULAR_FARE));
+  // Records on another ground do not make you a regular here, and a free ground has no fare.
+  expect(charterFare('flats', more)).toBe(BIOMES.flats.charterCost);
+  expect(charterFare('river', more)).toBe(0);
 });
