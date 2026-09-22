@@ -120,6 +120,29 @@ test('shows a dash for top species in the season recap when nobody has logged a 
   expect(screen.getByText('top species').previousSibling).toHaveTextContent('—');
 });
 
+describe('fishing conditions', () => {
+  afterEach(() => { delete global.fetch; });
+
+  test('shows conditions on the dashboard once home water geocodes', async () => {
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ results: [{ latitude: 40.47, longitude: -74.27, name: 'Raritan Bay', admin1: 'New Jersey' }] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ current: { temperature_2m: 61.8, wind_speed_10m: 17.9, wind_direction_10m: 0, cloud_cover: 100, weather_code: 3 } }) });
+    useAuth.mockReturnValue(makeBaseAuth({ profile: { display_name: 'Andre', home_water: 'Raritan Bay' } }));
+    renderHome();
+    expect(await screen.findByText('Fishing conditions')).toBeInTheDocument();
+    expect(screen.getByText('62°F')).toBeInTheDocument();
+  });
+
+  test('does not render anything when the profile has no home water', async () => {
+    global.fetch = jest.fn();
+    useAuth.mockReturnValue(makeBaseAuth());
+    renderHome();
+    await screen.findByText('catches logged');
+    expect(screen.queryByText('Fishing conditions')).not.toBeInTheDocument();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
 test('does not show a license reminder banner when every license is comfortably valid', async () => {
   useAuth.mockReturnValue(makeBaseAuth({
     listFishingLicenses: jest.fn().mockResolvedValue([{ id: 'lic-1', state: 'New Jersey', expires_at: '2099-01-01' }]),

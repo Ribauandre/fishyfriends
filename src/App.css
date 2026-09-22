@@ -247,6 +247,9 @@ button { cursor: pointer; }
 .challenge-actions { align-items: center; display: flex; gap: 12px; }
 .challenge-actions .button-quiet { margin-top: 0; width: auto; }
 .season-recap { margin-bottom: 35px; margin-top: 34px; }
+.fishing-conditions { margin-bottom: 35px; margin-top: 34px; }
+.fish-year-recap { margin-bottom: 35px; margin-top: 34px; }
+.fish-year-recap .button-quiet { margin-top: 0; width: auto; }
 .personal-year-board { background: var(--navy); border: 1px solid #23464d; color: white; margin-bottom: 35px; padding: 27px 30px 22px; }
 .personal-year-board .section-heading { border-color: #386167; }
 .personal-year-board .section-heading h2 { color: white; }

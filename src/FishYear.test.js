@@ -207,3 +207,111 @@ test('also passes a ?comment= query param through so the specific comment is hig
   await waitFor(() => expect(screen.getByText('Wow!').closest('.comment-row')).toHaveClass('is-shared-highlight'));
   expect(screen.getByText('Nice bass!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
 });
+
+describe('streak badge', () => {
+  afterEach(() => { jest.useRealTimers(); });
+
+  test('shows no badge when the best streak is under 2 months', async () => {
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Bass', angler_name: 'Me', caught_at: '2026-03-01', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+    expect(document.querySelector('.personal-year-board .status-badge')).not.toBeInTheDocument();
+  });
+
+  test('shows a muted "best streak" badge once that run has ended', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-15'));
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'January', species: 'Bass', angler_name: 'Me', caught_at: '2026-01-05', photo_url: '' },
+        { id: 'fy-2', user_id: 'user-1', month: 'February', species: 'Trout', angler_name: 'Me', caught_at: '2026-02-05', photo_url: '' },
+        { id: 'fy-3', user_id: 'user-1', month: 'March', species: 'Carp', angler_name: 'Me', caught_at: '2026-03-05', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+    expect(screen.getByText('BEST STREAK: 3')).toBeInTheDocument();
+  });
+
+  test('shows an active mint "N-month streak" badge when the current streak matches the best', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-15'));
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'July', species: 'Bass', angler_name: 'Me', caught_at: '2026-07-05', photo_url: '' },
+        { id: 'fy-2', user_id: 'user-1', month: 'August', species: 'Trout', angler_name: 'Me', caught_at: '2026-08-05', photo_url: '' },
+        { id: 'fy-3', user_id: 'user-1', month: 'September', species: 'Carp', angler_name: 'Me', caught_at: '2026-09-05', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+    const badge = screen.getByText('3-MONTH STREAK');
+    expect(badge).toBeInTheDocument();
+    expect(badge).not.toHaveClass('status-badge-muted');
+  });
+});
+
+describe('season recap', () => {
+  afterEach(() => {
+    delete navigator.share;
+    delete navigator.clipboard;
+  });
+
+  test('is hidden until the user has logged at least one catch', async () => {
+    renderFishYear();
+    await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+    expect(screen.queryByText(/recap/i)).not.toBeInTheDocument();
+  });
+
+  test('summarizes months caught, total catches, and top species for the current user only', async () => {
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'January', species: 'Bass', angler_name: 'Me', caught_at: '2026-01-05', photo_url: '' },
+        { id: 'fy-2', user_id: 'user-1', month: 'January', species: 'Bass', angler_name: 'Me', caught_at: '2026-01-20', photo_url: '' },
+        { id: 'fy-3', user_id: 'user-1', month: 'February', species: 'Trout', angler_name: 'Me', caught_at: '2026-02-05', photo_url: '' },
+        { id: 'fy-4', user_id: 'user-2', month: 'March', species: 'Carp', angler_name: 'Kevin', caught_at: '2026-03-05', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await waitFor(() => expect(screen.queryByText(/loading the board/i)).not.toBeInTheDocument());
+    expect(screen.getByText('2026 recap')).toBeInTheDocument();
+    expect(screen.getByText('months caught').previousSibling).toHaveTextContent('2');
+    expect(screen.getByText('total catches').previousSibling).toHaveTextContent('3');
+    expect(screen.getByText('top species').previousSibling).toHaveTextContent('Bass');
+  });
+
+  test('shares via the Web Share API when available', async () => {
+    navigator.share = jest.fn().mockResolvedValue(undefined);
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'January', species: 'Bass', angler_name: 'Me', caught_at: '2026-01-05', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await userEvent.click(await screen.findByRole('button', { name: /^share/i }));
+    expect(navigator.share).toHaveBeenCalledWith(expect.objectContaining({ title: '2026 Fish Year recap' }));
+  });
+
+  test('falls back to copying to the clipboard when Web Share is unavailable', async () => {
+    navigator.clipboard = { writeText: jest.fn().mockResolvedValue(undefined) };
+    useAuth.mockReturnValue({
+      ...makeBaseAuth(),
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'January', species: 'Bass', angler_name: 'Me', caught_at: '2026-01-05', photo_url: '' },
+      ]),
+    });
+    renderFishYear();
+    await userEvent.click(await screen.findByRole('button', { name: /^share/i }));
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+    expect(await screen.findByText('Copied!')).toBeInTheDocument();
+  });
+});
