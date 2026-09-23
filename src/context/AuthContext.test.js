@@ -235,3 +235,71 @@ test('updateFishingLicense fails closed once state and expiration are given', as
   await waitFor(async () => { response = await result.current.updateFishingLicense({ id: 'lic-1', state: 'New Jersey', expiresAt: '2026-12-31' }); });
   expect(response.error.message).toMatch(/sign in before updating a license/i);
 });
+
+test('waypoint list* helpers return empty arrays instead of throwing', async () => {
+  const result = await setup();
+  await expect(result.current.listMyWaypointMaps()).resolves.toEqual([]);
+  await expect(result.current.listMapMembers('map-1')).resolves.toEqual([]);
+  await expect(result.current.listMyWaypointInvites()).resolves.toEqual([]);
+  await expect(result.current.listWaypoints('map-1')).resolves.toEqual([]);
+});
+
+test('getWaypointMap returns null instead of throwing when unconfigured', async () => {
+  const result = await setup();
+  await expect(result.current.getWaypointMap('map-1')).resolves.toBeNull();
+});
+
+test('createWaypointMap requires a name before the configuration check', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.createWaypointMap({ name: '   ' }); });
+  expect(response.error.message).toMatch(/name the map/i);
+});
+
+test('createWaypointMap fails closed once a name is given', async () => {
+  const result = await setup();
+  let response;
+  await waitFor(async () => { response = await result.current.createWaypointMap({ name: 'My Spots' }); });
+  expect(response.error.message).toMatch(/sign in before creating a map/i);
+});
+
+test('deleteWaypointMap fails closed', async () => {
+  const result = await setup();
+  await expect(result.current.deleteWaypointMap('map-1')).resolves.toEqual({ error: expect.any(Error) });
+});
+
+test('inviteToWaypointMap fails closed', async () => {
+  const result = await setup();
+  const response = await result.current.inviteToWaypointMap('map-1', 'My Spots', 'user-2');
+  expect(response.error.message).toMatch(/sign in before inviting anyone/i);
+});
+
+test('respondToWaypointInvite fails closed for both accept and decline', async () => {
+  const result = await setup();
+  await expect(result.current.respondToWaypointInvite('member-1', true)).resolves.toEqual({ error: expect.any(Error) });
+  await expect(result.current.respondToWaypointInvite('member-1', false)).resolves.toEqual({ error: expect.any(Error) });
+});
+
+test('addWaypoint fails closed', async () => {
+  const result = await setup();
+  const response = await result.current.addWaypoint({ mapId: 'map-1', name: 'Spot', lat: 40, lng: -74 });
+  expect(response.error.message).toMatch(/sign in before adding a waypoint/i);
+});
+
+test('importWaypointsFromGpx requires points before the configuration check', async () => {
+  const result = await setup();
+  const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points: [] });
+  expect(response.error.message).toMatch(/no waypoints to import/i);
+});
+
+test('importWaypointsFromGpx fails closed once points are given', async () => {
+  const result = await setup();
+  const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points: [{ name: 'Spot', lat: 40, lng: -74, notes: '' }] });
+  expect(response.error.message).toMatch(/sign in before importing waypoints/i);
+});
+
+test('deleteWaypoint and removeMapMember fail closed', async () => {
+  const result = await setup();
+  await expect(result.current.deleteWaypoint('wp-1')).resolves.toEqual({ error: expect.any(Error) });
+  await expect(result.current.removeMapMember('member-1')).resolves.toEqual({ error: expect.any(Error) });
+});
