@@ -30,13 +30,13 @@ test('opens on the welcome step for a first-time angler', () => {
   renderTour();
   expect(screen.getByRole('dialog', { name: /feature tour/i })).toBeInTheDocument();
   expect(screen.getByText(/here's the quick tour/i)).toBeInTheDocument();
-  expect(screen.getByText('1 / 7')).toBeInTheDocument();
+  expect(screen.getByText('1 / 8')).toBeInTheDocument();
 });
 
 test('Next walks forward through the steps', async () => {
   renderTour();
   await userEvent.click(screen.getByRole('button', { name: /next/i }));
-  expect(screen.getByText('2 / 7')).toBeInTheDocument();
+  expect(screen.getByText('2 / 8')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /fish year/i })).toBeInTheDocument();
 });
 
@@ -53,10 +53,10 @@ test('finishing the last step records the tour as done', async () => {
   const completeTour = jest.fn().mockResolvedValue({ error: null });
   useAuth.mockReturnValue(makeAuth({ completeTour }));
   renderTour();
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     await userEvent.click(screen.getByRole('button', { name: /next/i }));
   }
-  expect(screen.getByText('7 / 7')).toBeInTheDocument();
+  expect(screen.getByText('8 / 8')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: /start fishing/i }));
   expect(completeTour).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('dialog', { name: /feature tour/i })).not.toBeInTheDocument();

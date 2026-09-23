@@ -43,6 +43,13 @@ const STEPS = [
     body: 'Start your own — name it, set the rules and dates — and the crew logs entries against a real leaderboard.',
   },
   {
+    target: '[data-tour="waypoints-intro"]',
+    route: '/waypoints',
+    eyebrow: 'Kept quiet',
+    title: 'Waypoints',
+    body: 'Import your GPX pins from Navionics or C-MAP and invite only the crew you actually want reading them — nobody else sees a map until they\'re invited.',
+  },
+  {
     target: '[data-tour="notification-bell"]',
     eyebrow: 'Stay in the loop',
     title: 'Likes and comments',

@@ -310,6 +310,37 @@ button { cursor: pointer; }
 .license-remove { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 0 4px; transition: color .15s ease-out; }
 .license-remove:hover { color: var(--coral); }
 
+.waypoint-invites { margin-bottom: 24px; }
+.waypoint-invite-list { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.waypoint-invite-row { align-items: center; border: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+.waypoint-invite-info { color: var(--ink); font-size: 13px; }
+.waypoint-invite-actions { align-items: center; display: flex; gap: 10px; }
+.waypoint-invite-actions .button { margin-top: 0; width: auto; }
+.waypoint-maps-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-top: 14px; }
+.waypoint-map-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); color: var(--ink); display: block; padding: 20px; position: relative; }
+.waypoint-map-card .status-badge, .waypoint-map-card .status-badge-muted { position: absolute; right: 16px; top: -4px; }
+.waypoint-map-card h3 { font-size: 18px; margin: 20px 0 6px; }
+.waypoint-map-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
+.waypoint-map-card-stats { color: var(--muted); display: flex; font-size: 11px; font-weight: 800; gap: 14px; letter-spacing: .05em; margin-top: 14px; text-transform: uppercase; }
+.waypoint-map-section { padding: 0; overflow: hidden; }
+.waypoint-map-canvas { height: min(60vh, 520px); width: 100%; }
+.waypoint-list { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.waypoint-row { align-items: center; border: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+.waypoint-row-info p { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 6px 0 0; }
+.waypoint-row-coords { color: var(--muted); display: block; font-size: 11px; margin-top: 2px; }
+.waypoint-member-list { display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0 0 16px; padding: 0; }
+.waypoint-member-row { align-items: center; border: 1px solid var(--line); display: flex; gap: 12px; padding: 10px 14px; }
+.waypoint-invite-form { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+.waypoint-invite-form select { background: var(--cream); border: 1px solid var(--line); color: var(--ink); flex: 1 1 200px; font-family: inherit; font-size: 13px; padding: 10px 12px; }
+.waypoint-invite-form .button { margin-top: 0; width: auto; }
+.waypoint-invite-form .form-error { flex-basis: 100%; }
+
+/* Leaflet popups render outside React, so styling reaches in from here rather than a component. */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--cream); border-radius: 0; color: var(--ink); }
+.waypoint-popup strong { display: block; font-size: 13px; }
+.waypoint-popup p { color: var(--muted); font-size: 12px; margin: 6px 0; }
+.waypoint-popup-meta { color: var(--muted); display: block; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+
 .warden-view-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(3,8,11,.9); display: flex; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 100; }
 .warden-view-card { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); max-width: 380px; padding: 32px 28px 28px; position: relative; text-align: center; width: 100%; }
 .warden-view-card h2 { font-size: 34px; margin: 10px 0 4px; }
@@ -475,7 +506,7 @@ button { cursor: pointer; }
   .navbar { align-items: center; bottom: 0; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 12px env(safe-area-inset-bottom); top: auto; }
   .navbar:before { bottom: auto; top: -3px; }
   .nav-brand { display: none; }
-  .nav-links { display: grid; flex: 1; grid-template-columns: repeat(5, 1fr); margin: 0; }
+  .nav-links { display: grid; flex: 1; grid-template-columns: repeat(6, 1fr); margin: 0; }
   .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 54px; padding: 7px 2px; }
   .nav-link span { display: block; font-size: 9px; margin: 0; }
   .navbar-right { gap: 10px; }

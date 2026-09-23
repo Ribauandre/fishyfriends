@@ -938,3 +938,164 @@ describe('updateFishingLicense', () => {
     expect(__mock.current.storageRemove).not.toHaveBeenCalled();
   });
 });
+
+describe('waypoint maps', () => {
+  test('listMyWaypointMaps tags ownership and counts waypoints/accepted members per map', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', {
+      data: [
+        { id: 'map-1', owner_id: 'user-1', name: 'My Spots' },
+        { id: 'map-2', owner_id: 'user-2', name: "Kevin's Spots" },
+      ],
+      error: null,
+    });
+    __mock.setResponse('waypoints', { data: [{ id: 'wp-1', map_id: 'map-1' }, { id: 'wp-2', map_id: 'map-1' }, { id: 'wp-3', map_id: 'map-2' }], error: null });
+    __mock.setResponse('waypoint_map_members', { data: [{ map_id: 'map-2', status: 'accepted' }, { map_id: 'map-2', status: 'pending' }], error: null });
+
+    const maps = await result.current.listMyWaypointMaps();
+
+    expect(maps).toEqual([
+      { id: 'map-1', owner_id: 'user-1', name: 'My Spots', isOwner: true, waypointCount: 2, memberCount: 0 },
+      { id: 'map-2', owner_id: 'user-2', name: "Kevin's Spots", isOwner: false, waypointCount: 1, memberCount: 1 },
+    ]);
+  });
+
+  test('getWaypointMap tags whether the current user owns it', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: { id: 'map-1', owner_id: 'user-2', name: "Kevin's Spots" }, error: null });
+
+    const map = await result.current.getWaypointMap('map-1');
+
+    expect(map).toEqual({ id: 'map-1', owner_id: 'user-2', name: "Kevin's Spots", isOwner: false });
+  });
+
+  test('getWaypointMap returns null when the row is missing (or RLS hides it)', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: null, error: null });
+
+    expect(await result.current.getWaypointMap('map-1')).toBeNull();
+  });
+
+  test('createWaypointMap inserts owned by the current user and returns it pre-tagged', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: { id: 'map-new', owner_id: 'user-1', name: 'My Spots', description: '' }, error: null });
+
+    const response = await result.current.createWaypointMap({ name: 'My Spots' });
+
+    expect(response.error).toBeNull();
+    expect(response.map).toEqual({ id: 'map-new', owner_id: 'user-1', name: 'My Spots', description: '', isOwner: true, waypointCount: 0, memberCount: 0 });
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_maps')];
+    expect(call.value.insert).toHaveBeenCalledWith({ owner_id: 'user-1', name: 'My Spots', description: '' });
+  });
+
+  test('deleteWaypointMap scopes the delete to the current owner', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: null, error: null });
+
+    const response = await result.current.deleteWaypointMap('map-1');
+
+    expect(response.error).toBeNull();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_maps')];
+    expect(call.value.delete).toHaveBeenCalled();
+    expect(call.value.eq).toHaveBeenCalledWith('owner_id', 'user-1');
+  });
+
+  test('listMapMembers joins each member row against their profile', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: [{ id: 'mem-1', map_id: 'map-1', user_id: 'user-2', status: 'accepted' }], error: null });
+    __mock.setResponse('profiles', { data: [{ id: 'user-2', display_name: 'Kevin', avatar_url: '' }], error: null });
+
+    const members = await result.current.listMapMembers('map-1');
+
+    expect(members[0].profile).toEqual({ id: 'user-2', display_name: 'Kevin', avatar_url: '' });
+  });
+
+  test('inviteToWaypointMap snapshots the map name and marks the invite pending', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: { id: 'mem-new' }, error: null });
+
+    await result.current.inviteToWaypointMap('map-1', 'My Spots', 'user-2');
+
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_map_members')];
+    expect(call.value.insert).toHaveBeenCalledWith({ map_id: 'map-1', map_name: 'My Spots', user_id: 'user-2', invited_by: 'user-1', status: 'pending' });
+  });
+
+  test('respondToWaypointInvite accepts by updating status, and declines by deleting the row', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: { id: 'mem-1', status: 'accepted' }, error: null });
+
+    await result.current.respondToWaypointInvite('mem-1', true);
+    let call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_map_members')];
+    expect(call.value.update).toHaveBeenCalledWith({ status: 'accepted' });
+
+    await result.current.respondToWaypointInvite('mem-1', false);
+    call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_map_members')];
+    expect(call.value.delete).toHaveBeenCalled();
+  });
+
+  test('listMyWaypointInvites resolves the inviter\'s display name', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: [{ id: 'mem-1', map_id: 'map-1', map_name: 'My Spots', invited_by: 'user-2', status: 'pending' }], error: null });
+    __mock.setResponse('profiles', { data: [{ id: 'user-2', display_name: 'Kevin' }], error: null });
+
+    const invites = await result.current.listMyWaypointInvites();
+
+    expect(invites[0]).toEqual(expect.objectContaining({ map_name: 'My Spots', inviterName: 'Kevin' }));
+  });
+
+  test('removeMapMember deletes the membership row', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: null, error: null });
+
+    const response = await result.current.removeMapMember('mem-1');
+
+    expect(response.error).toBeNull();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoint_map_members')];
+    expect(call.value.delete).toHaveBeenCalled();
+  });
+});
+
+describe('waypoints', () => {
+  test('addWaypoint stamps the current display name and defaults source to manual', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoints', { data: { id: 'wp-new', name: 'Reef Spot' }, error: null });
+
+    const response = await result.current.addWaypoint({ mapId: 'map-1', name: 'Reef Spot', lat: 40.1, lng: -74.2, notes: 'Good at dusk' });
+
+    expect(response.error).toBeNull();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoints')];
+    expect(call.value.insert).toHaveBeenCalledWith({
+      map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Reef Spot', lat: 40.1, lng: -74.2, notes: 'Good at dusk', source: 'manual',
+    });
+  });
+
+  test('importWaypointsFromGpx bulk-inserts every point tagged as gpx-sourced', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoints', { data: [{ id: 'wp-1' }, { id: 'wp-2' }], error: null });
+    const points = [
+      { name: 'Reef Spot', lat: 40.1, lng: -74.2, notes: 'Dusk bite' },
+      { name: 'Wreck', lat: 40.2, lng: -74.3, notes: '' },
+    ];
+
+    const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points });
+
+    expect(response.error).toBeNull();
+    expect(response.waypoints).toHaveLength(2);
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoints')];
+    expect(call.value.insert).toHaveBeenCalledWith([
+      { map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Reef Spot', lat: 40.1, lng: -74.2, notes: 'Dusk bite', source: 'gpx' },
+      { map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Wreck', lat: 40.2, lng: -74.3, notes: '', source: 'gpx' },
+    ]);
+  });
+
+  test('deleteWaypoint deletes the row', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoints', { data: null, error: null });
+
+    const response = await result.current.deleteWaypoint('wp-1');
+
+    expect(response.error).toBeNull();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoints')];
+    expect(call.value.delete).toHaveBeenCalled();
+  });
+});

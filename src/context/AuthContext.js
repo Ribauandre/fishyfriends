@@ -812,6 +812,137 @@ export function AuthProvider({ children }) {
     return { error: error || null };
   }
 
+  // Waypoint maps: private by default, visible only to their owner and anglers who have
+  // *accepted* an invitation (enforced by RLS via is_waypoint_map_collaborator — a pending
+  // invite grants nothing). listMyWaypointMaps only sees rows RLS lets through, so no extra
+  // client-side filtering is needed on top of it.
+  async function listMyWaypointMaps() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data: maps, error } = await supabase.from('waypoint_maps').select('*').order('created_at', { ascending: false });
+    if (error) { setNotice(error.message); return []; }
+    if (!maps?.length) return [];
+    const mapIds = maps.map((map) => map.id);
+    const [{ data: waypoints }, { data: members }] = await Promise.all([
+      supabase.from('waypoints').select('id, map_id').in('map_id', mapIds),
+      supabase.from('waypoint_map_members').select('map_id, status').in('map_id', mapIds),
+    ]);
+    return maps.map((map) => ({
+      ...map,
+      isOwner: map.owner_id === user.id,
+      waypointCount: (waypoints || []).filter((w) => w.map_id === map.id).length,
+      memberCount: (members || []).filter((m) => m.map_id === map.id && m.status === 'accepted').length,
+    }));
+  }
+
+  async function getWaypointMap(id) {
+    if (!isSupabaseConfigured || !user) return null;
+    const { data } = await supabase.from('waypoint_maps').select('*').eq('id', id).maybeSingle();
+    if (!data) return null;
+    return { ...data, isOwner: data.owner_id === user.id };
+  }
+
+  async function createWaypointMap({ name, description }) {
+    const trimmedName = name?.trim();
+    if (!trimmedName) return { error: new Error('Name the map first.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before creating a map.') };
+    const row = { owner_id: user.id, name: trimmedName, description: description?.trim() || '' };
+    const { data, error } = await supabase.from('waypoint_maps').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, map: { ...data, isOwner: true, waypointCount: 0, memberCount: 0 } };
+  }
+
+  async function deleteWaypointMap(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('waypoint_maps').delete().eq('id', id).eq('owner_id', user.id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  // profiles has an open "select using (true)" policy (it's how the Anglers directory works),
+  // so joining against it here is safe even for a collaborator who can't otherwise see much
+  // about the other members yet.
+  async function listMapMembers(mapId) {
+    if (!isSupabaseConfigured) return [];
+    const { data: members, error } = await supabase.from('waypoint_map_members').select('*').eq('map_id', mapId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    if (!members?.length) return [];
+    const { data: profiles } = await supabase.from('profiles').select('id, display_name, avatar_url').in('id', members.map((member) => member.user_id));
+    return members.map((member) => ({ ...member, profile: (profiles || []).find((profile) => profile.id === member.user_id) || null }));
+  }
+
+  async function inviteToWaypointMap(mapId, mapName, userId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before inviting anyone.') };
+    const row = { map_id: mapId, map_name: mapName, user_id: userId, invited_by: user.id, status: 'pending' };
+    const { data, error } = await supabase.from('waypoint_map_members').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, member: data };
+  }
+
+  async function removeMapMember(memberId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('waypoint_map_members').delete().eq('id', memberId);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  // Declining an invite just removes the row (it's the invitee's own row, per RLS) rather
+  // than tracking a third status — there's nothing useful to keep once it's turned down.
+  async function respondToWaypointInvite(memberId, accept) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    if (!accept) {
+      const { error } = await supabase.from('waypoint_map_members').delete().eq('id', memberId).eq('user_id', user.id);
+      if (error) setNotice(error.message);
+      return { error: error || null };
+    }
+    const { data, error } = await supabase.from('waypoint_map_members').update({ status: 'accepted' }).eq('id', memberId).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, member: data };
+  }
+
+  async function listMyWaypointInvites() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data: invites, error } = await supabase.from('waypoint_map_members').select('*').eq('user_id', user.id).eq('status', 'pending').order('created_at', { ascending: false });
+    if (error) { setNotice(error.message); return []; }
+    if (!invites?.length) return [];
+    const { data: profiles } = await supabase.from('profiles').select('id, display_name').in('id', invites.map((invite) => invite.invited_by));
+    return invites.map((invite) => ({ ...invite, inviterName: (profiles || []).find((profile) => profile.id === invite.invited_by)?.display_name || 'Someone' }));
+  }
+
+  async function listWaypoints(mapId) {
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase.from('waypoints').select('*').eq('map_id', mapId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function addWaypoint({ mapId, name, lat, lng, notes }) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a waypoint.') };
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const row = { map_id: mapId, created_by: user.id, created_by_name: authorName, name: name?.trim() || 'Waypoint', lat, lng, notes: notes?.trim() || '', source: 'manual' };
+    const { data, error } = await supabase.from('waypoints').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, waypoint: data };
+  }
+
+  // points come pre-parsed from parseGpx (name/lat/lng/notes) — one bulk insert rather than
+  // one round trip per pin, since a chartplotter export can easily hold a few hundred.
+  async function importWaypointsFromGpx({ mapId, points }) {
+    if (!points?.length) return { error: new Error('No waypoints to import.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before importing waypoints.') };
+    const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
+    const rows = points.map((point) => ({ map_id: mapId, created_by: user.id, created_by_name: authorName, name: point.name, lat: point.lat, lng: point.lng, notes: point.notes || '', source: 'gpx' }));
+    const { data, error } = await supabase.from('waypoints').insert(rows).select();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, waypoints: data || [] };
+  }
+
+  async function deleteWaypoint(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('waypoints').delete().eq('id', id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
   // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
@@ -973,6 +1104,9 @@ export function AuthProvider({ children }) {
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
     listFishingLicenses, uploadFishingLicense, updateFishingLicense, deleteFishingLicense,
+    listMyWaypointMaps, getWaypointMap, createWaypointMap, deleteWaypointMap,
+    listMapMembers, inviteToWaypointMap, removeMapMember, respondToWaypointInvite, listMyWaypointInvites,
+    listWaypoints, addWaypoint, importWaypointsFromGpx, deleteWaypoint,
     getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

@@ -25,6 +25,9 @@ export default function Navbar() {
         <NavLink to="/fishing-game" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>05</span> Fishing
         </NavLink>
+        <NavLink to="/waypoints" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+          <span>06</span> Waypoints
+        </NavLink>
       </div>
       <div className="navbar-right">
         {user.email === 'ribauandre@yahoo.com' && <NavLink to="/admin/bugs" className={({isActive}) => isActive ? 'nav-link admin-link active' : 'nav-link admin-link'} title="Bug reports">Bugs</NavLink>}
