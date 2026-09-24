@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
+import { SPECIES_SIZE } from './utils/gameSpecies';
 import { useAuth } from './context/AuthContext';
 import { stepReel } from './utils/reelPhysics';
 import { twitchJerk, stepCrank, stepDrift, mendLine } from './utils/lurePhysics';
@@ -39,6 +40,9 @@ function makeBaseAuth(overrides = {}) {
     purchaseLure: jest.fn(),
     purchaseFlyRod: jest.fn(),
     purchaseApparel: jest.fn(),
+    logJunk: jest.fn().mockResolvedValue({ error: null, isNew: true }),
+    rebuildTrack: jest.fn(),
+    joinCharterClub: jest.fn(),
     saveLook: jest.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
@@ -132,6 +136,50 @@ test('a stick on the line is landed like a fish, pays nothing, and is never logg
   expect(document.querySelector('.scene-plaque')).toHaveTextContent('+0 tackle points');
   expect(screen.getByText(/that's a stick/i)).toBeInTheDocument();
   expect(logGameCatch).not.toHaveBeenCalled();
+  // Flotsam goes on the shelf instead, and the deck says so the first time.
+  expect(screen.getByText(/new on the flotsam shelf/i)).toBeInTheDocument();
+});
+
+test('a maxed track can be rebuilt for a permanent bonus, and the charter club makes every charter free', async () => {
+  const maxed = makeGameProfile({ tackle_points: 3000, rod_level: 5, line_level: 5, reel_level: 5, bait_level: 5, rebuilds: { rod: 1 } });
+  const rebuildTrack = jest.fn().mockResolvedValue({ error: null, gameProfile: { ...maxed, tackle_points: 1000, line_level: 1, rebuilds: { rod: 1, line: 1 } }, rebuilds: 1 });
+  const joinCharterClub = jest.fn().mockResolvedValue({ error: null, gameProfile: { ...maxed, charter_member: true } });
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(maxed), rebuildTrack, joinCharterClub }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
+  expect(screen.getByText(/strip a track down and rebuild it better/i)).toBeInTheDocument();
+  // The rod, rebuilt once, wears its star and offers the second rebuild at a higher price.
+  expect(screen.getByTitle(/rebuilt 1 time/i)).toHaveTextContent('★');
+  expect(screen.getByRole('button', { name: 'Rebuild · 2000 pts' })).toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('button', { name: 'Rebuild · 1500 pts' })[0]);
+  expect(rebuildTrack).toHaveBeenCalledWith('line');
+  expect(await screen.findByText(/built it back better/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Upgrade · 40 pts' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Join · 1200 pts' }));
+  expect(joinCharterClub).toHaveBeenCalled();
+  expect(await screen.findByText(/you're a member/i)).toBeInTheDocument();
+  expect(screen.getByText(/ray's boats are yours/i)).toBeInTheDocument();
+});
+
+test('the almanac grades records and the trophy case keeps the tag and flotsam shelves', async () => {
+  const at = (species, t) => { const [min, max] = SPECIES_SIZE[species]; return Math.round((min + (max - min) * t) * 10) / 10; };
+  const records = { bluegill: { size_in: at('bluegill', 0.95), catch_id: 'c1' }, pike: { size_in: at('pike', 0.65), catch_id: 'c2' }, laketrout: { size_in: at('laketrout', 0.1), catch_id: 'c3' } };
+  const profileData = makeGameProfile({ records, tags: [{ species: 'pike', from: 'Kevin', at: '2026-09-01T12:00:00Z', catch_id: 'k1' }], junk_found: ['boot'] });
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(profileData), listMyTrophies: jest.fn().mockResolvedValue([{ id: 'c1', species: 'bluegill', rarity: 'common', size_label: '12.0 in', size_in: at('bluegill', 0.95), points_earned: 6 }]) }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Almanac' }));
+  expect(document.querySelector('.almanac-progress')).toHaveTextContent(/1 gold, 1 silver, 1 bronze/i);
+  expect(document.querySelector('.almanac-card[data-species="bluegill"] .grade-pip')).toHaveAttribute('data-grade', 'gold');
+  expect(document.querySelector('.almanac-card[data-species="laketrout"] .grade-pip')).toHaveAttribute('data-grade', 'bronze');
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(screen.getByText('Gold')).toBeInTheDocument();
+  expect(screen.getByText(/fish tags · 1/i)).toBeInTheDocument();
+  expect(screen.getByText(/kevin's,/i)).toBeInTheDocument();
+  expect(screen.getByText(/flotsam shelf · 1 \/ 4/i)).toBeInTheDocument();
+  expect(document.querySelector('.junk-card[data-junk="boot"]')).toHaveClass('is-found');
+  expect(document.querySelector('.junk-card[data-junk="bottle"]')).toHaveClass('is-unknown');
 });
 
 test('the catch is up the moment it is landed, before the log answers, and a tap after a beat returns to the dock', async () => {

@@ -163,6 +163,14 @@ export const WARDROBE = {
   pet_none: { slot: 'pet', label: 'No pet', cost: 0, tint: null },
   pet_dog: { slot: 'pet', label: 'Dock dog', cost: 250, tint: null },
   pet_cat: { slot: 'pet', label: 'Bait-shop cat', cost: 250, tint: null },
+
+  // Dock decorations: a prop drawn on your own deck (utils/dockDecor.js, at the layout's
+  // `decor` anchor), bought once like anything else on the racks. They are pricey on purpose:
+  // the late game's points need somewhere to go.
+  decor_none: { slot: 'decor', label: 'Bare deck', cost: 0, tint: null },
+  decor_cooler: { slot: 'decor', label: 'Cooler', cost: 300, tint: null },
+  decor_rodrack: { slot: 'decor', label: 'Rod rack', cost: 400, tint: null },
+  decor_flag: { slot: 'decor', label: 'Club flag', cost: 500, tint: null },
 };
 
 // Keys that no longer name anything wearable, and what they become. `hat_none` was a bare head,
@@ -173,15 +181,15 @@ const ALIASES = { hat_none: 'cap_green' };
 // The slots the painter dyes on him, and then the pet, which is its own sprite: the look key
 // (a cache key for a paint) is made of the first six alone, so choosing a pet never repaints him.
 export const PAINT_SLOTS = ['hat', 'shirt', 'vest', 'rod', 'boots', 'waders'];
-export const SLOTS = [...PAINT_SLOTS, 'pet'];
-export const SLOT_LABELS = { hat: 'Caps', shirt: 'Shirts', vest: 'Vests', rod: 'Rods', boots: 'Boots', waders: 'Jeans', pet: 'Dock pets' };
+export const SLOTS = [...PAINT_SLOTS, 'pet', 'decor'];
+export const SLOT_LABELS = { hat: 'Caps', shirt: 'Shirts', vest: 'Vests', rod: 'Rods', boots: 'Boots', waders: 'Jeans', pet: 'Dock pets', decor: 'Dock decorations' };
 export const WARDROBE_LIST = Object.entries(WARDROBE).map(([key, item]) => ({ key, ...item }));
 export const itemsFor = (slot) => WARDROBE_LIST.filter((item) => item.slot === slot);
 
 export const DEFAULT_LOOK = {
   skin: 'medium', hair: 'brown',
   hat: 'cap_green', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki',
-  pet: 'pet_none',
+  pet: 'pet_none', decor: 'decor_none',
 };
 const LOOK_FIELDS = ['skin', 'hair', ...PAINT_SLOTS];
 
@@ -218,6 +226,12 @@ export const isDefaultLook = (look) => lookKey(look) === lookKey(DEFAULT_LOOK);
 export function petOf(look, wardrobe = Object.keys(WARDROBE)) {
   const pet = normalizeLook(look, wardrobe).pet;
   return pet === 'pet_none' ? null : pet;
+}
+// The decoration on the deck, or null — yours only: the deck is where you stand, and a crew
+// mate's cooler on your dock would be a strange thing to see.
+export function decorOf(look, wardrobe = Object.keys(WARDROBE)) {
+  const decor = normalizeLook(look, wardrobe).decor;
+  return decor === 'decor_none' ? null : decor;
 }
 
 // Everything the painter needs for a look: what each part goes to, null meaning leave the art

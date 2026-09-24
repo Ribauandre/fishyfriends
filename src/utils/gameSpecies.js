@@ -16,10 +16,40 @@ export const RARITY_INFO = {
 
 // The chance any bite is the stick rather than a fish.
 export const JUNK_CHANCE = 0.05;
+// Flotsam: what bites when it is not a fish. A stick mostly; now and then a boot, a plate or a
+// bottle with a note in it. None is on any ground's roster, none is worth anything, and the
+// trophy case keeps a shelf of which ones have come up (junk_found on game_profiles).
 export const JUNK_SPECIES = 'stick';
+export const JUNK_ROSTER = ['stick', 'stick', 'boot', 'plate', 'bottle'];
 export function isJunk(rarity) { return rarity === 'junk'; }
 export function rollJunk(random = Math.random) {
-  return random() < JUNK_CHANCE ? { species: JUNK_SPECIES, rarity: 'junk' } : null;
+  if (random() >= JUNK_CHANCE) return null;
+  const species = JUNK_ROSTER[Math.min(JUNK_ROSTER.length - 1, Math.floor(random() * JUNK_ROSTER.length))];
+  return { species, rarity: 'junk' };
+}
+
+// A record's grade by where its size falls in the species' range (SPECIES_SIZE): any record
+// is bronze, past SILVER_AT of the range silver, past GOLD_AT gold. A full almanac is done
+// when every species has a record; a full gold almanac is a much longer road, and the same
+// records column carries it.
+export const SILVER_AT = 0.55;
+export const GOLD_AT = 0.85;
+export const GRADES = ['bronze', 'silver', 'gold'];
+export const GRADE_LABELS = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
+export function sizeGrade(species, sizeIn) {
+  if (!(sizeIn > 0)) return null;
+  const [min, max] = SPECIES_SIZE[species] || [6, 18];
+  const t = (Number(sizeIn) - min) / Math.max(1, max - min);
+  return t >= GOLD_AT ? 'gold' : t >= SILVER_AT ? 'silver' : 'bronze';
+}
+export function gradeCounts(records = {}) {
+  const counts = { bronze: 0, silver: 0, gold: 0 };
+  Object.entries(records).forEach(([species, record]) => {
+    if (rarityOf(species) === 'junk') return;
+    const grade = sizeGrade(species, record?.size_in);
+    if (grade) counts[grade] += 1;
+  });
+  return counts;
 }
 
 // spawnWeight: relative odds before bait level shifts them toward rarer tiers.
@@ -73,7 +103,7 @@ const SPECIES_LABELS = {
   spottedseatrout: 'Spotted seatrout', ladyfish: 'Ladyfish', lemonshark: 'Lemon shark',
   roosterfish: 'Roosterfish', yellowtail: 'Yellowtail', calicobass: 'Calico bass', californiahalibut: 'California halibut',
   lingcod: 'Lingcod', cabezon: 'Cabezon', giantseabass: 'Giant sea bass', stripedmarlin: 'Striped marlin', corvina: 'Corvina', sierra: 'Sierra mackerel',
-  stick: 'A stick',
+  stick: 'A stick', boot: 'An old boot', plate: 'A licence plate', bottle: 'A bottle with a note',
 };
 
 export function speciesLabel(species) { return SPECIES_LABELS[species] || species; }
@@ -108,7 +138,7 @@ const SPECIES_RARITY = {
   // Baja, the Pacific trip.
   calicobass: 'common', corvina: 'common', sierra: 'uncommon', lingcod: 'uncommon', cabezon: 'uncommon',
   yellowtail: 'rare', californiahalibut: 'rare', roosterfish: 'epic', stripedmarlin: 'legendary', giantseabass: 'legendary',
-  stick: 'junk',
+  stick: 'junk', boot: 'junk', plate: 'junk', bottle: 'junk',
 };
 
 // Fish that are only in for part of the year (see seasonFor in utils/gameClock.js): the shad
@@ -242,7 +272,7 @@ export const SPECIES_SIZE = {
   spottedseatrout: [14, 32], ladyfish: [14, 32], lemonshark: [60, 120],
   roosterfish: [24, 60], yellowtail: [20, 48], calicobass: [10, 24], californiahalibut: [22, 50], lingcod: [20, 48], cabezon: [12, 30],
   giantseabass: [48, 90], stripedmarlin: [80, 140], corvina: [12, 28], sierra: [14, 30],
-  stick: [8, 30],
+  stick: [8, 30], boot: [9, 13], plate: [12, 12], bottle: [9, 11],
 };
 
 export function rollSize(species, random = Math.random) {

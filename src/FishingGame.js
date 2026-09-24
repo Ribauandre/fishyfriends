@@ -15,9 +15,10 @@ import trophyWallBackdrop from './assets/scenes/trophywall.webp';
 import speciesIcon from './utils/speciesOptions';
 import { shopkeeperLine, captainLine, outfitterLine } from './utils/gameDialogue';
 import { SKIN_TONES, HAIR_COLORS, SLOTS, SLOT_LABELS, itemsFor, isOwned, normalizeLook } from './utils/anglerLook';
+import DecorPreview from './components/game/DecorPreview';
 import { useAuth } from './context/AuthContext';
-import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason, rollJunk, isJunk } from './utils/gameSpecies';
-import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, upgradeCost, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier, zonePullFor } from './utils/gameUpgrades';
+import { rollSpecies, difficultyFor, speciesLabel, pointsFor, rollSize, sizeLabel, RARITY_INFO, rarityOf, NOCTURNAL, isNewRecord, SEASONS, inSeason, rollJunk, isJunk, JUNK_ROSTER, sizeGrade, gradeCounts, GRADE_LABELS } from './utils/gameSpecies';
+import { UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, MAX_REBUILDS, upgradeCost, rebuildCost, effectiveLevel, CHARTER_CLUB_COST, hookWindowBonusMs, tensionMaxFor, fishSpeedMultiplier, drainMultiplier, zonePullFor } from './utils/gameUpgrades';
 import { BIOMES, BIOME_LIST, biomeUnlocked, charterFare, isRegular } from './utils/gameBiomes';
 import { LURES, FLY_ROD, lureOwned, luresFor, isFly, hasFlyRod, hatchMatch, lureAllowedOn, QUALITY_BAIT_LEVELS, qualityPointsMultiplier } from './utils/gameLures';
 import { INITIAL_REEL_STATE, stepReel } from './utils/reelPhysics';
@@ -40,7 +41,9 @@ const REEL_SOUND_MS = 110;
 const RESULT_ARM_MS = 700;
 // How long the logo stays on the stage after the dock is up.
 const SPLASH_MS = 1800;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [], rebuilds: {}, charter_member: false, tags: [], junk_found: [] };
+// One landed fish in twenty-five carries another member's tag (AuthContext.logGameCatch).
+const TAG_CHANCE = 0.04;
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
 // and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
@@ -49,7 +52,7 @@ const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, re
 // leaving the screen. `clock` is injectable so the harness and tests can pick the hour.
 export default function FishingGame({ clock = () => new Date() }) {
   const {
-    profile, personalBests = [], getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod,
+    profile, personalBests = [], getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, charterBoat, purchaseLure, purchaseFlyRod,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin, purchaseApparel, saveLook,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
@@ -330,7 +333,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     clearInterval(lureIntervalRef.current);
     setPresentationQuality(quality);
     // The size is rolled at the bite, so the shadow on the line is the size of what's on it.
-    const bite = rollJunk() || rollSpecies(gameProfile.bait_level + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor, pity: dryBitesRef.current });
+    const bite = rollJunk() || rollSpecies(effectiveLevel(gameProfile, 'bait') + quality * QUALITY_BAIT_LEVELS, BIOMES[biome].species, { period, season, favor, pity: dryBitesRef.current });
     dryBitesRef.current = bite.rarity === 'legendary' ? 0 : dryBitesRef.current + 1;
     setPendingCatch({ ...bite, sizeIn: rollSize(bite.species) });
     setPhase('hookset');
@@ -436,7 +439,7 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   // ---- Hookset: a short, rarity-scaled window (widened by the rod level) to react in. ----
   const hooksetTimeoutRef = useRef(null);
-  const hooksetWindowMs = pendingCatch ? difficultyFor(pendingCatch.rarity).hookWindowMs + hookWindowBonusMs(gameProfile.rod_level) : 0;
+  const hooksetWindowMs = pendingCatch ? difficultyFor(pendingCatch.rarity).hookWindowMs + hookWindowBonusMs(effectiveLevel(gameProfile, 'rod')) : 0;
 
   useEffect(() => {
     if (phase !== 'hookset' || !pendingCatch) return undefined;
@@ -468,14 +471,14 @@ export default function FishingGame({ clock = () => new Date() }) {
     // The fish's temperament is its rarity's. The reel takes some of the sting out of a run
     // and moves the zone faster; the line takes strain slower and holds more of it; and a
     // bigger fish gets longer to work the hook loose (utils/gameUpgrades.js).
-    const fishSpeed = difficulty.fishSpeed * fishSpeedMultiplier(gameProfile.reel_level);
+    const fishSpeed = difficulty.fishSpeed * fishSpeedMultiplier(effectiveLevel(gameProfile, 'reel'));
     const runChance = difficulty.runChance;
-    const runPower = difficulty.runPower * fishSpeedMultiplier(gameProfile.reel_level);
-    const zonePull = zonePullFor(gameProfile.reel_level);
-    const drainRate = difficulty.drainRate * drainMultiplier(gameProfile.line_level);
+    const runPower = difficulty.runPower * fishSpeedMultiplier(effectiveLevel(gameProfile, 'reel'));
+    const zonePull = zonePullFor(effectiveLevel(gameProfile, 'reel'));
+    const drainRate = difficulty.drainRate * drainMultiplier(effectiveLevel(gameProfile, 'line'));
     const fightMs = difficulty.fightMs;
     zoneWidthRef.current = difficulty.zoneWidth;
-    tensionMaxRef.current = tensionMaxFor(gameProfile.line_level);
+    tensionMaxRef.current = tensionMaxFor(effectiveLevel(gameProfile, 'line'));
 
     reelStateRef.current = INITIAL_REEL_STATE;
     holdingRef.current = false;
@@ -527,10 +530,15 @@ export default function FishingGame({ clock = () => new Date() }) {
     // A stick is not a catch: nothing for it, nothing written down, and no fish to tell the crew about.
     if (isJunk(rarity)) {
       sfx.lost();
-      setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned: 0, isRecord: false, completedQuests: [], derbyFish: false });
+      const isNewJunk = !(gameProfile.junk_found || []).includes(species);
+      setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned: 0, isRecord: false, completedQuests: [], derbyFish: false, isNewJunk });
       setPhase('result');
+      Promise.resolve(logJunk(species)).then((response) => {
+        if (response?.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+      });
       return;
     }
+    const tagged = Math.random() < TAG_CHANCE;
     const isRecord = isNewRecord(gameProfile.records || {}, species, sizeIn);
     const { completed } = advanceQuests(gameProfile.quests || {}, { species, sizeIn, biome });
     sfx.land(rarity);
@@ -538,9 +546,10 @@ export default function FishingGame({ clock = () => new Date() }) {
     setLastCatch({ species: speciesLabel(species), at: Date.now() });
     setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests: completed, derbyFish: species === derby.species });
     setPhase('result');
-    Promise.resolve(logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn, biome })).then((response) => {
+    Promise.resolve(logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn, biome, tagged })).then((response) => {
       if (!response || response.error) return;
       if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+      if (response.tag) setResult((current) => (current ? { ...current, tag: response.tag } : current));
       // Only a record changes the wall: it takes that species' hook. Anything smaller is
       // logged for the derby and the points, but the trophy stays the bigger one.
       if (response.catchEntry && response.isRecord) {
@@ -579,6 +588,25 @@ export default function FishingGame({ clock = () => new Date() }) {
     if (response?.error) { setUpgradeError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
     if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
     setShopEvent({ type: 'upgrade', label: UPGRADE_TRACKS.find((track) => track.key === trackKey)?.label || 'gear' });
+  }
+
+  async function handleRebuild(trackKey) {
+    setUpgradeBusy(true); setUpgradeError('');
+    const response = await rebuildTrack(trackKey);
+    setUpgradeBusy(false);
+    if (response?.error) { setUpgradeError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    sfx.coin(false);
+    setShopEvent({ type: 'rebuild', label: UPGRADE_TRACKS.find((track) => track.key === trackKey)?.label || 'gear' });
+  }
+
+  async function handleCharterClub() {
+    setUpgradeBusy(true); setUpgradeError('');
+    const response = await joinCharterClub();
+    setUpgradeBusy(false);
+    if (response?.error) { setUpgradeError(response.error.message); setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    setShopEvent({ type: 'club' });
   }
 
   async function handleQuestTurnIn(questKey) {
@@ -624,7 +652,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   const biomeConfig = BIOMES[biome];
   const quests = gameProfile.quests || {};
   const records = gameProfile.records || {};
-  const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : `charter · ${charterFare(biome, records)} pts${isRegular(biome, records) ? ' (regular)' : ''}`) : 'free';
+  const charterMember = Boolean(gameProfile.charter_member);
+  const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : charterMember ? 'charter · club member' : `charter · ${charterFare(biome, records)} pts${isRegular(biome, records) ? ' (regular)' : ''}`) : 'free';
   const captainQuests = questsFor('captain', quests);
   const shopQuests = questsFor('shopkeeper', quests);
   const captainClaimable = claimableQuests(quests).filter((quest) => quest.giver === 'captain');
@@ -661,7 +690,8 @@ export default function FishingGame({ clock = () => new Date() }) {
     reeling: 'Hold to reel — keep the fish in the glowing zone.',
   }[phase] || '';
   const tensionPct = phase === 'reeling' ? (reelDisplay.tension / tensionMaxRef.current) * 100 : 0;
-  const almanacCaught = Object.keys(records).length;
+  const almanacCaught = Object.keys(records).filter((species) => rarityOf(species) !== 'junk').length;
+  const grades = gradeCounts(records);
 
   if (loading) return <main className="content-shell game-page">
     <div className="game-loading">
@@ -816,7 +846,9 @@ export default function FishingGame({ clock = () => new Date() }) {
           {result.success ? <>
             {/* The fish itself, its size, rarity and points are on the stage's plaque; the deck
                 keeps what the plaque doesn't say. */}
-            <h3>{result.rarity === 'junk' ? 'A stick. Not a fish.' : `${speciesLabel(result.species)} landed!`}</h3>
+            <h3>{result.rarity === 'junk' ? `${speciesLabel(result.species)}. Not a fish.` : `${speciesLabel(result.species)} landed!`}</h3>
+            {result.rarity === 'junk' && result.isNewJunk && <p className="result-note">New on the flotsam shelf.</p>}
+            {result.tag && <p className="result-note is-tag"><strong>Tagged fish!</strong> {result.tag.from} caught this one on {new Date(result.tag.at).toLocaleDateString()}. The tag's yours.</p>}
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
           </> : <h3>{result.message}</h3>}
           {(biomeConfig.charterCost > 0 || result.isRecord || result.rarity === 'junk') && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
@@ -825,7 +857,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       </div>
 
       {overlay === 'map' && <GameOverlay eyebrow="Travel" title="Fishing grounds" onClose={() => setOverlay(null)}>
-        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} records={records} />
+        <BiomeMap biome={biome} chartered={chartered} onSelect={selectBiome} onShop={() => setOverlay('shop')} quests={quests} derby={derby} records={records} member={charterMember} />
         <p className="dock-hint">{biomeConfig.blurb}</p>
       </GameOverlay>}
 
@@ -906,15 +938,24 @@ export default function FishingGame({ clock = () => new Date() }) {
             const level = gameProfile[track.column] || 1;
             const maxed = level >= MAX_UPGRADE_LEVEL;
             const cost = upgradeCost(level);
+            const rebuilt = gameProfile.rebuilds?.[track.key] || 0;
             return <div className="upgrade-card" key={track.key}>
               <img className="upgrade-icon" src={GEAR_ICONS[track.key]} alt="" />
               <strong>{track.label}</strong>
               <span className="upgrade-level">LV {level}{maxed ? ' · MAX' : ''}</span>
               <p>{track.blurb}</p>
-              <button className="button button-quiet" type="button" disabled={maxed || upgradeBusy} onClick={() => handleUpgrade(track.key)}>{maxed ? 'Maxed out' : `Upgrade · ${cost} pts`}</button>
+              {rebuilt > 0 && <span className="upgrade-rebuilt" title={`Rebuilt ${rebuilt} time${rebuilt === 1 ? '' : 's'}: plays ${rebuilt * 0.5} levels above its number`}>{'★'.repeat(rebuilt)}</span>}
+              {maxed && rebuilt < MAX_REBUILDS
+                ? <button className="button button-quiet is-rebuild" type="button" disabled={upgradeBusy} onClick={() => handleRebuild(track.key)}>{`Rebuild · ${rebuildCost(rebuilt)} pts`}</button>
+                : <button className="button button-quiet" type="button" disabled={maxed || upgradeBusy} onClick={() => handleUpgrade(track.key)}>{maxed ? 'Rebuilt out' : `Upgrade · ${cost} pts`}</button>}
             </div>;
           })}
         </div>
+        <section className="shop-club" aria-label="Charter club">
+          <span className="eyebrow">CHARTER CLUB</span>
+          <p>{charterMember ? "You're a member: every charter is free." : `A one-off ${CHARTER_CLUB_COST} points and every charter on the map is free, for good.`}</p>
+          {!charterMember && <button className="button button-quiet" type="button" disabled={upgradeBusy} onClick={handleCharterClub}>{`Join · ${CHARTER_CLUB_COST} pts`}</button>}
+        </section>
         <div className="shop-boards">
           <section className="shop-board" aria-label="Sal's quests">
             <span className="eyebrow">SAL'S WALL</span>
@@ -990,7 +1031,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                 aria-label={`${item.label} · ${status}`}
                 onClick={() => (owned ? handleLook({ [slot]: item.key }) : handleApparelPurchase(item.key, slot, item.label))}
               >
-                <span className="rack-swatch">{slot === 'pet' ? <PetPreview petKey={item.key} /> : <AnglerPreview look={{ ...look, [slot]: item.key }} small label="" />}</span>
+                <span className="rack-swatch">{slot === 'pet' ? <PetPreview petKey={item.key} /> : slot === 'decor' ? <DecorPreview decorKey={item.key} /> : <AnglerPreview look={{ ...look, [slot]: item.key }} small label="" />}</span>
                 <strong>{item.label}</strong>
                 <span>{status}</span>
               </button>;
@@ -1000,7 +1041,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       </GameOverlay>}
 
       {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
-        <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'} It's {SEASON_LABELS[season].toLowerCase()}: fish that are only in for part of the year say when.</p>
+        <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed — {grades.gold} gold, {grades.silver} silver, {grades.bronze} bronze. A record past the middle of a species' size range is silver, near the top gold. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'} It's {SEASON_LABELS[season].toLowerCase()}: fish that are only in for part of the year say when.</p>
         {BIOME_LIST.map((ground) => {
           const unlocked = biomeUnlocked(ground.key, quests);
           return <section key={ground.key} className={`almanac-biome ${unlocked ? '' : 'is-locked'}`} aria-label={unlocked ? ground.label : 'Locked ground'}>
@@ -1017,6 +1058,7 @@ export default function FishingGame({ clock = () => new Date() }) {
                   <span className="almanac-meta">
                     <i className="rarity-dot" style={{ background: RARITY_INFO[rarity].color }} title={RARITY_INFO[rarity].label} />
                     {record ? `Best ${sizeLabel(record.size_in)}` : RARITY_INFO[rarity].label}
+                    {record && <i className={`grade-pip is-${sizeGrade(species, record.size_in)}`} title={`${GRADE_LABELS[sizeGrade(species, record.size_in)]} record`} data-grade={sizeGrade(species, record.size_in)} />}
                     {NOCTURNAL.includes(species) && <em title="Feeds after dark"> ☾</em>}
                     {species === derby.species && <img className="almanac-flag" src={DERBY_FLAG} alt="Derby target" />}
                   </span>
@@ -1050,6 +1092,22 @@ export default function FishingGame({ clock = () => new Date() }) {
             </li>)}
           </ol>}
         </section>
+        {(gameProfile.tags || []).length > 0 && <section className="tag-shelf" aria-label="Fish tags">
+          <span className="eyebrow">FISH TAGS · {gameProfile.tags.length}</span>
+          <p className="tag-shelf-note">Fish another member caught before you did. One in twenty-five carries a tag.</p>
+          <ul>
+            {[...gameProfile.tags].reverse().map((tag, index) => <li key={`${tag.catch_id || index}`} className="fish-tag"><FishIllustration species={tag.species} /><strong>{speciesLabel(tag.species)}</strong><span>{tag.from}'s, {new Date(tag.at).toLocaleDateString()}</span></li>)}
+          </ul>
+        </section>}
+        <section className="junk-shelf" aria-label="Flotsam shelf">
+          <span className="eyebrow">FLOTSAM SHELF · {(gameProfile.junk_found || []).length} / {[...new Set(JUNK_ROSTER)].length}</span>
+          <ul>
+            {[...new Set(JUNK_ROSTER)].map((piece) => {
+              const found = (gameProfile.junk_found || []).includes(piece);
+              return <li key={piece} className={`junk-card ${found ? 'is-found' : 'is-unknown'}`} data-junk={piece}><FishIllustration species={piece} /><strong>{found ? speciesLabel(piece) : '???'}</strong></li>;
+            })}
+          </ul>
+        </section>
         {(gameProfile.derby_wins || []).length > 0 && <section className="derby-ribbons" aria-label="Derby wins">
           <span className="eyebrow">DERBY WINS</span>
           <ul>
@@ -1072,6 +1130,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <span className="rarity-tag" style={{ background: RARITY_INFO[entry.rarity]?.color, color: RARITY_INFO[entry.rarity]?.text }}>{RARITY_INFO[entry.rarity]?.label || entry.rarity}</span>
             <strong>{speciesLabel(entry.species)}</strong>
             <span>{entry.size_label}{entry.points_earned == null ? '' : ` · +${entry.points_earned} pts`}</span>
+            {sizeGrade(entry.species, entry.size_in) && <span className={`grade-tag is-${sizeGrade(entry.species, entry.size_in)}`}>{GRADE_LABELS[sizeGrade(entry.species, entry.size_in)]}</span>}
           </div>)}
         </div>}
       </GameOverlay>}

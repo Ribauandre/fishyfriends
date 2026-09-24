@@ -474,3 +474,16 @@ test('when a fish is landed the pet celebrates with its angler, and settles agai
   rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} others={[]} />);
   expect(container.querySelector('.scene-pet.is-you').style.backgroundImage).not.toContain('cheer');
 });
+
+test('a bought decoration stands on your own deck at the layout\'s anchor, and a crew mate\'s does not', () => {
+  const { container, rerender } = render(<GameScene biome="river" phase="ready" displayName="Andre" look={{ decor: 'decor_flag' }} others={[{ userId: 'u2', name: 'Kevin', phase: 'ready', look: { decor: 'decor_cooler' } }]} />);
+  const props = container.querySelectorAll('.scene-decor');
+  expect(props.length).toBe(1);
+  expect(props[0]).toHaveAttribute('data-decor', 'decor_flag');
+  expect(props[0].getAttribute('src')).toContain('decor_flag');
+  rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ decor: 'decor_none' }} />);
+  expect(container.querySelector('.scene-decor')).toBeNull();
+  // Every ground has somewhere to put one.
+  rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" look={{ decor: 'decor_cooler' }} />);
+  expect(container.querySelector('.scene-decor')).toHaveAttribute('data-decor', 'decor_cooler');
+});

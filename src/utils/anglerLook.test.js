@@ -41,7 +41,7 @@ test('every rack item is a colour in a slot with a price, and every slot has a f
     // colour — except a pet, which is a sprite of its own beside him and dyes nothing.
     expect('tint' in item).toBe(true);
     if (item.tint) expect(item.tint).toHaveLength(3);
-    else if (item.slot !== 'pet') expect(item.cost).toBe(0);
+    else if (item.slot !== 'pet' && item.slot !== 'decor') expect(item.cost).toBe(0);
     expect(item.label).toEqual(expect.any(String));
     expect(key).not.toMatch(/\s/);
   });
@@ -121,6 +121,8 @@ test('a dock pet is a wardrobe item of its own: bought once, worn in the look, n
   expect(WARDROBE.pet_dog.cost).toBeGreaterThan(0);
   expect(SLOTS).toContain('pet');
   expect(PAINT_SLOTS).not.toContain('pet');
+  expect(PAINT_SLOTS).not.toContain('decor');
+  expect(lookKey({ ...DEFAULT_LOOK, decor: 'decor_flag' })).toBe(lookKey(DEFAULT_LOOK));
   // Unowned, the pet falls back to none like any other slot; owned, it is worn.
   expect(normalizeLook({ pet: 'pet_dog' }).pet).toBe('pet_none');
   expect(normalizeLook({ pet: 'pet_dog' }, ['pet_dog']).pet).toBe('pet_dog');

@@ -21,8 +21,9 @@ export function isRegular(biome, records = {}) {
   const roster = BIOMES[biome]?.species || [];
   return roster.length > 0 && roster.filter((species) => records[species]).length > roster.length / 2;
 }
-export function charterFare(biome, records = {}) {
+export function charterFare(biome, records = {}, { member = false } = {}) {
   const cost = BIOMES[biome]?.charterCost || 0;
+  if (member) return 0;
   return isRegular(biome, records) ? Math.round(cost * REGULAR_FARE) : cost;
 }
 

@@ -610,6 +610,53 @@ describe('Cast & Catch world', () => {
     expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ owned_lures: ['dryfly'], tackle_points: 20 }));
   });
 
+  test('a maxed track is rebuilt back to level 1 for a permanent bonus, and the club is one purchase', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 3000, rod_level: 3, line_level: 5, rebuilds: {} }, error: null });
+    await expectError(result.current.rebuildTrack('rod'), /max it out first/i);
+    await expectError(result.current.rebuildTrack('nothing'), /unknown upgrade/i);
+    const rebuilt = await result.current.rebuildTrack('line');
+    expect(rebuilt.rebuilds).toBe(1);
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ line_level: 1, rebuilds: { line: 1 }, tackle_points: 1500 }));
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 100, line_level: 5, rebuilds: { line: 5 } }, error: null });
+    await expectError(result.current.rebuildTrack('line'), /as far as it goes/i);
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 100, line_level: 5, rebuilds: { line: 1 } }, error: null });
+    await expectError(result.current.rebuildTrack('line'), /not enough tackle points/i);
+    await expectError(result.current.joinCharterClub(), /not enough tackle points/i);
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 1300, charter_member: false, records: {} }, error: null });
+    await result.current.joinCharterClub();
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ charter_member: true, tackle_points: 100 }));
+    // A member charters for nothing, and nothing is written for it.
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, charter_member: true, records: {} }, error: null });
+    const trip = await result.current.charterBoat('baja');
+    expect(trip.error).toBeNull();
+    expect(trip.free).toBe(true);
+    await expectError(result.current.joinCharterClub(), /already a member/i);
+  });
+
+  test('a tagged fish takes the tag of the last member to catch that species, and flotsam goes on the shelf once', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('game_catches', { data: [{ id: 'gc-9', user_id: 'user-2', angler_name: 'Kevin', created_at: '2026-09-01T12:00:00Z' }], error: null });
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 0, records: {}, quests: {}, tags: [] }, error: null });
+    const tagged = await result.current.logGameCatch({ species: 'pike', rarity: 'uncommon', sizeLabel: '30 in', pointsEarned: 12, sizeIn: 30, biome: 'river', tagged: true });
+    expect(tagged.tag).toEqual(expect.objectContaining({ species: 'pike', from: 'Kevin', from_id: 'user-2', catch_id: 'gc-9' }));
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ tags: [expect.objectContaining({ from: 'Kevin' })] }));
+    // No roll, no tag — and nobody else's catch means no tag however the roll went.
+    const plain = await result.current.logGameCatch({ species: 'pike', rarity: 'uncommon', sizeLabel: '30 in', pointsEarned: 12, sizeIn: 30, biome: 'river' });
+    expect(plain.tag).toBeNull();
+    __mock.setResponse('game_catches', { data: [], error: null });
+    const lonely = await result.current.logGameCatch({ species: 'pike', rarity: 'uncommon', sizeLabel: '30 in', pointsEarned: 12, sizeIn: 30, biome: 'river', tagged: true });
+    expect(lonely.tag).toBeNull();
+
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', junk_found: ['stick'] }, error: null });
+    await expectError(result.current.logJunk('pike'), /not flotsam/i);
+    const again = await result.current.logJunk('stick');
+    expect(again.isNew).toBe(false);
+    const boot = await result.current.logJunk('boot');
+    expect(boot.isNew).toBe(true);
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ junk_found: ['stick', 'boot'] }));
+  });
+
   test('apparel is bought once with points and the look only keeps what is owned', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 100, wardrobe: [], look: {} }, error: null });
@@ -623,7 +670,7 @@ describe('Cast & Catch world', () => {
     // rod_gold is not owned, so it falls back to the free rod; `beard` is a field the old sheet
     // had and this one does not, and it is read past rather than saved.
     const saved = await result.current.saveLook({ skin: 'deep', hat: 'cap_red', rod: 'rod_gold', beard: 'goatee' });
-    expect(saved.look).toEqual({ skin: 'deep', hair: 'brown', hat: 'cap_red', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki', pet: 'pet_none' });
+    expect(saved.look).toEqual({ skin: 'deep', hair: 'brown', hat: 'cap_red', shirt: 'shirt_grey', vest: 'vest_olive', rod: 'rod_graphite', boots: 'boots_green', waders: 'waders_khaki', pet: 'pet_none', decor: 'decor_none' });
     expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ look: saved.look }));
   });
 
