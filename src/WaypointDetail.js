@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import WaypointLeafletMap from './components/WaypointLeafletMap';
 import parseGpx from './utils/parseGpx';
+import parseKml from './utils/parseKml';
+import { fetchMyMapsPoints } from './utils/googleMyMaps';
 
 function NamePinModal({ lat, lng, onClose, onSaved }) {
   const { addWaypoint } = useAuth();
@@ -35,15 +37,18 @@ function NamePinModal({ lat, lng, onClose, onSaved }) {
   </div>;
 }
 
-function ImportGpxModal({ points, fileName, onClose, onImported }) {
-  const { importWaypointsFromGpx } = useAuth();
+const SOURCE_LABELS = { gpx: 'GPX import', kml: 'KML import' };
+
+function ImportPointsModal({ preview, onClose, onImported }) {
+  const { importWaypoints } = useAuth();
   const { mapId } = useParams();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { points, label, source, skipped } = preview;
 
   async function handleConfirm() {
     setSaving(true); setError('');
-    const result = await importWaypointsFromGpx({ mapId, points });
+    const result = await importWaypoints({ mapId, points, source });
     setSaving(false);
     if (result?.error) { setError(result.error.message); return; }
     onImported(result.waypoints);
@@ -52,16 +57,48 @@ function ImportGpxModal({ points, fileName, onClose, onImported }) {
   return <div className="catch-modal-backdrop" role="presentation" onClick={onClose}>
     <div className="catch-modal" onClick={(event) => event.stopPropagation()}>
       <div className="section-heading">
-        <div><span className="eyebrow">GPX IMPORT</span><h2>Import from {fileName}</h2></div>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Close GPX import">×</button>
+        <div><span className="eyebrow">{source.toUpperCase()} IMPORT</span><h2>Import from {label}</h2></div>
+        <button className="modal-close" type="button" onClick={onClose} aria-label="Close import">×</button>
       </div>
-      <p>Found {points.length} waypoint{points.length === 1 ? '' : 's'} in this file. Add {points.length === 1 ? 'it' : 'them all'} to this map?</p>
+      <p>Found {points.length} waypoint{points.length === 1 ? '' : 's'}. Add {points.length === 1 ? 'it' : 'them all'} to this map?</p>
+      {skipped > 0 && <p className="muted-label">{skipped} line{skipped === 1 ? '' : 's'} or shape{skipped === 1 ? '' : 's'} skipped: only pins can be waypoints.</p>}
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions">
         <button className="button button-quiet" type="button" onClick={onClose} disabled={saving}>Cancel</button>
         <button className="button button-primary" type="button" onClick={handleConfirm} disabled={saving}>{saving ? 'Importing...' : `Import ${points.length}`} <span>→</span></button>
       </div>
     </div>
+  </div>;
+}
+
+function MyMapsLinkModal({ onClose, onFound }) {
+  const [link, setLink] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const { title, points, skipped } = await fetchMyMapsPoints(link);
+      onFound({ points, skipped, source: 'kml', label: title ? `"${title}"` : 'Google My Maps' });
+    } catch (fetchError) {
+      setError(fetchError.message);
+      setLoading(false);
+    }
+  }
+
+  return <div className="catch-modal-backdrop" role="presentation" onClick={onClose}>
+    <form className="catch-modal" onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()}>
+      <div className="section-heading">
+        <div><span className="eyebrow">GOOGLE MY MAPS</span><h2>Import pins from a map</h2></div>
+        <button className="modal-close" type="button" onClick={onClose} aria-label="Close Google My Maps import">×</button>
+      </div>
+      <p>Paste the map's link. It has to be shared as "Anyone with this link can view". Or export it from My Maps as KML and use Import file instead.</p>
+      <label>Map link<input required type="url" inputMode="url" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://www.google.com/maps/d/edit?mid=..." /></label>
+      {error && <p className="form-error">{error}</p>}
+      <div className="form-actions"><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Reading the map...' : 'Find pins'} <span>→</span></button></div>
+    </form>
   </div>;
 }
 
@@ -132,9 +169,9 @@ export default function WaypointDetail() {
   const [loading, setLoading] = useState(true);
   const [addingMode, setAddingMode] = useState(false);
   const [pendingPin, setPendingPin] = useState(null);
-  const [gpxPreview, setGpxPreview] = useState(null);
-  const [gpxFileName, setGpxFileName] = useState('');
-  const [gpxError, setGpxError] = useState('');
+  const [importPreview, setImportPreview] = useState(null);
+  const [importError, setImportError] = useState('');
+  const [showMyMaps, setShowMyMaps] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -158,21 +195,23 @@ export default function WaypointDetail() {
     setAddingMode(false);
   }
 
-  function handleGpxFile(event) {
+  function handleImportFile(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    setGpxError('');
+    setImportError('');
+    const isKml = file.name.toLowerCase().endsWith('.kml');
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setGpxPreview(parseGpx(String(reader.result)));
-        setGpxFileName(file.name);
+        const text = String(reader.result);
+        const parsed = isKml ? parseKml(text) : { points: parseGpx(text), skipped: 0 };
+        setImportPreview({ points: parsed.points, skipped: parsed.skipped, source: isKml ? 'kml' : 'gpx', label: file.name });
       } catch (error) {
-        setGpxError(error.message);
+        setImportError(error.message);
       }
     };
-    reader.onerror = () => setGpxError("Couldn't read that file.");
+    reader.onerror = () => setImportError("Couldn't read that file.");
     reader.readAsText(file);
   }
 
@@ -212,13 +251,14 @@ export default function WaypointDetail() {
       </div>
       <div className="challenge-actions">
         <button className={addingMode ? 'button button-primary' : 'button button-quiet'} type="button" onClick={() => setAddingMode((value) => !value)}>{addingMode ? 'Tap the map...' : 'Add a waypoint'} <span>＋</span></button>
-        <button className="button button-quiet" type="button" onClick={() => fileInputRef.current?.click()}>Import GPX <span>↑</span></button>
-        <input ref={fileInputRef} type="file" accept=".gpx" onChange={handleGpxFile} style={{ display: 'none' }} />
+        <button className="button button-quiet" type="button" onClick={() => fileInputRef.current?.click()}>Import file <span>↑</span></button>
+        <input ref={fileInputRef} type="file" accept=".gpx,.kml" onChange={handleImportFile} style={{ display: 'none' }} aria-label="GPX or KML file" />
+        <button className="button button-quiet" type="button" onClick={() => setShowMyMaps(true)}>Google My Maps <span>↓</span></button>
         <Link className="button button-quiet" to="/waypoints">All maps <span>→</span></Link>
       </div>
     </div>
 
-    {gpxError && <p className="form-error">{gpxError}</p>}
+    {importError && <p className="form-error">{importError}</p>}
 
     <section className="table-card waypoint-map-section">
       <WaypointLeafletMap waypoints={waypoints} onMapClick={handleMapClick} addingMode={addingMode} />
@@ -226,14 +266,14 @@ export default function WaypointDetail() {
 
     <section className="table-card">
       <div className="section-heading"><div><span className="eyebrow">PINS</span><h2>{waypoints.length} waypoint{waypoints.length === 1 ? '' : 's'}</h2></div></div>
-      {waypoints.length === 0 && <p className="month-empty">No waypoints yet. Drop a pin or import a GPX file.</p>}
+      {waypoints.length === 0 && <p className="month-empty">No waypoints yet. Drop a pin, import a GPX or KML file, or pull in a Google My Maps map.</p>}
       {waypoints.length > 0 && <ul className="waypoint-list">
         {waypoints.map((waypoint) => <li key={waypoint.id} className="waypoint-row">
           <div className="waypoint-row-info">
             <strong>{waypoint.name}</strong>
             <span className="waypoint-row-coords">{waypoint.lat.toFixed(4)}, {waypoint.lng.toFixed(4)}</span>
             {waypoint.notes && <p>{waypoint.notes}</p>}
-            <span className="muted-label">Added by {waypoint.created_by_name}{waypoint.source === 'gpx' ? ' · GPX import' : ''}</span>
+            <span className="muted-label">Added by {waypoint.created_by_name}{SOURCE_LABELS[waypoint.source] ? ` · ${SOURCE_LABELS[waypoint.source]}` : ''}</span>
           </div>
           {(waypoint.created_by === user?.id || map.isOwner) && <button className="license-remove" type="button" onClick={() => handleDeleteWaypoint(waypoint.id)} aria-label={`Delete ${waypoint.name}`}>×</button>}
         </li>)}
@@ -257,7 +297,8 @@ export default function WaypointDetail() {
     {map.isOwner && <p className="tournament-danger-zone"><button type="button" className="button button-danger" onClick={() => setConfirmingDelete(true)}>Delete this map</button></p>}
 
     {pendingPin && <NamePinModal lat={pendingPin.lat} lng={pendingPin.lng} onClose={() => setPendingPin(null)} onSaved={(waypoint) => { setWaypoints((previous) => [...previous, waypoint]); setPendingPin(null); }} />}
-    {gpxPreview && <ImportGpxModal points={gpxPreview} fileName={gpxFileName} onClose={() => setGpxPreview(null)} onImported={(imported) => { setWaypoints((previous) => [...previous, ...imported]); setGpxPreview(null); }} />}
+    {showMyMaps && <MyMapsLinkModal onClose={() => setShowMyMaps(false)} onFound={(preview) => { setShowMyMaps(false); setImportPreview(preview); }} />}
+    {importPreview && <ImportPointsModal preview={importPreview} onClose={() => setImportPreview(null)} onImported={(imported) => { setWaypoints((previous) => [...previous, ...imported]); setImportPreview(null); }} />}
     {confirmingDelete && <DeleteMapModal mapName={map.name} deleting={deleting} onCancel={() => setConfirmingDelete(false)} onConfirm={handleDeleteMap} />}
   </main>;
 }

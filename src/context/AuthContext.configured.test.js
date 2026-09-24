@@ -1080,7 +1080,7 @@ describe('waypoints', () => {
     });
   });
 
-  test('importWaypointsFromGpx bulk-inserts every point tagged as gpx-sourced', async () => {
+  test('importWaypoints bulk-inserts every point, tagged gpx by default', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('waypoints', { data: [{ id: 'wp-1' }, { id: 'wp-2' }], error: null });
     const points = [
@@ -1088,7 +1088,7 @@ describe('waypoints', () => {
       { name: 'Wreck', lat: 40.2, lng: -74.3, notes: '' },
     ];
 
-    const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points });
+    const response = await result.current.importWaypoints({ mapId: 'map-1', points });
 
     expect(response.error).toBeNull();
     expect(response.waypoints).toHaveLength(2);
@@ -1097,6 +1097,28 @@ describe('waypoints', () => {
       { map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Reef Spot', lat: 40.1, lng: -74.2, notes: 'Dusk bite', source: 'gpx' },
       { map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Wreck', lat: 40.2, lng: -74.3, notes: '', source: 'gpx' },
     ]);
+  });
+
+  test('importWaypoints tags points from a KML/My Maps import as kml', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoints', { data: [{ id: 'wp-1' }], error: null });
+
+    await result.current.importWaypoints({ mapId: 'map-1', points: [{ name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River' }], source: 'kml' });
+
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoints')];
+    expect(call.value.insert).toHaveBeenCalledWith([
+      { map_id: 'map-1', created_by: 'user-1', created_by_name: 'Andre', name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River', source: 'kml' },
+    ]);
+  });
+
+  test('importWaypoints refuses a source the database would reject, without a round trip', async () => {
+    const result = await setupSignedIn();
+    const callsBefore = __mock.current.fromCalls.length;
+
+    const response = await result.current.importWaypoints({ mapId: 'map-1', points: [{ name: 'X', lat: 1, lng: 1, notes: '' }], source: 'shapefile' });
+
+    expect(response.error.message).toMatch(/unknown import source/i);
+    expect(__mock.current.fromCalls.length).toBe(callsBefore);
   });
 
   test('deleteWaypoint deletes the row', async () => {
