@@ -126,7 +126,8 @@ function InviteCollaboratorForm({ mapId, mapName, excludeUserIds, onInvited }) {
     setInviting(false);
     if (result?.error) { setError(result.error.message); return; }
     setSelected('');
-    onInvited(result.member);
+    // The inserted row carries no profile; attach the one just picked so the name shows.
+    onInvited({ ...result.member, profile: anglers.find((angler) => angler.id === selected) || null });
   }
 
   if (!available.length) return <p className="month-empty">Everyone's already on this map or been invited.</p>;
