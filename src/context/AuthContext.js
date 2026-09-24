@@ -924,13 +924,15 @@ export function AuthProvider({ children }) {
     return { error: null, waypoint: data };
   }
 
-  // points come pre-parsed from parseGpx (name/lat/lng/notes) — one bulk insert rather than
-  // one round trip per pin, since a chartplotter export can easily hold a few hundred.
-  async function importWaypointsFromGpx({ mapId, points }) {
+  // points come pre-parsed from parseGpx/parseKml (name/lat/lng/notes) — one bulk insert
+  // rather than one round trip per pin, since a chartplotter export can easily hold a few
+  // hundred.
+  async function importWaypoints({ mapId, points, source = 'gpx' }) {
     if (!points?.length) return { error: new Error('No waypoints to import.') };
+    if (source !== 'gpx' && source !== 'kml') return { error: new Error('Unknown import source.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before importing waypoints.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const rows = points.map((point) => ({ map_id: mapId, created_by: user.id, created_by_name: authorName, name: point.name, lat: point.lat, lng: point.lng, notes: point.notes || '', source: 'gpx' }));
+    const rows = points.map((point) => ({ map_id: mapId, created_by: user.id, created_by_name: authorName, name: point.name, lat: point.lat, lng: point.lng, notes: point.notes || '', source }));
     const { data, error } = await supabase.from('waypoints').insert(rows).select();
     if (error) { setNotice(error.message); return { error }; }
     return { error: null, waypoints: data || [] };
@@ -1106,7 +1108,7 @@ export function AuthProvider({ children }) {
     listFishingLicenses, uploadFishingLicense, updateFishingLicense, deleteFishingLicense,
     listMyWaypointMaps, getWaypointMap, createWaypointMap, deleteWaypointMap,
     listMapMembers, inviteToWaypointMap, removeMapMember, respondToWaypointInvite, listMyWaypointInvites,
-    listWaypoints, addWaypoint, importWaypointsFromGpx, deleteWaypoint,
+    listWaypoints, addWaypoint, importWaypoints, deleteWaypoint,
     getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

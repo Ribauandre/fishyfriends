@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import WaypointDetail from './WaypointDetail';
 import { useAuth } from './context/AuthContext';
+import { fetchMyMapsPoints } from './utils/googleMyMaps';
 
 jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }));
+jest.mock('./utils/googleMyMaps', () => ({ fetchMyMapsPoints: jest.fn() }));
 
 jest.mock('./components/WaypointLeafletMap', () => ({
   __esModule: true,
@@ -37,7 +39,7 @@ function makeBaseAuth(overrides = {}) {
     removeMapMember: jest.fn(),
     deleteWaypointMap: jest.fn(),
     addWaypoint: jest.fn(),
-    importWaypointsFromGpx: jest.fn(),
+    importWaypoints: jest.fn(),
     inviteToWaypointMap: jest.fn(),
     listAnglers: jest.fn().mockResolvedValue([]),
     ...overrides,
@@ -90,11 +92,11 @@ test('clicking the map while in adding mode opens the name-pin form and saves it
 });
 
 test('importing a GPX file previews and confirms the import', async () => {
-  const importWaypointsFromGpx = jest.fn().mockResolvedValue({
+  const importWaypoints = jest.fn().mockResolvedValue({
     error: null,
     waypoints: [{ id: 'wp-1', name: 'Wreck', lat: 1, lng: 2, notes: '', created_by: 'user-1', created_by_name: 'Andre', source: 'gpx' }],
   });
-  useAuth.mockReturnValue(makeBaseAuth({ importWaypointsFromGpx }));
+  useAuth.mockReturnValue(makeBaseAuth({ importWaypoints }));
   renderDetail();
   await screen.findByRole('heading', { name: 'Backwater Spots' });
 
@@ -108,7 +110,7 @@ test('importing a GPX file previews and confirms the import', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: /^import 1/i }));
 
-  await waitFor(() => expect(importWaypointsFromGpx).toHaveBeenCalledWith({ mapId: 'map-1', points: expect.any(Array) }));
+  await waitFor(() => expect(importWaypoints).toHaveBeenCalledWith({ mapId: 'map-1', points: expect.any(Array), source: 'gpx' }));
   expect(await screen.findByText('Wreck')).toBeInTheDocument();
 });
 
@@ -122,6 +124,65 @@ test('shows a parse error for a malformed GPX file without opening the import mo
 
   expect(await screen.findByText(/doesn't look like valid gpx/i)).toBeInTheDocument();
   expect(screen.queryByText(/import from bad.gpx/i)).not.toBeInTheDocument();
+});
+
+test('importing a KML file previews its pins, says what was skipped, and imports them as kml', async () => {
+  const importWaypoints = jest.fn().mockResolvedValue({
+    error: null,
+    waypoints: [{ id: 'wp-1', name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River', created_by: 'user-1', created_by_name: 'Andre', source: 'kml' }],
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ importWaypoints }));
+  renderDetail();
+  await screen.findByRole('heading', { name: 'Backwater Spots' });
+
+  const kml = `<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Folder><name>Black River</name>
+    <Placemark><name>Deep Pool</name><Point><coordinates>-74.72,40.77,0</coordinates></Point></Placemark>
+    <Placemark><name>Trail</name><LineString><coordinates>1,2 3,4</coordinates></LineString></Placemark>
+  </Folder></Document></kml>`;
+  await userEvent.upload(document.querySelector('input[type="file"]'), new File([kml], 'spots.kml', { type: 'application/vnd.google-earth.kml+xml' }));
+
+  expect(await screen.findByText(/import from spots.kml/i)).toBeInTheDocument();
+  expect(screen.getByText(/1 line or shape skipped/i)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: /^import 1/i }));
+
+  await waitFor(() => expect(importWaypoints).toHaveBeenCalledWith({ mapId: 'map-1', points: [{ name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River' }], source: 'kml' }));
+  expect(await screen.findByText('Deep Pool')).toBeInTheDocument();
+  expect(screen.getByText(/KML import/)).toBeInTheDocument();
+});
+
+describe('Google My Maps link', () => {
+  test('reads the pins from a pasted link and imports them as kml', async () => {
+    fetchMyMapsPoints.mockResolvedValue({ title: 'Fishing Spots', skipped: 0, points: [{ name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River' }] });
+    const importWaypoints = jest.fn().mockResolvedValue({ error: null, waypoints: [{ id: 'wp-1', name: 'Deep Pool', lat: 40.77, lng: -74.72, notes: 'Black River', created_by: 'user-1', created_by_name: 'Andre', source: 'kml' }] });
+    useAuth.mockReturnValue(makeBaseAuth({ importWaypoints }));
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Backwater Spots' });
+
+    await userEvent.click(screen.getByRole('button', { name: /google my maps/i }));
+    const link = 'https://www.google.com/maps/d/edit?hl=en&mid=1Scwx2cIMDclt0vRr_tcwG_7ByBE6WpA';
+    await userEvent.type(screen.getByLabelText(/map link/i), link);
+    await userEvent.click(screen.getByRole('button', { name: /find pins/i }));
+
+    expect(fetchMyMapsPoints).toHaveBeenCalledWith(link);
+    expect(await screen.findByText(/import from "fishing spots"/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^import 1/i }));
+    await waitFor(() => expect(importWaypoints).toHaveBeenCalledWith(expect.objectContaining({ mapId: 'map-1', source: 'kml' })));
+    expect(await screen.findByText('Deep Pool')).toBeInTheDocument();
+  });
+
+  test('shows why a link could not be read and keeps the form open to fix it', async () => {
+    fetchMyMapsPoints.mockRejectedValue(new Error('Couldn\'t open that map. In Google My Maps, tap Share and turn on "Anyone with this link can view", then try again.'));
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Backwater Spots' });
+
+    await userEvent.click(screen.getByRole('button', { name: /google my maps/i }));
+    await userEvent.type(screen.getByLabelText(/map link/i), 'https://www.google.com/maps/d/viewer?mid=1PRIVATEMAPIDxxxxxxxx');
+    await userEvent.click(screen.getByRole('button', { name: /find pins/i }));
+
+    expect(await screen.findByText(/anyone with this link can view/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/map link/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /find pins/i })).not.toBeDisabled();
+  });
 });
 
 test('only the waypoint creator or the map owner can delete a waypoint', async () => {

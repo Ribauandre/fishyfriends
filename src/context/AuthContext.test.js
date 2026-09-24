@@ -286,15 +286,15 @@ test('addWaypoint fails closed', async () => {
   expect(response.error.message).toMatch(/sign in before adding a waypoint/i);
 });
 
-test('importWaypointsFromGpx requires points before the configuration check', async () => {
+test('importWaypoints requires points before the configuration check', async () => {
   const result = await setup();
-  const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points: [] });
+  const response = await result.current.importWaypoints({ mapId: 'map-1', points: [] });
   expect(response.error.message).toMatch(/no waypoints to import/i);
 });
 
-test('importWaypointsFromGpx fails closed once points are given', async () => {
+test('importWaypoints fails closed once points are given', async () => {
   const result = await setup();
-  const response = await result.current.importWaypointsFromGpx({ mapId: 'map-1', points: [{ name: 'Spot', lat: 40, lng: -74, notes: '' }] });
+  const response = await result.current.importWaypoints({ mapId: 'map-1', points: [{ name: 'Spot', lat: 40, lng: -74, notes: '' }] });
   expect(response.error.message).toMatch(/sign in before importing waypoints/i);
 });
 
