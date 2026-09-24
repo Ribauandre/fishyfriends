@@ -68,6 +68,8 @@ Everything is Supabase-backed now — profiles/avatars, personal bests + their l
 
 To ship a schema change: add the next-numbered file to `supabase/migrations/`, write it idempotently, push to `deploy`. No manual SQL-editor step needed.
 
+An `.insert(...).select()` from the client is an `INSERT ... RETURNING`, and Postgres makes the new row pass the table's **SELECT** policy too, not just its INSERT policy. A SELECT policy that decides visibility by querying the same table (e.g. through a `security definer` helper) can't see the row that statement is inserting, so the insert fails with "new row violates row-level security policy" even for the rightful owner. Waypoints shipped with exactly that (fixed in `0026`). Give such a policy a direct check on the row's own columns (`auth.uid() = owner_id or …`). The only way to catch this before deploy is to run the migration against a real Postgres (Postgres 16 is installed in the dev container) with `set role authenticated` and `request.jwt.claims` set, stubbing `auth.uid()` the way Supabase defines it. The Jest mock can't catch it.
+
 ### Testing infrastructure
 
 - `src/test-utils/supabaseMock.js` — chainable fake for the Supabase query builder (`select/eq/order/insert/update/delete/upsert/maybeSingle`, all awaitable) plus `auth`/`storage` fakes. Script a table's response with `setResponse(table, response)`. Also fakes `channel`/`removeChannel` for Realtime: `.on('postgres_changes', { table }, cb)` registrations are recorded by table, and a test triggers one with `await __mock.current.emitPostgresChange(table, newRow)`.
