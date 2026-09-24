@@ -1,5 +1,6 @@
-import { rollSpecies, PITY_CAP, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf, rollJunk, isJunk, JUNK_CHANCE, RARITY_INFO } from './gameSpecies';
+import { rollSpecies, PITY_CAP, JUNK_ROSTER, sizeGrade, gradeCounts, rollSize, isNewRecord, sizeLabel, sizeFraction, lengthFraction, difficultyFor, NOCTURNAL, SPECIES_SIZE, SEASONS, inSeason, speciesWeight, rarityOf, rollJunk, isJunk, JUNK_CHANCE, RARITY_INFO } from './gameSpecies';
 import { BIOMES, biomeUnlocked, CANYON_CHARTER_COST, charterFare, isRegular, REGULAR_FARE } from './gameBiomes';
+import { rebuildCost, rebuildBonus, effectiveLevel, MAX_REBUILDS } from './gameUpgrades';
 import { LURES, FLIES, FLY_ROD, luresFor, lureAllowedOn, hatchMatch, isFly } from './gameLures';
 
 // A random source that returns the given values in order (and the last one forever after).
@@ -73,7 +74,11 @@ test('a fish out of season is not in the water, and never the whole roster at on
 });
 
 test('a stick bites now and then, never runs, and is worth nothing', () => {
-  expect(rollJunk(() => JUNK_CHANCE / 2)).toEqual({ species: 'stick', rarity: 'junk' });
+  expect(rollJunk(sequence(JUNK_CHANCE / 2, 0))).toEqual({ species: 'stick', rarity: 'junk' });
+  // The flotsam roster: mostly sticks, and the rest now and then; none on any ground.
+  expect(rollJunk(sequence(JUNK_CHANCE / 2, 0.99)).species).toBe('bottle');
+  expect(new Set(JUNK_ROSTER)).toEqual(new Set(['stick', 'boot', 'plate', 'bottle']));
+  JUNK_ROSTER.forEach((piece) => expect(rarityOf(piece)).toBe('junk'));
   expect(rollJunk(() => JUNK_CHANCE * 2)).toBeNull();
   expect(rollJunk(() => 0.5)).toBeNull();
   expect(isJunk('junk')).toBe(true);
@@ -209,4 +214,24 @@ test('a charter is full fare until you are a regular there, then half', () => {
   // Records on another ground do not make you a regular here, and a free ground has no fare.
   expect(charterFare('flats', more)).toBe(BIOMES.flats.charterCost);
   expect(charterFare('river', more)).toBe(0);
+});
+
+test('a record is graded by where it sits in the species\' size range, and flotsam is never graded', () => {
+  const [min, max] = SPECIES_SIZE.pike;
+  expect(sizeGrade('pike', min)).toBe('bronze');
+  expect(sizeGrade('pike', min + (max - min) * 0.6)).toBe('silver');
+  expect(sizeGrade('pike', max)).toBe('gold');
+  expect(sizeGrade('pike', 0)).toBeNull();
+  expect(gradeCounts({ pike: { size_in: max }, bluegill: { size_in: SPECIES_SIZE.bluegill[0] }, stick: { size_in: 30 } })).toEqual({ bronze: 1, silver: 0, gold: 1 });
+});
+
+test('a rebuild plays a track above its number, costs more each time, and the club makes a charter free', () => {
+  expect(rebuildCost(0)).toBe(1500);
+  expect(rebuildCost(2)).toBe(2500);
+  expect(rebuildBonus(2)).toBe(1);
+  expect(rebuildBonus(99)).toBe(MAX_REBUILDS * 0.5);
+  expect(effectiveLevel({ rod_level: 1, rebuilds: { rod: 3 } }, 'rod')).toBe(2.5);
+  expect(effectiveLevel({ rod_level: 5 }, 'rod')).toBe(5);
+  expect(charterFare('baja', {}, { member: true })).toBe(0);
+  expect(charterFare('baja', {})).toBe(BIOMES.baja.charterCost);
 });

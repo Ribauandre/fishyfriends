@@ -17,6 +17,7 @@ export const NPCS = {
 // sizes up your balance.
 export function outfitterLine({ gameProfile, event }) {
   if (event?.type === 'error') return `${event.message} No harm in looking, though.`;
+  if (event?.type === 'buy' && event.slot === 'decor') return `The ${event.label.toLowerCase()} — it'll be on your deck when you get back out there. Makes the place yours.`;
   if (event?.type === 'buy' && event.slot === 'pet') return `The ${event.label.toLowerCase()} — they'll sit with you on the dock and mind the bait bucket. Go on, off you go together.`;
   if (event?.type === 'buy') return `The ${event.label.toLowerCase()} — good choice. It's yours; wear it out if you like.`;
   if (event?.type === 'look') return "There we go. Looking sharp.";
@@ -30,6 +31,8 @@ export function outfitterLine({ gameProfile, event }) {
 export function shopkeeperLine({ gameProfile, event, personalBests = [], bounties = [] }) {
   if (event?.type === 'error') return `${event.message} Don't take it personal.`;
   if (event?.type === 'upgrade') return `That ${event.label.toLowerCase()} will treat you right. Anything else?`;
+  if (event?.type === 'rebuild') return `Stripped that ${event.label.toLowerCase()} to the frame and built it back better. Level one again — but it'll always fish a little above its number now.`;
+  if (event?.type === 'club') return "Charter club. Ray's boats are yours whenever you want them, no fare. Told him you'd pay it back in fish.";
   if (event?.type === 'lure') return `Good eye. The ${event.label.toLowerCase()} takes practice, but it pulls the big ones.`;
   if (event?.type === 'flyrod') return "A fly rod. Now you're an angler. The flies are on the dock at the river and the lake, and the shrimp fly's for the flats — match the hatch and mend that drift.";
   if (event?.type === 'quest') return `${event.points} points, as promised. She's going right over the counter.`;
@@ -40,7 +43,7 @@ export function shopkeeperLine({ gameProfile, event, personalBests = [], bountie
   if (bounties.length > 0) return `Saw ${bounties.length === 1 ? 'that real catch' : `${bounties.length} real catches`} in your logbook. Bounty board's paying — cash it in.`;
   const points = gameProfile?.tackle_points || 0;
   const maxedOut = ['rod_level', 'line_level', 'reel_level', 'bait_level'].every((column) => (gameProfile?.[column] || 1) >= 5);
-  if (maxedOut) return "Nothing left in here you don't already own. Go fish.";
+  if (maxedOut) return "Everything's maxed. I can strip a track down and rebuild it better, if you've got the points — or the charter club's on the wall.";
   if (points === 0) return "Browse all you like. Land something and we'll talk.";
   const latestBest = personalBests[personalBests.length - 1];
   if (latestBest && points >= 40) return `That ${latestBest.species.toLowerCase()} you logged for real${latestBest.size_label ? ` — ${latestBest.size_label}` : ''}? Wall-worthy. Now, ${points} points…`;
@@ -100,10 +103,17 @@ const HATCH_TIPS = {
   night: 'Big browns hunt after dark. Swim a streamer, slow.',
 };
 
+const JUNK_LINES = {
+  stick: "That's a stick. Happens to the best of us. Cast again.",
+  boot: "A boot. One boot. Somewhere there's a fella hopping home. It goes on the shelf, that's all it's good for.",
+  plate: "A licence plate — that's been down there a while. On the shelf with it, and cast again.",
+  bottle: "A bottle with a note in it. Can't read a word. Sal collects these; on the shelf.",
+};
+
 export function captainLine({ biome, chartered, charterError, phase, result, period = 'day', season = null, quests = {}, isRecord = false, champion = false, justWon = null, flyRod = false, lure = 'livebait' }) {
   if (charterError) return "No points, no boat. Earn your fare on the free water first.";
   if (justWon) return `Club champion. That ${speciesLabel(justWon.species).toLowerCase()} took the derby — the pennant's yours till Monday. Fly it.`;
-  if (phase === 'result' && result?.success && result.rarity === 'junk') return "That's a stick. Happens to the best of us. Cast again.";
+  if (phase === 'result' && result?.success && result.rarity === 'junk') return JUNK_LINES[result.species] || JUNK_LINES.stick;
   if (phase === 'result' && result?.success && isRecord) return `A ${speciesLabel(result.species).toLowerCase()} — and your biggest yet. That's one for the book.`;
   const charter = (BIOMES[biome]?.charterCost || 0) > 0;
   if (phase === 'result' && result?.success && charter) return `A ${speciesLabel(result.species).toLowerCase()}. That's why you charter.`;

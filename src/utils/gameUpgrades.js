@@ -20,6 +20,24 @@ export function upgradeCost(currentLevel) {
   return [40, 110, 230, 420][currentLevel - 1] ?? 420;
 }
 
+// The late game's sink: a maxed track can be *rebuilt* — back to level 1 for a permanent
+// bonus, half a level's worth per rebuild (rebuildBonus, added to the level the fight
+// formulas see), up to MAX_REBUILDS. Each rebuild costs more than the last, and the points
+// to level the track back up on top, so a maxed player always has somewhere to put a catch.
+export const MAX_REBUILDS = 5;
+export const REBUILD_LEVEL_BONUS = 0.5;
+export function rebuildCost(rebuilds = 0) { return 1500 + 500 * rebuilds; }
+export function rebuildBonus(rebuilds = 0) { return Math.min(MAX_REBUILDS, Math.max(0, rebuilds)) * REBUILD_LEVEL_BONUS; }
+// The level a track plays at: its bought level plus what its rebuilds earned.
+export function effectiveLevel(gameProfile, track) {
+  const level = gameProfile?.[`${track}_level`] || 1;
+  return level + rebuildBonus(gameProfile?.rebuilds?.[track] || 0);
+}
+
+// The charter club: one purchase, every charter free from then on (utils/gameBiomes.js
+// charterFare reads it).
+export const CHARTER_CLUB_COST = 1200;
+
 // Effective, upgrade-adjusted difficulty modifiers layered on top of a rarity's base numbers.
 export function hookWindowBonusMs(rodLevel) { return (rodLevel - 1) * 70; }
 export function tensionMaxFor(lineLevel) { return 100 + (lineLevel - 1) * 25; }

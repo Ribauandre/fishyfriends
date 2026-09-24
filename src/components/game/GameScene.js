@@ -8,7 +8,8 @@ import { LURES } from '../../utils/gameLures';
 import { RARITY_INFO, sizeFraction, lengthFraction, speciesLabel } from '../../utils/gameSpecies';
 import { MEND_ZONE } from '../../utils/lurePhysics';
 import { ANGLER_SPRITES, SPRITE_FRAME, anglerAction } from '../../utils/anglerSprites';
-import { lookKey, petOf } from '../../utils/anglerLook';
+import { lookKey, petOf, decorOf } from '../../utils/anglerLook';
+import { decorProp } from '../../utils/dockDecor';
 import { petSprite, PET_H, PET_OFFSET } from '../../utils/petSprites';
 import {
   PAINT_H, PAINT_W, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, pctX, pctY, pctW, pctH,
@@ -309,6 +310,19 @@ export default function GameScene({
         </React.Fragment>;
       })}
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(feet.x + stageLen(crewSlots[crewSlots.length - 1], frame) - 30, frame), top: pctY(feet.y - spriteH - 4) }}>+{crewExtra} more</span>}
+      {(() => {
+        // Your dock decoration (Marina's), standing at the layout's decor anchor on your own deck.
+        const prop = decorProp(decorOf(look));
+        if (!prop || !layout.decor) return null;
+        const lit = lampLight(layout.lamp, layout.decor.x, layout.decor.y, prop.h * layout.decor.scale, period);
+        return <img
+          className="scene-dock-prop scene-decor"
+          data-decor={decorOf(look)}
+          src={prop.src}
+          alt=""
+          style={{ left: pctX(stageX(layout.decor.x, frame), frame), top: pctY(stageY(layout.decor.y, frame)), height: pctH(prop.h * layout.decor.scale, frame), ...(lit > 0 ? { filter: `brightness(${round2(1 + 0.45 * lit)}) sepia(${round2(0.3 * lit)})` } : {}) }}
+        />;
+      })()}
       <PetSprite petKey={petOf(look)} mood={current.action === 'celebrate' ? 'cheer' : 'idle'} feet={{ x: feet.x + stageLen(PET_OFFSET.x, frame), y: feet.y + PET_OFFSET.y }} viewW={viewW} frame={frame} className="is-you" lit={lampLight(layout.lamp, layout.angler.x + PET_OFFSET.x, layout.angler.y, PET_H, period)} />
       <AnglerSprite feet={feet} boxH={spriteH} phase={phase} current={current} className="is-you" viewW={viewW} sheets={sheets} look={look} lit={lampLight(layout.lamp, layout.angler.x, layout.angler.y, layout.spriteH, period)} />
       {champion && <Pennant tip={rodTip} frame={frame} />}

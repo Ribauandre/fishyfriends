@@ -1224,6 +1224,29 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    frame, then two quick tail flicks to the second and back near the end. Cheering is the
    celebration strip stepped through on a fast loop while its angler celebrates. */
 .scene-pet { image-rendering: pixelated; }
+.scene-decor { pointer-events: none; z-index: 1; }
+.decor-preview { height: 46px; image-rendering: pixelated; width: auto; }
+/* The late game: a rebuilt track wears its stars, the grades on a record, the tag and flotsam shelves. */
+.upgrade-rebuilt { color: #ffc93c; font-size: 12px; letter-spacing: 2px; }
+.button.is-rebuild { border-color: #ffc93c; color: #ffc93c; }
+.shop-club { background: rgba(3,8,11,.5); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 10px 12px; }
+.shop-club p { color: var(--ink); font-size: 13px; margin: 0; }
+.grade-pip { border: 1px solid #03080b; border-radius: 50%; display: inline-block; height: 9px; margin-left: 6px; vertical-align: middle; width: 9px; }
+.grade-pip.is-bronze, .grade-tag.is-bronze { background: #b87333; }
+.grade-pip.is-silver, .grade-tag.is-silver { background: #c9ced6; }
+.grade-pip.is-gold, .grade-tag.is-gold { background: #ffc93c; }
+.grade-tag { border: 1px solid #03080b; color: #03080b; font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 1px 6px; text-transform: uppercase; }
+.result-note { color: var(--ink); font-size: 13px; margin: 4px 0 0; }
+.result-note.is-tag strong { color: var(--mint); }
+.tag-shelf, .junk-shelf { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.tag-shelf-note { color: var(--muted); font-size: 12px; margin: 0; }
+.tag-shelf ul, .junk-shelf ul { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.fish-tag, .junk-card { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; text-align: center; }
+.fish-tag img, .junk-card img { max-width: 70px; }
+.fish-tag strong, .junk-card strong { font-size: 12px; }
+.fish-tag span { color: var(--muted); font-size: 11px; }
+.junk-card.is-unknown img { filter: brightness(0) opacity(.45); }
+.junk-card.is-unknown strong { color: var(--muted); }
 .scene-pet.is-idle { animation: pet-idle 1s step-end infinite; }
 @keyframes pet-idle { 0%, 80% { background-position-x: 0; } 80.01%, 84% { background-position-x: var(--pet-flick, 50%); } 84.01%, 88% { background-position-x: 0; } 88.01%, 92% { background-position-x: var(--pet-flick, 50%); } 92.01%, 100% { background-position-x: 0; } }
 .scene-pet.is-cheer { animation-iteration-count: infinite; animation-name: sprite-play; }

@@ -80,6 +80,9 @@ import spottedseatrout from '../assets/fish/spottedseatrout.png';
 import ladyfish from '../assets/fish/ladyfish.png';
 import lemonshark from '../assets/fish/lemonshark.png';
 import stick from '../assets/fish/stick.png';
+import boot from '../assets/fish/boot.png';
+import plate from '../assets/fish/plate.png';
+import bottle from '../assets/fish/bottle.png';
 import roosterfish from '../assets/fish/roosterfish.png';
 import yellowtail from '../assets/fish/yellowtail.png';
 import calicobass from '../assets/fish/calicobass.png';
@@ -189,6 +192,9 @@ const fishDetails = {
   sierra: { label: 'Sierra mackerel', src: sierra },
   // Not a fish: the junk catch (see rollJunk in utils/gameSpecies.js).
   stick: { label: 'A stick', src: stick },
+  boot: { label: 'An old boot', src: boot },
+  plate: { label: 'A licence plate', src: plate },
+  bottle: { label: 'A bottle with a note', src: bottle },
 };
 
 export const HERO_SPECIES = Object.keys(fishDetails);

@@ -23,7 +23,7 @@ describe('shopkeeperLine', () => {
 
   test('has nothing to sell once everything is maxed', () => {
     const maxed = { ...profile, rod_level: 5, line_level: 5, reel_level: 5, bait_level: 5 };
-    expect(shopkeeperLine({ gameProfile: maxed, event: null })).toMatch(/go fish/i);
+    expect(shopkeeperLine({ gameProfile: maxed, event: null })).toMatch(/rebuild it better/i);
   });
 });
 

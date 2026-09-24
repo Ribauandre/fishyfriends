@@ -2,9 +2,9 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
-import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL } from '../utils/gameUpgrades';
-import { OFFSHORE_CHARTER_COST, charterFare } from '../utils/gameBiomes';
-import { isNewRecord, speciesLabel, sizeLabel, rarityOf } from '../utils/gameSpecies';
+import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, MAX_REBUILDS, rebuildCost, CHARTER_CLUB_COST } from '../utils/gameUpgrades';
+import { charterFare } from '../utils/gameBiomes';
+import { isNewRecord, speciesLabel, sizeLabel, rarityOf, JUNK_ROSTER } from '../utils/gameSpecies';
 import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
 import { rankDerby, previousDerby } from '../utils/gameDerby';
 import { LURES, FLY_ROD } from '../utils/gameLures';
@@ -483,7 +483,7 @@ export function AuthProvider({ children }) {
     return { error: null };
   }
 
-  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], fly_rod: false, records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [] };
+  const GAME_DEFAULT_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], fly_rod: false, records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [], rebuilds: {}, charter_member: false, tags: [], junk_found: [] };
   const FISH_YEAR_BOUNTY_POINTS = 15;
 
   // Cast & Catch's tackle profile: spendable points plus gear levels. Fetch-on-demand, same
@@ -522,7 +522,11 @@ export function AuthProvider({ children }) {
   // catch into the almanac (a new species or a bigger one than before is a record) and every
   // open NPC quest, all in the same profile write. Purely a fun side game — this never
   // touches fish_year_catches or tournament_entries.
-  async function logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn = 0, biome = '' }) {
+  // `tagged` is the page's roll (TAG_CHANCE in FishingGame): a tagged fish is one another
+  // member caught before — the most recent catch of that species by someone else — and the
+  // tag (who, when, which catch) goes on the profile's `tags` as a collection. No row for the
+  // species by anyone else means no tag, however the roll went.
+  async function logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn = 0, biome = '', tagged = false }) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
     const row = { user_id: user.id, angler_name: authorName, species, rarity, size_label: label || '', points_earned: pointsEarned || 0, size_in: sizeIn || 0, biome };
@@ -534,10 +538,33 @@ export function AuthProvider({ children }) {
     const isRecord = isNewRecord(records, species, sizeIn);
     if (isRecord) records[species] = { size_in: sizeIn, catch_id: data?.id || null, at: new Date().toISOString() };
     const { quests, completed } = advanceQuests(currentGameProfile?.quests || {}, { species, sizeIn, biome });
+    let tag = null;
+    let tags = currentGameProfile?.tags || [];
+    if (tagged) {
+      const { data: earlier } = await supabase.from('game_catches').select('id, user_id, angler_name, created_at').eq('species', species).neq('user_id', user.id).order('created_at', { ascending: false }).limit(1);
+      const theirs = earlier?.[0];
+      if (theirs) {
+        tag = { species, from: theirs.angler_name || 'A club member', from_id: theirs.user_id, at: theirs.created_at, catch_id: theirs.id, found_at: new Date().toISOString() };
+        tags = [...tags, tag];
+      }
+    }
     const { data: updatedProfile, error: profileError } = await supabase.from('game_profiles')
-      .update({ tackle_points: nextPoints, records, quests, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
-    if (profileError) return { error: null, catchEntry: data, gameProfile: currentGameProfile, isRecord, completedQuests: completed };
-    return { error: null, catchEntry: data, gameProfile: updatedProfile, isRecord, completedQuests: completed };
+      .update({ tackle_points: nextPoints, records, quests, tags, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (profileError) return { error: null, catchEntry: data, gameProfile: currentGameProfile, isRecord, completedQuests: completed, tag };
+    return { error: null, catchEntry: data, gameProfile: updatedProfile, isRecord, completedQuests: completed, tag };
+  }
+
+  // Flotsam landed goes on the shelf (junk_found), once each; nothing else is written.
+  async function logJunk(species) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    if (!JUNK_ROSTER.includes(species)) return { error: new Error('Not flotsam.') };
+    const currentGameProfile = await getGameProfile();
+    const found = currentGameProfile?.junk_found || [];
+    if (found.includes(species)) return { error: null, gameProfile: currentGameProfile, isNew: false };
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ junk_found: [...found, species], updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data, isNew: true };
   }
 
   // Turns in a finished quest with its giver for the points it promised. Unlock rewards
@@ -638,13 +665,45 @@ export function AuthProvider({ children }) {
     return { error: null, gameProfile: data };
   }
 
+  // Rebuilds a maxed track: back to level 1 for a permanent bonus (utils/gameUpgrades.js).
+  async function rebuildTrack(trackKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before rebuilding your gear.') };
+    const track = UPGRADE_TRACKS.find((candidate) => candidate.key === trackKey);
+    if (!track) return { error: new Error('Unknown upgrade.') };
+    const currentGameProfile = await getGameProfile();
+    if ((currentGameProfile?.[track.column] || 1) < MAX_UPGRADE_LEVEL) return { error: new Error('Max it out first — a rebuild starts from the top.') };
+    const rebuilds = { ...(currentGameProfile?.rebuilds || {}) };
+    const done = rebuilds[trackKey] || 0;
+    if (done >= MAX_REBUILDS) return { error: new Error("That one's been rebuilt as far as it goes.") };
+    const cost = rebuildCost(done);
+    if ((currentGameProfile?.tackle_points || 0) < cost) return { error: new Error('Not enough tackle points yet.') };
+    rebuilds[trackKey] = done + 1;
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ [track.column]: 1, rebuilds, tackle_points: currentGameProfile.tackle_points - cost, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data, rebuilds: done + 1 };
+  }
+
+  // The charter club: one purchase, every charter free from then on.
+  async function joinCharterClub() {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before joining the club.') };
+    const currentGameProfile = await getGameProfile();
+    if (currentGameProfile?.charter_member) return { error: new Error("You're already a member.") };
+    if ((currentGameProfile?.tackle_points || 0) < CHARTER_CLUB_COST) return { error: new Error('Not enough tackle points yet.') };
+    const { data, error } = await supabase.from('game_profiles')
+      .update({ charter_member: true, tackle_points: currentGameProfile.tackle_points - CHARTER_CLUB_COST, updated_at: new Date().toISOString() }).eq('user_id', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, gameProfile: data };
+  }
+
   // Spends tackle points to charter a boat for an offshore trip — the epic/legendary species
   // only spawn out there (see utils/gameBiomes.js). One charter covers however many casts the
   // trip lasts; FishingGame only calls this again once the player has left and come back.
   async function charterBoat(biome = 'offshore') {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before chartering a boat.') };
     const currentGameProfile = await getGameProfile();
-    const cost = charterFare(biome, currentGameProfile?.records || {}) || OFFSHORE_CHARTER_COST;
+    const cost = charterFare(biome, currentGameProfile?.records || {}, { member: Boolean(currentGameProfile?.charter_member) });
+    if (cost === 0) return { error: null, gameProfile: currentGameProfile, free: true };
     if ((currentGameProfile?.tackle_points || 0) < cost) return { error: new Error('Not enough tackle points to charter a boat.') };
     const nextPoints = currentGameProfile.tackle_points - cost;
     const { data, error } = await supabase.from('game_profiles')
@@ -973,7 +1032,7 @@ export function AuthProvider({ children }) {
     listNotifications, markNotificationRead, markAllNotificationsRead,
     submitBugReport, listBugReports,
     listFishingLicenses, uploadFishingLicense, updateFishingLicense, deleteFishingLicense,
-    getGameProfile, listMyTrophies, logGameCatch, purchaseUpgrade, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
+    getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,
   }}>{children}</AuthContext.Provider>;
