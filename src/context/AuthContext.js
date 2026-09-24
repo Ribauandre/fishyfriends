@@ -841,13 +841,29 @@ export function AuthProvider({ children }) {
     return { ...data, isOwner: data.owner_id === user.id };
   }
 
+  // An RLS failure here could mean the policy is genuinely wrong, or it could mean the
+  // React-held `user` is stale and no longer matches who the Supabase auth server actually
+  // validates the request as. auth.getUser() re-checks the token against the server (unlike
+  // just reading the cached session), so the two can be told apart from the error alone.
+  async function withAuthDiagnostic(error) {
+    if (!isSupabaseConfigured) return error;
+    const { data, error: authError } = await supabase.auth.getUser();
+    const serverUserId = data?.user?.id;
+    const hint = authError
+      ? `auth check failed: ${authError.message}`
+      : serverUserId === user?.id
+        ? `session looks fine — server also sees you as ${serverUserId}`
+        : `session mismatch — app has you as ${user?.id || 'nobody'}, server says ${serverUserId || 'nobody (unauthenticated)'}`;
+    return { message: error.message, code: error.code, details: error.details, hint };
+  }
+
   async function createWaypointMap({ name, description }) {
     const trimmedName = name?.trim();
     if (!trimmedName) return { error: new Error('Name the map first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before creating a map.') };
     const row = { owner_id: user.id, name: trimmedName, description: description?.trim() || '' };
     const { data, error } = await supabase.from('waypoint_maps').insert(row).select().maybeSingle();
-    if (error) { setNotice(error.message); return { error }; }
+    if (error) { setNotice(error.message); return { error: await withAuthDiagnostic(error) }; }
     return { error: null, map: { ...data, isOwner: true, waypointCount: 0, memberCount: 0 } };
   }
 
