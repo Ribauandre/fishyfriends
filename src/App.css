@@ -1274,7 +1274,18 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .grade-tag { border: 1px solid #03080b; color: #03080b; font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 1px 6px; text-transform: uppercase; }
 .result-note { color: var(--ink); font-size: 13px; margin: 4px 0 0; }
 .result-note.is-tag strong { color: var(--mint); }
-.tag-shelf, .junk-shelf { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.tag-shelf, .junk-shelf, .club-records, .weekly-board { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.quest-row.is-weekly { border-left: 3px solid var(--mint); }
+.club-records ul { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.club-record { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; gap: 8px; padding: 6px 8px; }
+.club-record img { flex: none; width: 48px; }
+.club-record div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.club-record strong { font-size: 12px; }
+.club-record span { color: var(--muted); font-size: 11px; }
+.club-record.is-me { border-color: var(--mint); }
+.club-record.is-me span { color: var(--mint); }
+.club-record-bar { background: rgba(255,255,255,.12); display: block; height: 4px; overflow: hidden; width: 100%; }
+.club-record-bar b { background: var(--mint); display: block; height: 100%; }
 .tag-shelf-note { color: var(--muted); font-size: 12px; margin: 0; }
 .tag-shelf ul, .junk-shelf ul { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); list-style: none; margin: 0; padding: 0; }
 .fish-tag, .junk-card { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; text-align: center; }

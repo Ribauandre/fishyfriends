@@ -3,6 +3,7 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
 import { SPECIES_SIZE } from './utils/gameSpecies';
+import { weeklyFor } from './utils/gameWeekly';
 import { useAuth } from './context/AuthContext';
 import { stepReel } from './utils/reelPhysics';
 import { twitchJerk, stepCrank, stepDrift, mendLine } from './utils/lurePhysics';
@@ -43,6 +44,8 @@ function makeBaseAuth(overrides = {}) {
     logJunk: jest.fn().mockResolvedValue({ error: null, isNew: true }),
     rebuildTrack: jest.fn(),
     joinCharterClub: jest.fn(),
+    claimWeeklyBounty: jest.fn(),
+    listClubRecords: jest.fn().mockResolvedValue([]),
     saveLook: jest.fn().mockResolvedValue({ error: null }),
     ...overrides,
   };
@@ -807,7 +810,7 @@ test("Cap'n Ray tracks the proving quest on the dock and it completes on the thi
   await userEvent.click(screen.getByRole('button', { name: /^bay/i }));
   expect(screen.getByText(/1 more from the bay/i)).toBeInTheDocument();
   expect(screen.queryByText('2 / 3')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Quests · 1 on the board' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Quests · 4 on the board' }));
   expect(screen.getByRole('list', { name: /cap'n ray's quests/i })).toBeInTheDocument();
   expect(screen.getByText('2 / 3')).toBeInTheDocument();
   // The board says what to do and what it pays, not just a title and a count.
@@ -983,4 +986,39 @@ test('no pennant for a week you did not win', async () => {
   expect(screen.queryByText(/you won last week's derby/i)).toBeNull();
   expect(screen.queryByText('Champion', { selector: '.hud-chip' })).toBeNull();
   expect(document.querySelector('.scene-pennant')).toBeNull();
+});
+
+test("Ray's board carries this week's three bounties, counts a finished one on the dock, and pays out with a stamp", async () => {
+  const week = weeklyFor(NOON());
+  const ground = week.bounties[0];
+  const weekly = { key: week.key, progress: { ground: ground.goal.count }, claimed: [] };
+  const profileData = makeGameProfile({ weekly, bounty_stamps: 2 });
+  const claimWeeklyBounty = jest.fn().mockResolvedValue({ error: null, points: ground.points, gameProfile: { ...profileData, tackle_points: 100 + ground.points, bounty_stamps: 3, weekly: { ...weekly, claimed: ['ground'] } } });
+  useAuth.mockReturnValue(makeBaseAuth({ getGameProfile: jest.fn().mockResolvedValue(profileData), claimWeeklyBounty }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Quests · 1 to turn in' }));
+  expect(screen.getByRole('region', { name: /this week's bounties/i }).querySelectorAll('.quest-row.is-weekly').length).toBe(3);
+  expect(screen.getByText(week.key, { exact: false })).toBeInTheDocument();
+  expect(screen.getByText('2 bounty stamps in the case.')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: `Turn in · ${ground.points} pts` }));
+  expect(claimWeeklyBounty).toHaveBeenCalledWith('ground');
+  expect(await screen.findByText('3 bounty stamps in the case.')).toBeInTheDocument();
+  expect(document.querySelector('.quest-row[data-bounty="ground"] .quest-progress')).toHaveTextContent('Turned in');
+  // Last week's progress is nobody's business this week.
+  expect(document.querySelector('.quest-row[data-bounty="hours"] .quest-progress')).toHaveTextContent(`0 / ${week.bounties[2].goal.count}`);
+});
+
+test('the club records board names who holds each species, and marks yours', async () => {
+  const listClubRecords = jest.fn().mockResolvedValue([
+    { species: 'pike', sizeIn: 40, userId: 'user-1', anglerName: 'Andre', createdAt: '2026-06-01T00:00:00Z' },
+    { species: 'bluegill', sizeIn: 9, userId: 'u2', anglerName: 'Kevin', createdAt: '2026-06-02T00:00:00Z' },
+  ]);
+  useAuth.mockReturnValue(makeBaseAuth({ profile: { id: 'user-1', display_name: 'Andre', avatar_url: '' }, listClubRecords }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(await screen.findByText(/club records · you hold 1/i)).toBeInTheDocument();
+  expect(document.querySelector('.club-record[data-species="pike"]')).toHaveClass('is-me');
+  expect(document.querySelector('.club-record[data-species="bluegill"]')).toHaveTextContent('Kevin');
 });

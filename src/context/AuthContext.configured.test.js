@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { weeklyFor } from '../utils/gameWeekly';
 import React from 'react';
 import { AuthProvider, useAuth } from './AuthContext';
 
@@ -608,6 +609,29 @@ describe('Cast & Catch world', () => {
     __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 60, owned_lures: [], fly_rod: true }, error: null });
     await result.current.purchaseLure('dryfly');
     expect(builderFor('game_profiles').update).toHaveBeenCalledWith(expect.objectContaining({ owned_lures: ['dryfly'], tackle_points: 20 }));
+  });
+
+  test('a catch advances the weekly board in the same profile write, and a finished bounty pays points and a stamp', async () => {
+    const result = await setupSignedIn();
+    const week = weeklyFor();
+    const ground = week.bounties[0];
+    __mock.setResponse('game_catches', { data: { id: 'gc-1', species: 'bluegill', size_in: 8 }, error: null });
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 0, records: {}, quests: {}, weekly: { key: week.key, progress: { ground: ground.goal.count - 1 }, claimed: [] } }, error: null });
+    const logged = await result.current.logGameCatch({ species: 'bluegill', rarity: 'common', sizeLabel: '8 in', pointsEarned: 5, sizeIn: 8, biome: ground.goal.biome, period: 'day' });
+    expect(logged.completedWeekly).toContain('ground');
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ weekly: expect.objectContaining({ key: week.key, progress: expect.objectContaining({ ground: ground.goal.count }) }) }));
+    await expectError(result.current.claimWeeklyBounty('nothing'), /not on this week's board/i);
+    await expectError(result.current.claimWeeklyBounty('hours'), /not finished/i);
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, bounty_stamps: 4, weekly: { key: week.key, progress: { ground: ground.goal.count }, claimed: [] } }, error: null });
+    const paid = await result.current.claimWeeklyBounty('ground');
+    expect(paid.points).toBe(ground.points);
+    expect(builderFor('game_profiles').update).toHaveBeenLastCalledWith(expect.objectContaining({ tackle_points: 10 + ground.points, bounty_stamps: 5, weekly: expect.objectContaining({ claimed: ['ground'] }) }));
+    __mock.setResponse('game_profiles', { data: { user_id: 'user-1', tackle_points: 10, weekly: { key: week.key, progress: { ground: ground.goal.count }, claimed: ['ground'] } }, error: null });
+    await expectError(result.current.claimWeeklyBounty('ground'), /already turned in/i);
+    // The club records board reads the biggest rows and keeps one per species.
+    __mock.setResponse('game_catches', { data: [{ id: 'x', species: 'pike', size_in: 40, angler_name: 'Kevin', user_id: 'u2', created_at: '2026-06-01T00:00:00Z' }, { id: 'y', species: 'pike', size_in: 30, angler_name: 'Sal', user_id: 'u3', created_at: '2026-06-02T00:00:00Z' }], error: null });
+    const board = await result.current.listClubRecords();
+    expect(board).toEqual([expect.objectContaining({ species: 'pike', sizeIn: 40, anglerName: 'Kevin' })]);
   });
 
   test('a maxed track is rebuilt back to level 1 for a permanent bonus, and the club is one purchase', async () => {

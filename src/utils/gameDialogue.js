@@ -36,6 +36,7 @@ export function shopkeeperLine({ gameProfile, event, personalBests = [], bountie
   if (event?.type === 'lure') return `Good eye. The ${event.label.toLowerCase()} takes practice, but it pulls the big ones.`;
   if (event?.type === 'flyrod') return "A fly rod. Now you're an angler. The flies are on the dock at the river and the lake, and the shrimp fly's for the flats — match the hatch and mend that drift.";
   if (event?.type === 'quest') return `${event.points} points, as promised. She's going right over the counter.`;
+  if (event?.type === 'weekly') return `Ray's bounty — ${event.points} points and a stamp for the case. New board Monday.`;
   if (event?.type === 'bounty') return `${event.count === 1 ? 'One real fish' : `${event.count} real fish`} on the books — ${event.points} points. Keep logging them.`;
   const quests = gameProfile?.quests || {};
   const due = claimableQuests(quests).find((quest) => quest.giver === 'shopkeeper');

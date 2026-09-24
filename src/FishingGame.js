@@ -30,6 +30,7 @@ import {
 import { periodFor, seasonFor, SEASON_LABELS, msUntilNextPeriod, PERIOD_LABELS } from './utils/gameClock';
 import { unlockAudio, sfx, setAmbience, isMuted, toggleMuted, stopAllAudio } from './utils/gameAudio';
 import { derbyFor, isChampion, dateOfWeekKey, PENNANT_PRIZE } from './utils/gameDerby';
+import { weeklyFor, weeklyGoalLabel, bountyStatus, claimableWeekly, recordFraction } from './utils/gameWeekly';
 import { questsFor, questProgressLabel, questGoalLabel, questRewardLabel, questState, claimableQuests, advanceQuests, QUEST_BY_KEY } from './utils/gameQuests';
 
 const CAST_SWEET_SPOT = [40, 60];
@@ -41,7 +42,7 @@ const REEL_SOUND_MS = 110;
 const RESULT_ARM_MS = 700;
 // How long the logo stays on the stage after the dock is up.
 const SPLASH_MS = 1800;
-const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [], rebuilds: {}, charter_member: false, tags: [], junk_found: [] };
+const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [], rebuilds: {}, charter_member: false, tags: [], junk_found: [], weekly: {}, bounty_stamps: 0 };
 // One landed fish in twenty-five carries another member's tag (AuthContext.logGameCatch).
 const TAG_CHANCE = 0.04;
 
@@ -52,13 +53,14 @@ const TAG_CHANCE = 0.04;
 // leaving the screen. `clock` is injectable so the harness and tests can pick the hour.
 export default function FishingGame({ clock = () => new Date() }) {
   const {
-    profile, personalBests = [], getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, charterBoat, purchaseLure, purchaseFlyRod,
+    profile, personalBests = [], getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, claimWeeklyBounty, listClubRecords, charterBoat, purchaseLure, purchaseFlyRod,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin, purchaseApparel, saveLook,
   } = useAuth();
   const [shopEvent, setShopEvent] = useState(null);
   const [gameProfile, setGameProfile] = useState(DEFAULT_GAME_PROFILE);
   // One card per species on the trophy wall: the biggest landed, per game_profiles.records.
   const [trophies, setTrophies] = useState([]);
+  const [clubRecords, setClubRecords] = useState(null);
   const [loading, setLoading] = useState(true);
   // The logo holds on the stage for a beat after the dock loads (the load itself is often too
   // quick to read), then slides off; it never takes a tap.
@@ -546,9 +548,10 @@ export default function FishingGame({ clock = () => new Date() }) {
     setLastCatch({ species: speciesLabel(species), at: Date.now() });
     setResult({ success: true, species, rarity, sizeLabel: label, sizeIn, pointsEarned, isRecord, completedQuests: completed, derbyFish: species === derby.species });
     setPhase('result');
-    Promise.resolve(logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn, biome, tagged })).then((response) => {
+    Promise.resolve(logGameCatch({ species, rarity, sizeLabel: label, pointsEarned, sizeIn, biome, tagged, period })).then((response) => {
       if (!response || response.error) return;
       if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+      if (response.completedWeekly?.length) setResult((current) => (current ? { ...current, completedWeekly: response.completedWeekly } : current));
       if (response.tag) setResult((current) => (current ? { ...current, tag: response.tag } : current));
       // Only a record changes the wall: it takes that species' hook. Anything smaller is
       // logged for the derby and the points, but the trophy stays the bigger one.
@@ -619,6 +622,17 @@ export default function FishingGame({ clock = () => new Date() }) {
     setShopEvent({ type: 'quest', points: response.points });
   }
 
+  async function handleWeeklyClaim(slot) {
+    if (!claimWeeklyBounty) return;
+    setQuestBusy(true);
+    const response = await claimWeeklyBounty(slot);
+    setQuestBusy(false);
+    if (response?.error) { setShopEvent({ type: 'error', message: response.error.message }); return; }
+    if (response.gameProfile) setGameProfile((current) => ({ ...current, ...response.gameProfile }));
+    sfx.coin(true);
+    setShopEvent({ type: 'weekly', points: response.points });
+  }
+
   async function handleBountyClaim() {
     if (!claimFishYearBounties) return;
     setBountyBusy(true);
@@ -632,12 +646,14 @@ export default function FishingGame({ clock = () => new Date() }) {
 
   // The derby board loads when the trophy case opens, so the dock never waits on it.
   useEffect(() => {
-    if (overlay !== 'trophies' || !listDerbyLeaders) return undefined;
+    if (overlay !== 'trophies') return undefined;
     let active = true;
     setDerbyLeaders(null);
-    listDerbyLeaders({ species: derby.species, since: derby.since }).then((rows) => { if (active) setDerbyLeaders(rows || []); });
+    Promise.resolve(listDerbyLeaders ? listDerbyLeaders({ species: derby.species, since: derby.since }) : []).then((rows) => { if (active) setDerbyLeaders(rows || []); });
+    setClubRecords(null);
+    Promise.resolve(listClubRecords ? listClubRecords() : []).then((rows) => { if (active) setClubRecords(rows || []); });
     return () => { active = false; };
-  }, [overlay, listDerbyLeaders, derby]);
+  }, [overlay, listDerbyLeaders, listClubRecords, derby]);
 
   // Real-life personal bests sit in the trophy case next to game catches, tagged so the two
   // never get confused — the point is that the angler in the game is the actual person.
@@ -655,6 +671,8 @@ export default function FishingGame({ clock = () => new Date() }) {
   const charterMember = Boolean(gameProfile.charter_member);
   const groundCost = biomeConfig.charterCost > 0 ? (chartered ? 'chartered' : charterMember ? 'charter · club member' : `charter · ${charterFare(biome, records)} pts${isRegular(biome, records) ? ' (regular)' : ''}`) : 'free';
   const captainQuests = questsFor('captain', quests);
+  const weekly = weeklyFor(clock());
+  const weeklyClaimable = claimableWeekly(gameProfile.weekly, clock());
   const shopQuests = questsFor('shopkeeper', quests);
   const captainClaimable = claimableQuests(quests).filter((quest) => quest.giver === 'captain');
   const almanacTotal = new Set(BIOME_LIST.flatMap((entry) => entry.species)).size;
@@ -774,8 +792,8 @@ export default function FishingGame({ clock = () => new Date() }) {
               <button type="button" className={`dock-icon ${overlay === 'crew' ? 'is-open' : ''}`} aria-pressed={overlay === 'crew'} aria-label={`On the water · ${crew.length === 0 ? 'just you' : `${crew.length} other${crew.length === 1 ? '' : 's'} out`}`} onClick={() => toggleOverlay('crew')}>
                 <img src={DOCK_ICONS.crew} alt="" />{crew.length > 0 && <small className="dock-icon-badge" aria-hidden="true">{crew.length}</small>}<span aria-hidden="true">Crew</span>
               </button>
-              <button type="button" className={`dock-icon ${overlay === 'quests' ? 'is-open' : ''} ${derby.grounds.includes(biome) ? 'is-derby' : ''}`} aria-pressed={overlay === 'quests'} aria-label={`Quests · ${captainClaimable.length > 0 ? `${captainClaimable.length} to turn in` : `${captainQuests.length} on the board`}`} onClick={() => toggleOverlay('quests')}>
-                <img src={DOCK_ICONS.quests} alt="" />{captainClaimable.length > 0 && <small className="dock-icon-badge is-claim" aria-hidden="true">{captainClaimable.length}</small>}<span aria-hidden="true">Quests</span>
+              <button type="button" className={`dock-icon ${overlay === 'quests' ? 'is-open' : ''} ${derby.grounds.includes(biome) ? 'is-derby' : ''}`} aria-pressed={overlay === 'quests'} aria-label={`Quests · ${captainClaimable.length + weeklyClaimable.length > 0 ? `${captainClaimable.length + weeklyClaimable.length} to turn in` : `${captainQuests.length + weekly.bounties.length} on the board`}`} onClick={() => toggleOverlay('quests')}>
+                <img src={DOCK_ICONS.quests} alt="" />{captainClaimable.length + weeklyClaimable.length > 0 && <small className="dock-icon-badge is-claim" aria-hidden="true">{captainClaimable.length + weeklyClaimable.length}</small>}<span aria-hidden="true">Quests</span>
               </button>
             </nav>
           </div>
@@ -850,6 +868,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             {result.rarity === 'junk' && result.isNewJunk && <p className="result-note">New on the flotsam shelf.</p>}
             {result.tag && <p className="result-note is-tag"><strong>Tagged fish!</strong> {result.tag.from} caught this one on {new Date(result.tag.at).toLocaleDateString()}. The tag's yours.</p>}
             {result.completedQuests?.map((key) => <p key={key} className="quest-complete">Quest complete: <strong>{QUEST_BY_KEY[key]?.title}</strong>{QUEST_BY_KEY[key]?.reward.unlocks ? ' — a new ground is on the map.' : ' — turn it in.'}</p>)}
+            {result.completedWeekly?.map((slot) => <p key={slot} className="quest-complete">Bounty done: <strong>{weekly.bounties.find((bounty) => bounty.slot === slot)?.title}</strong> — turn it in at Ray's board.</p>)}
           </> : <h3>{result.message}</h3>}
           {(biomeConfig.charterCost > 0 || result.isRecord || result.rarity === 'junk') && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
           <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
@@ -918,6 +937,21 @@ export default function FishingGame({ clock = () => new Date() }) {
 
       {overlay === 'quests' && <GameOverlay eyebrow="Cap'n Ray's board" title="Quests" onClose={() => setOverlay(null)}>
         {derby.grounds.includes(biome) && <p className="dock-derby"><img src={DERBY_FLAG} alt="" /> Derby water: the club is after <strong>{speciesLabel(derby.species).toLowerCase()}</strong> this week.</p>}
+        <section className="weekly-board" aria-label="This week's bounties">
+          <span className="eyebrow">THIS WEEK'S BOUNTIES · {weekly.key} · new board Monday</span>
+          <ul className="quest-list">
+            {weekly.bounties.map((bounty) => {
+              const status = bountyStatus(bounty, gameProfile.weekly, clock());
+              return <li key={bounty.slot} className={`quest-row is-weekly ${status.done ? 'is-done' : ''}`} data-bounty={bounty.slot}>
+                <span className="quest-title">{bounty.title}</span>
+                <span className="quest-progress">{status.claimed ? 'Turned in' : status.done ? 'Done — turn it in' : `${status.progress} / ${bounty.goal.count}`}</span>
+                <p className="quest-goal"><strong>To do:</strong> {weeklyGoalLabel(bounty)} <strong>Reward:</strong> {bounty.points} tackle points and a stamp.</p>
+                {status.claimable && <button type="button" className="button button-quiet quest-turn-in" disabled={questBusy} onClick={() => handleWeeklyClaim(bounty.slot)}>Turn in · {bounty.points} pts</button>}
+              </li>;
+            })}
+          </ul>
+          {(gameProfile.bounty_stamps || 0) > 0 && <p className="dock-hint">{gameProfile.bounty_stamps} bounty stamp{gameProfile.bounty_stamps === 1 ? '' : 's'} in the case.</p>}
+        </section>
         {captainQuests.length > 0 && <ul className="quest-list" aria-label="Cap'n Ray's quests">
           {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
             <span className="quest-title">{quest.title}</span>
@@ -1091,6 +1125,21 @@ export default function FishingGame({ clock = () => new Date() }) {
               <strong>{sizeLabel(row.sizeIn)}</strong>
             </li>)}
           </ol>}
+        </section>
+        <section className="club-records" aria-label="Club records">
+          <span className="eyebrow">CLUB RECORDS{clubRecords ? ` · you hold ${clubRecords.filter((row) => row.userId === profile?.id).length}` : ''}</span>
+          {clubRecords === null && <p className="month-empty">Checking the board...</p>}
+          {clubRecords?.length === 0 && <p className="month-empty">No club records yet. The first of each species to be landed takes it.</p>}
+          {clubRecords?.length > 0 && <ul>
+            {clubRecords.map((row) => <li key={row.species} className={`club-record ${row.userId === profile?.id ? 'is-me' : ''}`} data-species={row.species}>
+              <FishIllustration species={row.species} />
+              <div>
+                <strong>{speciesLabel(row.species)}</strong>
+                <span>{sizeLabel(row.sizeIn)} · {row.userId === profile?.id ? 'yours' : row.anglerName}</span>
+                <i className="club-record-bar"><b style={{ width: `${Math.round(recordFraction(row.species, row.sizeIn) * 100)}%` }} /></i>
+              </div>
+            </li>)}
+          </ul>}
         </section>
         {(gameProfile.tags || []).length > 0 && <section className="tag-shelf" aria-label="Fish tags">
           <span className="eyebrow">FISH TAGS · {gameProfile.tags.length}</span>
