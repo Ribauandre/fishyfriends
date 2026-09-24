@@ -988,6 +988,27 @@ describe('waypoint maps', () => {
     expect(call.value.insert).toHaveBeenCalledWith({ owner_id: 'user-1', name: 'My Spots', description: '' });
   });
 
+  test('createWaypointMap on an RLS failure cross-checks the server-validated session and reports a match', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: null, error: { message: 'new row violates row-level security policy for table "waypoint_maps"', code: '42501', details: null } });
+    __mock.current.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null });
+
+    const response = await result.current.createWaypointMap({ name: 'My Spots' });
+
+    expect(response.error.code).toBe('42501');
+    expect(response.error.hint).toMatch(/session looks fine — server also sees you as user-1/);
+  });
+
+  test('createWaypointMap on an RLS failure flags a session mismatch when the server disagrees on who is signed in', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_maps', { data: null, error: { message: 'new row violates row-level security policy for table "waypoint_maps"', code: '42501', details: null } });
+    __mock.current.auth.getUser.mockResolvedValue({ data: { user: { id: 'someone-else' } }, error: null });
+
+    const response = await result.current.createWaypointMap({ name: 'My Spots' });
+
+    expect(response.error.hint).toMatch(/session mismatch — app has you as user-1, server says someone-else/);
+  });
+
   test('deleteWaypointMap scopes the delete to the current owner', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('waypoint_maps', { data: null, error: null });
