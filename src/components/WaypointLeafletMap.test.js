@@ -14,6 +14,17 @@ test('renders one Leaflet marker per waypoint', () => {
   expect(container.querySelectorAll('.leaflet-marker-icon')).toHaveLength(2);
 });
 
+test('uses keyless OSM base tiles, darkened on their own layer so the seamark overlay keeps its colours', () => {
+  const { container } = render(<WaypointLeafletMap waypoints={[waypoint]} onMapClick={() => {}} addingMode={false} />);
+  const layers = [...container.querySelectorAll('.leaflet-layer')];
+  expect(layers).toHaveLength(2);
+  expect(layers[0]).toHaveClass('waypoint-base-tiles');
+  expect(layers[1]).not.toHaveClass('waypoint-base-tiles');
+  const tileSrcs = [...container.querySelectorAll('.leaflet-tile')].map((tile) => tile.src);
+  expect(tileSrcs.some((src) => src.startsWith('https://tile.openstreetmap.org/'))).toBe(true);
+  expect(tileSrcs.some((src) => src.includes('cartocdn'))).toBe(false);
+});
+
 test('renders no markers, and does not throw, with an empty waypoint list', () => {
   const { container } = render(<WaypointLeafletMap waypoints={[]} onMapClick={() => {}} addingMode={false} />);
   expect(container.querySelectorAll('.leaflet-marker-icon')).toHaveLength(0);

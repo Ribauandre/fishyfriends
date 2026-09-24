@@ -29,7 +29,10 @@ export function popupContentFor(waypoint) {
   return wrapper;
 }
 
-const DARK_BASE_TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+// Standard OSM tiles are keyless (CARTO's dark tiles, used first, now stamp "API KEY
+// REQUIRED" on every tile). They only come light, so the waypoint-base-tiles CSS filter
+// darkens this layer alone and the seamark overlay keeps its true buoy colours.
+const BASE_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const NAUTICAL_OVERLAY_TILES = 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png';
 const DEFAULT_CENTER = [39.5, -98.35];
 const DEFAULT_ZOOM = 4;
@@ -48,7 +51,7 @@ export default function WaypointLeafletMap({ waypoints, onMapClick, addingMode }
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const map = L.map(containerRef.current, { center: DEFAULT_CENTER, zoom: DEFAULT_ZOOM });
-    L.tileLayer(DARK_BASE_TILES, { attribution: '&copy; OpenStreetMap contributors &copy; CARTO', subdomains: 'abcd', maxZoom: 20 }).addTo(map);
+    L.tileLayer(BASE_TILES, { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19, className: 'waypoint-base-tiles' }).addTo(map);
     L.tileLayer(NAUTICAL_OVERLAY_TILES, { attribution: 'Seamarks: OpenSeaMap', maxZoom: 18 }).addTo(map);
     map.on('click', (event) => onMapClickRef.current?.(event.latlng.lat, event.latlng.lng));
     mapRef.current = map;
