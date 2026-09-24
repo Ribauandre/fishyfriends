@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import WaypointDetail from './WaypointDetail';
@@ -217,7 +217,7 @@ test('deleting a waypoint removes it from the list', async () => {
 });
 
 test('only the map owner sees the invite form, and inviting adds a member', async () => {
-  const inviteToWaypointMap = jest.fn().mockResolvedValue({ error: null, member: { id: 'mem-1', user_id: 'user-2', status: 'pending', profile: { display_name: 'Kevin' } } });
+  const inviteToWaypointMap = jest.fn().mockResolvedValue({ error: null, member: { id: 'mem-1', map_id: 'map-1', map_name: 'Backwater Spots', user_id: 'user-2', invited_by: 'user-1', status: 'pending' } });
   useAuth.mockReturnValue(makeBaseAuth({
     inviteToWaypointMap,
     listAnglers: jest.fn().mockResolvedValue([{ profile: { id: 'user-2', display_name: 'Kevin' } }]),
@@ -230,7 +230,12 @@ test('only the map owner sees the invite form, and inviting adds a member', asyn
   await userEvent.click(screen.getByRole('button', { name: /^invite$/i }));
 
   await waitFor(() => expect(inviteToWaypointMap).toHaveBeenCalledWith('map-1', 'Backwater Spots', 'user-2'));
-  await waitFor(() => expect(screen.getAllByText('Kevin').length).toBeGreaterThan(0));
+  // The inserted row the server hands back has no profile on it; the name has to come from
+  // the angler that was picked, or the pending invite reads "Angler".
+  const memberList = document.querySelector('.waypoint-member-list');
+  await waitFor(() => expect(within(memberList).getByText('Kevin')).toBeInTheDocument());
+  expect(within(memberList).getByText('PENDING')).toBeInTheDocument();
+  expect(within(memberList).queryByText('Angler')).not.toBeInTheDocument();
 });
 
 test('a non-owner does not see the invite form', async () => {
