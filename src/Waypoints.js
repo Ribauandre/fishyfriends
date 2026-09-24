@@ -3,6 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 
+// Supabase/Postgres errors carry more than .message (a .code, .details, .hint) — surfacing
+// those in-app means a misconfigured policy or connection can be diagnosed from a phone
+// with no way to open devtools, instead of asking someone to reproduce it again later.
+function describeError(error) {
+  if (!error) return '';
+  const extra = [error.code, error.details, error.hint].filter(Boolean).join(' — ');
+  return extra ? `${error.message} (${extra})` : error.message;
+}
+
 function CreateMapModal({ onClose, onCreated }) {
   const { createWaypointMap } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -14,7 +23,7 @@ function CreateMapModal({ onClose, onCreated }) {
     setSaving(true); setError('');
     const result = await createWaypointMap(form);
     setSaving(false);
-    if (result?.error) { setError(result.error.message); return; }
+    if (result?.error) { setError(describeError(result.error)); return; }
     onCreated(result.map);
   }
 

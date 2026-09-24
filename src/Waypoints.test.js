@@ -72,6 +72,21 @@ test('shows the server error and keeps the form open when creating a map fails',
   expect(await screen.findByText(/name the map first/i)).toBeInTheDocument();
 });
 
+test('shows the Postgres code/details/hint alongside the message for a database-level failure', async () => {
+  const createWaypointMap = jest.fn().mockResolvedValue({
+    error: { message: 'new row violates row-level security policy for table "waypoint_maps"', code: '42501', details: null, hint: null },
+  });
+  useAuth.mockReturnValue(makeBaseAuth({ createWaypointMap }));
+  renderWaypoints();
+  await screen.findByText(/no waypoint maps yet/i);
+
+  await userEvent.click(screen.getByRole('button', { name: /create a map/i }));
+  await userEvent.type(screen.getByLabelText(/^name$/i), 'Backwater Spots');
+  await userEvent.click(screen.getByRole('button', { name: /^create map/i }));
+
+  expect(await screen.findByText(/violates row-level security policy.*\(42501\)/i)).toBeInTheDocument();
+});
+
 describe('pending invites', () => {
   test('shows a pending invite and accepting it removes it from the list and refreshes maps', async () => {
     const respondToWaypointInvite = jest.fn().mockResolvedValue({ error: null });
