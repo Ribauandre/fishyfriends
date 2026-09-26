@@ -7,6 +7,7 @@ function goTo(path) {
 
 afterEach(() => {
   window.history.pushState({}, '', '/');
+  window.localStorage.clear();
 });
 
 test('renders the Fishy Friends account entry point', () => {
@@ -33,4 +34,11 @@ test('the navbar is hidden entirely until a session exists', () => {
   goTo('/account');
   render(<App />);
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+});
+
+test('a signed-out visitor to a shared link is sent to sign in with that link remembered', () => {
+  goTo('/trips/t1?from=share');
+  render(<App />);
+  expect(screen.getByRole('heading', { name: /sign in to your dock/i })).toBeInTheDocument();
+  expect(JSON.parse(window.localStorage.getItem('fishy:returnTo')).path).toBe('/trips/t1?from=share');
 });

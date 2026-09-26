@@ -18,18 +18,31 @@ import WaypointDetail from './WaypointDetail';
 import Trips from './Trips';
 import TripDetail from './TripDetail';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { rememberReturnTo, takeReturnTo } from './utils/returnTo';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="loading-screen">Loading your dock...</div>;
-  return user ? children : <Navigate to="/account" replace />;
+  if (user) return children;
+  // Signed out on a link someone shared: sign in, then land on it rather than on Home.
+  const from = `${location.pathname}${location.search}${location.hash}`;
+  rememberReturnTo(from);
+  return <Navigate to="/account" replace state={{ from }} />;
+}
+
+// The front door, where a sign-up's confirmation email lands: pick up the link that was
+// opened before signing up, if there was one.
+function RootRedirect() {
+  const [to] = React.useState(() => takeReturnTo() || '/home');
+  return <Navigate to={to} replace />;
 }
 
 function App() {
   return (
     <AuthProvider><Router><div className="App"><Navbar /><AppTour /><UpdateBanner /><div className="page-wrapper"><SectionTabs /><Routes>
-      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/account" element={<AuthPage />} />
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
