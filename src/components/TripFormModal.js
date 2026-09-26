@@ -47,9 +47,9 @@ export default function TripFormModal({ trip, onSave, onClose }) {
       </div>
       <label>Trip name<input required value={form.name} onChange={set('name')} placeholder="Montauk fall run" /></label>
       <label>Where<input value={form.location} onChange={set('location')} placeholder="Montauk Point" /></label>
-      <label>State (for the license check)
+      <label>State (optional)
         <select value={form.state} onChange={set('state')}>
-          <option value="">Not in the US / skip</option>
+          <option value="">—</option>
           {US_STATES.map((state) => <option key={state} value={state}>{state}</option>)}
         </select>
       </label>

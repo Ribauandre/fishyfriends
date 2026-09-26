@@ -1,5 +1,5 @@
 // Pure rules for fishing trips: who's going vs waitlisted, the equal split, who owes whom,
-// and whether an attendee's license covers the trip. All money is integer cents so a split
+// All money is integer cents so a split
 // never drifts by a floating-point penny.
 
 function joinOrder(a, b) {
@@ -87,19 +87,6 @@ export function settleUp(balanceList) {
 function todayIso(today) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-}
-
-// A private nudge for the angler looking at the trip, from their own licenses: nothing on
-// file for the trip's state, or the newest one lapses before the trip ends.
-export function licenseWarning(licenses, trip, today = new Date()) {
-  if (!trip?.state) return null;
-  if (trip.ends_on < todayIso(today)) return null;
-  const forState = (licenses || []).filter((license) => license.state === trip.state);
-  if (!forState.length) return `You don't have a ${trip.state} fishing license on file. If you have one, add it on your Profile so it's with you on the trip.`;
-  const newest = forState.reduce((best, license) => (license.expires_at > best.expires_at ? license : best));
-  if (newest.expires_at >= trip.ends_on) return null;
-  if (newest.expires_at < todayIso(today)) return `Your ${trip.state} fishing license expired on ${newest.expires_at}. Renew it before the trip.`;
-  return `Your ${trip.state} fishing license expires on ${newest.expires_at}, before this trip ends. Renew it before you go.`;
 }
 
 // Sign-ups close the day after the RSVP-by date, by the angler's own calendar.
