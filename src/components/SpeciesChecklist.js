@@ -7,12 +7,12 @@ import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 // own, so there's no need to dedupe the two lists first. Comparing against the canonical
 // label directly is enough; no need for the fuzzy alias matching speciesIcon does elsewhere,
 // which would falsely credit e.g. Steelhead for a plain Trout catch since they share icon art.
-export default function SpeciesChecklist({ personalBests, fishYearCatches = [] }) {
-  const [open, setOpen] = useState(false);
+export default function SpeciesChecklist({ personalBests, fishYearCatches = [], defaultOpen = false, id }) {
+  const [open, setOpen] = useState(defaultOpen);
   const caughtLabels = new Set([...personalBests, ...fishYearCatches].map((entry) => entry.species.trim().toLowerCase()));
   const caughtCount = SPECIES_OPTIONS.filter((option) => caughtLabels.has(option.label.toLowerCase())).length;
 
-  return <section className={`table-card species-board collapsible-section ${open ? 'is-open' : ''}`}>
+  return <section className={`table-card species-board collapsible-section ${open ? 'is-open' : ''}`} id={id}>
     <button type="button" className="section-heading collapsible-header" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
       <div><span className="eyebrow">FISH BINGO</span><span className="collapsible-header-title">Species checklist</span></div>
       <div className="collapsible-header-right">

@@ -6,6 +6,9 @@ import FishingConditions from './components/FishingConditions';
 import FishIllustration, { HERO_SPECIES } from './components/FishIllustration';
 import { FISH_YEAR } from './constants';
 import { licenseStatus } from './utils/licenseStatus';
+import { homeAgenda } from './utils/homeAgenda';
+import { localToday } from './components/TripFormModal';
+import LogCatchModal from './components/LogCatchModal';
 
 function randomHeroSpecies() {
   return HERO_SPECIES[Math.floor(Math.random() * HERO_SPECIES.length)];
@@ -40,12 +43,18 @@ function ShakyHeadline({ text }) {
 }
 
 export default function Home() {
-  const { profile, listRecentActivity, subscribeToActivity, listFishYearCatches, listFishingLicenses } = useAuth();
+  const { user, profile, listRecentActivity, subscribeToActivity, listFishYearCatches, listFishingLicenses, listMyWaypointInvites, listTrips, listTournaments, listTournamentEntries } = useAuth();
   const name = profile.display_name?.split(' ')[0] || 'angler';
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [fishYearCatches, setFishYearCatches] = useState([]);
   const [licenseAlerts, setLicenseAlerts] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [trips, setTrips] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
+  const [myTournamentIds, setMyTournamentIds] = useState([]);
+  const [logging, setLogging] = useState(false);
+  const today = localToday();
   // Picked once per visit (not per render) so it doesn't reshuffle on every state update —
   // just varies from one trip to the dashboard to the next.
   const [heroSpecies] = useState(randomHeroSpecies);
@@ -60,18 +69,22 @@ export default function Home() {
       if (!active) return;
       setLicenseAlerts(data.map((license) => ({ license, ...licenseStatus(license.expires_at) })).filter((entry) => entry.status !== 'valid'));
     });
+    listMyWaypointInvites().then((data) => { if (active) setInvites(data || []); });
+    listTrips().then((data) => { if (active) setTrips(data || []); });
+    listTournaments().then(async (data) => {
+      if (!active) return;
+      setTournaments(data || []);
+      // Only the running ones matter here, and there are rarely more than a couple.
+      const running = (data || []).filter((tournament) => tournament.starts_on <= today && today <= tournament.ends_on);
+      const boards = await Promise.all(running.map((tournament) => listTournamentEntries(tournament.id)));
+      if (active) setMyTournamentIds(running.filter((tournament, index) => (boards[index] || []).some((entry) => entry.user_id === user?.id)).map((tournament) => tournament.id));
+    });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const monthsCovered = new Set(fishYearCatches.map((c) => c.month)).size;
-  const anglersOnBoard = new Set(fishYearCatches.map((c) => c.user_id)).size;
-  const topSpecies = (() => {
-    if (!fishYearCatches.length) return '';
-    const counts = {};
-    fishYearCatches.forEach((c) => { counts[c.species] = (counts[c.species] || 0) + 1; });
-    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  })();
+  const agenda = homeAgenda({ today, userId: user?.id, profile, fishYear: FISH_YEAR, myFishYearCatches: fishYearCatches.filter((row) => row.user_id === user?.id), invites, trips, tournaments, myTournamentIds });
+  const dateLabel = new Date(`${today}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
 
   // Live-updates the feed the moment someone posts, via the same merge the initial fetch
   // above uses — so a catch that streams in before that fetch resolves isn't lost when it
@@ -81,9 +94,9 @@ export default function Home() {
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  return <main className="content-shell home-page">{licenseAlerts.length > 0 && <Link to="/profile" className="license-reminder-banner">
+  return <main className="content-shell home-page">{licenseAlerts.length > 0 && <Link to="/profile#licenses" className="license-reminder-banner">
     <span className="license-reminder-icon" aria-hidden="true">⚠</span>
     <p>{licenseAlerts.map((entry, index) => <React.Fragment key={entry.license.id}>{index > 0 ? ', ' : ''}<strong>{entry.license.state}</strong> license {entry.status === 'expired' ? 'has expired' : entry.label.toLowerCase()}</React.Fragment>)}</p>
     <span className="license-reminder-go">Manage licenses →</span>
-  </Link>}<section className="welcome-banner"><div><span className="eyebrow">DOCK REPORT · SEPT 5</span><ShakyHeadline text={`Look who dragged themselves in, ${name}.`} /><p>Somebody in this crew is about to beat your best fish this month. Don't let it be Kevin.</p><div className="hero-actions"><Link className="button button-primary" to="/fish-year">Log this month <span>→</span></Link><Link className="button button-quiet" to="/anglers">Post a personal best <span>→</span></Link></div></div><div className="fishing-scene" aria-hidden="true"><FishIllustration species={heroSpecies} className="hero-sticker" /></div></section><FishingConditions /><section className="table-card season-recap"><div className="section-heading"><div><span className="eyebrow">SEASON SO FAR</span><h2>What the crew's actually landed</h2></div></div><div className="participant-summary"><div><strong>{fishYearCatches.length}</strong><span>catches logged</span></div><div><strong>{monthsCovered}</strong><span>months covered</span></div><div><strong>{anglersOnBoard}</strong><span>anglers on the board</span></div><div><strong>{topSpecies || '—'}</strong><span>top species</span></div></div></section><ActivityFeed activity={activity} loading={activityLoading} /><section className="dock-notes"><div className="section-heading"><div><span className="eyebrow">CREW LOG</span><h2>What you've been slacking on</h2></div></div><div className="notes-board"><Link className="note-card note-card-one" to="/profile"><span className="note-pin" /><strong>Your profile's a ghost town</strong><p>Tell the crew your home water before they assume you fish from a bathtub.</p><span className="note-go">Fix it →</span></Link><Link className="note-card note-card-two" to="/fish-year"><span className="note-pin" /><strong>You haven't peeked at the board</strong><p>See who's ahead on Fish Year before someone starts talking trash about you.</p><span className="note-go">Take a look →</span></Link></div></section></main>;
+  </Link>}<section className="welcome-banner"><div><span className="eyebrow">DOCK REPORT · {dateLabel}</span><ShakyHeadline text={`Look who dragged themselves in, ${name}.`} /><p>Somebody in this crew is about to beat your best fish this month. Don't let it be Kevin.</p><div className="hero-actions"><button className="button button-primary" type="button" onClick={() => setLogging(true)}>Log a catch <span>＋</span></button><Link className="button button-quiet" to="/fish-year">See the board <span>→</span></Link></div></div><div className="fishing-scene" aria-hidden="true"><FishIllustration species={heroSpecies} className="hero-sticker" /></div></section><section className="table-card home-agenda"><div className="section-heading"><div><span className="eyebrow">ON YOUR PLATE</span><h2>What needs you</h2></div></div>{agenda.length === 0 ? <p className="month-empty">You're all caught up. Go fishing.</p> : <ul className="home-agenda-list">{agenda.map((item) => <li key={item.key}>{item.action === 'log' ? <button type="button" className="home-agenda-item" onClick={() => setLogging(true)}><strong>{item.title}</strong><span>{item.detail}</span><em aria-hidden="true">＋</em></button> : <Link className="home-agenda-item" to={item.to}><strong>{item.title}</strong><span>{item.detail}</span><em aria-hidden="true">→</em></Link>}</li>)}</ul>}</section><FishingConditions /><ActivityFeed activity={activity} loading={activityLoading} />{logging && <LogCatchModal onClose={() => setLogging(false)} onLogged={(results) => { const logged = results.find((entry) => entry.key === 'fishYear'); if (logged) setFishYearCatches((previous) => [...previous, logged.result.catchEntry]); }} />}</main>;
 }

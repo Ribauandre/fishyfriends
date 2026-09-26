@@ -28,6 +28,16 @@ function makeBaseAuth(overrides = {}) {
     updateFishingLicense: jest.fn(),
     deleteFishingLicense: jest.fn(),
     getMyPaymentContacts: jest.fn().mockResolvedValue({ zelle: '', apple_cash_phone: '' }),
+    deletePersonalBest: jest.fn().mockResolvedValue({ error: null }),
+    listFishYearCatches: jest.fn().mockResolvedValue([]),
+    listTournaments: jest.fn().mockResolvedValue([]),
+    listTrips: jest.fn().mockResolvedValue([]),
+    listComments: jest.fn().mockResolvedValue([]),
+    addComment: jest.fn(),
+    deleteComment: jest.fn(),
+    listLikes: jest.fn().mockResolvedValue([]),
+    likeTarget: jest.fn().mockResolvedValue({ error: null }),
+    unlikeTarget: jest.fn().mockResolvedValue({ error: null }),
     saveMyPaymentContacts: jest.fn(),
     ...overrides,
   };
@@ -314,4 +324,55 @@ test('the bug-report inbox link is on Profile, for the admin only', () => {
   useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'user-1', email: 'ribauandre@yahoo.com' } }));
   renderProfile();
   expect(screen.getByRole('link', { name: /bug reports/i })).toHaveAttribute('href', '/admin/bugs');
+});
+
+describe('your personal bests and species checklist', () => {
+  const bests = [{ id: 'pb-1', user_id: 'user-1', species: 'Striped Bass', size_label: '38 in', caught_at: '2026-05-01', photo_url: '' }];
+
+  test('your personal bests are listed on Profile, with an empty state when there are none', async () => {
+    const { unmount } = renderProfile();
+    expect(screen.getByText(/no personal bests yet/i)).toBeInTheDocument();
+    unmount();
+    useAuth.mockReturnValue(makeBaseAuth({ personalBests: bests }));
+    renderProfile();
+    const section = screen.getByText('Personal bests').closest('section');
+    expect(within(section).getByText('Striped Bass')).toBeInTheDocument();
+    expect(within(section).getByText(/38 in/)).toBeInTheDocument();
+  });
+
+  test('Log a personal best opens the one Log a catch form with Personal best ticked', async () => {
+    renderProfile();
+    await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
+    const form = screen.getByRole('dialog', { name: /log a catch/i });
+    expect(within(form).getByRole('checkbox', { name: /personal best/i })).toBeChecked();
+    expect(within(form).getByRole('checkbox', { name: /fish year/i })).not.toBeChecked();
+  });
+
+  test('the species checklist is collapsed by default, showing only a caught-count summary', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ personalBests: bests }));
+    renderProfile();
+    expect(await screen.findByText(/species caught/i)).toBeInTheDocument();
+    expect(screen.queryByText('Carp')).not.toBeInTheDocument();
+  });
+
+  test('it credits your personal bests and your own Fish Year catches, not anyone else\'s', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      personalBests: bests,
+      listFishYearCatches: jest.fn().mockResolvedValue([
+        { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Carp' },
+        { id: 'fy-2', user_id: 'user-2', month: 'April', species: 'Bluegill' },
+      ]),
+    }));
+    renderProfile();
+    await userEvent.click(await screen.findByRole('button', { name: /species checklist/i }));
+    const board = screen.getByRole('button', { name: /species checklist/i }).closest('section');
+    await waitFor(() => expect(within(board).getByText('Carp').closest('.species-cell')).toHaveClass('is-caught'));
+    expect(within(board).getByText('Striped Bass').closest('.species-cell')).toHaveClass('is-caught');
+    expect(within(board).getByText('Bluegill').closest('.species-cell')).toHaveClass('is-missing');
+  });
+
+  test('a link to #fish-bingo opens the checklist', () => {
+    render(<MemoryRouter initialEntries={['/profile#fish-bingo']}><Profile /></MemoryRouter>);
+    expect(screen.getByRole('button', { name: /species checklist/i })).toHaveAttribute('aria-expanded', 'true');
+  });
 });

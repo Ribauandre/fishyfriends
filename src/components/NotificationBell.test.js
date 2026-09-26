@@ -70,7 +70,7 @@ test('clicking a notification marks it read and navigates to its target', async 
   await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
   await userEvent.click(await screen.findByText(/kevin liked your personal best/i));
   expect(markNotificationRead).toHaveBeenCalledWith('n-1');
-  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1'));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/profile?best=pb-1'));
 });
 
 test('clicking an already-read notification navigates without marking it read again', async () => {
@@ -94,14 +94,14 @@ test('a comment notification with a comment_id navigates with a &comment= param 
   renderBell({ listNotifications: jest.fn().mockResolvedValue([withComment]) });
   await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
   await userEvent.click(await screen.findByText(/sam commented on your personal best/i));
-  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1&comment=c-9'));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/profile?best=pb-1&comment=c-9'));
 });
 
 test('a like notification (no comment_id) navigates without a &comment= param', async () => {
   renderBell({ listNotifications: jest.fn().mockResolvedValue(notifications) });
   await userEvent.click(screen.getByRole('button', { name: /notifications/i }));
   await userEvent.click(await screen.findByText(/kevin liked your personal best/i));
-  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/anglers?best=pb-1'));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/profile?best=pb-1'));
   expect(screen.getByTestId('location')).not.toHaveTextContent('comment=');
 });
 
@@ -148,4 +148,15 @@ test('trip notifications read naturally and open the trip', async () => {
 
   await userEvent.click(screen.getByText('Kevin added a trip expense'));
   await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/trips/trip-1'));
+});
+
+test('a waypoint map invite reads naturally and opens Waypoints, where the invite is', async () => {
+  renderBell({
+    listNotifications: jest.fn().mockResolvedValue([
+      { id: 'n-10', type: 'map_invite', target_type: 'waypoint_map', target_id: 'map-1', actor_name: 'Kevin', preview: 'Backwater Spots', read: false, created_at: '2026-01-05' },
+    ]),
+  });
+  await userEvent.click(await screen.findByRole('button', { name: /notifications, 1 unread/i }));
+  await userEvent.click(screen.getByText('Kevin invited you to a waypoint map'));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/waypoints'));
 });

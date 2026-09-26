@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import SpeciesSelect from './components/SpeciesSelect';
 import { US_STATES } from './utils/usStates';
 import { licenseStatus } from './utils/licenseStatus';
 import PaymentContactsSection from './components/PaymentContactsSection';
+import AnglerBestItem from './components/AnglerBestItem';
+import SpeciesChecklist from './components/SpeciesChecklist';
+import LogCatchModal from './components/LogCatchModal';
+import { FISH_YEAR } from './constants';
 import { ADMIN_EMAIL } from './AdminBugReports';
 
 function licenseStatusBadgeClass(status) {
@@ -134,7 +138,7 @@ function FishingLicensesSection() {
 
   const alertCount = (licenses || []).filter((license) => licenseStatus(license.expires_at).status !== 'valid').length;
 
-  return <section className="settings-card fishing-licenses-panel">
+  return <section className="settings-card fishing-licenses-panel" id="licenses">
     <div className="section-heading">
       <div><span className="eyebrow">SHOW THE WARDEN</span><h2>Fishing licenses</h2></div>
       <div className="license-heading-actions">
@@ -169,8 +173,26 @@ function FishingLicensesSection() {
 }
 
 export default function Profile() {
-  const { user, profile, personalBests, updateProfile, uploadAvatar, signOut, notice, setNotice, submitBugReport } = useAuth();
+  const { user, profile, personalBests, updateProfile, uploadAvatar, signOut, notice, setNotice, submitBugReport, deletePersonalBest, listFishYearCatches } = useAuth();
   const [form, setForm] = useState(profile);
+  const [myFishYear, setMyFishYear] = useState([]);
+  const [loggingBest, setLoggingBest] = useState(false);
+  const { hash } = useLocation();
+  const [searchParams] = useSearchParams();
+  const highlightBestId = searchParams.get('best');
+  const highlightCommentId = searchParams.get('comment');
+
+  useEffect(() => {
+    let active = true;
+    listFishYearCatches(FISH_YEAR).then((rows) => { if (active) setMyFishYear((rows || []).filter((row) => row.user_id === user?.id)); });
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Other pages link straight to a part of Profile (#licenses, #getting-paid, #fish-bingo).
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash]);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [bugReport, setBugReport] = useState('');
@@ -196,5 +218,5 @@ export default function Profile() {
     setBugSubmitted(true);
     setTimeout(() => setBugSubmitted(false), 2200);
   }
-  return <main className="content-shell profile-page"><div className="page-intro"><div><span className="eyebrow">YOUR PROFILE</span><h1>Make it yours.</h1><p>Give the crew something to work with before they start making things up.</p></div><FishIllustration species="largemouth" className="intro-sticker" /></div><section className="profile-layout"><aside className="profile-card" data-tour="profile-card"><div className="avatar avatar-large">{form.avatar_url ? <img src={form.avatar_url} alt="Profile" /> : (form.display_name || 'N').slice(0, 1).toUpperCase()}</div><label className="avatar-upload">{uploading ? 'Uploading...' : 'Change photo'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} disabled={uploading} /></label><h2>{form.display_name || 'New angler'}</h2><p>{user?.email}</p><div className="profile-tag">Member since 2025</div><button className="button button-quiet" type="button" onClick={signOut}>Sign out</button>{user?.email === ADMIN_EMAIL && <Link className="text-link profile-admin-link" to="/admin/bugs">Bug reports ↗</Link>}</aside><form className="settings-card" onSubmit={saveProfile}><div className="section-heading"><div><span className="eyebrow">PROFILE DETAILS</span><h2>How should we know you?</h2></div><span className="status-dot">● Saved privately</span></div><label>Display name<input value={form.display_name || ''} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></label><label>Home water<input value={form.home_water || ''} onChange={(e) => setForm({ ...form, home_water: e.target.value })} placeholder="Bay, river, lake, or coastline" /></label><label>Favorite species<SpeciesSelect required={false} value={form.favorite_species || ''} onChange={(favorite_species) => setForm({ ...form, favorite_species })} /></label><label>About you<textarea rows="4" value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Brag a little, nobody's grading this" /></label><div className="form-actions"><button className="button button-primary" type="submit">Save profile <span>→</span></button>{saved && <span className="saved-message">Profile updated</span>}</div>{notice && <p className="preview-note">{notice}<button type="button" onClick={() => setNotice('')}>Dismiss</button></p>}</form></section><p className="profile-bests-nudge"><Link className="text-link" to="/anglers">Manage your {personalBests.length} personal best{personalBests.length === 1 ? '' : 's'} on Anglers ↗</Link></p><PaymentContactsSection /><FishingLicensesSection /><section className="settings-card bug-report-panel"><div className="section-heading"><div><span className="eyebrow">HIT A SNAG?</span><h2>Report a bug</h2></div></div><p>Something acting up? Tell us what happened — we actually read these, and the crew never has to know.</p><form onSubmit={handleBugReport}><label>What happened<textarea rows="4" required value={bugReport} onChange={(e) => setBugReport(e.target.value)} placeholder="The more specific, the better — what you tapped, what you expected, and what happened instead." /></label>{bugError && <p className="form-error">{bugError}</p>}<div className="form-actions"><button className="button button-primary" type="submit" disabled={bugSubmitting}>{bugSubmitting ? 'Reeling...' : 'Reel it in'} <span>→</span></button>{bugSubmitted && <span className="saved-message">Got it — we'll get it untangled</span>}</div></form></section></main>;
+  return <main className="content-shell profile-page"><div className="page-intro"><div><span className="eyebrow">YOUR PROFILE</span><h1>Make it yours.</h1><p>Give the crew something to work with before they start making things up.</p></div><FishIllustration species="largemouth" className="intro-sticker" /></div><section className="profile-layout"><aside className="profile-card" data-tour="profile-card"><div className="avatar avatar-large">{form.avatar_url ? <img src={form.avatar_url} alt="Profile" /> : (form.display_name || 'N').slice(0, 1).toUpperCase()}</div><label className="avatar-upload">{uploading ? 'Uploading...' : 'Change photo'}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleAvatar} disabled={uploading} /></label><h2>{form.display_name || 'New angler'}</h2><p>{user?.email}</p><div className="profile-tag">Member since 2025</div><button className="button button-quiet" type="button" onClick={signOut}>Sign out</button>{user?.email === ADMIN_EMAIL && <Link className="text-link profile-admin-link" to="/admin/bugs">Bug reports ↗</Link>}</aside><section className="table-card my-bests" id="personal-bests"><div className="section-heading"><div><span className="eyebrow">YOUR BESTS</span><h2>Personal bests</h2></div><button className="button button-primary" type="button" onClick={() => setLoggingBest(true)}>Log a personal best <span>＋</span></button></div>{personalBests.length === 0 ? <div className="empty-state"><FishIllustration species="flounder" className="empty-state-sticker" /><p className="month-empty">No personal bests yet. Your biggest of each species goes here.</p></div> : <div className="my-bests-list">{personalBests.map((best) => <AnglerBestItem key={best.id} best={best} profile={{ ...profile, id: user?.id }} anglerName={profile.display_name || 'You'} isOwner onDelete={deletePersonalBest} highlighted={best.id === highlightBestId} highlightCommentId={best.id === highlightBestId ? highlightCommentId : null} />)}</div>}</section></section><SpeciesChecklist id="fish-bingo" personalBests={personalBests} fishYearCatches={myFishYear} defaultOpen={hash === '#fish-bingo'} /><form className="settings-card" onSubmit={saveProfile}><div className="section-heading"><div><span className="eyebrow">PROFILE DETAILS</span><h2>How should we know you?</h2></div><span className="status-dot">● Saved privately</span></div><label>Display name<input value={form.display_name || ''} onChange={(e) => setForm({ ...form, display_name: e.target.value })} /></label><label>Home water<input value={form.home_water || ''} onChange={(e) => setForm({ ...form, home_water: e.target.value })} placeholder="Bay, river, lake, or coastline" /></label><label>Favorite species<SpeciesSelect required={false} value={form.favorite_species || ''} onChange={(favorite_species) => setForm({ ...form, favorite_species })} /></label><label>About you<textarea rows="4" value={form.bio || ''} onChange={(e) => setForm({ ...form, bio: e.target.value })} placeholder="Brag a little, nobody's grading this" /></label><div className="form-actions"><button className="button button-primary" type="submit">Save profile <span>→</span></button>{saved && <span className="saved-message">Profile updated</span>}</div>{notice && <p className="preview-note">{notice}<button type="button" onClick={() => setNotice('')}>Dismiss</button></p>}</form><PaymentContactsSection /><FishingLicensesSection /><section className="settings-card bug-report-panel"><div className="section-heading"><div><span className="eyebrow">HIT A SNAG?</span><h2>Report a bug</h2></div></div><p>Something acting up? Tell us what happened — we actually read these, and the crew never has to know.</p><form onSubmit={handleBugReport}><label>What happened<textarea rows="4" required value={bugReport} onChange={(e) => setBugReport(e.target.value)} placeholder="The more specific, the better — what you tapped, what you expected, and what happened instead." /></label>{bugError && <p className="form-error">{bugError}</p>}<div className="form-actions"><button className="button button-primary" type="submit" disabled={bugSubmitting}>{bugSubmitting ? 'Reeling...' : 'Reel it in'} <span>→</span></button>{bugSubmitted && <span className="saved-message">Got it — we'll get it untangled</span>}</div></form></section>{loggingBest && <LogCatchModal preset={{ personalBest: true }} onClose={() => setLoggingBest(false)} />}</main>;
 }
