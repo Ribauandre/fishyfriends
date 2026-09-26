@@ -3,10 +3,13 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import TripFormModal from './components/TripFormModal';
+import TripPackingList from './components/TripPackingList';
+import TripCatches from './components/TripCatches';
 import speciesIcon from './utils/speciesOptions';
-import { balances, formatCents, licenseWarning, parseDollars, perPersonCents, settleUp, splitRoster, totalCents } from './utils/tripMath';
+import { venmoPayUrl } from './utils/venmo';
+import { balances, formatCents, licenseWarning, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
 
-function AddExpenseForm({ tripId, onAdded }) {
+function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
   const { addTripExpense } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -18,7 +21,7 @@ function AddExpenseForm({ tripId, onAdded }) {
     const amountCents = parseDollars(amount);
     if (!amountCents) { setError('Enter an amount like 85 or 85.50.'); return; }
     setSaving(true); setError('');
-    const result = await addTripExpense({ tripId, description, amountCents });
+    const result = await addTripExpense({ tripId, description, amountCents, notifyUserIds });
     setSaving(false);
     if (result.error) { setError(result.error.message); return; }
     setDescription(''); setAmount('');
@@ -55,6 +58,7 @@ export default function TripDetail() {
   const {
     user, getTrip, updateTrip, deleteTrip, listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
     listTripExpenses, deleteTripExpense, listTripSettlements, recordTripSettlement, deleteTripSettlement, listFishingLicenses,
+    listVenmoHandles,
   } = useAuth();
 
   const [trip, setTrip] = useState(null);
@@ -62,6 +66,7 @@ export default function TripDetail() {
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [licenses, setLicenses] = useState([]);
+  const [venmo, setVenmo] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -70,10 +75,11 @@ export default function TripDetail() {
 
   // Expenses and payments are only readable by people on the trip, so they're (re)loaded
   // whenever that changes rather than once with the trip.
-  const loadMoney = useCallback(async () => {
+  const loadMoney = useCallback(async (peopleIds) => {
     const [expenseRows, settlementRows] = await Promise.all([listTripExpenses(tripId), listTripSettlements(tripId)]);
     setExpenses(expenseRows);
     setSettlements(settlementRows);
+    setVenmo(await listVenmoHandles([...new Set([...peopleIds, ...expenseRows.map((e) => e.paid_by)])]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
@@ -86,7 +92,7 @@ export default function TripDetail() {
       setAttendees(attendeeRows);
       setLicenses(licenseRows);
       const member = tripData && (tripData.created_by === user?.id || attendeeRows.some((a) => a.user_id === user?.id));
-      if (member) await loadMoney();
+      if (member) await loadMoney(attendeeRows.map((a) => a.user_id));
       if (active) setLoading(false);
     });
     return () => { active = false; };
@@ -109,13 +115,14 @@ export default function TripDetail() {
   const balanceList = balances({ going, expenses, settlements });
   const transfers = settleUp(balanceList);
   const myBalance = balanceList.find((b) => b.userId === user?.id)?.cents || 0;
+  const closed = rsvpClosed(trip);
 
   async function handleJoin() {
     setBusy(true);
-    const result = await joinTrip(trip.id);
+    const result = await joinTrip(trip.id, { creatorId: trip.created_by, tripName: trip.name });
     if (!result.error) {
       setAttendees((previous) => [...previous, result.attendee]);
-      await loadMoney();
+      await loadMoney([...attendees.map((a) => a.user_id), user.id]);
     }
     setBusy(false);
   }
@@ -173,9 +180,10 @@ export default function TripDetail() {
         <span className="eyebrow">{isCreator ? 'YOUR TRIP' : `PLANNED BY ${trip.created_by_name.toUpperCase()}`}</span>
         <h1>{trip.name}</h1>
         <p>{dates}{trip.location ? ` · ${trip.location}` : ''}{trip.state ? ` · ${trip.state}` : ''}</p>
+        {trip.rsvp_by && <p className={closed ? 'trip-rsvp is-closed' : 'trip-rsvp'}>{closed ? `RSVPs closed ${trip.rsvp_by}` : `RSVP by ${trip.rsvp_by}`}</p>}
       </div>
       <div className="challenge-actions">
-        {!myAttendance && <button className="button button-primary" type="button" onClick={handleJoin} disabled={busy}>{full ? 'Join the waitlist' : "I'm in"} <span>＋</span></button>}
+        {!myAttendance && (!closed || isCreator) && <button className="button button-primary" type="button" onClick={handleJoin} disabled={busy}>{full ? 'Join the waitlist' : "I'm in"} <span>＋</span></button>}
         {myAttendance && !isCreator && <button className="button button-quiet" type="button" onClick={handleLeave} disabled={busy}>{imWaitlisted ? 'Leave the waitlist' : "I can't make it"}</button>}
         {isCreator && <button className="button button-quiet" type="button" onClick={() => setEditing(true)}>Edit trip</button>}
         <Link className="button button-quiet" to="/trips">All trips <span>→</span></Link>
@@ -245,7 +253,7 @@ export default function TripDetail() {
             {(expense.paid_by === user?.id || isCreator) && <button className="license-remove" type="button" onClick={() => handleDeleteExpense(expense.id)} aria-label={`Delete ${expense.description}`}>×</button>}
           </li>)}
         </ul>}
-        <AddExpenseForm tripId={trip.id} onAdded={(expense) => setExpenses((previous) => [...previous, expense])} />
+        <AddExpenseForm tripId={trip.id} notifyUserIds={going.map((a) => a.user_id)} onAdded={(expense) => setExpenses((previous) => [...previous, expense])} />
 
         <h3 className="trip-subheading">Settle up</h3>
         {transfers.length === 0
@@ -253,9 +261,14 @@ export default function TripDetail() {
           : <ul className="trip-transfer-list">
             {transfers.map((transfer) => <li key={`${transfer.from.userId}-${transfer.to.userId}`}>
               <span><strong>{transfer.from.name}</strong> pays <strong>{transfer.to.name}</strong> {formatCents(transfer.cents)}</span>
-              {[transfer.from.userId, transfer.to.userId].includes(user?.id) && <button className="button button-quiet" type="button" onClick={() => handleMarkPaid(transfer)}>Mark paid</button>}
+              <span className="trip-transfer-actions">
+                {transfer.from.userId === user?.id && venmo[transfer.to.userId] && <a className="button button-primary" href={venmoPayUrl(venmo[transfer.to.userId], transfer.cents, `${trip.name}: trip share`)} target="_blank" rel="noopener noreferrer">Pay on Venmo</a>}
+                {[transfer.from.userId, transfer.to.userId].includes(user?.id) && <button className="button button-quiet" type="button" onClick={() => handleMarkPaid(transfer)}>Mark paid</button>}
+              </span>
             </li>)}
           </ul>}
+
+        {myBalance > 0 && !venmo[user?.id] && <p className="muted-label">Add your Venmo username on your <Link className="text-link" to="/profile">Profile</Link> so people can pay you back in one tap.</p>}
 
         {settlements.length > 0 && <>
           <h3 className="trip-subheading">Payments</h3>
@@ -268,6 +281,10 @@ export default function TripDetail() {
         </>}
       </>}
     </section>
+
+    {isMember && <TripPackingList tripId={trip.id} isCreator={isCreator} />}
+
+    <TripCatches trip={trip} canLog={Boolean(myAttendance)} isCreator={isCreator} />
 
     {isCreator && <p className="tournament-danger-zone"><button type="button" className="button button-danger" onClick={() => setConfirmingDelete(true)}>Delete this trip</button></p>}
 

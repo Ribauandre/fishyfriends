@@ -3,13 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import TripFormModal, { localToday } from './components/TripFormModal';
-import { splitRoster } from './utils/tripMath';
+import { rsvpClosed, splitRoster } from './utils/tripMath';
 
 function TripCard({ trip, userId }) {
   const { going, waitlist } = splitRoster(trip.attendees, trip.max_spots);
   const mine = going.some((a) => a.user_id === userId) ? 'going' : waitlist.some((a) => a.user_id === userId) ? 'waitlist' : null;
   const full = trip.max_spots && going.length >= trip.max_spots;
-  const badge = mine === 'going' ? "YOU'RE GOING" : mine === 'waitlist' ? 'WAITLISTED' : full ? 'FULL' : 'OPEN';
+  const badge = mine === 'going' ? "YOU'RE GOING" : mine === 'waitlist' ? 'WAITLISTED' : rsvpClosed(trip) ? 'CLOSED' : full ? 'FULL' : 'OPEN';
   return <Link className="trip-card" to={`/trips/${trip.id}`}>
     <span className={mine === 'going' ? 'status-badge' : 'status-badge status-badge-muted'}>{badge}</span>
     <h3>{trip.name}</h3>
@@ -19,6 +19,7 @@ function TripCard({ trip, userId }) {
     <div className="trip-card-stats">
       <span>{going.length}{trip.max_spots ? ` of ${trip.max_spots}` : ''} going</span>
       {waitlist.length > 0 && <span>{waitlist.length} waiting</span>}
+      {trip.rsvp_by && <span>{rsvpClosed(trip) ? 'RSVPs closed' : `RSVP by ${trip.rsvp_by}`}</span>}
     </div>
     <span className="note-go">See the trip →</span>
   </Link>;

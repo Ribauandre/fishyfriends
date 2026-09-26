@@ -8,12 +8,12 @@ export function localToday() {
 
 function formFromTrip(trip) {
   if (!trip) {
-    return { name: '', location: '', state: '', startsOn: localToday(), endsOn: localToday(), targetSpecies: [], accommodation: '', accommodationUrl: '', notes: '', maxSpots: '' };
+    return { name: '', location: '', state: '', startsOn: localToday(), endsOn: localToday(), rsvpBy: '', targetSpecies: [], accommodation: '', accommodationUrl: '', notes: '', maxSpots: '' };
   }
   return {
     name: trip.name, location: trip.location, state: trip.state, startsOn: trip.starts_on, endsOn: trip.ends_on,
     targetSpecies: trip.target_species || [], accommodation: trip.accommodation, accommodationUrl: trip.accommodation_url,
-    notes: trip.notes, maxSpots: trip.max_spots ? String(trip.max_spots) : '',
+    notes: trip.notes, maxSpots: trip.max_spots ? String(trip.max_spots) : '', rsvpBy: trip.rsvp_by || '',
   };
 }
 
@@ -69,7 +69,10 @@ export default function TripFormModal({ trip, onSave, onClose }) {
       </div>
       <label>Where we're staying<input value={form.accommodation} onChange={set('accommodation')} placeholder="Beach house on Old Montauk Hwy" /></label>
       <label>Booking link (optional)<input type="url" inputMode="url" value={form.accommodationUrl} onChange={set('accommodationUrl')} placeholder="https://www.airbnb.com/rooms/..." /></label>
-      <label>Spots (blank for no limit)<input inputMode="numeric" value={form.maxSpots} onChange={set('maxSpots')} placeholder="6" /></label>
+      <div className="trip-form-dates">
+        <label>Spots (blank for no limit)<input inputMode="numeric" value={form.maxSpots} onChange={set('maxSpots')} placeholder="6" /></label>
+        <label>RSVP by (optional)<input type="date" value={form.rsvpBy} onChange={set('rsvpBy')} /></label>
+      </div>
       <label>Notes<textarea rows="3" value={form.notes} onChange={set('notes')} placeholder="Meet at the dock at 5am. Bring your own rods." /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : trip ? 'Save changes' : 'Create trip'} <span>→</span></button></div>

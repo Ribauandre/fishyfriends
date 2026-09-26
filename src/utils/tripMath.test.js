@@ -1,4 +1,4 @@
-import { splitRoster, parseDollars, formatCents, perPersonCents, balances, settleUp, licenseWarning } from './tripMath';
+import { splitRoster, parseDollars, formatCents, perPersonCents, balances, settleUp, licenseWarning, rsvpClosed, catchRecap } from './tripMath';
 
 const at = (id, userId, name, minute) => ({ id, user_id: userId, angler_name: name, created_at: `2026-09-01T10:${String(minute).padStart(2, '0')}:00Z` });
 const andre = at('a1', 'u-andre', 'Andre', 0);
@@ -128,5 +128,36 @@ describe('licenseWarning', () => {
 
   test('stays quiet once the trip is over', () => {
     expect(licenseWarning([], trip, new Date(2026, 9, 20))).toBeNull();
+  });
+});
+
+describe('rsvpClosed', () => {
+  test('open with no deadline, through the deadline day, closed the day after', () => {
+    expect(rsvpClosed({ rsvp_by: null }, new Date(2026, 9, 1))).toBe(false);
+    expect(rsvpClosed({ rsvp_by: '2026-10-01' }, new Date(2026, 9, 1, 23, 59))).toBe(false);
+    expect(rsvpClosed({ rsvp_by: '2026-10-01' }, new Date(2026, 9, 2))).toBe(true);
+  });
+});
+
+describe('catchRecap', () => {
+  const c = (id, userId, name, species, length, minute) => ({ id, user_id: userId, angler_name: name, species, length_in: length, created_at: `2026-10-10T10:${String(minute).padStart(2, '0')}:00Z` });
+
+  test('ranks anglers by fish caught, ties going to whoever got there first', () => {
+    const recap = catchRecap([c('1', 'sam', 'Sam', 'Bluefish', null, 5), c('2', 'kev', 'Kevin', 'Bluefish', 20, 1), c('3', 'sam', 'Sam', 'Bluefish', null, 7), c('4', 'andre', 'Andre', 'Striped Bass', 28, 2), c('5', 'kev', 'Kevin', 'Striped Bass', 31, 9)]);
+    expect(recap.total).toBe(5);
+    expect(recap.leaderboard).toEqual([
+      { userId: 'kev', name: 'Kevin', count: 2 },
+      { userId: 'sam', name: 'Sam', count: 2 },
+      { userId: 'andre', name: 'Andre', count: 1 },
+    ]);
+  });
+
+  test('keeps the biggest measured fish of each species, biggest first', () => {
+    const recap = catchRecap([c('1', 'kev', 'Kevin', 'Bluefish', 20, 1), c('2', 'andre', 'Andre', 'Striped Bass', 28, 2), c('3', 'kev', 'Kevin', 'Striped Bass', '31.5', 3), c('4', 'sam', 'Sam', 'Bluefish', null, 4)]);
+    expect(recap.biggest.map((b) => [b.species, b.angler_name])).toEqual([['Striped Bass', 'Kevin'], ['Bluefish', 'Kevin']]);
+  });
+
+  test('is empty with no catches', () => {
+    expect(catchRecap([])).toEqual({ total: 0, leaderboard: [], biggest: [] });
   });
 });

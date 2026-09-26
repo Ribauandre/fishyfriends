@@ -12,7 +12,7 @@ import { LURES, FLY_ROD } from '../utils/gameLures';
 import { WARDROBE, normalizeLook } from '../utils/anglerLook';
 
 const AuthContext = createContext(null);
-const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', tour_completed_at: null };
+const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', venmo_handle: '', tour_completed_at: null };
 const TOUR_STORAGE_KEY = 'fishyfriends:tour-done';
 
 function tourSeenLocally() {
@@ -1044,6 +1044,7 @@ export function AuthProvider({ children }) {
     if (!name) return { error: new Error('Name the trip.') };
     if (!fields.startsOn || !fields.endsOn) return { error: new Error('Set both a start and end date.') };
     if (fields.endsOn < fields.startsOn) return { error: new Error('The end date has to be on or after the start date.') };
+    if (fields.rsvpBy && fields.rsvpBy > fields.endsOn) return { error: new Error('The RSVP deadline has to be on or before the trip ends.') };
     const spots = String(fields.maxSpots ?? '').trim();
     if (spots && !/^[1-9]\d*$/.test(spots)) return { error: new Error('Spots has to be a whole number, or blank for no limit.') };
     let accommodationUrl = fields.accommodationUrl?.trim() || '';
@@ -1062,6 +1063,7 @@ export function AuthProvider({ children }) {
         accommodation_url: accommodationUrl,
         notes: fields.notes?.trim() || '',
         max_spots: spots ? Number(spots) : null,
+        rsvp_by: fields.rsvpBy || null,
       },
     };
   }
@@ -1116,10 +1118,21 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  async function joinTrip(tripId) {
+  // Trip notifications go to several people at once and are never read back: a notification
+  // is only visible to its recipient, so an insert that returned the row would fail RLS.
+  // Fire-and-forget, like notifyIfNeeded: a missed notification never undoes the action.
+  async function notifyTrip({ recipientIds, type, tripId, preview }) {
+    const rows = [...new Set(recipientIds || [])].filter((id) => id && id !== user.id).map((recipientId) => ({
+      recipient_id: recipientId, actor_id: user.id, actor_name: myName(), type, target_type: 'trip', target_id: tripId, preview: preview || '',
+    }));
+    if (rows.length) await supabase.from('notifications').insert(rows);
+  }
+
+  async function joinTrip(tripId, { creatorId, tripName } = {}) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before joining a trip.') };
     const { data, error } = await supabase.from('trip_attendees').insert({ trip_id: tripId, user_id: user.id, angler_name: myName() }).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    notifyTrip({ recipientIds: [creatorId], type: 'trip_join', tripId, preview: tripName });
     return { error: null, attendee: data };
   }
 
@@ -1144,7 +1157,7 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  async function addTripExpense({ tripId, description, amountCents }) {
+  async function addTripExpense({ tripId, description, amountCents, notifyUserIds = [] }) {
     const trimmed = description?.trim();
     if (!trimmed) return { error: new Error('Say what the expense was for.') };
     if (!Number.isInteger(amountCents) || amountCents <= 0) return { error: new Error('Enter an amount like 85 or 85.50.') };
@@ -1152,6 +1165,7 @@ export function AuthProvider({ children }) {
     const row = { trip_id: tripId, paid_by: user.id, paid_by_name: myName(), description: trimmed, amount_cents: amountCents };
     const { data, error } = await supabase.from('trip_expenses').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    notifyTrip({ recipientIds: notifyUserIds, type: 'trip_expense', tripId, preview: `${trimmed} · $${(amountCents / 100).toFixed(2)}` });
     return { error: null, expense: data };
   }
 
@@ -1181,6 +1195,86 @@ export function AuthProvider({ children }) {
   async function deleteTripSettlement(id) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
     const { error } = await supabase.from('trip_settlements').delete().eq('id', id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function listVenmoHandles(userIds) {
+    if (!isSupabaseConfigured || !user || !userIds?.length) return {};
+    const { data } = await supabase.from('profiles').select('id, venmo_handle').in('id', userIds);
+    return Object.fromEntries((data || []).filter((row) => row.venmo_handle).map((row) => [row.id, row.venmo_handle]));
+  }
+
+  async function listTripItems(tripId) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('trip_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function addTripItem({ tripId, name }) {
+    const trimmed = name?.trim();
+    if (!trimmed) return { error: new Error('Name the item.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { data, error } = await supabase.from('trip_items').insert({ trip_id: tripId, name: trimmed, created_by: user.id }).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, item: data };
+  }
+
+  // Claim it for yourself, or let go of one you claimed; RLS won't let you touch anyone else's claim.
+  async function setTripItemClaim(itemId, claim) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const change = claim ? { claimed_by: user.id, claimed_by_name: myName() } : { claimed_by: null, claimed_by_name: '' };
+    const { data, error } = await supabase.from('trip_items').update(change).eq('id', itemId).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    if (!data) return { error: new Error('Someone else already has that one.') };
+    return { error: null, item: data };
+  }
+
+  async function deleteTripItem(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_items').delete().eq('id', id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function listTripCatches(tripId) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('trip_catches').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function logTripCatch({ tripId, species, lengthIn, caughtAt, file: rawFile }) {
+    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+    const length = String(lengthIn ?? '').trim();
+    if (length && !(Number(length) > 0)) return { error: new Error('Length has to be a number of inches, or blank.') };
+    if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
+    const file = rawFile && await compressImage(rawFile);
+    if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
+
+    let photoUrl = '';
+    if (file) {
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from('trip-catches').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
+      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      const { data } = supabase.storage.from('trip-catches').getPublicUrl(path);
+      photoUrl = `${data.publicUrl}?v=${Date.now()}`;
+    }
+
+    const row = { trip_id: tripId, user_id: user.id, angler_name: myName(), species: species.trim(), length_in: length ? Number(length) : null, caught_at: caughtAt || null, photo_url: photoUrl };
+    const { data, error } = await supabase.from('trip_catches').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    registerSpecies(species.trim());
+    return { error: null, tripCatch: data };
+  }
+
+  async function deleteTripCatch(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_catches').delete().eq('id', id);
     if (error) setNotice(error.message);
     return { error: error || null };
   }
@@ -1353,6 +1447,8 @@ export function AuthProvider({ children }) {
     listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
     listTripExpenses, addTripExpense, deleteTripExpense,
     listTripSettlements, recordTripSettlement, deleteTripSettlement,
+    listVenmoHandles, listTripItems, addTripItem, setTripItemClaim, deleteTripItem,
+    listTripCatches, logTripCatch, deleteTripCatch,
     getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, claimWeeklyBounty, listClubRecords, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

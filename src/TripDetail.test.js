@@ -44,6 +44,14 @@ function makeBaseAuth(overrides = {}) {
     recordTripSettlement: jest.fn(),
     deleteTripSettlement: jest.fn(),
     listFishingLicenses: jest.fn().mockResolvedValue([{ state: 'New York', expires_at: '2100-01-01' }]),
+    listVenmoHandles: jest.fn().mockResolvedValue({}),
+    listTripItems: jest.fn().mockResolvedValue([]),
+    addTripItem: jest.fn(),
+    setTripItemClaim: jest.fn(),
+    deleteTripItem: jest.fn(),
+    listTripCatches: jest.fn().mockResolvedValue([]),
+    logTripCatch: jest.fn(),
+    deleteTripCatch: jest.fn(),
     ...overrides,
   };
 }
@@ -93,7 +101,7 @@ describe('someone not on the trip', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /i'm in/i }));
 
-    await waitFor(() => expect(auth.joinTrip).toHaveBeenCalledWith('trip-1'));
+    await waitFor(() => expect(auth.joinTrip).toHaveBeenCalledWith('trip-1', { creatorId: 'andre', tripName: 'Montauk run' }));
     expect(await screen.findByText('Sam')).toBeInTheDocument();
     await waitFor(() => expect(auth.listTripExpenses).toHaveBeenCalledWith('trip-1'));
     expect(screen.getByText('3 going')).toBeInTheDocument();
@@ -244,7 +252,7 @@ describe('money', () => {
     await userEvent.type(screen.getByLabelText(/amount you paid/i), '$45.50');
     await userEvent.click(screen.getByRole('button', { name: /i paid this/i }));
 
-    await waitFor(() => expect(addTripExpense).toHaveBeenCalledWith({ tripId: 'trip-1', description: 'Bait', amountCents: 4550 }));
+    await waitFor(() => expect(addTripExpense).toHaveBeenCalledWith({ tripId: 'trip-1', description: 'Bait', amountCents: 4550, notifyUserIds: ['andre', 'kevin'] }));
     expect(await screen.findByText('Bait', { selector: 'strong' })).toBeInTheDocument();
   });
 
@@ -288,5 +296,135 @@ describe('license check', () => {
     renderDetail();
     await screen.findByRole('heading', { name: 'Montauk run' });
     expect(screen.queryByText(/fishing license on file/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('RSVP deadline', () => {
+  test('before the deadline, shows it and still lets people in', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'sam' }, getTrip: jest.fn().mockResolvedValue({ ...baseTrip, rsvp_by: '2099-10-01' }) }));
+    renderDetail();
+    expect(await screen.findByText('RSVP by 2099-10-01')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /i'm in/i })).toBeInTheDocument();
+  });
+
+  test('after the deadline, sign-ups are closed for everyone but the creator', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'sam' }, getTrip: jest.fn().mockResolvedValue({ ...baseTrip, rsvp_by: '2020-01-01' }) }));
+    renderDetail();
+    expect(await screen.findByText('RSVPs closed 2020-01-01')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /i'm in|waitlist/i })).not.toBeInTheDocument();
+  });
+
+  test('the creator can still get back on their own closed trip', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'andre' }, getTrip: jest.fn().mockResolvedValue({ ...baseTrip, rsvp_by: '2020-01-01' }), listTripAttendees: jest.fn().mockResolvedValue([kevin]) }));
+    renderDetail();
+    await screen.findByText('RSVPs closed 2020-01-01');
+    expect(screen.getByRole('button', { name: /i'm in/i })).toBeInTheDocument();
+  });
+});
+
+describe('Venmo', () => {
+  const house = { id: 'e1', paid_by: 'andre', paid_by_name: 'Andre', description: 'Beach house', amount_cents: 60000 };
+
+  test('whoever owes gets a Venmo link to the person they owe, with the amount filled in', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ listTripExpenses: jest.fn().mockResolvedValue([house]), listVenmoHandles: jest.fn().mockResolvedValue({ andre: 'Andre-R' }) }));
+    renderDetail();
+    const link = await screen.findByRole('link', { name: /pay on venmo/i });
+    expect(link).toHaveAttribute('href', 'https://venmo.com/Andre-R?txn=pay&amount=300.00&note=Montauk%20run%3A%20trip%20share');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  test('no link when the person owed has no Venmo username, and none for the person owed', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ listTripExpenses: jest.fn().mockResolvedValue([house]) }));
+    renderDetail();
+    await screen.findByText('Beach house', { selector: 'strong' });
+    expect(screen.queryByRole('link', { name: /pay on venmo/i })).not.toBeInTheDocument();
+  });
+
+  test('someone owed money without a Venmo username is nudged to add one', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'andre' }, listTripExpenses: jest.fn().mockResolvedValue([house]), listVenmoHandles: jest.fn().mockResolvedValue({}) }));
+    renderDetail();
+    expect(await screen.findByText(/add your venmo username/i)).toBeInTheDocument();
+  });
+});
+
+describe('packing list', () => {
+  test('only people on the trip see it', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'sam' } }));
+    renderDetail();
+    await screen.findByRole('heading', { name: 'Montauk run' });
+    expect(screen.queryByRole('heading', { name: /packing list/i })).not.toBeInTheDocument();
+  });
+
+  test('claim an unclaimed item; see who has the rest; only your own claim can be let go', async () => {
+    const setTripItemClaim = jest.fn().mockResolvedValue({ error: null, item: { id: 'i1', name: 'Cooler', created_by: 'andre', claimed_by: 'kevin', claimed_by_name: 'Kevin' } });
+    useAuth.mockReturnValue(makeBaseAuth({
+      setTripItemClaim,
+      listTripItems: jest.fn().mockResolvedValue([
+        { id: 'i1', name: 'Cooler', created_by: 'andre', claimed_by: null, claimed_by_name: '' },
+        { id: 'i2', name: 'Boat', created_by: 'andre', claimed_by: 'andre', claimed_by_name: 'Andre' },
+      ]),
+    }));
+    renderDetail();
+    expect(await screen.findByText('Andre is bringing it')).toBeInTheDocument();
+    expect(screen.getByText('1 UNCLAIMED')).toBeInTheDocument();
+    expect(screen.queryAllByRole('button', { name: /never mind/i })).toHaveLength(0);
+
+    await userEvent.click(screen.getByRole('button', { name: /i'll bring it/i }));
+
+    await waitFor(() => expect(setTripItemClaim).toHaveBeenCalledWith('i1', true));
+    expect(await screen.findByText('You are bringing it')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /never mind/i })).toBeInTheDocument();
+    expect(screen.getByText('ALL COVERED')).toBeInTheDocument();
+  });
+
+  test('adding an item puts it on the list', async () => {
+    const addTripItem = jest.fn().mockResolvedValue({ error: null, item: { id: 'i9', name: 'Bait', created_by: 'kevin', claimed_by: null, claimed_by_name: '' } });
+    useAuth.mockReturnValue(makeBaseAuth({ addTripItem }));
+    renderDetail();
+    await screen.findByRole('heading', { name: /packing list/i });
+    await userEvent.type(screen.getByLabelText(/item to add/i), 'Bait');
+    await userEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    await waitFor(() => expect(addTripItem).toHaveBeenCalledWith({ tripId: 'trip-1', name: 'Bait' }));
+    expect(await screen.findByText('Bait')).toBeInTheDocument();
+  });
+});
+
+describe('trip catches', () => {
+  const started = { ...baseTrip, starts_on: '2020-10-10', ends_on: '2099-10-12' };
+
+  test('before the trip starts, nobody can log yet', async () => {
+    renderDetail();
+    expect(await screen.findByText(/catches can be logged once the trip starts/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /log a fish/i })).not.toBeInTheDocument();
+  });
+
+  test('someone on a trip that has started can log a fish', async () => {
+    const logTripCatch = jest.fn().mockResolvedValue({ error: null, tripCatch: { id: 'c1', user_id: 'kevin', angler_name: 'Kevin', species: 'Bluefish', length_in: 22, created_at: '2026-10-10T10:00:00Z' } });
+    useAuth.mockReturnValue(makeBaseAuth({ getTrip: jest.fn().mockResolvedValue(started), logTripCatch }));
+    renderDetail();
+    await userEvent.click(await screen.findByRole('button', { name: /log a fish/i }));
+    await userEvent.type(screen.getByLabelText(/length in inches/i), '22');
+    await userEvent.click(screen.getByRole('button', { name: /log it/i }));
+    await waitFor(() => expect(logTripCatch).toHaveBeenCalledWith(expect.objectContaining({ tripId: 'trip-1', lengthIn: '22' })));
+    expect(await screen.findByText('Bluefish · 22"')).toBeInTheDocument();
+  });
+
+  test('someone not on the trip sees the recap but cannot log', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      user: { id: 'sam' },
+      getTrip: jest.fn().mockResolvedValue(started),
+      listTripCatches: jest.fn().mockResolvedValue([
+        { id: 'c1', user_id: 'kevin', angler_name: 'Kevin', species: 'Striped Bass', length_in: 31, created_at: '2026-10-10T10:00:00Z' },
+        { id: 'c2', user_id: 'kevin', angler_name: 'Kevin', species: 'Bluefish', length_in: null, created_at: '2026-10-10T11:00:00Z' },
+        { id: 'c3', user_id: 'andre', angler_name: 'Andre', species: 'Striped Bass', length_in: 27, created_at: '2026-10-10T12:00:00Z' },
+      ]),
+    }));
+    renderDetail();
+    expect(await screen.findByText('Most fish (3 total)')).toBeInTheDocument();
+    const board = screen.getByText('Most fish (3 total)').nextSibling;
+    expect(board.firstChild).toHaveTextContent('Kevin2 fish');
+    expect(screen.getByText('31" · Kevin')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /log a fish/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete kevin's/i })).not.toBeInTheDocument();
   });
 });

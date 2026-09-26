@@ -134,3 +134,18 @@ test('mark all read clears the unread badge and calls markAllNotificationsRead',
   expect(markAllNotificationsRead).toHaveBeenCalled();
   await waitFor(() => expect(screen.getByRole('button', { name: /^notifications$/i })).toBeInTheDocument());
 });
+
+test('trip notifications read naturally and open the trip', async () => {
+  renderBell({
+    listNotifications: jest.fn().mockResolvedValue([
+      { id: 'n-9', type: 'trip_expense', target_type: 'trip', target_id: 'trip-1', actor_name: 'Kevin', preview: 'Bait · $45.50', read: false, created_at: '2026-01-04' },
+      { id: 'n-8', type: 'trip_join', target_type: 'trip', target_id: 'trip-1', actor_name: 'Sam', preview: 'Montauk run', read: true, created_at: '2026-01-03' },
+    ]),
+  });
+  await userEvent.click(await screen.findByRole('button', { name: /notifications, 1 unread/i }));
+  expect(screen.getByText('Sam is in for your trip')).toBeInTheDocument();
+  expect(screen.getByText('Kevin added a trip expense')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByText('Kevin added a trip expense'));
+  await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/trips/trip-1'));
+});

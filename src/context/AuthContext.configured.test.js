@@ -1222,7 +1222,7 @@ describe('trips', () => {
     expect(lastCall('trips').value.insert).toHaveBeenCalledWith({
       name: 'Montauk run', location: 'Montauk Point', state: 'New York', starts_on: '2026-10-10', ends_on: '2026-10-12',
       target_species: ['Striped Bass', 'Bluefish'], accommodation: 'Beach house', accommodation_url: 'https://airbnb.com/rooms/1',
-      notes: '', max_spots: 6, created_by: 'user-1', created_by_name: 'Andre',
+      notes: '', max_spots: 6, rsvp_by: null, created_by: 'user-1', created_by_name: 'Andre',
     });
     expect(lastCall('trip_attendees').value.insert).toHaveBeenCalledWith({ trip_id: 'trip-1', user_id: 'user-1', angler_name: 'Andre' });
   });
@@ -1284,5 +1284,82 @@ describe('trips', () => {
     expect(lastCall('trip_settlements').value.insert).toHaveBeenCalledWith({
       trip_id: 'trip-1', from_user: 'user-2', from_name: 'Kevin', to_user: 'user-1', to_name: 'Andre', amount_cents: 18000, created_by: 'user-1',
     });
+  });
+
+  test('an RSVP deadline after the trip ends is refused; one before it is saved', async () => {
+    const result = await setupSignedIn();
+    expect((await result.current.createTrip({ ...form, rsvpBy: '2026-10-13' })).error.message).toMatch(/on or before the trip ends/i);
+    __mock.setResponse('trips', { data: { id: 'trip-1' }, error: null });
+    await result.current.createTrip({ ...form, rsvpBy: '2026-10-01' });
+    expect(lastCall('trips').value.insert).toHaveBeenCalledWith(expect.objectContaining({ rsvp_by: '2026-10-01' }));
+  });
+
+  test('joining notifies the trip creator, without reading the notification back', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_attendees', { data: { id: 'a1' }, error: null });
+    __mock.setResponse('notifications', { data: null, error: null });
+    await result.current.joinTrip('trip-1', { creatorId: 'user-9', tripName: 'Montauk run' });
+    await waitFor(() => expect(__mock.current.fromCalls).toContain('notifications'));
+    const call = lastCall('notifications');
+    expect(call.value.insert).toHaveBeenCalledWith([
+      { recipient_id: 'user-9', actor_id: 'user-1', actor_name: 'Andre', type: 'trip_join', target_type: 'trip', target_id: 'trip-1', preview: 'Montauk run' },
+    ]);
+    expect(call.value.select).not.toHaveBeenCalled();
+  });
+
+  test('joining your own trip notifies nobody', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_attendees', { data: { id: 'a1' }, error: null });
+    await result.current.joinTrip('trip-1', { creatorId: 'user-1', tripName: 'Montauk run' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(__mock.current.fromCalls).not.toContain('notifications');
+  });
+
+  test('an expense notifies everyone going except the payer, in one insert', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_expenses', { data: { id: 'e1' }, error: null });
+    __mock.setResponse('notifications', { data: null, error: null });
+    await result.current.addTripExpense({ tripId: 'trip-1', description: 'Bait', amountCents: 4550, notifyUserIds: ['user-1', 'user-2', 'user-3', 'user-2'] });
+    await waitFor(() => expect(__mock.current.fromCalls).toContain('notifications'));
+    const rows = lastCall('notifications').value.insert.mock.calls[0][0];
+    expect(rows.map((row) => row.recipient_id)).toEqual(['user-2', 'user-3']);
+    expect(rows[0]).toEqual(expect.objectContaining({ type: 'trip_expense', target_type: 'trip', target_id: 'trip-1', preview: 'Bait · $45.50' }));
+  });
+
+  test('listVenmoHandles maps people to their Venmo username, leaving out anyone without one', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { data: [{ id: 'user-2', venmo_handle: 'Kevin-M' }, { id: 'user-3', venmo_handle: '' }], error: null });
+    await expect(result.current.listVenmoHandles(['user-2', 'user-3'])).resolves.toEqual({ 'user-2': 'Kevin-M' });
+  });
+
+  test('packing list: add, claim for yourself, let go', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_items', { data: { id: 'i1', name: 'Cooler' }, error: null });
+    await result.current.addTripItem({ tripId: 'trip-1', name: ' Cooler ' });
+    expect(lastCall('trip_items').value.insert).toHaveBeenCalledWith({ trip_id: 'trip-1', name: 'Cooler', created_by: 'user-1' });
+    await result.current.setTripItemClaim('i1', true);
+    expect(lastCall('trip_items').value.update).toHaveBeenCalledWith({ claimed_by: 'user-1', claimed_by_name: 'Andre' });
+    await result.current.setTripItemClaim('i1', false);
+    expect(lastCall('trip_items').value.update).toHaveBeenCalledWith({ claimed_by: null, claimed_by_name: '' });
+    expect((await result.current.addTripItem({ tripId: 'trip-1', name: ' ' })).error.message).toMatch(/name the item/i);
+  });
+
+  test('claiming an item someone else already has says so', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_items', { data: null, error: null });
+    expect((await result.current.setTripItemClaim('i1', true)).error.message).toMatch(/someone else already has/i);
+  });
+
+  test('logTripCatch records the catch with an optional length, and validates it', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_catches', { data: { id: 'c1' }, error: null });
+    await result.current.logTripCatch({ tripId: 'trip-1', species: ' Striped Bass ', lengthIn: '31.5', caughtAt: '2026-10-11' });
+    expect(lastCall('trip_catches').value.insert).toHaveBeenCalledWith({
+      trip_id: 'trip-1', user_id: 'user-1', angler_name: 'Andre', species: 'Striped Bass', length_in: 31.5, caught_at: '2026-10-11', photo_url: '',
+    });
+    await result.current.logTripCatch({ tripId: 'trip-1', species: 'Bluefish', lengthIn: '' });
+    expect(lastCall('trip_catches').value.insert).toHaveBeenCalledWith(expect.objectContaining({ length_in: null, caught_at: null }));
+    expect((await result.current.logTripCatch({ tripId: 'trip-1', species: 'Bluefish', lengthIn: 'big' })).error.message).toMatch(/number of inches/i);
+    expect((await result.current.logTripCatch({ tripId: 'trip-1', species: ' ' })).error.message).toMatch(/name the species/i);
   });
 });
