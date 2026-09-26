@@ -5,8 +5,8 @@ import FishIllustration from './components/FishIllustration';
 import TripFormModal from './components/TripFormModal';
 import TripPackingList from './components/TripPackingList';
 import TripCatches from './components/TripCatches';
+import PayOptions from './components/PayOptions';
 import speciesIcon from './utils/speciesOptions';
-import { venmoPayUrl } from './utils/venmo';
 import { balances, formatCents, licenseWarning, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
 
 function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
@@ -58,7 +58,7 @@ export default function TripDetail() {
   const {
     user, getTrip, updateTrip, deleteTrip, listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
     listTripExpenses, deleteTripExpense, listTripSettlements, recordTripSettlement, deleteTripSettlement, listFishingLicenses,
-    listVenmoHandles,
+    listVenmoHandles, listPaymentContacts,
   } = useAuth();
 
   const [trip, setTrip] = useState(null);
@@ -67,6 +67,7 @@ export default function TripDetail() {
   const [settlements, setSettlements] = useState([]);
   const [licenses, setLicenses] = useState([]);
   const [venmo, setVenmo] = useState({});
+  const [payContacts, setPayContacts] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -79,7 +80,10 @@ export default function TripDetail() {
     const [expenseRows, settlementRows] = await Promise.all([listTripExpenses(tripId), listTripSettlements(tripId)]);
     setExpenses(expenseRows);
     setSettlements(settlementRows);
-    setVenmo(await listVenmoHandles([...new Set([...peopleIds, ...expenseRows.map((e) => e.paid_by)])]));
+    const people = [...new Set([...peopleIds, ...expenseRows.map((e) => e.paid_by)])];
+    const [handles, contacts] = await Promise.all([listVenmoHandles(people), listPaymentContacts(people)]);
+    setVenmo(handles);
+    setPayContacts(contacts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
@@ -262,13 +266,13 @@ export default function TripDetail() {
             {transfers.map((transfer) => <li key={`${transfer.from.userId}-${transfer.to.userId}`}>
               <span><strong>{transfer.from.name}</strong> pays <strong>{transfer.to.name}</strong> {formatCents(transfer.cents)}</span>
               <span className="trip-transfer-actions">
-                {transfer.from.userId === user?.id && venmo[transfer.to.userId] && <a className="button button-primary" href={venmoPayUrl(venmo[transfer.to.userId], transfer.cents, `${trip.name}: trip share`)} target="_blank" rel="noopener noreferrer">Pay on Venmo</a>}
+                {transfer.from.userId === user?.id && <PayOptions transfer={transfer} tripName={trip.name} venmoHandle={venmo[transfer.to.userId]} contacts={payContacts[transfer.to.userId]} />}
                 {[transfer.from.userId, transfer.to.userId].includes(user?.id) && <button className="button button-quiet" type="button" onClick={() => handleMarkPaid(transfer)}>Mark paid</button>}
               </span>
             </li>)}
           </ul>}
 
-        {myBalance > 0 && !venmo[user?.id] && <p className="muted-label">Add your Venmo username on your <Link className="text-link" to="/profile">Profile</Link> so people can pay you back in one tap.</p>}
+        {myBalance > 0 && !venmo[user?.id] && !payContacts[user?.id]?.zelle && !payContacts[user?.id]?.appleCashPhone && <p className="muted-label">Add Venmo, Zelle or Apple Cash on your <Link className="text-link" to="/profile">Profile</Link> so people can pay you back.</p>}
 
         {settlements.length > 0 && <>
           <h3 className="trip-subheading">Payments</h3>

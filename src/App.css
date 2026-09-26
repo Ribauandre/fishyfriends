@@ -299,7 +299,8 @@ button { cursor: pointer; }
 .profile-bests-nudge { margin-top: 22px; text-align: center; }
 .bug-report-panel { margin-top: 22px; }
 .bug-report-panel > p { color: var(--muted); font-size: 13px; margin: 0; }
-.fishing-licenses-panel { margin-top: 22px; }
+.fishing-licenses-panel, .payment-contacts-panel { margin-top: 22px; }
+.payment-contacts-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 .fishing-licenses-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 .license-heading-actions { align-items: center; display: flex; gap: 12px; }
 .license-heading-actions .button-quiet { margin-top: 0; width: auto; }
@@ -384,6 +385,10 @@ button { cursor: pointer; }
 .page-intro .trip-rsvp.is-closed { color: var(--coral); }
 .trip-transfer-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .trip-transfer-actions .button { margin-top: 0; white-space: nowrap; width: auto; }
+.trip-transfer-list li { flex-wrap: wrap; }
+.trip-zelle { border-top: 1px solid var(--line); color: var(--ink); display: flex; flex-basis: 100%; flex-direction: column; font-size: 13px; gap: 8px; margin-top: 4px; padding-top: 10px; text-align: left; }
+.trip-zelle > span { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.trip-transfer-actions .trip-copy { font-size: 11px; padding: 6px 10px; }
 .trip-packing, .trip-catches { margin-top: 18px; }
 .trip-item-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
 .trip-item-list li { align-items: center; border: 1px dashed var(--line); display: flex; gap: 10px; padding: 10px 14px; }
