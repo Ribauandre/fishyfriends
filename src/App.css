@@ -299,6 +299,12 @@ button { cursor: pointer; }
 .profile-bests-nudge { margin-top: 22px; text-align: center; }
 .bug-report-panel { margin-top: 22px; }
 .bug-report-panel > p { color: var(--muted); font-size: 13px; margin: 0; }
+.update-banner { align-items: center; background: var(--cream); border: 2px solid var(--mint); bottom: 20px; box-shadow: var(--sticker-shadow); display: flex; gap: 14px; left: 50%; max-width: calc(100% - 24px); padding: 10px 12px 10px 16px; position: fixed; transform: translateX(-50%); z-index: 90; }
+.update-banner span { color: var(--ink); font-size: 13px; font-weight: 700; }
+.update-banner .button { margin-top: 0; white-space: nowrap; width: auto; }
+@media (max-width: 800px) {
+  .update-banner { bottom: calc(76px + env(safe-area-inset-bottom)); width: calc(100% - 24px); }
+}
 .fishing-licenses-panel, .payment-contacts-panel { margin-top: 22px; }
 .payment-contacts-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 .fishing-licenses-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }

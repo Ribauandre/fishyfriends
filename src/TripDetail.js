@@ -272,7 +272,7 @@ export default function TripDetail() {
             </li>)}
           </ul>}
 
-        {myBalance > 0 && !venmo[user?.id] && !payContacts[user?.id]?.zelle && !payContacts[user?.id]?.appleCashPhone && <p className="muted-label">Add Venmo, Zelle or Apple Cash on your <Link className="text-link" to="/profile">Profile</Link> so people can pay you back.</p>}
+        {myBalance > 0 && !venmo[user?.id] && !payContacts[user?.id]?.zelle && !payContacts[user?.id]?.appleCashPhone && <p className="muted-label">Add Venmo, Zelle or Apple Cash on your <Link className="text-link" to="/profile#getting-paid">Profile</Link> so people can pay you back.</p>}
 
         {settlements.length > 0 && <>
           <h3 className="trip-subheading">Payments</h3>

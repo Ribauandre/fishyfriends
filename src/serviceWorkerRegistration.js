@@ -3,9 +3,10 @@
 // static shell keeps working (deep links included, via the app-shell route in
 // service-worker.js) across a flaky connection or a plain offline reload.
 //
-// Because the precached assets are only refreshed in the background, a signed-in user won't
-// see a deployed update until they close every open tab and reopen the app — same tradeoff
-// every CRA PWA makes. See https://cra.link/PWA for the full explanation.
+// A deployed update downloads in the background and then waits. config.onUpdate is called for
+// it (including one that finished downloading on an earlier visit), and the app checks again
+// whenever it comes back to the foreground, so the update banner can offer it right away
+// instead of it waiting for every copy of the app to be closed.
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||
@@ -36,6 +37,10 @@ function registerValidSW(swUrl, config) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
+      if (registration.waiting && navigator.serviceWorker.controller && config && config.onUpdate) config.onUpdate(registration);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') registration.update().catch(() => {});
+      });
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (installingWorker == null) return;
