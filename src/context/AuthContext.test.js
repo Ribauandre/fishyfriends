@@ -303,3 +303,40 @@ test('deleteWaypoint and removeMapMember fail closed', async () => {
   await expect(result.current.deleteWaypoint('wp-1')).resolves.toEqual({ error: expect.any(Error) });
   await expect(result.current.removeMapMember('member-1')).resolves.toEqual({ error: expect.any(Error) });
 });
+
+describe('trips fail closed', () => {
+  const trip = { name: 'Montauk', startsOn: '2026-10-10', endsOn: '2026-10-12' };
+
+  test('reads return nothing', async () => {
+    const result = await setup();
+    await expect(result.current.listTrips()).resolves.toEqual([]);
+    await expect(result.current.getTrip('trip-1')).resolves.toBeNull();
+    await expect(result.current.listTripAttendees('trip-1')).resolves.toEqual([]);
+    await expect(result.current.listTripExpenses('trip-1')).resolves.toEqual([]);
+    await expect(result.current.listTripSettlements('trip-1')).resolves.toEqual([]);
+  });
+
+  test('createTrip validates first, then fails closed', async () => {
+    const result = await setup();
+    expect((await result.current.createTrip({ ...trip, name: ' ' })).error.message).toMatch(/name the trip/i);
+    expect((await result.current.createTrip({ ...trip, endsOn: '2026-10-01' })).error.message).toMatch(/on or after the start date/i);
+    expect((await result.current.createTrip(trip)).error.message).toMatch(/sign in before planning a trip/i);
+  });
+
+  test('writes fail closed', async () => {
+    const result = await setup();
+    for (const response of await Promise.all([
+      result.current.updateTrip('trip-1', trip),
+      result.current.deleteTrip('trip-1'),
+      result.current.joinTrip('trip-1'),
+      result.current.leaveTrip('trip-1'),
+      result.current.removeTripAttendee('att-1'),
+      result.current.addTripExpense({ tripId: 'trip-1', description: 'Bait', amountCents: 500 }),
+      result.current.deleteTripExpense('exp-1'),
+      result.current.recordTripSettlement({ tripId: 'trip-1', from: { userId: 'a', name: 'A' }, to: { userId: 'b', name: 'B' }, amountCents: 500 }),
+      result.current.deleteTripSettlement('set-1'),
+    ])) {
+      expect(response.error).toEqual(expect.any(Error));
+    }
+  });
+});

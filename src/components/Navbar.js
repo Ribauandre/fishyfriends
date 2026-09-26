@@ -17,7 +17,7 @@ export default function Navbar() {
           <span>02</span> Fish Year
         </NavLink>
         <NavLink to="/tournaments" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
-          <span>03</span> Tournaments
+          <span>03</span> <em className="nav-label-full">Tournaments</em><em className="nav-label-short">Tourneys</em>
         </NavLink>
         <NavLink to="/anglers" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>04</span> Anglers
@@ -27,6 +27,9 @@ export default function Navbar() {
         </NavLink>
         <NavLink to="/waypoints" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
           <span>06</span> Waypoints
+        </NavLink>
+        <NavLink to="/trips" className={({isActive}) => isActive ? 'nav-link active' : 'nav-link'}>
+          <span>07</span> Trips
         </NavLink>
       </div>
       <div className="navbar-right">
