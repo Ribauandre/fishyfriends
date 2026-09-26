@@ -225,23 +225,54 @@ describe('fishing licenses', () => {
 });
 
 describe('Venmo username', () => {
-  test('is saved without the "@" people tend to type', async () => {
+  test('is saved from the Getting paid back card without the "@" people tend to type', async () => {
     const updateProfile = jest.fn().mockResolvedValue({ error: null });
-    useAuth.mockReturnValue(makeBaseAuth({ updateProfile }));
+    const saveMyPaymentContacts = jest.fn().mockResolvedValue({ error: null, contacts: { zelle: '', apple_cash_phone: '' } });
+    useAuth.mockReturnValue(makeBaseAuth({ updateProfile, saveMyPaymentContacts }));
     renderProfile();
     await userEvent.type(screen.getByLabelText(/venmo username/i), '@Andre-Ribau');
-    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
-    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ venmo_handle: 'Andre-Ribau' })));
+    await userEvent.click(screen.getByRole('button', { name: /save payment details/i }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Andre', venmo_handle: 'Andre-Ribau' })));
+    expect(saveMyPaymentContacts).toHaveBeenCalled();
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
   });
 
   test('refuses something that is not a Venmo username, without saving', async () => {
     const updateProfile = jest.fn();
-    useAuth.mockReturnValue(makeBaseAuth({ updateProfile }));
+    const saveMyPaymentContacts = jest.fn();
+    useAuth.mockReturnValue(makeBaseAuth({ updateProfile, saveMyPaymentContacts }));
     renderProfile();
     await userEvent.type(screen.getByLabelText(/venmo username/i), 'not a handle');
-    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
+    await userEvent.click(screen.getByRole('button', { name: /save payment details/i }));
     expect(await screen.findByText(/5–30 letters/)).toBeInTheDocument();
     expect(updateProfile).not.toHaveBeenCalled();
+    expect(saveMyPaymentContacts).not.toHaveBeenCalled();
+  });
+
+  test('leaves the profile row alone when Venmo did not change', async () => {
+    const updateProfile = jest.fn();
+    const saveMyPaymentContacts = jest.fn().mockResolvedValue({ error: null, contacts: { zelle: 'andre@example.com', apple_cash_phone: '' } });
+    useAuth.mockReturnValue(makeBaseAuth({ profile: { display_name: 'Andre', venmo_handle: 'Andre-Ribau' }, updateProfile, saveMyPaymentContacts }));
+    renderProfile();
+    expect(screen.getByLabelText(/venmo username/i)).toHaveValue('Andre-Ribau');
+    await userEvent.type(screen.getByLabelText(/zelle email or phone/i), 'andre@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /save payment details/i }));
+    await waitFor(() => expect(saveMyPaymentContacts).toHaveBeenCalled());
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
+  test('saving profile details keeps the saved Venmo username', async () => {
+    const updateProfile = jest.fn().mockResolvedValue({ error: null });
+    useAuth.mockReturnValue(makeBaseAuth({ profile: { display_name: 'Andre', venmo_handle: 'Andre-Ribau' }, updateProfile }));
+    renderProfile();
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ venmo_handle: 'Andre-Ribau' })));
+  });
+
+  test('the profile details form no longer has its own Venmo field', () => {
+    renderProfile();
+    expect(screen.getAllByLabelText(/venmo username/i)).toHaveLength(1);
+    expect(screen.getByLabelText(/venmo username/i).closest('section')).toHaveAttribute('id', 'getting-paid');
   });
 });
 
@@ -263,13 +294,13 @@ describe('Zelle & Apple Cash', () => {
     const zelle = await screen.findByLabelText(/zelle email or phone/i);
     await userEvent.type(zelle, 'Andre@Example.com');
     await userEvent.type(screen.getByLabelText(/apple cash phone/i), '555');
-    const panel = screen.getByText('Zelle & Apple Cash').closest('section');
-    await userEvent.click(within(panel).getByRole('button', { name: /save/i }));
+    const panel = screen.getByText('Venmo, Zelle & Apple Cash').closest('section');
+    await userEvent.click(within(panel).getByRole('button', { name: /save payment details/i }));
     expect(await screen.findByText(/10-digit US phone/i)).toBeInTheDocument();
 
     await userEvent.clear(screen.getByLabelText(/apple cash phone/i));
     await userEvent.type(screen.getByLabelText(/apple cash phone/i), '5555550101');
-    await userEvent.click(within(panel).getByRole('button', { name: /save/i }));
+    await userEvent.click(within(panel).getByRole('button', { name: /save payment details/i }));
     await waitFor(() => expect(saveMyPaymentContacts).toHaveBeenLastCalledWith({ zelle: 'Andre@Example.com', appleCashPhone: '5555550101' }));
     expect(await screen.findByDisplayValue('(555) 555-0101')).toBeInTheDocument();
     expect(screen.getByDisplayValue('andre@example.com')).toBeInTheDocument();

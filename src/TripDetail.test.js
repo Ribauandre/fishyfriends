@@ -452,6 +452,17 @@ describe('Zelle and Apple Cash', () => {
     expect(writeText).toHaveBeenCalledWith('300.00');
   });
 
+  test('someone owed money with no way to be paid is sent to the payment card on Profile', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      user: { id: 'andre' },
+      listTripExpenses: jest.fn().mockResolvedValue([house]),
+      listPaymentContacts: jest.fn().mockResolvedValue({}),
+    }));
+    renderDetail();
+    const nudge = await screen.findByText(/so people can pay you back/i);
+    expect(within(nudge).getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/profile#getting-paid');
+  });
+
   test('only offers what the person owed has set up, and nothing to the person owed', async () => {
     useAuth.mockReturnValue(makeBaseAuth({
       user: { id: 'andre' },
