@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import compressImage from '../utils/compressImage';
+import { normalizeUsPhone, normalizeZelle } from '../utils/payContacts';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, MAX_REBUILDS, rebuildCost, CHARTER_CLUB_COST } from '../utils/gameUpgrades';
 import { charterFare } from '../utils/gameBiomes';
 import { isNewRecord, speciesLabel, sizeLabel, rarityOf, JUNK_ROSTER } from '../utils/gameSpecies';
@@ -1205,6 +1206,31 @@ export function AuthProvider({ children }) {
     return Object.fromEntries((data || []).filter((row) => row.venmo_handle).map((row) => [row.id, row.venmo_handle]));
   }
 
+  // Zelle / Apple Cash details (migration 0032): readable only by people on a trip with you.
+  async function getMyPaymentContacts() {
+    if (!isSupabaseConfigured || !user) return { zelle: '', apple_cash_phone: '' };
+    const { data } = await supabase.from('payment_contacts').select('zelle, apple_cash_phone').eq('user_id', user.id).maybeSingle();
+    return data || { zelle: '', apple_cash_phone: '' };
+  }
+
+  async function saveMyPaymentContacts({ zelle, appleCashPhone }) {
+    const zelleResult = normalizeZelle(zelle);
+    if (zelleResult.error) return { error: new Error(zelleResult.error) };
+    const phoneResult = normalizeUsPhone(appleCashPhone);
+    if (phoneResult.error) return { error: new Error(phoneResult.error) };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const row = { user_id: user.id, zelle: zelleResult.zelle, apple_cash_phone: phoneResult.phone, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('payment_contacts').upsert(row);
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, contacts: { zelle: row.zelle, apple_cash_phone: row.apple_cash_phone } };
+  }
+
+  async function listPaymentContacts(userIds) {
+    if (!isSupabaseConfigured || !user || !userIds?.length) return {};
+    const { data } = await supabase.from('payment_contacts').select('user_id, zelle, apple_cash_phone').in('user_id', userIds);
+    return Object.fromEntries((data || []).map((row) => [row.user_id, { zelle: row.zelle, appleCashPhone: row.apple_cash_phone }]));
+  }
+
   async function listTripItems(tripId) {
     if (!isSupabaseConfigured || !user) return [];
     const { data, error } = await supabase.from('trip_items').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
@@ -1448,6 +1474,7 @@ export function AuthProvider({ children }) {
     listTripExpenses, addTripExpense, deleteTripExpense,
     listTripSettlements, recordTripSettlement, deleteTripSettlement,
     listVenmoHandles, listTripItems, addTripItem, setTripItemClaim, deleteTripItem,
+    getMyPaymentContacts, saveMyPaymentContacts, listPaymentContacts,
     listTripCatches, logTripCatch, deleteTripCatch,
     getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, claimWeeklyBounty, listClubRecords, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,

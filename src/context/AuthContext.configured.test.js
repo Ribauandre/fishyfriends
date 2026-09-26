@@ -1362,4 +1362,28 @@ describe('trips', () => {
     expect((await result.current.logTripCatch({ tripId: 'trip-1', species: 'Bluefish', lengthIn: 'big' })).error.message).toMatch(/number of inches/i);
     expect((await result.current.logTripCatch({ tripId: 'trip-1', species: ' ' })).error.message).toMatch(/name the species/i);
   });
+
+  test('saveMyPaymentContacts normalizes and upserts your own row, without reading it back', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('payment_contacts', { data: null, error: null });
+    const response = await result.current.saveMyPaymentContacts({ zelle: ' Andre@Example.com ', appleCashPhone: '(555) 555-0101' });
+    expect(response).toEqual({ error: null, contacts: { zelle: 'andre@example.com', apple_cash_phone: '+15555550101' } });
+    const call = lastCall('payment_contacts');
+    expect(call.value.upsert).toHaveBeenCalledWith(expect.objectContaining({ user_id: 'user-1', zelle: 'andre@example.com', apple_cash_phone: '+15555550101' }));
+    expect(call.value.select).not.toHaveBeenCalled();
+  });
+
+  test('saveMyPaymentContacts refuses bad details before any request', async () => {
+    const result = await setupSignedIn();
+    const before = __mock.current.fromCalls.length;
+    expect((await result.current.saveMyPaymentContacts({ zelle: 'nope', appleCashPhone: '' })).error.message).toMatch(/email or US phone/i);
+    expect((await result.current.saveMyPaymentContacts({ zelle: '', appleCashPhone: '555-01' })).error.message).toMatch(/10-digit/i);
+    expect(__mock.current.fromCalls.length).toBe(before);
+  });
+
+  test('listPaymentContacts maps people to what they shared', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('payment_contacts', { data: [{ user_id: 'user-2', zelle: 'kev@example.com', apple_cash_phone: '' }], error: null });
+    await expect(result.current.listPaymentContacts(['user-2', 'user-3'])).resolves.toEqual({ 'user-2': { zelle: 'kev@example.com', appleCashPhone: '' } });
+  });
 });

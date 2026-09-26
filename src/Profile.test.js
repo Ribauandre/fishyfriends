@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Profile from './Profile';
@@ -27,6 +27,8 @@ function makeBaseAuth(overrides = {}) {
     uploadFishingLicense: jest.fn(),
     updateFishingLicense: jest.fn(),
     deleteFishingLicense: jest.fn(),
+    getMyPaymentContacts: jest.fn().mockResolvedValue({ zelle: '', apple_cash_phone: '' }),
+    saveMyPaymentContacts: jest.fn(),
     ...overrides,
   };
 }
@@ -240,5 +242,36 @@ describe('Venmo username', () => {
     await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
     expect(await screen.findByText(/5–30 letters/)).toBeInTheDocument();
     expect(updateProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe('Zelle & Apple Cash', () => {
+  test('shows what is saved, formatted, and says who can see it', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ getMyPaymentContacts: jest.fn().mockResolvedValue({ zelle: '+15555550101', apple_cash_phone: '+15555550199' }) }));
+    renderProfile();
+    expect(await screen.findByDisplayValue('(555) 555-0101')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('(555) 555-0199')).toBeInTheDocument();
+    expect(screen.getByText(/only people on a trip with you can see these/i)).toBeInTheDocument();
+  });
+
+  test('saves the details and shows the server-side validation message on a bad one', async () => {
+    const saveMyPaymentContacts = jest.fn()
+      .mockResolvedValueOnce({ error: new Error('Enter a 10-digit US phone number.') })
+      .mockResolvedValueOnce({ error: null, contacts: { zelle: 'andre@example.com', apple_cash_phone: '+15555550101' } });
+    useAuth.mockReturnValue(makeBaseAuth({ saveMyPaymentContacts }));
+    renderProfile();
+    const zelle = await screen.findByLabelText(/zelle email or phone/i);
+    await userEvent.type(zelle, 'Andre@Example.com');
+    await userEvent.type(screen.getByLabelText(/apple cash phone/i), '555');
+    const panel = screen.getByText('Zelle & Apple Cash').closest('section');
+    await userEvent.click(within(panel).getByRole('button', { name: /save/i }));
+    expect(await screen.findByText(/10-digit US phone/i)).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText(/apple cash phone/i));
+    await userEvent.type(screen.getByLabelText(/apple cash phone/i), '5555550101');
+    await userEvent.click(within(panel).getByRole('button', { name: /save/i }));
+    await waitFor(() => expect(saveMyPaymentContacts).toHaveBeenLastCalledWith({ zelle: 'Andre@Example.com', appleCashPhone: '5555550101' }));
+    expect(await screen.findByDisplayValue('(555) 555-0101')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('andre@example.com')).toBeInTheDocument();
   });
 });

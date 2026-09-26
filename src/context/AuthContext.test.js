@@ -356,3 +356,10 @@ test('trip extras fail closed', async () => {
     expect(response.error).toEqual(expect.any(Error));
   }
 });
+
+test('payment contacts fail closed', async () => {
+  const result = await setup();
+  await expect(result.current.getMyPaymentContacts()).resolves.toEqual({ zelle: '', apple_cash_phone: '' });
+  await expect(result.current.listPaymentContacts(['a'])).resolves.toEqual({});
+  expect((await result.current.saveMyPaymentContacts({ zelle: 'a@b.co', appleCashPhone: '' })).error).toEqual(expect.any(Error));
+});

@@ -45,6 +45,7 @@ function makeBaseAuth(overrides = {}) {
     deleteTripSettlement: jest.fn(),
     listFishingLicenses: jest.fn().mockResolvedValue([{ state: 'New York', expires_at: '2100-01-01' }]),
     listVenmoHandles: jest.fn().mockResolvedValue({}),
+    listPaymentContacts: jest.fn().mockResolvedValue({}),
     listTripItems: jest.fn().mockResolvedValue([]),
     addTripItem: jest.fn(),
     setTripItemClaim: jest.fn(),
@@ -340,10 +341,10 @@ describe('Venmo', () => {
     expect(screen.queryByRole('link', { name: /pay on venmo/i })).not.toBeInTheDocument();
   });
 
-  test('someone owed money without a Venmo username is nudged to add one', async () => {
+  test('someone owed money with no way to be paid is nudged to add one', async () => {
     useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'andre' }, listTripExpenses: jest.fn().mockResolvedValue([house]), listVenmoHandles: jest.fn().mockResolvedValue({}) }));
     renderDetail();
-    expect(await screen.findByText(/add your venmo username/i)).toBeInTheDocument();
+    expect(await screen.findByText(/add venmo, zelle or apple cash/i)).toBeInTheDocument();
   });
 });
 
@@ -426,5 +427,41 @@ describe('trip catches', () => {
     expect(screen.getByText('31" · Kevin')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /log a fish/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete kevin's/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('Zelle and Apple Cash', () => {
+  const house = { id: 'e1', paid_by: 'andre', paid_by_name: 'Andre', description: 'Beach house', amount_cents: 60000 };
+
+  test('the payer can open the Zelle details to copy, and an Apple Cash link to Messages', async () => {
+    const writeText = jest.fn().mockResolvedValue();
+    Object.assign(navigator, { clipboard: { writeText } });
+    useAuth.mockReturnValue(makeBaseAuth({
+      listTripExpenses: jest.fn().mockResolvedValue([house]),
+      listPaymentContacts: jest.fn().mockResolvedValue({ andre: { zelle: '+15555550101', appleCashPhone: '+15555550199' } }),
+    }));
+    renderDetail();
+    const apple = await screen.findByRole('link', { name: /apple cash/i });
+    expect(apple).toHaveAttribute('href', 'sms:+15555550199&body=Sending%20%24300.00%20by%20Apple%20Cash%20for%20Montauk%20run');
+
+    await userEvent.click(screen.getByRole('button', { name: /^zelle$/i }));
+    expect(screen.getByText('(555) 555-0101')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /copy andre's zelle/i }));
+    expect(writeText).toHaveBeenCalledWith('(555) 555-0101');
+    await userEvent.click(screen.getByRole('button', { name: /copy amount/i }));
+    expect(writeText).toHaveBeenCalledWith('300.00');
+  });
+
+  test('only offers what the person owed has set up, and nothing to the person owed', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      user: { id: 'andre' },
+      listTripExpenses: jest.fn().mockResolvedValue([house]),
+      listPaymentContacts: jest.fn().mockResolvedValue({ andre: { zelle: 'andre@example.com', appleCashPhone: '' } }),
+    }));
+    renderDetail();
+    await screen.findByText('Beach house', { selector: 'strong' });
+    expect(screen.queryByRole('button', { name: /^zelle$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /apple cash/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/so people can pay you back/i)).not.toBeInTheDocument();
   });
 });
