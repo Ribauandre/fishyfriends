@@ -7,6 +7,8 @@ import ChatIcon from './ChatIcon';
 const POLL_INTERVAL_MS = 30000;
 
 function describe(notification) {
+  if (notification.type === 'trip_join') return `${notification.actor_name} is in for your trip`;
+  if (notification.type === 'trip_expense') return `${notification.actor_name} added a trip expense`;
   const action = notification.type === 'like' ? 'liked' : 'commented on';
   const thing = notification.target_type === 'personal_best' ? 'your personal best'
     : notification.target_type === 'tournament_entry' ? 'your tournament entry'
@@ -67,6 +69,10 @@ export default function NotificationBell() {
       setNotifications((previous) => previous.map((item) => (item.id === notification.id ? { ...item, read: true } : item)));
       await markNotificationRead(notification.id);
     }
+    if (notification.target_type === 'trip') {
+      navigate(`/trips/${notification.target_id}`);
+      return;
+    }
     const commentParam = notification.comment_id ? `&comment=${notification.comment_id}` : '';
     if (notification.target_type === 'tournament_entry') {
       const entry = await getTournamentEntry(notification.target_id);
@@ -97,7 +103,7 @@ export default function NotificationBell() {
       {notifications.length === 0 && <p className="month-empty">Nothing yet. Get out there and catch something.</p>}
       <div className="notification-list">
         {notifications.map((notification) => <button type="button" key={notification.id} className={`notification-row ${notification.read ? '' : 'is-unread'}`} onClick={() => handleSelect(notification)}>
-          <span className="notification-icon">{notification.type === 'like' ? <span aria-hidden="true">♥</span> : <ChatIcon />}</span>
+          <span className="notification-icon">{notification.type === 'like' ? <span aria-hidden="true">♥</span> : notification.target_type === 'trip' ? <span aria-hidden="true">{notification.type === 'trip_expense' ? '$' : '✓'}</span> : <ChatIcon />}</span>
           <span className="notification-text"><strong>{describe(notification)}</strong>{notification.preview && <em>"{notification.preview}"</em>}</span>
         </button>)}
       </div>

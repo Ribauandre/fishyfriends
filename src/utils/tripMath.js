@@ -101,3 +101,28 @@ export function licenseWarning(licenses, trip, today = new Date()) {
   if (newest.expires_at < todayIso(today)) return `Your ${trip.state} fishing license expired on ${newest.expires_at}. Renew it before the trip.`;
   return `Your ${trip.state} fishing license expires on ${newest.expires_at}, before this trip ends. Renew it before you go.`;
 }
+
+// Sign-ups close the day after the RSVP-by date, by the angler's own calendar.
+export function rsvpClosed(trip, today = new Date()) {
+  return Boolean(trip?.rsvp_by) && todayIso(today) > trip.rsvp_by;
+}
+
+// The recap: who caught the most (ties to whoever got there first), and the biggest fish
+// of each species, from the lengths people entered.
+export function catchRecap(catches) {
+  const ordered = [...(catches || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const anglers = new Map();
+  ordered.forEach((c) => {
+    const entry = anglers.get(c.user_id) || { userId: c.user_id, name: c.angler_name, count: 0, first: anglers.size };
+    entry.count += 1;
+    anglers.set(c.user_id, entry);
+  });
+  const leaderboard = [...anglers.values()].sort((a, b) => b.count - a.count || a.first - b.first).map(({ first, ...rest }) => rest);
+  const biggest = new Map();
+  ordered.forEach((c) => {
+    if (!c.length_in) return;
+    const best = biggest.get(c.species);
+    if (!best || Number(c.length_in) > Number(best.length_in)) biggest.set(c.species, c);
+  });
+  return { total: ordered.length, leaderboard, biggest: [...biggest.values()].sort((a, b) => Number(b.length_in) - Number(a.length_in)) };
+}

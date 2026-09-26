@@ -340,3 +340,19 @@ describe('trips fail closed', () => {
     }
   });
 });
+
+test('trip extras fail closed', async () => {
+  const result = await setup();
+  await expect(result.current.listVenmoHandles(['a'])).resolves.toEqual({});
+  await expect(result.current.listTripItems('trip-1')).resolves.toEqual([]);
+  await expect(result.current.listTripCatches('trip-1')).resolves.toEqual([]);
+  for (const response of await Promise.all([
+    result.current.addTripItem({ tripId: 'trip-1', name: 'Cooler' }),
+    result.current.setTripItemClaim('i1', true),
+    result.current.deleteTripItem('i1'),
+    result.current.logTripCatch({ tripId: 'trip-1', species: 'Bluefish' }),
+    result.current.deleteTripCatch('c1'),
+  ])) {
+    expect(response.error).toEqual(expect.any(Error));
+  }
+});

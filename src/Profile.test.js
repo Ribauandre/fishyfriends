@@ -221,3 +221,24 @@ describe('fishing licenses', () => {
     await waitFor(() => expect(screen.queryByText('New Jersey')).not.toBeInTheDocument());
   });
 });
+
+describe('Venmo username', () => {
+  test('is saved without the "@" people tend to type', async () => {
+    const updateProfile = jest.fn().mockResolvedValue({ error: null });
+    useAuth.mockReturnValue(makeBaseAuth({ updateProfile }));
+    renderProfile();
+    await userEvent.type(screen.getByLabelText(/venmo username/i), '@Andre-Ribau');
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledWith(expect.objectContaining({ venmo_handle: 'Andre-Ribau' })));
+  });
+
+  test('refuses something that is not a Venmo username, without saving', async () => {
+    const updateProfile = jest.fn();
+    useAuth.mockReturnValue(makeBaseAuth({ updateProfile }));
+    renderProfile();
+    await userEvent.type(screen.getByLabelText(/venmo username/i), 'not a handle');
+    await userEvent.click(screen.getByRole('button', { name: /save profile/i }));
+    expect(await screen.findByText(/5–30 letters/)).toBeInTheDocument();
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+});
