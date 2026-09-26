@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 
-const ADMIN_EMAIL = 'ribauandre@yahoo.com';
+export const ADMIN_EMAIL = 'ribauandre@yahoo.com';
 
 export default function AdminBugReports() {
   const { user, listBugReports } = useAuth();

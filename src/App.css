@@ -22,11 +22,11 @@ a { color: inherit; text-decoration: none; }
 button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 .App { min-height: 100vh; }
-.page-wrapper { padding: 112px 32px 72px; min-height: 100vh; }
+.page-wrapper { padding: 112px max(32px, env(safe-area-inset-right)) 72px max(32px, env(safe-area-inset-left)); min-height: 100vh; }
 .content-shell { max-width: 1180px; margin: 0 auto; }
 .eyebrow { color: var(--coral); font-size: 11px; font-weight: 800; letter-spacing: .16em; }
 .muted-label, .status-dot { color: var(--muted); font-size: 12px; }
-.navbar { align-items: center; background: rgba(6, 14, 18, .94); border-bottom: 1px solid var(--line); display: flex; height: 80px; justify-content: space-between; left: 0; padding: 0 36px; position: fixed; right: 0; top: 0; z-index: 20; }
+.navbar { align-items: center; background: rgba(6, 14, 18, .94); border-bottom: 1px solid var(--line); display: flex; height: 80px; justify-content: space-between; left: 0; padding: 0 max(36px, env(safe-area-inset-right)) 0 max(36px, env(safe-area-inset-left)); position: fixed; right: 0; top: 0; z-index: 20; }
 .brand-mark { align-items: center; display: flex; gap: 11px; }
 .brand-mark > span { align-items: center; background: var(--mint); color: var(--deep); display: flex; font-size: 12px; font-weight: 900; height: 34px; justify-content: center; letter-spacing: .08em; width: 34px; }
 .brand-mark strong, .brand-mark small { display: block; }
@@ -37,8 +37,13 @@ button { cursor: pointer; }
 .nav-link span { color: #a7b8b0; font-size: 10px; margin-right: 5px; }
 .nav-link.active, .nav-link:hover { color: var(--mint); }
 .nav-link.active { border-bottom: 2px solid var(--mint); }
-.nav-link .nav-label-full, .nav-link .nav-label-short { color: inherit; display: inline; font-size: inherit; font-style: normal; margin: 0; }
-.nav-link .nav-label-short { display: none; }
+.nav-link em { color: inherit; font-style: normal; }
+.nav-icon { display: none; }
+/* Sub-tabs for a section with more than one page (Compete, Plan), above the page itself. */
+.section-tabs.content-shell { border-bottom: 1px solid var(--line); display: flex; gap: 4px; margin-bottom: 30px; }
+.section-tab { border-bottom: 3px solid transparent; color: var(--muted); font-family: var(--font-head); font-size: 12px; font-weight: 800; letter-spacing: .08em; margin-bottom: -1px; padding: 12px 18px; text-transform: uppercase; transition: color .15s ease-out; }
+.section-tab:hover, .section-tab.active { color: var(--mint); }
+.section-tab.active { border-bottom-color: var(--mint); }
 .profile-pill { align-items: center; display: flex; font-size: 12px; font-weight: 700; gap: 8px; }
 .avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--deep); display: inline-flex; font-size: 11px; font-weight: 900; height: 29px; justify-content: center; width: 29px; }
 .avatar img { border-radius: inherit; height: 100%; object-fit: cover; width: 100%; }
@@ -593,23 +598,27 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 @media (max-width: 800px) {
   body { padding-bottom: env(safe-area-inset-bottom); }
   .page-wrapper { padding: 28px 16px 92px; }
-  .navbar { align-items: center; bottom: 0; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); top: auto; }
-  .navbar:before { bottom: auto; top: -3px; }
-  .nav-brand { display: none; }
-  /* Seven tabs plus the bell and avatar only just fit a 375px phone; narrower ones scroll the
-     tabs sideways rather than push the bell and profile off-screen. */
-  .nav-links { display: grid; flex: 1; gap: 0; grid-template-columns: repeat(7, auto); justify-content: space-between; margin: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .nav-links::-webkit-scrollbar { display: none; }
-  .nav-links .nav-link { letter-spacing: .03em; }
-  .nav-link .nav-label-full { display: none; }
-  .nav-link .nav-label-short { display: inline; }
-  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 54px; padding: 7px 3px; }
-  .nav-link span { display: block; font-size: 9px; margin: 0; }
-  .navbar-right { gap: 10px; }
-  .profile-pill { border-left: 1px solid var(--line); flex-direction: column; font-size: 9px; gap: 2px; margin-left: 5px; padding-left: 10px; }
-  .profile-pill-name { display: block; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .profile-pill > span:last-child { display: none; }
-  .notification-panel { bottom: calc(100% + 10px); max-width: calc(100vw - 24px); top: auto; width: 300px; }
+  /* On a phone the header is a slim top bar (brand, bell, you) and the five section tabs are
+     a bar along the bottom, each a full-width icon-and-label target under the thumb. */
+  .navbar { height: calc(56px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 16px 0; }
+  .nav-brand small { display: none; }
+  .nav-brand strong { font-size: 13px; }
+  .brand-mark > span { height: 30px; width: 30px; }
+  .nav-links { background: rgba(6,14,18,.98); border-top: 1px solid var(--line); bottom: 0; box-shadow: 0 -12px 30px rgba(0,0,0,.25); display: grid; gap: 0; grid-template-columns: repeat(5, 1fr); height: calc(64px + env(safe-area-inset-bottom)); left: 0; margin: 0; padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left)); position: fixed; right: 0; }
+  .nav-links:before { background: repeating-linear-gradient(-45deg, var(--mint) 0 8px, var(--rust) 8px 16px); content: ''; height: 3px; left: 0; opacity: .8; position: absolute; right: 0; top: -3px; }
+  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 5px; justify-content: center; letter-spacing: .04em; min-height: 64px; min-width: 0; padding: 8px 2px 6px; }
+  .nav-link.active { background: rgba(227,251,20,.08); border-bottom: 0; }
+  .nav-icon { display: block; height: 22px; width: 22px; }
+  .nav-link .nav-index { display: none; }
+  .navbar-right { gap: 18px; }
+  .profile-pill-name, .profile-pill > .profile-pill-arrow { display: none; }
+  .navbar ~ .page-wrapper { padding-top: calc(56px + env(safe-area-inset-top) + 24px); }
+  /* The game fills the screen between the top edge and the tabs, so the top bar steps aside. */
+  .navbar.is-game { background: transparent; border: 0; box-shadow: none; height: 0; padding: 0; }
+  .navbar.is-game:before, .navbar.is-game .nav-brand, .navbar.is-game .navbar-right { display: none; }
+  .section-tabs.content-shell { gap: 0; margin-bottom: 22px; }
+  .section-tab { align-items: center; display: flex; flex: 1; justify-content: center; min-height: 46px; padding: 10px 8px; }
+  .notification-panel { max-width: calc(100vw - 24px); top: calc(100% + 12px); width: 300px; }
   .welcome-banner { flex-direction: column; min-height: 0; padding: 35px 26px; }
   .welcome-banner > div { max-width: 100%; }
   .fishing-scene { inset: auto; margin: 22px -16px -18px auto; position: relative; width: 108%; }
@@ -632,10 +641,6 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .leaderboard-row { grid-template-columns: 28px 1fr 80px 28px; padding: 15px 10px; }
   .rank-date { display: none; }
   .leaderboard-detail { margin-left: 48px; }
-}
-@media (max-width: 400px) {
-  .profile-pill { border-left: 0; margin-left: 0; padding-left: 0; }
-  .profile-pill-name { display: none; }
 }
 @media (max-width: 500px) {
   .nav-link { font-size: 10px; }
@@ -784,7 +789,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .comment-form .button { flex-shrink: 0; padding: 8px 12px; width: auto; }
 
 @media (max-width: 800px) {
-  .navbar { background: rgba(6,14,18,.98); box-shadow: 0 -12px 30px rgba(0,0,0,.25); }
+  .navbar { background: rgba(6,14,18,.98); box-shadow: 0 12px 30px rgba(0,0,0,.25); }
   .anglers-grid { grid-template-columns: 1fr; }
 }
 
@@ -1478,4 +1483,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .map-hotspot { min-height: 30px; padding: 3px 6px; }
   .map-hotspot strong { font-size: 9px; }
   .map-hotspot span { font-size: 8px; }
+}
+
+/* A phone on its side is past the mobile breakpoint; keep the game clear of the notch. */
+@media (min-width: 801px) {
+  .game-page.content-shell { left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); }
 }

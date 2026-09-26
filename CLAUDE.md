@@ -89,6 +89,8 @@ Dark-mode-only, deliberately not a generic light SaaS look: near-black base, neo
 
 `src/components/AppTour.js` is a first-run onboarding tour, once per **person** (`profiles.tour_completed_at` is the source of truth; `localStorage` only avoids a flash before the profile loads — never make it authoritative). Steps target real elements via `data-tour="..."` and most carry a `route`, so the tour navigates to the page that actually owns a feature before spotlighting it, rather than pointing at a nav link from the wrong page. When moving a `data-tour`-tagged element to a different page, update that step's `route` too.
 
+The nav is five sections, defined once in `src/utils/navSections.js` (`SECTIONS`): Home, Compete (Fish Year, Tournaments), Crew (Anglers), Plan (Trips, Waypoints) and Game. A section with two pages shows sub-tabs above those pages (`SectionTabs`, mounted in `App`), and its tab reopens whichever of its pages you were on last. A new page goes into a section there rather than becoming a sixth tab; Profile (reached by the avatar) holds everything personal, including the admin's bug-report link. On a phone the header is a slim top bar (brand, bell, avatar, `safe-area-inset-top` — the viewport is `viewport-fit=cover`) and the tabs are an icon-and-label bar along the bottom; on the game the top bar steps aside (`.navbar.is-game`) because the game fills the screen.
+
 Mobile gets fixed bottom nav with safe-area padding, single-column layouts, and full-width touch targets — don't add wide tables or hover-only actions without a touch-usable equivalent.
 
 ### Cast & Catch (the fishing minigame at `/fishing-game`)

@@ -306,3 +306,12 @@ describe('Zelle & Apple Cash', () => {
     expect(screen.getByDisplayValue('andre@example.com')).toBeInTheDocument();
   });
 });
+
+test('the bug-report inbox link is on Profile, for the admin only', () => {
+  const { unmount } = renderProfile();
+  expect(screen.queryByRole('link', { name: /bug reports/i })).not.toBeInTheDocument();
+  unmount();
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'user-1', email: 'ribauandre@yahoo.com' } }));
+  renderProfile();
+  expect(screen.getByRole('link', { name: /bug reports/i })).toHaveAttribute('href', '/admin/bugs');
+});
