@@ -5,9 +5,10 @@ import FishIllustration from './components/FishIllustration';
 import TripFormModal from './components/TripFormModal';
 import TripPackingList from './components/TripPackingList';
 import TripCatches from './components/TripCatches';
+import TripShare from './components/TripShare';
 import PayOptions from './components/PayOptions';
 import speciesIcon from './utils/speciesOptions';
-import { balances, formatCents, licenseWarning, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
+import { balances, formatCents, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
 
 function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
   const { addTripExpense } = useAuth();
@@ -57,7 +58,7 @@ export default function TripDetail() {
   const navigate = useNavigate();
   const {
     user, getTrip, updateTrip, deleteTrip, listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
-    listTripExpenses, deleteTripExpense, listTripSettlements, recordTripSettlement, deleteTripSettlement, listFishingLicenses,
+    listTripExpenses, deleteTripExpense, listTripSettlements, recordTripSettlement, deleteTripSettlement,
     listVenmoHandles, listPaymentContacts,
   } = useAuth();
 
@@ -65,7 +66,6 @@ export default function TripDetail() {
   const [attendees, setAttendees] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [settlements, setSettlements] = useState([]);
-  const [licenses, setLicenses] = useState([]);
   const [venmo, setVenmo] = useState({});
   const [payContacts, setPayContacts] = useState({});
   const [loading, setLoading] = useState(true);
@@ -90,11 +90,10 @@ export default function TripDetail() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([getTrip(tripId), listTripAttendees(tripId), listFishingLicenses()]).then(async ([tripData, attendeeRows, licenseRows]) => {
+    Promise.all([getTrip(tripId), listTripAttendees(tripId)]).then(async ([tripData, attendeeRows]) => {
       if (!active) return;
       setTrip(tripData);
       setAttendees(attendeeRows);
-      setLicenses(licenseRows);
       const member = tripData && (tripData.created_by === user?.id || attendeeRows.some((a) => a.user_id === user?.id));
       if (member) await loadMoney(attendeeRows.map((a) => a.user_id));
       if (active) setLoading(false);
@@ -115,7 +114,6 @@ export default function TripDetail() {
   const isMember = isCreator || Boolean(myAttendance);
   const imWaitlisted = waitlist.some((a) => a.user_id === user?.id);
   const full = trip.max_spots && going.length >= trip.max_spots;
-  const warning = myAttendance ? licenseWarning(licenses, trip) : null;
   const balanceList = balances({ going, expenses, settlements });
   const transfers = settleUp(balanceList);
   const myBalance = balanceList.find((b) => b.userId === user?.id)?.cents || 0;
@@ -190,11 +188,10 @@ export default function TripDetail() {
         {!myAttendance && (!closed || isCreator) && <button className="button button-primary" type="button" onClick={handleJoin} disabled={busy}>{full ? 'Join the waitlist' : "I'm in"} <span>＋</span></button>}
         {myAttendance && !isCreator && <button className="button button-quiet" type="button" onClick={handleLeave} disabled={busy}>{imWaitlisted ? 'Leave the waitlist' : "I can't make it"}</button>}
         {isCreator && <button className="button button-quiet" type="button" onClick={() => setEditing(true)}>Edit trip</button>}
+        <TripShare trip={trip} perPersonCents={isMember ? perPersonCents(expenses, going.length) : 0} spotsLeft={trip.max_spots ? Math.max(trip.max_spots - going.length, 0) : null} />
         <Link className="button button-quiet" to="/trips">All trips <span>→</span></Link>
       </div>
     </div>
-
-    {warning && <p className="trip-license-warning" role="status">{warning} <Link className="text-link" to="/profile">Go to Profile →</Link></p>}
 
     <div className="trip-layout">
       <section className="table-card">

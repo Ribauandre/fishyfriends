@@ -1,4 +1,4 @@
-import { splitRoster, parseDollars, formatCents, perPersonCents, balances, settleUp, licenseWarning, rsvpClosed, catchRecap } from './tripMath';
+import { splitRoster, parseDollars, formatCents, perPersonCents, balances, settleUp, rsvpClosed, catchRecap } from './tripMath';
 
 const at = (id, userId, name, minute) => ({ id, user_id: userId, angler_name: name, created_at: `2026-09-01T10:${String(minute).padStart(2, '0')}:00Z` });
 const andre = at('a1', 'u-andre', 'Andre', 0);
@@ -95,39 +95,6 @@ describe('balances + settleUp', () => {
 
   test('nothing to settle with no expenses', () => {
     expect(settleUp(balances({ going: [andre, kevin], expenses: [] }))).toEqual([]);
-  });
-});
-
-describe('licenseWarning', () => {
-  const trip = { state: 'New York', starts_on: '2026-10-10', ends_on: '2026-10-12' };
-  const today = new Date(2026, 8, 26);
-
-  test('no warning when the trip has no state', () => {
-    expect(licenseWarning([], { ...trip, state: '' }, today)).toBeNull();
-  });
-
-  test('warns when there is no license for the trip state', () => {
-    expect(licenseWarning([{ state: 'New Jersey', expires_at: '2027-01-01' }], trip, today)).toMatch(/don't have a New York fishing license on file/);
-  });
-
-  test('no warning when a license covers the whole trip', () => {
-    expect(licenseWarning([{ state: 'New York', expires_at: '2026-10-12' }], trip, today)).toBeNull();
-  });
-
-  test('warns when the newest license lapses before the trip ends', () => {
-    expect(licenseWarning([{ state: 'New York', expires_at: '2026-10-11' }], trip, today)).toMatch(/expires on 2026-10-11, before this trip ends/);
-  });
-
-  test('says expired when it already has', () => {
-    expect(licenseWarning([{ state: 'New York', expires_at: '2026-09-01' }], trip, today)).toMatch(/expired on 2026-09-01/);
-  });
-
-  test('uses the newest of several licenses for the state', () => {
-    expect(licenseWarning([{ state: 'New York', expires_at: '2026-09-01' }, { state: 'New York', expires_at: '2027-09-01' }], trip, today)).toBeNull();
-  });
-
-  test('stays quiet once the trip is over', () => {
-    expect(licenseWarning([], trip, new Date(2026, 9, 20))).toBeNull();
   });
 });
 

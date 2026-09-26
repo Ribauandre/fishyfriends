@@ -395,7 +395,6 @@ button { cursor: pointer; }
 .trip-species-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
 .trip-species-chips li { align-items: center; border: 1px solid var(--mint); color: var(--mint); display: flex; font-size: 12px; font-weight: 700; gap: 6px; padding: 5px 4px 5px 10px; }
 .trip-species-chips button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
-.trip-license-warning { border: 2px solid var(--coral); color: var(--ink); font-size: 13px; line-height: 1.5; margin: 0 0 18px; padding: 12px 14px; }
 .trip-layout { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; margin-bottom: 18px; }
 .trip-subheading { font-size: 14px; margin: 20px 0 8px; }
 .trip-target-species { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 0; padding: 0; }

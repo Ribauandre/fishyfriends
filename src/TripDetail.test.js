@@ -43,7 +43,6 @@ function makeBaseAuth(overrides = {}) {
     listTripSettlements: jest.fn().mockResolvedValue([]),
     recordTripSettlement: jest.fn(),
     deleteTripSettlement: jest.fn(),
-    listFishingLicenses: jest.fn().mockResolvedValue([{ state: 'New York', expires_at: '2100-01-01' }]),
     listVenmoHandles: jest.fn().mockResolvedValue({}),
     listPaymentContacts: jest.fn().mockResolvedValue({}),
     listTripItems: jest.fn().mockResolvedValue([]),
@@ -279,25 +278,15 @@ describe('money', () => {
   });
 });
 
-describe('license check', () => {
-  test('warns someone going when they have no license for the trip state', async () => {
-    useAuth.mockReturnValue(makeBaseAuth({ listFishingLicenses: jest.fn().mockResolvedValue([{ state: 'New Jersey', expires_at: '2100-01-01' }]) }));
-    renderDetail();
-    expect(await screen.findByText(/don't have a New York fishing license on file/i)).toBeInTheDocument();
-  });
-
-  test('says nothing when their license covers the trip', async () => {
-    renderDetail();
-    await screen.findByRole('heading', { name: 'Montauk run' });
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
-  });
-
-  test('says nothing to someone who is not going', async () => {
-    useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'sam' }, listFishingLicenses: jest.fn().mockResolvedValue([]) }));
-    renderDetail();
-    await screen.findByRole('heading', { name: 'Montauk run' });
-    expect(screen.queryByText(/fishing license on file/i)).not.toBeInTheDocument();
-  });
+test('no license check: joining never depends on a fishing license, and nothing is said about one', async () => {
+  const joinTrip = jest.fn().mockResolvedValue({ error: null, attendee: { id: 'a9', trip_id: 'trip-1', user_id: 'sam', angler_name: 'Sam', created_at: '2026-09-01T00:00:00Z' } });
+  const listFishingLicenses = jest.fn().mockResolvedValue([]);
+  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'sam' }, joinTrip, listFishingLicenses }));
+  renderDetail();
+  await userEvent.click(await screen.findByRole('button', { name: /i'm in/i }));
+  await waitFor(() => expect(joinTrip).toHaveBeenCalled());
+  expect(listFishingLicenses).not.toHaveBeenCalled();
+  expect(screen.queryByText(/license/i)).not.toBeInTheDocument();
 });
 
 describe('RSVP deadline', () => {
@@ -484,5 +473,25 @@ describe('Zelle and Apple Cash', () => {
     expect(screen.queryByRole('button', { name: /^zelle$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /apple cash/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/so people can pay you back/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('sharing a trip', () => {
+  test('Text it to the crew opens Messages with the trip written out and its link', async () => {
+    renderDetail();
+    const link = await screen.findByRole('link', { name: /text it to the crew/i });
+    const body = decodeURIComponent(link.getAttribute('href').replace('sms:?&body=', ''));
+    expect(body).toMatch(/^Montauk run · /);
+    expect(body).toMatch(/Who's in\?/);
+    expect(body).toMatch(/\/trips\/trip-1$/);
+  });
+
+  test('Share hands the trip to the phone\'s share sheet', async () => {
+    const share = jest.fn().mockResolvedValue();
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    renderDetail();
+    await userEvent.click(await screen.findByRole('button', { name: /^share/i }));
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ title: 'Montauk run', url: expect.stringMatching(/\/trips\/trip-1$/) }));
+    delete navigator.share;
   });
 });
