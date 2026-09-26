@@ -15,6 +15,9 @@ function makeBaseAuth() {
   return {
     user: { id: 'user-1' },
     customSpecies: [],
+    personalBests: [],
+    listTournaments: jest.fn().mockResolvedValue([]),
+    listTrips: jest.fn().mockResolvedValue([]),
     listFishYearCatches: jest.fn().mockResolvedValue([]),
     logFishYearCatch: jest.fn(),
     deleteFishYearCatch: jest.fn(),
@@ -80,6 +83,9 @@ test('submitting logs the catch with the month derived from the date, and adds i
     caughtAt: '2026-03-15',
   })));
   await waitFor(() => expect(screen.queryByRole('button', { name: /make it official/i })).not.toBeInTheDocument());
+  expect(screen.getByRole('dialog', { name: /catch logged/i })).toHaveTextContent(/fish year 2026/i);
+  await userEvent.click(screen.getByRole('button', { name: /^done/i }));
+  expect(screen.getByText('Carp')).toBeInTheDocument();
 });
 
 test('shows the server error message and keeps the modal open when logging fails', async () => {

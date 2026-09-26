@@ -1,49 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
-import SpeciesSelect from './components/SpeciesSelect';
+import LogCatchModal from './components/LogCatchModal';
+import { localToday } from './components/TripFormModal';
+import { dateWithin } from './utils/catchDestinations';
 import TournamentEntries from './components/TournamentEntries';
-import extractPhotoDate from './utils/photoDate';
 import { tournamentStatus, TOURNAMENT_STATUS_LABEL } from './utils/tournamentStatus';
-
-function EntryModal({ tournamentId, unit, onClose, onSaved }) {
-  const { submitTournamentEntry } = useAuth();
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [form, setForm] = useState({ species: '', size: '', date: new Date().toISOString().slice(0, 10), photoFile: null, dateFromPhoto: false });
-
-  async function handlePhoto(event) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setForm((previous) => ({ ...previous, photoFile: file, dateFromPhoto: false }));
-    const takenAt = await extractPhotoDate(file);
-    if (takenAt) setForm((previous) => ({ ...previous, date: takenAt, dateFromPhoto: true }));
-  }
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setSaving(true); setError('');
-    const result = await submitTournamentEntry({ tournamentId, species: form.species, size: form.size, caughtAt: form.date, file: form.photoFile });
-    setSaving(false);
-    if (result?.error) { setError(result.error.message); return; }
-    onSaved(result.entry);
-  }
-
-  return <div className="catch-modal-backdrop" role="presentation" onClick={onClose}>
-    <form className="catch-modal" onSubmit={handleSubmit} onClick={(event) => event.stopPropagation()}>
-      <div className="section-heading">
-        <div><span className="eyebrow">NEW ENTRY</span><h2>Log your fish</h2></div>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Close log entry form">×</button>
-      </div>
-      <label>Photo<input type="file" accept="image/*" onChange={handlePhoto} /></label>
-      <label>Date<input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value, dateFromPhoto: false })} />{form.dateFromPhoto && <span className="field-hint">✓ Grabbed from the photo</span>}</label>
-      <label>Species<SpeciesSelect value={form.species} onChange={(species) => setForm({ ...form, species })} /></label>
-      <label>Size ({unit === 'lb' ? 'lbs' : 'inches'})<input required type="number" step="0.1" min="0.1" value={form.size} onChange={(event) => setForm({ ...form, size: event.target.value })} /></label>
-      {error && <p className="form-error">{error}</p>}
-      <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Make it official'} <span>→</span></button></div>
-    </form>
-  </div>;
-}
 
 function DeleteTournamentModal({ tournamentName, deleting, onCancel, onConfirm }) {
   return <div className="catch-modal-backdrop" role="presentation" onClick={onCancel}>
@@ -138,7 +100,10 @@ export default function TournamentDetail() {
 
     {isCreator && <p className="tournament-danger-zone"><button type="button" className="button button-danger" onClick={() => setConfirmingDelete(true)}>Delete this tournament</button></p>}
 
-    {showForm && <EntryModal tournamentId={tournament.id} unit={tournament.unit} onClose={() => setShowForm(false)} onSaved={(entry) => { setEntries((previous) => [entry, ...previous].sort((a, b) => b.size - a.size)); setShowForm(false); }} />}
+    {showForm && <LogCatchModal preset={{ tournamentId: tournament.id, date: dateWithin(localToday(), tournament.starts_on, tournament.ends_on) }} onClose={() => setShowForm(false)} onLogged={(results) => {
+      const logged = results.find((entry) => entry.key === `tournament:${tournament.id}`);
+      if (logged) setEntries((previous) => [logged.result.entry, ...previous].sort((a, b) => b.size - a.size));
+    }} />}
     {confirmingDelete && <DeleteTournamentModal tournamentName={tournament.name} deleting={deleting} onCancel={() => setConfirmingDelete(false)} onConfirm={handleDeleteTournament} />}
   </main>;
 }

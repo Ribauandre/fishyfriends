@@ -962,6 +962,8 @@ export function AuthProvider({ children }) {
     const row = { map_id: mapId, map_name: mapName, user_id: userId, invited_by: user.id, status: 'pending' };
     const { data, error } = await supabase.from('waypoint_map_members').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    // Never .select()ed: only the recipient can read a notification.
+    supabase.from('notifications').insert({ recipient_id: userId, actor_id: user.id, actor_name: myName(), type: 'map_invite', target_type: 'waypoint_map', target_id: mapId, preview: mapName || '' }).then(() => {});
     return { error: null, member: data };
   }
 

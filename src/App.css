@@ -44,6 +44,23 @@ button { cursor: pointer; }
 .section-tab { border-bottom: 3px solid transparent; color: var(--muted); font-family: var(--font-head); font-size: 12px; font-weight: 800; letter-spacing: .08em; margin-bottom: -1px; padding: 12px 18px; text-transform: uppercase; transition: color .15s ease-out; }
 .section-tab:hover, .section-tab.active { color: var(--mint); }
 .section-tab.active { border-bottom-color: var(--mint); }
+.nav-log-catch.button { gap: 8px; margin: 0; padding: 10px 14px; white-space: nowrap; width: auto; }
+.nav-log-catch > span { font-size: 15px; line-height: 1; }
+.nav-log-catch em { font-style: normal; }
+/* The one Log a catch form: the fish, then every place it counts. */
+.log-catch-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
+.log-catch-sizes { display: grid; gap: 0 14px; grid-template-columns: 1fr 1fr; }
+.log-catch-destinations { border: 1px solid var(--line); margin: 22px 0 0; min-width: 0; padding: 4px 14px 12px; }
+.log-catch-destinations legend { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; padding: 0 6px; text-transform: uppercase; }
+.catch-modal label.log-catch-option { align-items: flex-start; border-bottom: 1px solid var(--line); cursor: pointer; display: flex; gap: 12px; margin: 0; padding: 12px 0; }
+.catch-modal .log-catch-option input { accent-color: var(--mint); flex: 0 0 auto; height: 20px; margin: 1px 0 0; padding: 0; width: 20px; }
+.log-catch-option strong { color: var(--ink); display: block; font-size: 13px; }
+.log-catch-option em { color: var(--muted); display: block; font-size: 11px; font-style: normal; font-weight: 600; margin-top: 3px; }
+.log-catch-option:has(input:disabled) { cursor: default; opacity: .55; }
+.log-catch-destinations .field-hint { display: block; margin-top: 10px; }
+.log-catch-results { display: grid; gap: 12px; list-style: none; margin: 18px 0 8px; padding: 0; }
+.log-catch-results li { align-items: center; display: flex; gap: 10px; }
+.log-catch-results li > span { color: var(--mint); font-weight: 900; }
 .profile-pill { align-items: center; display: flex; font-size: 12px; font-weight: 700; gap: 8px; }
 .avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--deep); display: inline-flex; font-size: 11px; font-weight: 900; height: 29px; justify-content: center; width: 29px; }
 .avatar img { border-radius: inherit; height: 100%; object-fit: cover; width: 100%; }
@@ -253,7 +270,7 @@ button { cursor: pointer; }
 .page-intro p { color: var(--muted); font-size: 15px; margin: 0; }
 .challenge-actions { align-items: center; display: flex; gap: 12px; }
 .challenge-actions .button-quiet { margin-top: 0; width: auto; }
-.season-recap { margin-bottom: 35px; margin-top: 34px; }
+.season-recap, .home-agenda { margin-bottom: 35px; margin-top: 34px; }
 .fishing-conditions { margin-bottom: 35px; margin-top: 34px; }
 .fish-year-recap { margin-bottom: 35px; margin-top: 34px; }
 .fish-year-recap .button-quiet { margin-top: 0; width: auto; }
@@ -301,7 +318,19 @@ button { cursor: pointer; }
 .tournament-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 0; }
 .tournament-danger-zone { margin-top: 24px; text-align: right; }
 .profile-layout { display: grid; gap: 18px; grid-template-columns: 280px 1fr; }
-.profile-bests-nudge { margin-top: 22px; text-align: center; }
+.home-agenda-list { display: grid; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.home-agenda-item { align-items: center; background: rgba(3,8,11,.35); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: grid; font: inherit; gap: 3px 14px; grid-template-columns: 1fr auto; padding: 14px 16px; text-align: left; transition: border-color .15s ease-out; width: 100%; }
+.home-agenda-item:hover, .home-agenda-item:focus-visible { border-color: var(--mint); }
+.home-agenda-item strong { font-size: 14px; grid-column: 1; }
+.home-agenda-item span { color: var(--muted); font-size: 12px; grid-column: 1; line-height: 1.45; }
+.home-agenda-item em { color: var(--mint); font-size: 18px; font-style: normal; font-weight: 900; grid-column: 2; grid-row: 1 / 3; }
+.my-bests { margin-top: 22px; }
+.profile-layout .my-bests { margin-top: 0; min-width: 0; }
+.profile-page > form.settings-card { margin-top: 22px; }
+.my-bests .section-heading .button { margin-top: 0; width: auto; }
+.my-bests-list { align-items: start; display: grid; gap: 18px 24px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.species-board#fish-bingo { margin-top: 22px; }
+.profile-admin-link { display: block; margin-top: 14px; }
 .bug-report-panel { margin-top: 22px; }
 .bug-report-panel > p { color: var(--muted); font-size: 13px; margin: 0; }
 .update-banner { align-items: center; background: var(--cream); border: 2px solid var(--mint); bottom: 20px; box-shadow: var(--sticker-shadow); display: flex; gap: 14px; left: 50%; max-width: calc(100% - 24px); padding: 10px 12px 10px 16px; position: fixed; transform: translateX(-50%); z-index: 90; }
@@ -596,6 +625,8 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .catch-card-group-meta { color: var(--muted); display: block; font-size: 10px; margin-top: 2px; }
 .catch-card-group-detail { border-top: 1px solid var(--line); display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); padding: 14px; }
 @media (max-width: 800px) {
+  .my-bests .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .my-bests .section-heading .button { justify-content: space-between; width: 100%; }
   body { padding-bottom: env(safe-area-inset-bottom); }
   .page-wrapper { padding: 28px 16px 92px; }
   /* On a phone the header is a slim top bar (brand, bell, you) and the five section tabs are
@@ -619,6 +650,8 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .section-tabs.content-shell { gap: 0; margin-bottom: 22px; }
   .section-tab { align-items: center; display: flex; flex: 1; justify-content: center; min-height: 46px; padding: 10px 8px; }
   .notification-panel { max-width: calc(100vw - 24px); top: calc(100% + 12px); width: 300px; }
+  .navbar-right { gap: 14px; }
+  .nav-log-catch.button { padding: 8px 11px; }
   .welcome-banner { flex-direction: column; min-height: 0; padding: 35px 26px; }
   .welcome-banner > div { max-width: 100%; }
   .fishing-scene { inset: auto; margin: 22px -16px -18px auto; position: relative; width: 108%; }
@@ -1488,4 +1521,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* A phone on its side is past the mobile breakpoint; keep the game clear of the notch. */
 @media (min-width: 801px) {
   .game-page.content-shell { left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); }
+}
+
+/* The narrowest phones drop the wordmark so Log a catch, the bell and you still fit. */
+@media (max-width: 390px) {
+  .nav-brand > div { display: none; }
 }

@@ -401,12 +401,22 @@ describe('trip catches', () => {
 
   test('someone on a trip that has started can log a fish', async () => {
     const logTripCatch = jest.fn().mockResolvedValue({ error: null, tripCatch: { id: 'c1', user_id: 'kevin', angler_name: 'Kevin', species: 'Bluefish', length_in: 22, created_at: '2026-10-10T10:00:00Z' } });
-    useAuth.mockReturnValue(makeBaseAuth({ getTrip: jest.fn().mockResolvedValue(started), logTripCatch }));
+    useAuth.mockReturnValue(makeBaseAuth({
+      getTrip: jest.fn().mockResolvedValue(started), logTripCatch,
+      personalBests: [], listTournaments: jest.fn().mockResolvedValue([]),
+      listTrips: jest.fn().mockResolvedValue([{ ...started, attendees: [andre, kevin] }]),
+    }));
     renderDetail();
     await userEvent.click(await screen.findByRole('button', { name: /log a fish/i }));
-    await userEvent.type(screen.getByLabelText(/length in inches/i), '22');
-    await userEvent.click(screen.getByRole('button', { name: /log it/i }));
-    await waitFor(() => expect(logTripCatch).toHaveBeenCalledWith(expect.objectContaining({ tripId: 'trip-1', lengthIn: '22' })));
+    // The one catch form, opened with this trip ticked and nothing else.
+    expect(await screen.findByRole('checkbox', { name: /montauk run/i })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: /fish year/i })).not.toBeChecked();
+    await userEvent.type(screen.getByRole('combobox'), 'Bluefish');
+    await userEvent.click(screen.getByRole('option', { name: 'Bluefish' }));
+    await userEvent.type(screen.getByLabelText(/length/i), '22');
+    await userEvent.click(screen.getByRole('button', { name: /make it official/i }));
+    await waitFor(() => expect(logTripCatch).toHaveBeenCalledWith(expect.objectContaining({ tripId: 'trip-1', species: 'Bluefish', lengthIn: 22 })));
+    await userEvent.click(await screen.findByRole('button', { name: /^done/i }));
     expect(await screen.findByText('Bluefish · 22"')).toBeInTheDocument();
   });
 

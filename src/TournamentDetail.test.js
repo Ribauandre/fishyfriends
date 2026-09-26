@@ -27,6 +27,9 @@ function makeBaseAuth(overrides = {}) {
   return {
     user: { id: 'user-1' },
     customSpecies: [],
+    personalBests: [],
+    listTournaments: jest.fn().mockResolvedValue([baseTournament]),
+    listTrips: jest.fn().mockResolvedValue([]),
     getTournament: jest.fn().mockResolvedValue(baseTournament),
     listTournamentEntries: jest.fn().mockResolvedValue([]),
     submitTournamentEntry: jest.fn(),
@@ -78,13 +81,16 @@ test('logging an entry calls submitTournamentEntry and adds it to the board', as
   renderDetail();
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Fall Fluke Classic' })).toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: /log an entry/i }));
+  // The one catch form, opened with this tournament ticked and nothing else.
+  expect(await screen.findByRole('checkbox', { name: /fall fluke classic/i })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: /fish year/i })).not.toBeChecked();
 
   await userEvent.type(screen.getByRole('combobox'), 'Carp');
   await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
-  await userEvent.type(screen.getByLabelText(/size/i), '12');
+  await userEvent.type(screen.getByLabelText(/length/i), '12');
   await userEvent.click(screen.getByRole('button', { name: /make it official/i }));
 
-  await waitFor(() => expect(submitTournamentEntry).toHaveBeenCalledWith(expect.objectContaining({ tournamentId: 't-1', species: 'Carp', size: '12' })));
+  await waitFor(() => expect(submitTournamentEntry).toHaveBeenCalledWith(expect.objectContaining({ tournamentId: 't-1', species: 'Carp', size: 12 })));
   expect(await screen.findByText('Carp')).toBeInTheDocument();
 });
 
@@ -94,8 +100,9 @@ test('shows the server error message and keeps the modal open when logging fails
   renderDetail();
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Fall Fluke Classic' })).toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: /log an entry/i }));
+  await screen.findByRole('checkbox', { name: /fall fluke classic/i });
   await userEvent.type(screen.getByRole('combobox'), 'Carp');
-  await userEvent.type(screen.getByLabelText(/size/i), '12');
+  await userEvent.type(screen.getByLabelText(/length/i), '12');
   await userEvent.click(screen.getByRole('button', { name: /make it official/i }));
   expect(await screen.findByText(/smaller than 5 mb/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /make it official/i })).toBeInTheDocument();

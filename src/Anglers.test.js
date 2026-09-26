@@ -171,65 +171,10 @@ test('also passes a ?comment= query param through so the specific comment is hig
   expect(screen.getByText('Nice fish!').closest('.comment-row')).not.toHaveClass('is-shared-highlight');
 });
 
-test('opens the log-a-personal-best modal with fields in Photo, Date, Species, Size order, same as Fish Year\'s log-a-catch modal', async () => {
+test('logging and the species checklist live on Profile now; Crew links there', async () => {
   renderAnglers();
   await screen.findByText('Andre');
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
-  expect(screen.getByRole('heading', { name: /log a new personal best/i })).toBeInTheDocument();
-  const labels = screen.getAllByText(/^(Photo|Date|Species|Size)$/).map((el) => el.textContent);
-  expect(labels).toEqual(['Photo', 'Date', 'Species', 'Size']);
-});
-
-test('closing the log-a-personal-best modal hides the form again', async () => {
-  renderAnglers();
-  await screen.findByText('Andre');
-  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
-  await userEvent.click(screen.getByRole('button', { name: /close log personal best form/i }));
-  expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
-});
-
-test('logging a new personal best adds it to the current user\'s own card and closes the modal', async () => {
-  const uploadPersonalBest = jest.fn().mockResolvedValue({ error: null, bestEntry: { id: 'pb-new', species: 'Carp', size_label: '', caught_at: '', photo_url: '' } });
-  useAuth.mockReturnValue(makeBaseAuth({ uploadPersonalBest }));
-  renderAnglers();
-  await screen.findByText('Andre');
-  await userEvent.click(screen.getByRole('button', { name: /log a personal best/i }));
-  await userEvent.type(screen.getByRole('combobox'), 'Carp');
-  await userEvent.click(screen.getByRole('option', { name: 'Carp' }));
-  await userEvent.click(screen.getByRole('button', { name: /^log personal best/i }));
-  await waitFor(() => expect(uploadPersonalBest).toHaveBeenCalled());
-  await waitFor(() => expect(screen.queryByRole('combobox')).not.toBeInTheDocument());
-  await expandCard('Andre');
-  const andreCard = screen.getByText('Andre').closest('.angler-card');
-  expect(within(andreCard).getByText('Carp')).toBeInTheDocument();
-});
-
-test('the species checklist is collapsed by default, showing only a caught-count summary', async () => {
-  renderAnglers();
-  await screen.findByText('Andre');
-  expect(await screen.findByText(/species caught/i)).toBeInTheDocument();
-  expect(screen.queryByText('Striped Bass')).not.toBeInTheDocument();
-});
-
-test('expanding the species checklist reflects the current user\'s own personal bests', async () => {
-  renderAnglers();
-  await screen.findByText('Andre');
-  await userEvent.click(await screen.findByRole('button', { name: /species checklist/i }));
-  expect(screen.getByText('Striped Bass').closest('.species-cell')).toHaveClass('is-caught');
-});
-
-test('also credits the checklist for species logged as Fish Year catches, not just personal bests', async () => {
-  useAuth.mockReturnValue(makeBaseAuth({
-    listFishYearCatches: jest.fn().mockResolvedValue([
-      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Carp' },
-      { id: 'fy-2', user_id: 'user-2', month: 'April', species: 'Bluegill' },
-    ]),
-  }));
-  renderAnglers();
-  await screen.findByText('Andre');
-  await userEvent.click(await screen.findByRole('button', { name: /species checklist/i }));
-  expect(screen.getByText('Carp').closest('.species-cell')).toHaveClass('is-caught');
-  // Kevin's (user-2) Fish Year catch shouldn't count toward the current user's checklist.
-  expect(screen.getByText('Bluegill').closest('.species-cell')).toHaveClass('is-missing');
+  expect(screen.queryByRole('button', { name: /log a personal best/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /species checklist/i })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /your personal bests/i })).toHaveAttribute('href', '/profile#personal-bests');
 });

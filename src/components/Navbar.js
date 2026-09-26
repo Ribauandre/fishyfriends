@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import LogCatchModal from './LogCatchModal';
 import { SECTIONS, destinationFor, pageFor, rememberPage } from '../utils/navSections';
 
 const ICONS = {
@@ -19,6 +20,7 @@ function NavIcon({ name }) {
 export default function Navbar() {
   const { user, profile } = useAuth();
   const { pathname } = useLocation();
+  const [logging, setLogging] = useState(false);
   useEffect(() => { rememberPage(pathname); }, [pathname]);
   if (!user) return null;
   const current = pageFor(pathname)?.section.key;
@@ -36,9 +38,11 @@ export default function Navbar() {
         })}
       </nav>
       <div className="navbar-right">
+        <button className="button button-primary nav-log-catch" type="button" data-tour="log-catch-button" onClick={() => setLogging(true)} aria-label="Log a catch"><span aria-hidden="true">＋</span><em>Log a catch</em></button>
         <NotificationBell />
         <NavLink to="/profile" className="profile-pill" aria-label="Your profile"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span className="profile-pill-arrow">↗</span></NavLink>
       </div>
+      {logging && <LogCatchModal onClose={() => setLogging(false)} />}
     </header>
   );
 }

@@ -23,17 +23,16 @@ const STEPS = [
   },
   {
     target: '[data-tour="log-catch-button"]',
-    route: '/fish-year',
     eyebrow: 'Log a catch',
     title: 'Post your proof',
-    body: 'Add a photo and the species. We\'ll read the date off the photo so you can\'t backdate a fish you caught in July.',
+    body: 'One button, on every page. Add a photo and the species, then tick where it counts: Fish Year, a personal best, a tournament or a trip. We read the date off the photo, so no backdating.',
   },
   {
     target: '[data-tour="anglers-intro"]',
     route: '/anglers',
     eyebrow: 'The crew',
-    title: 'Anglers and personal bests',
-    body: 'Log your own personal bests right here, check off species on your bingo board, then tap an angler to open theirs and go beat one.',
+    title: 'Everyone\'s personal bests',
+    body: 'Tap an angler to open their biggest fish by species, then go beat one.',
   },
   {
     target: '[data-tour="tournament-highlight"]',
@@ -60,7 +59,7 @@ const STEPS = [
     route: '/profile',
     eyebrow: 'Last stop',
     title: 'Your profile',
-    body: 'Set your photo, home water, and favourite species so the crew knows who they\'re up against.',
+    body: 'Your photo and home water, your personal bests and species checklist, your fishing licenses, and how the crew pays you back after a trip.',
   },
 ];
 

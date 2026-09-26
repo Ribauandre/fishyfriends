@@ -7,6 +7,10 @@ import { useAuth } from './context/AuthContext';
 
 jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }));
 
+beforeEach(() => {
+  useAuth.mockReturnValue(makeBaseAuth());
+});
+
 function renderHome() {
   return render(<MemoryRouter><Home /></MemoryRouter>);
 }
@@ -19,6 +23,11 @@ function makeBaseAuth(overrides = {}) {
     subscribeToActivity: jest.fn(() => () => {}),
     listFishYearCatches: jest.fn().mockResolvedValue([]),
     listFishingLicenses: jest.fn().mockResolvedValue([]),
+    listMyWaypointInvites: jest.fn().mockResolvedValue([]),
+    listTrips: jest.fn().mockResolvedValue([]),
+    listTournaments: jest.fn().mockResolvedValue([]),
+    listTournamentEntries: jest.fn().mockResolvedValue([]),
+    personalBests: [],
     ...overrides,
   };
 }
@@ -97,27 +106,37 @@ test('does not squash activity from different anglers, even when interleaved', a
   expect(screen.queryByText(/and \d+ more/i)).not.toBeInTheDocument();
 });
 
-test('shows a season recap with crew-wide totals and the top species, not just the current user\'s', async () => {
+test('On your plate lists what needs you, each going where it gets done', async () => {
   useAuth.mockReturnValue(makeBaseAuth({
-    listFishYearCatches: jest.fn().mockResolvedValue([
-      { id: 'fy-1', user_id: 'user-1', month: 'March', species: 'Bass', angler_name: 'Me', caught_at: '2026-03-01', photo_url: '' },
-      { id: 'fy-2', user_id: 'someone-else', month: 'June', species: 'Bass', angler_name: 'Kevin', caught_at: '2026-06-01', photo_url: '' },
-      { id: 'fy-3', user_id: 'someone-else', month: 'June', species: 'Trout', angler_name: 'Kevin', caught_at: '2026-06-15', photo_url: '' },
-    ]),
+    listMyWaypointInvites: jest.fn().mockResolvedValue([{ id: 'inv-1', map_name: 'Backwater Spots', inviterName: 'Kevin' }]),
   }));
   renderHome();
-  await waitFor(() => expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('3'));
-  expect(screen.getByText('months covered').previousSibling).toHaveTextContent('2');
-  expect(screen.getByText('anglers on the board').previousSibling).toHaveTextContent('2');
-  expect(screen.getByText('top species').previousSibling).toHaveTextContent('Bass');
+  const invite = await screen.findByRole('link', { name: /kevin shared a waypoint map/i });
+  expect(invite).toHaveAttribute('href', '/waypoints');
+  expect(invite).toHaveTextContent('Backwater Spots');
+  expect(screen.getByRole('link', { name: /finish your profile/i })).toHaveAttribute('href', '/profile');
 });
 
-test('shows a dash for top species in the season recap when nobody has logged a catch yet', async () => {
-  useAuth.mockReturnValue(makeBaseAuth());
+test('says so when nothing needs you', async () => {
+  useAuth.mockReturnValue(makeBaseAuth({
+    profile: { display_name: 'Andre', avatar_url: 'a.jpg', home_water: 'Barnegat Bay' },
+    // A catch this month, so Fish Year isn't asking either.
+    listFishYearCatches: jest.fn().mockResolvedValue([{ id: 'fy-1', user_id: 'user-1', month: new Date().toLocaleString('en-US', { month: 'long' }), species: 'Carp' }]),
+  }));
   renderHome();
-  expect(await screen.findByText('catches logged')).toBeInTheDocument();
-  expect(screen.getByText('catches logged').previousSibling).toHaveTextContent('0');
-  expect(screen.getByText('top species').previousSibling).toHaveTextContent('—');
+  expect(await screen.findByText(/all caught up/i)).toBeInTheDocument();
+});
+
+test('Log a catch on the banner opens the one catch form', async () => {
+  renderHome();
+  await userEvent.click(screen.getAllByRole('button', { name: /log a catch/i })[0]);
+  expect(screen.getByRole('dialog', { name: /log a catch/i })).toBeInTheDocument();
+});
+
+test('the dock report carries today\'s date, not a fixed one', () => {
+  renderHome();
+  const label = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+  expect(screen.getByText(`DOCK REPORT · ${label}`)).toBeInTheDocument();
 });
 
 describe('fishing conditions', () => {
@@ -137,7 +156,7 @@ describe('fishing conditions', () => {
     global.fetch = jest.fn();
     useAuth.mockReturnValue(makeBaseAuth());
     renderHome();
-    await screen.findByText('catches logged');
+    await waitFor(() => expect(screen.queryByText(/loading the feed/i)).not.toBeInTheDocument());
     expect(screen.queryByText('Fishing conditions')).not.toBeInTheDocument();
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -148,7 +167,7 @@ test('does not show a license reminder banner when every license is comfortably 
     listFishingLicenses: jest.fn().mockResolvedValue([{ id: 'lic-1', state: 'New Jersey', expires_at: '2099-01-01' }]),
   }));
   renderHome();
-  await screen.findByText('catches logged');
+  await waitFor(() => expect(screen.queryByText(/loading the feed/i)).not.toBeInTheDocument());
   expect(screen.queryByText(/manage licenses/i)).not.toBeInTheDocument();
 });
 
@@ -160,6 +179,7 @@ test('shows a license reminder banner for an expiring license', async () => {
   }));
   renderHome();
   expect(await screen.findByText(/manage licenses/i)).toBeInTheDocument();
+  expect(screen.getByText(/manage licenses/i).closest('a')).toHaveAttribute('href', '/profile#licenses');
   expect(screen.getByText('New Jersey')).toBeInTheDocument();
 });
 

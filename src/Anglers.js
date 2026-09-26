@@ -1,51 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
-import LikeButton from './components/LikeButton';
-import PersonalBestComments from './components/PersonalBestComments';
-import PersonalBestForm from './components/PersonalBestForm';
-import PostMenu from './components/PostMenu';
-import SpeciesChecklist from './components/SpeciesChecklist';
-import iconFor from './utils/speciesOptions';
-import { FISH_YEAR } from './constants';
-
-function AnglerBestItem({ best, profile, anglerName, isOwner, onDelete, highlighted, highlightCommentId }) {
-  const [imageOpen, setImageOpen] = useState(false);
-  const ref = useRef(null);
-
-  function scrollToSelf() {
-    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-
-  useEffect(() => {
-    if (highlighted) scrollToSelf();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlighted]);
-
-  return <div className={`angler-best ${highlighted ? 'is-shared-highlight' : ''}`} ref={ref}>
-    <PostMenu
-      shareData={{ title: `${anglerName}'s ${best.species}`, text: `${anglerName}'s ${best.species}${best.size_label ? ` — ${best.size_label}` : ''} on Fishy Friends.`, url: `${window.location.origin}/anglers?best=${best.id}` }}
-      onDelete={isOwner ? () => onDelete(best.id) : undefined}
-    />
-    <button className="angler-best-media" type="button" onClick={() => best.photo_url && setImageOpen(true)} aria-label={best.photo_url ? `Expand ${anglerName}'s ${best.species} photo` : `${anglerName}'s ${best.species}, no photo yet`}>
-      {best.photo_url
-        ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} onLoad={() => { if (highlighted) scrollToSelf(); }} />
-        : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
-    </button>
-    <div>
-      <span className="personal-best-tag">Personal best</span>
-      <strong>{best.species}</strong>
-      <span>{best.size_label || 'size unknown'}{best.caught_at ? ` · ${best.caught_at}` : ''}</span>
-      <LikeButton targetType="personal_best" targetId={best.id} ownerId={profile.id} />
-      <PersonalBestComments personalBestId={best.id} ownerId={profile.id} defaultOpen={highlighted} highlightCommentId={highlightCommentId} />
-    </div>
-    {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${anglerName}'s ${best.species} photo`} onClick={() => setImageOpen(false)}>
-      <button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button>
-      <img src={best.photo_url} alt={`${profile.display_name}'s expanded ${best.species}`} onClick={(event) => event.stopPropagation()} />
-    </div>}
-  </div>;
-}
+import AnglerBestItem from './components/AnglerBestItem';
 
 function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, highlightCommentId }) {
   const containsHighlight = personalBests.some((best) => best.id === highlightBestId);
@@ -85,11 +42,9 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, 
 }
 
 export default function Anglers() {
-  const { user, listAnglers, deletePersonalBest, uploadPersonalBest, listFishYearCatches } = useAuth();
+  const { user, listAnglers, deletePersonalBest } = useAuth();
   const [roster, setRoster] = useState(null);
-  const [fishYearCatches, setFishYearCatches] = useState([]);
   const [query, setQuery] = useState('');
-  const [showForm, setShowForm] = useState(false);
   const [searchParams] = useSearchParams();
   const highlightBestId = searchParams.get('best');
   const highlightCommentId = searchParams.get('comment');
@@ -101,26 +56,9 @@ export default function Anglers() {
       : entry));
   }
 
-  async function handleSaveBest(payload) {
-    const result = await uploadPersonalBest(payload);
-    if (!result.error && result.bestEntry) {
-      setRoster((previous) => previous.map((entry) => {
-        if (entry.profile.id !== user.id) return entry;
-        const existingIndex = entry.personalBests.findIndex((best) => best.id === result.bestEntry.id);
-        const personalBests = existingIndex === -1
-          ? [...entry.personalBests, result.bestEntry]
-          : entry.personalBests.map((best) => (best.id === result.bestEntry.id ? result.bestEntry : best));
-        return { ...entry, personalBests };
-      }));
-      setShowForm(false);
-    }
-    return result;
-  }
-
   useEffect(() => {
     let active = true;
     listAnglers().then((data) => { if (active) setRoster(data); });
-    listFishYearCatches(FISH_YEAR).then((data) => { if (active) setFishYearCatches(data); });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -136,18 +74,14 @@ export default function Anglers() {
       || personalBests.some((best) => best.species.toLowerCase().includes(q)));
   }, [roster, query]);
 
-  const yourBests = roster?.find((entry) => entry.profile.id === user?.id)?.personalBests || [];
-  const yourFishYearCatches = fishYearCatches.filter((c) => c.user_id === user?.id);
-
   return <main className="content-shell anglers-page">
     <div className="page-intro" data-tour="anglers-intro">
       <div>
-        <span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species — log yours, then go pick a fight.</p>
-        <button className="button button-primary" type="button" onClick={() => setShowForm(true)}>Log a personal best <span>＋</span></button>
+        <span className="eyebrow">THE CREW</span><h1>Know your rivals.</h1><p>Everyone's biggest fish by species. Tap an angler to see theirs, then go beat one.</p>
+        <Link className="button button-quiet" to="/profile#personal-bests">Your personal bests <span>→</span></Link>
       </div>
       <FishIllustration species="bluegill" className="intro-sticker" />
     </div>
-    <SpeciesChecklist personalBests={yourBests} fishYearCatches={yourFishYearCatches} />
     <div className="angler-search"><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name, water, or species..." /></div>
     {!roster && <p className="month-empty">Rounding up the crew...</p>}
     {roster && <div className="anglers-grid">
@@ -161,15 +95,6 @@ export default function Anglers() {
         highlightCommentId={highlightCommentId}
       />)}
       {filtered.length === 0 && <p className="month-empty">Nobody matches that. Try a different name or water.</p>}
-    </div>}
-    {showForm && <div className="catch-modal-backdrop" role="presentation" onClick={() => setShowForm(false)}>
-      <div className="catch-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="section-heading">
-          <div><span className="eyebrow">YOUR BESTS</span><h2>Log a new personal best</h2></div>
-          <button className="modal-close" type="button" onClick={() => setShowForm(false)} aria-label="Close log personal best form">×</button>
-        </div>
-        <PersonalBestForm onSave={handleSaveBest} />
-      </div>
     </div>}
   </main>;
 }

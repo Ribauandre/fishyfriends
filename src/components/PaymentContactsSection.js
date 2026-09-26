@@ -1,5 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { displayZelle, formatPhone } from '../utils/payContacts';
 import { normalizeVenmoHandle } from '../utils/venmo';
@@ -15,8 +14,6 @@ function contactFields(contacts) {
 // in payment_contacts and only people on a trip with you can see them. One Save writes both.
 export default function PaymentContactsSection() {
   const { profile, updateProfile, getMyPaymentContacts, saveMyPaymentContacts } = useAuth();
-  const location = useLocation();
-  const sectionRef = useRef(null);
   const [form, setForm] = useState({ venmo: profile?.venmo_handle || '', zelle: '', appleCashPhone: '' });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -36,10 +33,6 @@ export default function PaymentContactsSection() {
     if (profile?.venmo_handle) setForm((previous) => (previous.venmo ? previous : { ...previous, venmo: profile.venmo_handle }));
   }, [profile?.venmo_handle]);
 
-  useEffect(() => {
-    if (location.hash === `#${GETTING_PAID_ANCHOR}`) sectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [location.hash]);
-
   async function handleSubmit(event) {
     event.preventDefault();
     const venmo = normalizeVenmoHandle(form.venmo);
@@ -57,7 +50,7 @@ export default function PaymentContactsSection() {
     setTimeout(() => setSaved(false), 2200);
   }
 
-  return <section className="settings-card payment-contacts-panel" id={GETTING_PAID_ANCHOR} ref={sectionRef}>
+  return <section className="settings-card payment-contacts-panel" id={GETTING_PAID_ANCHOR}>
     <div className="section-heading"><div><span className="eyebrow">GETTING PAID BACK</span><h2>Venmo, Zelle &amp; Apple Cash</h2></div></div>
     <p>How the crew pays you back when you front money on a trip. Fill in any you use.</p>
     <form onSubmit={handleSubmit}>

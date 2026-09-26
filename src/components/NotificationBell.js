@@ -9,6 +9,7 @@ const POLL_INTERVAL_MS = 30000;
 function describe(notification) {
   if (notification.type === 'trip_join') return `${notification.actor_name} is in for your trip`;
   if (notification.type === 'trip_expense') return `${notification.actor_name} added a trip expense`;
+  if (notification.type === 'map_invite') return `${notification.actor_name} invited you to a waypoint map`;
   const action = notification.type === 'like' ? 'liked' : 'commented on';
   const thing = notification.target_type === 'personal_best' ? 'your personal best'
     : notification.target_type === 'tournament_entry' ? 'your tournament entry'
@@ -73,6 +74,10 @@ export default function NotificationBell() {
       navigate(`/trips/${notification.target_id}`);
       return;
     }
+    if (notification.target_type === 'waypoint_map') {
+      navigate('/waypoints');
+      return;
+    }
     const commentParam = notification.comment_id ? `&comment=${notification.comment_id}` : '';
     if (notification.target_type === 'tournament_entry') {
       const entry = await getTournamentEntry(notification.target_id);
@@ -80,7 +85,7 @@ export default function NotificationBell() {
       return;
     }
     const href = notification.target_type === 'personal_best'
-      ? `/anglers?best=${notification.target_id}${commentParam}`
+      ? `/profile?best=${notification.target_id}${commentParam}`
       : `/fish-year?catch=${notification.target_id}${commentParam}`;
     navigate(href);
   }
@@ -103,7 +108,7 @@ export default function NotificationBell() {
       {notifications.length === 0 && <p className="month-empty">Nothing yet. Get out there and catch something.</p>}
       <div className="notification-list">
         {notifications.map((notification) => <button type="button" key={notification.id} className={`notification-row ${notification.read ? '' : 'is-unread'}`} onClick={() => handleSelect(notification)}>
-          <span className="notification-icon">{notification.type === 'like' ? <span aria-hidden="true">♥</span> : notification.target_type === 'trip' ? <span aria-hidden="true">{notification.type === 'trip_expense' ? '$' : '✓'}</span> : <ChatIcon />}</span>
+          <span className="notification-icon">{notification.type === 'like' ? <span aria-hidden="true">♥</span> : notification.target_type === 'waypoint_map' ? <span aria-hidden="true">⌖</span> : notification.target_type === 'trip' ? <span aria-hidden="true">{notification.type === 'trip_expense' ? '$' : '✓'}</span> : <ChatIcon />}</span>
           <span className="notification-text"><strong>{describe(notification)}</strong>{notification.preview && <em>"{notification.preview}"</em>}</span>
         </button>)}
       </div>

@@ -1102,6 +1102,18 @@ describe('waypoint maps', () => {
     expect(call.value.insert).toHaveBeenCalledWith({ map_id: 'map-1', map_name: 'My Spots', user_id: 'user-2', invited_by: 'user-1', status: 'pending' });
   });
 
+  test('inviteToWaypointMap sends the invitee a notification, never read back', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoint_map_members', { data: { id: 'mem-new' }, error: null });
+
+    await result.current.inviteToWaypointMap('map-1', 'My Spots', 'user-2');
+
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('notifications')];
+    expect(call.value.insert).toHaveBeenCalledWith(expect.objectContaining({ recipient_id: 'user-2', actor_id: 'user-1', type: 'map_invite', target_type: 'waypoint_map', target_id: 'map-1', preview: 'My Spots' }));
+    // Only the recipient can read a notification, so reading it back would fail RLS.
+    expect(call.value.select).not.toHaveBeenCalled();
+  });
+
   test('respondToWaypointInvite accepts by updating status, and declines by deleting the row', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('waypoint_map_members', { data: { id: 'mem-1', status: 'accepted' }, error: null });
