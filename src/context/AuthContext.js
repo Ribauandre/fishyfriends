@@ -1031,6 +1031,160 @@ export function AuthProvider({ children }) {
     return { error: error || null };
   }
 
+  // Trips (migration 0028): the crew sees every trip and anyone can opt in; the creator edits
+  // it and can remove people; expenses and payments are visible to people on the trip only.
+  function myName() {
+    return profile.display_name || user.email?.split('@')[0] || 'Angler';
+  }
+
+  // Validated here rather than trusted from the form: the accommodation link is rendered as
+  // an <a href>, so anything but http(s) (a javascript: URL, say) is refused outright.
+  function tripRowFrom(fields) {
+    const name = fields.name?.trim();
+    if (!name) return { error: new Error('Name the trip.') };
+    if (!fields.startsOn || !fields.endsOn) return { error: new Error('Set both a start and end date.') };
+    if (fields.endsOn < fields.startsOn) return { error: new Error('The end date has to be on or after the start date.') };
+    const spots = String(fields.maxSpots ?? '').trim();
+    if (spots && !/^[1-9]\d*$/.test(spots)) return { error: new Error('Spots has to be a whole number, or blank for no limit.') };
+    let accommodationUrl = fields.accommodationUrl?.trim() || '';
+    if (accommodationUrl && !/^[a-z][a-z0-9+.-]*:/i.test(accommodationUrl)) accommodationUrl = `https://${accommodationUrl}`;
+    if (accommodationUrl && !/^https?:\/\/[^\s]+$/i.test(accommodationUrl)) return { error: new Error('The accommodation link has to be a web address.') };
+    return {
+      error: null,
+      row: {
+        name,
+        location: fields.location?.trim() || '',
+        state: fields.state || '',
+        starts_on: fields.startsOn,
+        ends_on: fields.endsOn,
+        target_species: (fields.targetSpecies || []).map((species) => species.trim()).filter(Boolean),
+        accommodation: fields.accommodation?.trim() || '',
+        accommodation_url: accommodationUrl,
+        notes: fields.notes?.trim() || '',
+        max_spots: spots ? Number(spots) : null,
+      },
+    };
+  }
+
+  async function listTrips() {
+    if (!isSupabaseConfigured || !user) return [];
+    const [{ data: trips, error }, { data: attendees }] = await Promise.all([
+      supabase.from('trips').select('*').order('starts_on', { ascending: true }),
+      supabase.from('trip_attendees').select('id, trip_id, user_id, created_at'),
+    ]);
+    if (error) { setNotice(error.message); return []; }
+    return (trips || []).map((trip) => ({ ...trip, attendees: (attendees || []).filter((attendee) => attendee.trip_id === trip.id) }));
+  }
+
+  async function getTrip(id) {
+    if (!isSupabaseConfigured || !user) return null;
+    const { data } = await supabase.from('trips').select('*').eq('id', id).maybeSingle();
+    return data || null;
+  }
+
+  async function createTrip(fields) {
+    const parsed = tripRowFrom(fields);
+    if (parsed.error) return { error: parsed.error };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before planning a trip.') };
+    const { data: trip, error } = await supabase.from('trips').insert({ ...parsed.row, created_by: user.id, created_by_name: myName() }).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    // The creator is going on their own trip; if this fails the trip still exists and they can opt in.
+    await supabase.from('trip_attendees').insert({ trip_id: trip.id, user_id: user.id, angler_name: myName() });
+    return { error: null, trip };
+  }
+
+  async function updateTrip(id, fields) {
+    const parsed = tripRowFrom(fields);
+    if (parsed.error) return { error: parsed.error };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { data, error } = await supabase.from('trips').update(parsed.row).eq('id', id).eq('created_by', user.id).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, trip: data };
+  }
+
+  async function deleteTrip(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trips').delete().eq('id', id).eq('created_by', user.id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function listTripAttendees(tripId) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('trip_attendees').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function joinTrip(tripId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before joining a trip.') };
+    const { data, error } = await supabase.from('trip_attendees').insert({ trip_id: tripId, user_id: user.id, angler_name: myName() }).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, attendee: data };
+  }
+
+  async function leaveTrip(tripId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_attendees').delete().eq('trip_id', tripId).eq('user_id', user.id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function removeTripAttendee(attendeeId) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_attendees').delete().eq('id', attendeeId);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function listTripExpenses(tripId) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('trip_expenses').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function addTripExpense({ tripId, description, amountCents }) {
+    const trimmed = description?.trim();
+    if (!trimmed) return { error: new Error('Say what the expense was for.') };
+    if (!Number.isInteger(amountCents) || amountCents <= 0) return { error: new Error('Enter an amount like 85 or 85.50.') };
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const row = { trip_id: tripId, paid_by: user.id, paid_by_name: myName(), description: trimmed, amount_cents: amountCents };
+    const { data, error } = await supabase.from('trip_expenses').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, expense: data };
+  }
+
+  async function deleteTripExpense(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_expenses').delete().eq('id', id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  async function listTripSettlements(tripId) {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('trip_settlements').select('*').eq('trip_id', tripId).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  // "from" paid "to" back; either of them can record it.
+  async function recordTripSettlement({ tripId, from, to, amountCents }) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const row = { trip_id: tripId, from_user: from.userId, from_name: from.name, to_user: to.userId, to_name: to.name, amount_cents: amountCents, created_by: user.id };
+    const { data, error } = await supabase.from('trip_settlements').insert(row).select().maybeSingle();
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, settlement: data };
+  }
+
+  async function deleteTripSettlement(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.from('trip_settlements').delete().eq('id', id);
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
   // Merges the crew's three kinds of posts into one reverse-chronological feed for the Home
   // page. personal_bests doesn't snapshot an angler_name/avatar the way the other two do, so
   // it's joined against profiles here; tournament_entries needs its parent tournament's name
@@ -1195,6 +1349,10 @@ export function AuthProvider({ children }) {
     listMyWaypointMaps, getWaypointMap, createWaypointMap, deleteWaypointMap,
     listMapMembers, inviteToWaypointMap, removeMapMember, respondToWaypointInvite, listMyWaypointInvites,
     listWaypoints, addWaypoint, importWaypoints, deleteWaypoint,
+    listTrips, getTrip, createTrip, updateTrip, deleteTrip,
+    listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
+    listTripExpenses, addTripExpense, deleteTripExpense,
+    listTripSettlements, recordTripSettlement, deleteTripSettlement,
     getGameProfile, listMyTrophies, logGameCatch, logJunk, purchaseUpgrade, rebuildTrack, joinCharterClub, claimWeeklyBounty, listClubRecords, charterBoat, purchaseLure, purchaseFlyRod, purchaseApparel, saveLook,
     claimQuestReward, listDerbyLeaders, listFishYearBounties, claimFishYearBounties, joinDock, claimDerbyWin,
     isSupabaseConfigured,

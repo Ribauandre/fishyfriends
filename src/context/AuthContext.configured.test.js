@@ -1203,3 +1203,86 @@ describe('waypoints', () => {
     expect(call.value.delete).toHaveBeenCalled();
   });
 });
+
+describe('trips', () => {
+  const lastCall = (table) => __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf(table)];
+  const form = {
+    name: ' Montauk run ', location: 'Montauk Point', state: 'New York', startsOn: '2026-10-10', endsOn: '2026-10-12',
+    targetSpecies: ['Striped Bass', ' ', 'Bluefish'], accommodation: 'Beach house', accommodationUrl: 'airbnb.com/rooms/1', notes: '', maxSpots: '6',
+  };
+
+  test('createTrip inserts the trip for its creator and opts them in', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trips', { data: { id: 'trip-1', name: 'Montauk run' }, error: null });
+    __mock.setResponse('trip_attendees', { data: null, error: null });
+
+    const response = await result.current.createTrip(form);
+
+    expect(response.error).toBeNull();
+    expect(lastCall('trips').value.insert).toHaveBeenCalledWith({
+      name: 'Montauk run', location: 'Montauk Point', state: 'New York', starts_on: '2026-10-10', ends_on: '2026-10-12',
+      target_species: ['Striped Bass', 'Bluefish'], accommodation: 'Beach house', accommodation_url: 'https://airbnb.com/rooms/1',
+      notes: '', max_spots: 6, created_by: 'user-1', created_by_name: 'Andre',
+    });
+    expect(lastCall('trip_attendees').value.insert).toHaveBeenCalledWith({ trip_id: 'trip-1', user_id: 'user-1', angler_name: 'Andre' });
+  });
+
+  test('refuses an accommodation link that is not a web address, before any request', async () => {
+    const result = await setupSignedIn();
+    const before = __mock.current.fromCalls.length;
+    const response = await result.current.createTrip({ ...form, accommodationUrl: 'javascript:alert(1)' });
+    expect(response.error.message).toMatch(/has to be a web address/i);
+    expect(__mock.current.fromCalls.length).toBe(before);
+  });
+
+  test('a blank spot limit means no limit; a non-number is refused', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trips', { data: { id: 'trip-1' }, error: null });
+    await result.current.createTrip({ ...form, maxSpots: '' });
+    expect(lastCall('trips').value.insert).toHaveBeenCalledWith(expect.objectContaining({ max_spots: null }));
+    expect((await result.current.createTrip({ ...form, maxSpots: '0' })).error.message).toMatch(/whole number/i);
+  });
+
+  test('updateTrip only touches a trip the current angler created', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trips', { data: { id: 'trip-1' }, error: null });
+    await result.current.updateTrip('trip-1', form);
+    expect(lastCall('trips').value.update).toHaveBeenCalledWith(expect.objectContaining({ name: 'Montauk run' }));
+    expect(lastCall('trips').value.eq).toHaveBeenCalledWith('created_by', 'user-1');
+  });
+
+  test('listTrips attaches each trip its attendees', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trips', { data: [{ id: 'trip-1' }, { id: 'trip-2' }], error: null });
+    __mock.setResponse('trip_attendees', { data: [{ id: 'a1', trip_id: 'trip-1', user_id: 'user-1' }, { id: 'a2', trip_id: 'trip-1', user_id: 'user-2' }], error: null });
+    const trips = await result.current.listTrips();
+    expect(trips.map((trip) => trip.attendees.length)).toEqual([2, 0]);
+  });
+
+  test('joinTrip opts the current angler in under their own name; leaveTrip removes only their row', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_attendees', { data: { id: 'a1' }, error: null });
+    await result.current.joinTrip('trip-1');
+    expect(lastCall('trip_attendees').value.insert).toHaveBeenCalledWith({ trip_id: 'trip-1', user_id: 'user-1', angler_name: 'Andre' });
+    await result.current.leaveTrip('trip-1');
+    expect(lastCall('trip_attendees').value.eq).toHaveBeenCalledWith('user_id', 'user-1');
+  });
+
+  test('addTripExpense records it as paid by the current angler, in cents', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_expenses', { data: { id: 'e1' }, error: null });
+    await result.current.addTripExpense({ tripId: 'trip-1', description: ' House ', amountCents: 60000 });
+    expect(lastCall('trip_expenses').value.insert).toHaveBeenCalledWith({ trip_id: 'trip-1', paid_by: 'user-1', paid_by_name: 'Andre', description: 'House', amount_cents: 60000 });
+    expect((await result.current.addTripExpense({ tripId: 'trip-1', description: 'Bait', amountCents: 0 })).error.message).toMatch(/enter an amount/i);
+    expect((await result.current.addTripExpense({ tripId: 'trip-1', description: ' ', amountCents: 100 })).error.message).toMatch(/what the expense was for/i);
+  });
+
+  test('recordTripSettlement records who paid whom, stamped with who recorded it', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_settlements', { data: { id: 's1' }, error: null });
+    await result.current.recordTripSettlement({ tripId: 'trip-1', from: { userId: 'user-2', name: 'Kevin' }, to: { userId: 'user-1', name: 'Andre' }, amountCents: 18000 });
+    expect(lastCall('trip_settlements').value.insert).toHaveBeenCalledWith({
+      trip_id: 'trip-1', from_user: 'user-2', from_name: 'Kevin', to_user: 'user-1', to_name: 'Andre', amount_cents: 18000, created_by: 'user-1',
+    });
+  });
+});

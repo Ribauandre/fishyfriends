@@ -13,6 +13,8 @@ import FishingGame from './FishingGame';
 import AdminBugReports from './AdminBugReports';
 import Waypoints from './Waypoints';
 import WaypointDetail from './WaypointDetail';
+import Trips from './Trips';
+import TripDetail from './TripDetail';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -36,6 +38,8 @@ function App() {
       <Route path="/anglers" element={<ProtectedRoute><Anglers /></ProtectedRoute>} />
       <Route path="/waypoints" element={<ProtectedRoute><Waypoints /></ProtectedRoute>} />
       <Route path="/waypoints/:mapId" element={<ProtectedRoute><WaypointDetail /></ProtectedRoute>} />
+      <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
+      <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
       <Route path="/fishing-game" element={<ProtectedRoute><FishingGame /></ProtectedRoute>} />
       <Route path="/admin/bugs" element={<ProtectedRoute><AdminBugReports /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>

@@ -37,6 +37,8 @@ button { cursor: pointer; }
 .nav-link span { color: #a7b8b0; font-size: 10px; margin-right: 5px; }
 .nav-link.active, .nav-link:hover { color: var(--mint); }
 .nav-link.active { border-bottom: 2px solid var(--mint); }
+.nav-link .nav-label-full, .nav-link .nav-label-short { color: inherit; display: inline; font-size: inherit; font-style: normal; margin: 0; }
+.nav-link .nav-label-short { display: none; }
 .profile-pill { align-items: center; display: flex; font-size: 12px; font-weight: 700; gap: 8px; }
 .avatar { align-items: center; background: var(--mint); border-radius: 50%; color: var(--deep); display: inline-flex; font-size: 11px; font-weight: 900; height: 29px; justify-content: center; width: 29px; }
 .avatar img { border-radius: inherit; height: 100%; object-fit: cover; width: 100%; }
@@ -337,6 +339,54 @@ button { cursor: pointer; }
 .waypoint-invite-form .button { margin-top: 0; width: auto; }
 .waypoint-invite-form .form-error { flex-basis: 100%; }
 
+.trip-card { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); color: var(--ink); display: block; padding: 20px; position: relative; }
+.trip-card .status-badge, .trip-card .status-badge-muted { position: absolute; right: 16px; top: -4px; }
+.trip-card h3 { font-size: 18px; margin: 20px 0 6px; }
+.trip-card p { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 8px 0 0; }
+.trip-card .trip-card-species { color: var(--mint); }
+.trip-card-stats { color: var(--muted); display: flex; font-size: 11px; font-weight: 800; gap: 14px; letter-spacing: .05em; margin-top: 14px; text-transform: uppercase; }
+.trip-form-dates { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+.trip-form-species { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.trip-form-label { color: var(--muted); font-size: 12px; font-weight: 700; }
+.trip-form-species-add { align-items: flex-start; display: flex; gap: 8px; }
+.trip-form-species-add > :first-child { flex: 1; }
+.trip-form-species-add .button { margin-top: 0; width: auto; }
+.trip-species-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.trip-species-chips li { align-items: center; border: 1px solid var(--mint); color: var(--mint); display: flex; font-size: 12px; font-weight: 700; gap: 6px; padding: 5px 4px 5px 10px; }
+.trip-species-chips button { background: transparent; border: 0; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.trip-license-warning { border: 2px solid var(--coral); color: var(--ink); font-size: 13px; line-height: 1.5; margin: 0 0 18px; padding: 12px 14px; }
+.trip-layout { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; margin-bottom: 18px; }
+.trip-subheading { font-size: 14px; margin: 20px 0 8px; }
+.trip-target-species { display: flex; flex-wrap: wrap; gap: 12px; list-style: none; margin: 0; padding: 0; }
+.trip-target-species li { align-items: center; display: flex; flex-direction: column; font-size: 12px; font-weight: 700; gap: 4px; width: 92px; }
+.trip-target-species .fish-illustration { height: auto; width: 84px; }
+.trip-accommodation, .trip-notes { color: var(--ink); font-size: 14px; line-height: 1.5; margin: 0; white-space: pre-line; }
+.trip-roster { counter-reset: roster; display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.trip-roster li { align-items: center; border: 1px solid var(--line); counter-increment: roster; display: flex; gap: 10px; padding: 10px 14px; }
+.trip-roster li:before { color: var(--muted); content: counter(roster, decimal-leading-zero); font-family: var(--font-head); font-size: 11px; }
+.trip-roster li .license-remove { margin-left: auto; }
+.trip-roster-waitlist li { border-style: dashed; color: var(--muted); }
+.trip-money-summary { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin-bottom: 18px; }
+.trip-money-summary > div { border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; }
+.trip-money-summary strong { font-family: var(--font-head); font-size: 20px; }
+.trip-money-summary .trip-owe { color: var(--coral); }
+.trip-expense-list, .trip-transfer-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
+.trip-expense-list li, .trip-transfer-list li { align-items: center; border: 1px solid var(--line); display: flex; gap: 12px; justify-content: space-between; padding: 10px 14px; }
+.trip-expense-list li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trip-expense-amount { font-family: var(--font-head); font-size: 16px; margin-left: auto; }
+.trip-transfer-list .button { margin-top: 0; white-space: nowrap; width: auto; }
+.trip-payments li { color: var(--muted); font-size: 13px; }
+.trip-expense-form { align-items: center; display: grid; gap: 8px; grid-template-columns: 1fr 110px auto; }
+.trip-expense-form input { background: var(--cream); border: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 13px; min-width: 0; padding: 10px 12px; }
+.trip-expense-form .button { margin-top: 0; width: auto; }
+.trip-expense-form .form-error { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 800px) {
+  .trip-layout { grid-template-columns: 1fr; }
+  .trip-money-summary { grid-template-columns: 1fr; }
+  .trip-expense-form { grid-template-columns: 1fr 1fr; }
+  .trip-expense-form input:first-child { grid-column: 1 / -1; }
+}
+
 /* Leaflet popups render outside React, so styling reaches in from here rather than a component. */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--cream); border-radius: 0; color: var(--ink); }
 .waypoint-popup strong { display: block; font-size: 13px; }
@@ -505,11 +555,17 @@ button { cursor: pointer; }
 @media (max-width: 800px) {
   body { padding-bottom: env(safe-area-inset-bottom); }
   .page-wrapper { padding: 28px 16px 92px; }
-  .navbar { align-items: center; bottom: 0; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 12px env(safe-area-inset-bottom); top: auto; }
+  .navbar { align-items: center; bottom: 0; height: calc(64px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); top: auto; }
   .navbar:before { bottom: auto; top: -3px; }
   .nav-brand { display: none; }
-  .nav-links { display: grid; flex: 1; grid-template-columns: repeat(6, 1fr); margin: 0; }
-  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 54px; padding: 7px 2px; }
+  /* Seven tabs plus the bell and avatar only just fit a 375px phone; narrower ones scroll the
+     tabs sideways rather than push the bell and profile off-screen. */
+  .nav-links { display: grid; flex: 1; gap: 0; grid-template-columns: repeat(7, auto); justify-content: space-between; margin: 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links .nav-link { letter-spacing: .03em; }
+  .nav-link .nav-label-full { display: none; }
+  .nav-link .nav-label-short { display: inline; }
+  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 54px; padding: 7px 3px; }
   .nav-link span { display: block; font-size: 9px; margin: 0; }
   .navbar-right { gap: 10px; }
   .profile-pill { border-left: 1px solid var(--line); flex-direction: column; font-size: 9px; gap: 2px; margin-left: 5px; padding-left: 10px; }
@@ -538,6 +594,10 @@ button { cursor: pointer; }
   .leaderboard-row { grid-template-columns: 28px 1fr 80px 28px; padding: 15px 10px; }
   .rank-date { display: none; }
   .leaderboard-detail { margin-left: 48px; }
+}
+@media (max-width: 400px) {
+  .profile-pill { border-left: 0; margin-left: 0; padding-left: 0; }
+  .profile-pill-name { display: none; }
 }
 @media (max-width: 500px) {
   .nav-link { font-size: 10px; }
