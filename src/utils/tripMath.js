@@ -34,34 +34,38 @@ export function perPersonCents(expenses, goingCount) {
   return goingCount ? Math.round(totalCents(expenses) / goingCount) : 0;
 }
 
-// Net position per person: positive is owed money, negative owes. Every expense is split
-// equally across everyone going (the leftover cents go one each to the earliest joiners);
-// a payment recorded from A to B moves A up and B down by that amount.
-export function balances({ going = [], expenses = [], settlements = [] }) {
-  const net = new Map();
-  const names = new Map();
-  const touch = (userId, name) => {
-    if (!net.has(userId)) net.set(userId, 0);
-    if (name && !names.has(userId)) names.set(userId, name);
+// Each person's side of the split: what they paid for, their equal share of the total (only
+// people going have one; the leftover cents go one each to the earliest joiners), payments
+// they've sent and received, and what that nets to — positive is owed money, negative owes.
+// What you paid comes straight off your share, so someone who fronted the boat may owe
+// nothing, or be owed the difference. Going people first, in join order, then anyone else
+// who paid for something (a waitlisted angler who picked up the bait).
+export function breakdown({ going = [], expenses = [], settlements = [] }) {
+  const rows = new Map();
+  const row = (userId, name) => {
+    if (!rows.has(userId)) rows.set(userId, { userId, name: name || 'Angler', paid: 0, share: 0, sent: 0, received: 0 });
+    return rows.get(userId);
   };
-  const add = (userId, cents) => net.set(userId, net.get(userId) + cents);
 
-  going.forEach((attendee) => touch(attendee.user_id, attendee.angler_name));
-  expenses.forEach((expense) => { touch(expense.paid_by, expense.paid_by_name); add(expense.paid_by, expense.amount_cents); });
+  going.forEach((attendee) => row(attendee.user_id, attendee.angler_name));
   if (going.length) {
     const total = totalCents(expenses);
     const base = Math.floor(total / going.length);
     const leftover = total - base * going.length;
-    going.forEach((attendee, index) => add(attendee.user_id, -(base + (index < leftover ? 1 : 0))));
+    going.forEach((attendee, index) => { row(attendee.user_id).share = base + (index < leftover ? 1 : 0); });
   }
+  expenses.forEach((expense) => { row(expense.paid_by, expense.paid_by_name).paid += expense.amount_cents; });
   settlements.forEach((settlement) => {
-    touch(settlement.from_user, settlement.from_name);
-    touch(settlement.to_user, settlement.to_name);
-    add(settlement.from_user, settlement.amount_cents);
-    add(settlement.to_user, -settlement.amount_cents);
+    row(settlement.from_user, settlement.from_name).sent += settlement.amount_cents;
+    row(settlement.to_user, settlement.to_name).received += settlement.amount_cents;
   });
 
-  return [...net].map(([userId, cents]) => ({ userId, name: names.get(userId) || 'Angler', cents }));
+  return [...rows.values()].map((entry) => ({ ...entry, net: entry.paid - entry.share + entry.sent - entry.received }));
+}
+
+// Net position per person, for settling up: positive is owed money, negative owes.
+export function balances(split) {
+  return breakdown(split).map(({ userId, name, net }) => ({ userId, name, cents: net }));
 }
 
 // Fewest payments that square everyone up: the biggest debtor pays the biggest creditor,

@@ -201,10 +201,24 @@ describe('money', () => {
     await screen.findByText('Beach house', { selector: 'strong' });
 
     expect(screen.getByText('Total').nextSibling).toHaveTextContent('$600.00');
-    expect(screen.getByText('Per person (2 going)').nextSibling).toHaveTextContent('$300.00');
+    expect(screen.getByText("Each person's share (2 going)").nextSibling).toHaveTextContent('$300.00');
     expect(screen.getByText('owe $300.00')).toBeInTheDocument();
     const transfer = document.querySelector('.trip-transfer-list li');
     expect(transfer).toHaveTextContent('Kevin pays Andre $300.00');
+  });
+
+  test('who\'s paid what shows each person\'s share with what they paid taken off it', async () => {
+    const boat = { id: 'e2', paid_by: 'kevin', paid_by_name: 'Kevin', description: 'Boat', amount_cents: 20000 };
+    useAuth.mockReturnValue(makeBaseAuth({ listTripExpenses: jest.fn().mockResolvedValue([house, boat]) }));
+    renderDetail();
+    await screen.findByText('Beach house', { selector: 'strong' });
+    const rows = [...document.querySelectorAll('.trip-breakdown li')].map((row) => row.textContent);
+    // $800 split two ways is $400 each: Andre fronted $600, Kevin $200.
+    expect(rows).toEqual([
+      'Andreis owed $200.00Paid $600.00 − share $400.00',
+      'Kevin (you)owes $200.00Paid $200.00 − share $400.00',
+    ]);
+    expect(document.querySelector('.trip-transfer-list li')).toHaveTextContent('Kevin pays Andre $200.00');
   });
 
   test('marking a payment records it and clears it from settle-up', async () => {

@@ -1,4 +1,4 @@
-import { splitRoster, parseDollars, formatCents, perPersonCents, balances, settleUp, rsvpClosed, catchRecap } from './tripMath';
+import { splitRoster, parseDollars, formatCents, perPersonCents, balances, breakdown, settleUp, rsvpClosed, catchRecap } from './tripMath';
 
 const at = (id, userId, name, minute) => ({ id, user_id: userId, angler_name: name, created_at: `2026-09-01T10:${String(minute).padStart(2, '0')}:00Z` });
 const andre = at('a1', 'u-andre', 'Andre', 0);
@@ -126,5 +126,40 @@ describe('catchRecap', () => {
 
   test('is empty with no catches', () => {
     expect(catchRecap([])).toEqual({ total: 0, leaderboard: [], biggest: [] });
+  });
+});
+
+describe('breakdown', () => {
+  const people = [
+    { user_id: 'andre', angler_name: 'Andre', created_at: '2026-01-01' },
+    { user_id: 'kevin', angler_name: 'Kevin', created_at: '2026-01-02' },
+    { user_id: 'sam', angler_name: 'Sam', created_at: '2026-01-03' },
+    { user_id: 'joe', angler_name: 'Joe', created_at: '2026-01-04' },
+  ];
+  const expenses = [
+    { paid_by: 'andre', paid_by_name: 'Andre', amount_cents: 60000 },
+    { paid_by: 'kevin', paid_by_name: 'Kevin', amount_cents: 20000 },
+  ];
+
+  test('what you paid comes straight off your share', () => {
+    expect(breakdown({ going: people, expenses }).map(({ name, paid, share, net }) => [name, paid, share, net])).toEqual([
+      ['Andre', 60000, 20000, 40000],
+      ['Kevin', 20000, 20000, 0],
+      ['Sam', 0, 20000, -20000],
+      ['Joe', 0, 20000, -20000],
+    ]);
+  });
+
+  test('payments sent and received move the net, and balances agree with it', () => {
+    const settlements = [{ from_user: 'sam', from_name: 'Sam', to_user: 'andre', to_name: 'Andre', amount_cents: 20000 }];
+    const rows = breakdown({ going: people, expenses, settlements });
+    expect(rows.find((row) => row.name === 'Sam')).toMatchObject({ sent: 20000, net: 0 });
+    expect(rows.find((row) => row.name === 'Andre')).toMatchObject({ received: 20000, net: 20000 });
+    expect(balances({ going: people, expenses, settlements }).map((row) => row.cents)).toEqual(rows.map((row) => row.net));
+  });
+
+  test('someone who paid but isn\'t going has no share and is owed it all', () => {
+    const rows = breakdown({ going: people.slice(0, 2), expenses: [{ paid_by: 'sam', paid_by_name: 'Sam', amount_cents: 1001 }] });
+    expect(rows.map(({ name, share, net }) => [name, share, net])).toEqual([['Andre', 501, -501], ['Kevin', 500, -500], ['Sam', 0, 1001]]);
   });
 });
