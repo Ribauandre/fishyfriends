@@ -8,7 +8,7 @@ import TripCatches from './components/TripCatches';
 import TripShare from './components/TripShare';
 import PayOptions from './components/PayOptions';
 import speciesIcon from './utils/speciesOptions';
-import { balances, formatCents, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
+import { balances, breakdown, formatCents, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
 
 function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
   const { addTripExpense } = useAuth();
@@ -114,6 +114,7 @@ export default function TripDetail() {
   const isMember = isCreator || Boolean(myAttendance);
   const imWaitlisted = waitlist.some((a) => a.user_id === user?.id);
   const full = trip.max_spots && going.length >= trip.max_spots;
+  const splitRows = breakdown({ going, expenses, settlements });
   const balanceList = balances({ going, expenses, settlements });
   const transfers = settleUp(balanceList);
   const myBalance = balanceList.find((b) => b.userId === user?.id)?.cents || 0;
@@ -240,7 +241,7 @@ export default function TripDetail() {
       {isMember && <>
         <div className="trip-money-summary">
           <div><span className="muted-label">Total</span><strong>{formatCents(total)}</strong></div>
-          <div><span className="muted-label">Per person ({going.length} going)</span><strong>{formatCents(perPersonCents(expenses, going.length))}</strong></div>
+          <div><span className="muted-label">Each person's share ({going.length} going)</span><strong>{formatCents(perPersonCents(expenses, going.length))}</strong></div>
           <div>
             <span className="muted-label">You</span>
             <strong className={myBalance < 0 ? 'trip-owe' : ''}>{myBalance < 0 ? `owe ${formatCents(-myBalance)}` : myBalance > 0 ? `are owed ${formatCents(myBalance)}` : 'are square'}</strong>
@@ -255,6 +256,24 @@ export default function TripDetail() {
           </li>)}
         </ul>}
         <AddExpenseForm tripId={trip.id} notifyUserIds={going.map((a) => a.user_id)} onAdded={(expense) => setExpenses((previous) => [...previous, expense])} />
+
+        {expenses.length > 0 && <>
+          <h3 className="trip-subheading">Who's paid what</h3>
+          <p className="muted-label">What you paid for comes off your share first; the rest is what you owe or are owed.</p>
+          <ul className="trip-breakdown">
+            {splitRows.map((entry) => <li key={entry.userId} className={entry.userId === user?.id ? 'is-you' : ''}>
+              <div className="trip-breakdown-head">
+                <strong>{entry.name}{entry.userId === user?.id ? ' (you)' : ''}</strong>
+                <span className={entry.net < 0 ? 'trip-owe' : entry.net > 0 ? 'trip-owed' : 'trip-square'}>{entry.net < 0 ? `owes ${formatCents(-entry.net)}` : entry.net > 0 ? `is owed ${formatCents(entry.net)}` : 'square'}</span>
+              </div>
+              <span className="trip-breakdown-math">
+                Paid {formatCents(entry.paid)} − share {formatCents(entry.share)}
+                {entry.sent > 0 && <> + sent {formatCents(entry.sent)}</>}
+                {entry.received > 0 && <> − received {formatCents(entry.received)}</>}
+              </span>
+            </li>)}
+          </ul>
+        </>}
 
         <h3 className="trip-subheading">Settle up</h3>
         {transfers.length === 0

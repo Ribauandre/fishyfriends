@@ -410,6 +410,15 @@ button { cursor: pointer; }
 .trip-money-summary > div { border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; }
 .trip-money-summary strong { font-family: var(--font-head); font-size: 20px; }
 .trip-money-summary .trip-owe { color: var(--coral); }
+.trip-breakdown { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 10px 0 12px; padding: 0; }
+.trip-breakdown li { border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; }
+.trip-breakdown li.is-you { border-color: var(--mint); }
+.trip-breakdown-head { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
+.trip-breakdown-head > span { font-family: var(--font-head); font-size: 14px; font-weight: 700; white-space: nowrap; }
+.trip-breakdown .trip-owe { color: var(--coral); }
+.trip-breakdown .trip-owed { color: var(--mint); }
+.trip-breakdown .trip-square { color: var(--muted); }
+.trip-breakdown-math { color: var(--muted); font-size: 12px; }
 .trip-expense-list, .trip-transfer-list { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0 0 12px; padding: 0; }
 .trip-expense-list li, .trip-transfer-list li { align-items: center; border: 1px solid var(--line); display: flex; gap: 12px; justify-content: space-between; padding: 10px 14px; }
 .trip-expense-list li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
