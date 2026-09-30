@@ -68,10 +68,11 @@ export const RHYTHMS = { loop: 1, 50: 0.5, 25: 0.25, 12: 0.125 };
 const flipCycle = (seconds, cells, rhythm) => onClock(seconds, Math.round(cells / RHYTHMS[rhythm]));
 
 // Colours. Every ground's water, by day and by night, is sampled from its own painting
-// (src/assets/scenes/<ground>.webp and <ground>_night.webp; scripts/ambiencePalette.mjs):
-// `foam` the painting's lightest foam or glint, `hi` its highlight, `mid` the next tone down and
-// `shade` a deep water tone. The night set is the moon path's ramp, at `strength`.
-// Extras for the grounds that need them: leaves, moss, grass, mist, the surf's lace, the horizon gleam,
+// (src/assets/scenes/<ground>.webp and <ground>_night.webp — the colours of its water listed by
+// brightness and count; the sampling script is in the session scratchpad): `foam` the
+// painting's lightest foam or glint, `hi` its highlight, `mid` the next tone down and `shade` a
+// deep water tone. The night set is the moon path's own ramp, drawn at `strength`. Extras for
+// the grounds that need them: leaves, moss, grass, mist, the surf's lace, the horizon gleam,
 // snow, and the four tones the sky's clouds are repainted in (`cloud`, lightest first).
 const NIGHT_STRENGTH = 0.7;
 const STAR_TONES = { star0: '#d2e8e1', star1: '#93adc2', star2: '#4e7591' };
@@ -106,8 +107,9 @@ export const EFFECTS = ['current', 'leaves', 'glass', 'waves', 'caps', 'wash', '
 // catches (a river's broken surface little, a bay a lot), scattered over `clip` (the water
 // where the sparkle box crosses sand, rock or hull) or the layout's sparkle box; `moon`, the
 // moon path after dark, where the glints go then; `stars`, a few painted stars that twinkle;
-// `clouds`, whether sprite clouds cross the painting's sky (a sky full of its own sunset or
-// a clear desert sky has none).
+// `cloud`, the four tones sprite clouds are repainted in to cross the painting's sky — or
+// false where the painting's sky is its own: full of painted cumulus (the bay, the beach, the
+// charter grounds, the flats), a sunset, or a clear desert sky.
 const SCENES = {
   // The river comes down out of the narrows at the top right, breaks white over the rocks and
   // runs down past the dock toward the viewer, so everything on it heads down and left.
@@ -154,22 +156,22 @@ const SCENES = {
   // the cypress knees, rings at the lily pads, and after dark the fireflies.
   swamp: {
     day: { foam: '#cdc9ba', hi: '#b0ab92', mid: '#889492', shade: '#27290f', moss0: '#cdc9ba', moss1: '#b0ab92', moss2: '#969070' },
-    night: { foam: '#40658b', hi: '#32577d', mid: '#1c4064', shade: '#000615', moss0: '#0b2c56', moss1: '#042045', moss2: '#021836' },
+    night: { foam: '#40658b', hi: '#32577d', mid: '#1c4064', shade: '#000615', moss0: '#07264c', moss1: '#021836', moss2: '#01112a' },
     cloud: false,
     glitter: 0.06,
     moon: [276, 76, 312, 196],
     stars: [[274.67, 6.67], [313.33, 10.67]],
-    moss: { seconds: 3, strands: [[30, 10, 30], [62, 16, 38], [108, 4, 34], [138, 12, 44], [176, 6, 30], [214, 14, 36], [322, 6, 40], [352, 14, 30], [452, 8, 44]] },
+    moss: { seconds: 3, strands: [[58, 14, 36], [106, 4, 32], [136, 12, 44], [176, 6, 30], [214, 14, 36], [322, 6, 40], [362, 14, 40], [420, 10, 36], [456, 8, 44]] },
     rings: { seconds: 15, spots: [[140, 238, 24], [330, 222, 26], [402, 208, 30], [262, 180, 18]] },
     bubbles: { seconds: 7.5, spots: [[322, 122, 4], [346, 134, 3], [252, 188, 4], [412, 204, 3], [180, 215, 3]] },
     fireflies: { count: 10, seconds: 6 },
   },
   // Sheltered water: low rollers coming in toward the dock and lapping at its pilings; the
-  // sun path glitters under the lighthouse.
+  // sun path glitters under the lighthouse. The sky is full of the painting's own cumulus.
   bay: {
     day: { foam: '#e6e4d7', hi: '#cec3be', mid: '#a1bad8', shade: '#185c87' },
     night: { foam: '#4b748f', hi: '#376688', mid: '#1f4b71', shade: '#000a25' },
-    cloud: ['#dcccbf', '#cec3be', '#bcbcca', '#a1bad8'],
+    cloud: false,
     glitter: 0.4,
     clip: [[240, 60], [480, 60], [480, 195], [430, 215], [400, 245], [370, 270], [240, 270]],
     moon: [262, 56, 306, 230],
@@ -183,7 +185,7 @@ const SCENES = {
   shoreline: {
     day: { foam: '#f3f1eb', hi: '#c4f1f6', mid: '#97daed', shade: '#0f72b3', lace: '#d9d1d8' },
     night: { foam: '#4e7797', hi: '#41678a', mid: '#28496d', shade: '#010918', lace: '#28496d' },
-    cloud: ['#d9d1d8', '#cad1e1', '#b5c5e2', '#97bbec'],
+    cloud: false,
     glitter: 0.28,
     clip: [[240, 60], [480, 60], [480, 162], [240, 196]],
     moon: [330, 56, 382, 150],
@@ -195,7 +197,7 @@ const SCENES = {
   offshore: {
     day: { foam: '#f3fafa', hi: '#dbf4ff', mid: '#b7d0ec', shade: '#013b6e' },
     night: { foam: '#506683', hi: '#405673', mid: '#2e4360', shade: '#000513' },
-    cloud: ['#f3fafa', '#e3e5e6', '#ccdae8', '#b8dcfb'],
+    cloud: false,
     glitter: 0.35,
     clip: [[140, 78], [480, 78], [480, 270], [200, 270], [160, 230], [140, 200]],
     moon: [280, 76, 342, 160],
@@ -222,7 +224,7 @@ const SCENES = {
   flats: {
     day: { foam: '#c8eabf', hi: '#95e6c1', mid: '#7cd6af', shade: '#137c6d' },
     night: { foam: '#477d92', hi: '#3a6f88', mid: '#24526f', shade: '#000812' },
-    cloud: ['#f2ebd9', '#ebefe4', '#d2e7e7', '#aedae6'],
+    cloud: false,
     glitter: 0.3,
     clip: [[235, 128], [240, 55], [480, 55], [480, 270], [272, 270]],
     moon: [200, 44, 282, 166],
@@ -241,7 +243,7 @@ const SCENES = {
     moon: [294, 50, 346, 122],
     stars: [[212, 10.67], [376, 8], [150, 30]],
     caps: { seconds: 5, area: { x0: 262, x1: 478, y0: 100, y1: 232 }, count: 9, width: [12, 34] },
-    wash: { seconds: 8, reach: 12, beach: 1, line: [[318, 262], [340, 250], [360, 243], [380, 238], [400, 232], [420, 226], [440, 220], [460, 214], [480, 209]] },
+    wash: { seconds: 8, reach: 12, beach: 1, line: [[314, 262], [326, 252], [340, 246], [360, 239], [380, 232], [400, 228], [420, 224], [440, 216], [460, 207], [480, 202]] },
     foam: { seconds: 1.5, spots: [[258, 262, 14], [158, 264, 12], [224, 236, 9]] },
   },
   // The marsh creek on the ebb: the channel bends down from the far bend past the dock and
@@ -250,7 +252,7 @@ const SCENES = {
   // moves in the breeze, rooted in the grass the painting grows.
   creek: {
     day: { foam: '#d39538', hi: '#c8821d', mid: '#a66d1a', shade: '#623a0a', grass0: '#d98e1a', grass1: '#b46b0b', grass2: '#7e430b' },
-    night: { foam: '#3f6a87', hi: '#325d7a', mid: '#1b4768', shade: '#010913', grass0: '#0c3f65', grass1: '#062c4a', grass2: '#010913' },
+    night: { foam: '#3f6a87', hi: '#325d7a', mid: '#1b4768', shade: '#010913', grass0: '#061626', grass1: '#020f1d', grass2: '#00060f' },
     cloud: ['#f9d87f', '#fdc25d', '#f1b255', '#ebaa4e'],
     glitter: 0.12,
     clip: [[262, 124], [302, 124], [300, 150], [288, 178], [336, 196], [372, 206], [338, 232], [300, 262], [200, 262], [200, 190], [232, 168], [212, 150]],
@@ -273,7 +275,7 @@ const SCENES = {
     moon: [352, 64, 398, 264],
     stars: [[293.33, 2.67], [60, 5.33], [120, 16]],
     waves: { seconds: 11, area: { x0: [228, 254], x1: 480, y0: 105, y1: 255 }, rows: 5, perRow: 2, heading: 90, travel: 32, width: [40, 110] },
-    wash: { seconds: 12, reach: 4, beach: -1, line: [[252, 67], [280, 68], [320, 70], [360, 71.5], [400, 73.5], [440, 75.5], [480, 77]] },
+    wash: { seconds: 12, reach: 4, beach: -1, line: [[252, 66], [280, 67], [320, 68.5], [360, 70.5], [400, 72.5], [440, 74.5], [480, 76.5]] },
     foam: { seconds: 1.5, spots: [[60, 88, 14], [104, 92, 16], [86, 96, 10]] },
   },
   // The lake frozen over: mist lying over the open lead, and snow coming down on all of it.
@@ -290,11 +292,12 @@ const SCENES = {
   },
 };
 
-// The sky of each painting, read off it (scratchpad skymask: its open-sky colours flood-filled
-// from a box of sky and stopped at the horizon): per art-pixel row "y:x0-x1,x2-x3". The clouds
-// and gulls fly inside it, so they pass behind the lamp posts, the pines, the peaks and the
-// headland rather than over them. Night paintings are registered to their day ones, so one
-// mask serves both.
+// The sky of each painting, read off it (the colours that fill a box of open sky, flood-filled
+// from that box and stopped at the horizon, pinholes closed; the script is in the session
+// scratchpad): per art-pixel row "y:x0-x1,x2-x3". The clouds and gulls fly inside it, so they
+// pass behind the lamp posts, the pines, the peaks and the headland rather than over them.
+// Night paintings are registered to their day ones, so one mask serves both. A repainted
+// ground needs its mask read again.
 const SKY = {
   river: '0:141-325;1:141-145,148-325;2:134-135,141-141,148-323;3:134-136,148-156,159-304,307-322;4:134-137,141-141,144-155,160-304,307-317,321-322;5:135-138,141-155,160-304,308-317,321-325;6:136-155,161-303,308-317,322-326;7:137-155,162-302,309-316,322-326;8:138-140,143-154,162-178,181-302,309-316,323-326;9:138-140,143-154,162-178,181-301,309-316,326-326;10:140-140,142-147,151-154,162-177,181-301,309-315,326-327;11:151-154,162-177,182-301,309-315,326-327;12:151-154,162-177,183-290,293-300,310-311,326-327;13:149-154,162-177,183-241,249-290,294-300;14:135-136,149-154,168-175,183-238,252-289,294-296;15:135-136,140-141,168-175,184-234,255-288;16:136-136,140-141,169-174,184-190,197-231,258-287;17:140-144,170-173,184-188,200-226,261-287;18:141-144,171-172,204-223,266-282;19:209-218,269-273,276-278;20:210-215,276-277',
   mountainlake: '0:84-359;1:84-359;2:84-206,210-359;3:85-206,211-359;4:86-206,212-359;5:86-206,214-355,358-359;6:85-207,219-355;7:84-200,204-207,220-355;8:84-199,204-207,221-299,302-354;9:86-199,204-207,221-299,302-343,348-351;10:87-199,206-207,222-299,302-343,348-350;11:87-197,226-299,302-336,348-349;12:86-173,176-197,226-227,233-284,305-306,309-333;13:85-114,119-164,170-173,176-196,233-283,311-325;14:85-114,120-127,130-134,140-141,157-160,173-195,234-248,253-278,311-322;15:87-91,94-110,130-134,177-194,304-306,312-322;16:89-91,94-110,130-134,186-189,193-194,303-308,312-322;17:94-95,99-109,127-135,303-322;18:99-105,127-136,305-322;19:129-136,305-321;20:304-318;21:304-316;22:306-315;23:306-307,310-312;24:306-307,310-311',
@@ -433,29 +436,35 @@ export function crestShape(length, seed, rows = 2, near = 0) {
     if (edge >= 3 && r < 0.1) continue;
     px.push([x, 0, near > 0.5 && edge > length * 0.2 && r > 0.82 ? 'foam' : 'hi']);
   }
-  if (rows > 1) for (let x = 2; x < length - 2; x += 1) if (hash(seed, x, 7) > 0.4) px.push([x, 1, 'mid']);
+  // the trough under the crest, a tone of the painting's deep water, so the crest stands up
+  if (rows > 1) for (let x = 2; x < length - 2; x += 1) if (hash(seed, x, 7) > 0.45) px.push([x, 1, 'shade']);
   return shape(length, rows, [px]);
 }
 
-// A whitecap, breaking and dissolving where it is: a line of face, the crest lighting up with
-// spray thrown over it, the break spread into foam that sinks a pixel as it goes, a last dither
-// of it, and a blank cell to rest on (it runs in the '50' rhythm).
+// A whitecap, breaking and dissolving where it is: a crest running along the swell with a
+// ragged top (each column a pixel up or not), spray thrown a pixel or two over it as it breaks,
+// the break spreading into foam that sinks as it goes, and a blank cell to rest on (it runs in
+// the '50' rhythm).
 export function capShape(length, seed) {
   const w = length + 2;
   const h = 5;
-  const mid = Math.floor(w / 2);
-  const run = (y, from, to, tone, keep = 1, salt = 0) => {
+  const top = (x) => (hash(seed, x, 20) > 0.68 ? 1 : 2);
+  const at = (dy, tone, keep, salt, from = 0, to = w - 1) => {
     const px = [];
-    for (let x = from; x <= to; x += 1) if (hash(seed, x, y, salt) < keep) px.push([x, y, tone]);
+    for (let x = from; x <= to; x += 1) {
+      const edge = Math.min(x - from, to - x);
+      if (edge < 2 && (x + dy) % 2) continue;
+      if (hash(seed, x, dy, salt) < keep) px.push([x, clamp(top(x) + dy, 0, h - 1), tone]);
+    }
     return px;
   };
-  const half = Math.max(1, Math.floor(length / 4));
+  const third = Math.max(1, Math.floor(w / 3));
   return shape(w, h, [
-    run(3, mid - half, mid + half, 'mid'),
-    [...run(3, 1, w - 2, 'hi', 0.9, 1), ...run(2, mid - half, mid + half, 'mid', 0.5, 2)],
-    [...run(3, 1, w - 2, 'foam', 0.85, 3), ...run(2, 2, w - 3, 'hi', 0.6, 4), ...run(1, mid - half, mid + half, 'foam', 0.4, 5), ...run(0, mid - 1, mid + 1, 'hi', 0.5, 6)],
-    [...run(3, 0, w - 1, 'hi', 0.55, 7), ...run(4, 1, w - 2, 'mid', 0.5, 8), ...run(2, 2, w - 3, 'foam', 0.3, 9)],
-    [...run(4, 0, w - 1, 'mid', 0.35, 10), ...run(3, 2, w - 3, 'hi', 0.2, 11)],
+    at(0, 'mid', 0.8, 1, third, w - 1 - third),
+    [...at(0, 'hi', 0.9, 2, 1, w - 2), ...at(1, 'mid', 0.4, 3, 1, w - 2)],
+    [...at(0, 'foam', 0.85, 4), ...at(-1, 'hi', 0.3, 5, 1, w - 2), ...at(1, 'hi', 0.5, 6), ...at(-2, 'foam', 0.12, 7, 2, w - 3)],
+    [...at(1, 'foam', 0.6, 8), ...at(0, 'hi', 0.4, 9), ...at(2, 'mid', 0.4, 10)],
+    [...at(2, 'hi', 0.35, 11), ...at(1, 'mid', 0.3, 12)],
     [],
   ]);
 }
@@ -575,15 +584,14 @@ export function glintShape(wide) {
     : shape(1, 1, [[[0, 0, 'mid']], [[0, 0, 'foam']], [[0, 0, 'hi']], []]);
 }
 
-// A star twinkling on a painted one: mostly a dim pixel, now and then a flash with arms.
+// A star twinkling on a painted one: one pixel, mostly dim, brightening now and then.
 export function starShape() {
-  const c = (tone) => [[1, 1, tone]];
-  return shape(3, 3, [c('star2'), c('star2'), c('star1'), [[1, 1, 'star0'], [1, 0, 'star2'], [0, 1, 'star2'], [2, 1, 'star2'], [1, 2, 'star2']], c('star1'), c('star2'), c('star2'), c('star2')]);
+  return shape(1, 1, ['star2', 'star2', 'star1', 'star0', 'star1', 'star2', 'star2', 'star2'].map((tone) => [[0, 0, tone]]));
 }
 
-// A firefly: a pixel that lights, flares, dims and goes dark.
+// A firefly: one pixel that lights, glows, dims and goes dark.
 export function fireflyShape() {
-  return shape(3, 3, [[[1, 1, 'fly2']], [[1, 1, 'fly1']], [[1, 1, 'fly0'], [1, 0, 'fly2'], [0, 1, 'fly2'], [2, 1, 'fly2'], [1, 2, 'fly2']], [[1, 1, 'fly0']], [[1, 1, 'fly1']], []]);
+  return shape(1, 1, [[[0, 0, 'fly2']], [[0, 0, 'fly1']], [[0, 0, 'fly0']], [[0, 0, 'fly0']], [[0, 0, 'fly1']], []]);
 }
 
 // The last light on the horizon: a dash that lights, runs a pixel along and goes.
@@ -752,13 +760,14 @@ export function planWash(biome, season = null) {
   const reach = toPx(spec.reach);
   return [0, 1].map((second) => {
     const px = [];
-    line.forEach(([x, y], i) => {
+    line.forEach(([x, y]) => {
       const r = hash(second + 1, x, y);
       if (r < (second ? 0.3 : 0.08)) return;
       px.push([x - x0, y - y0, second ? 'lace' : 'foam']);
-      // the foam behind the lip, on the sea side: a checker of it, then lace
-      if (!second && (x + i) % 2 === 0) px.push([x - x0, y - y0 - spec.beach, r > 0.5 ? 'foam' : 'lace']);
-      if (!second && (x + i) % 4 === 1 && r > 0.4) px.push([x - x0, y - y0 - 2 * spec.beach, 'lace']);
+      // the foam behind the lip, on the sea side: broken, then lace
+      const behind = hash(second + 3, x, y);
+      if (!second && behind > 0.4) px.push([x - x0, y - y0 - spec.beach, behind > 0.75 ? 'foam' : 'lace']);
+      if (!second && hash(second + 5, x, y) > 0.8) px.push([x - x0, y - y0 - 2 * spec.beach, 'lace']);
     });
     const duration = onClock(spec.seconds * (second ? 1.25 : 1), 32);
     const run = second ? Math.round(reach * 0.6) : reach;
@@ -829,7 +838,7 @@ export function planFireflies(biome, season = null, period = 'night') {
       kind: 'firefly',
       x: toPx(water.x0 - 40 + (water.x1 - water.x0 + 40) * ((index * 0.41 + 0.1) % 1)),
       y: toPx(water.y0 - 30 + (span + 30) * ((index * 0.29 + 0.35) % 1)),
-      w: 3, h: 3, shape: fireflyShape(), rhythm: '25', duration, delay: startAt(duration, spread(spec.count, index)),
+      w: 1, h: 1, shape: fireflyShape(), rhythm: '25', duration, delay: startAt(duration, spread(spec.count, index)),
       wander, wanderDelay: startAt(wander, index * 0.37),
     });
   });
@@ -880,7 +889,7 @@ export function planStars(biome, season = null, period = 'night') {
   if (period !== 'night') return [];
   return ambienceFor(biome, season).stars.map(([x, y], index) => {
     const duration = flipCycle(3 + (index % 3), 8, 'loop');
-    return piece({ kind: 'star', x: toPx(x) - 1, y: toPx(y) - 1, w: 3, h: 3, shape: starShape(), rhythm: 'loop', duration, delay: startAt(duration, index * 0.37) });
+    return piece({ kind: 'star', x: toPx(x), y: toPx(y), w: 1, h: 1, shape: starShape(), rhythm: 'loop', duration, delay: startAt(duration, index * 0.37) });
   });
 }
 
@@ -951,8 +960,10 @@ export function planClouds(biome, season = null, period = 'day') {
     const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
     const travel = ART_COLS + sprite.w;
     const duration = onClock(travel / speeds[index % speeds.length]);
-    const from = lane.from > 0 ? toPx(lane.from) : ART_COLS * (0.3 + index * 0.35);
-    return piece({ kind: 'cloud', x: -sprite.w, y: toPx(lane.y0), w: sprite.w, h: sprite.h, src: sprite.src, tx: travel, duration, delay: startAt(duration, (from + sprite.w) / travel) });
+    // Where it is when the loop is where the delay puts it (and where it stays, with motion off):
+    // the lane's own start, or somewhere along the sky.
+    const from = Math.round(lane.from > 0 ? toPx(lane.from) : ART_COLS * (0.3 + index * 0.35));
+    return piece({ kind: 'cloud', x: from, y: toPx(lane.y0), w: sprite.w, h: sprite.h, src: sprite.src, tx0: -(from + sprite.w), tx: travel, duration, delay: startAt(duration, (from + sprite.w) / travel) });
   });
 }
 

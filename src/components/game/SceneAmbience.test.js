@@ -12,7 +12,8 @@ test('salt water gets gulls in the painting\'s own sky; the dock lamp is not the
   expect(container.querySelectorAll('.scene-gull').length).toBe(2);
   expect(container.querySelector('.scene-dragonfly')).toBeNull();
   expect(container.querySelector('.scene-lamp')).toBeNull();
-  expect(container.querySelectorAll('.scene-cloud').length).toBe(2);
+  // The bay's sky is full of its own painted cumulus: no sprite clouds over it.
+  expect(container.querySelector('.scene-cloud')).toBeNull();
   // Clouds and gulls fly inside the sky the painting has, masked by it.
   const sky = container.querySelector('.scene-sky');
   expect(sky.style.maskImage || sky.style.webkitMaskImage).toMatch(/^url\("data:image\/svg\+xml,/);
@@ -25,7 +26,7 @@ test('salt water gets gulls in the painting\'s own sky; the dock lamp is not the
 });
 
 test('clouds are drawn at their own size, a pixel a step, repainted in the ground\'s own cloud tones', () => {
-  const { container } = render(<SceneAmbience biome="bay" />);
+  const { container } = render(<SceneAmbience biome="pier" />);
   const clouds = container.querySelectorAll('.scene-cloud');
   clouds.forEach((cloud, index) => {
     const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
@@ -33,9 +34,13 @@ test('clouds are drawn at their own size, a pixel a step, repainted in the groun
     expect(pct(cloud.style.height)).toBeCloseTo((sprite.h / ART_ROWS) * 100, 3);
     // Across the painting and its own width, one art pixel a step.
     expect(cloud.style.animationTimingFunction).toBe(`steps(${ART_COLS + sprite.w})`);
-    expect(cloud.style.filter).toMatch(/^url\(#scene-cloud-tones-bay\)$/);
+    expect(cloud.style.filter).toMatch(/^url\(#scene-cloud-tones-pier\)$/);
+    // Where the loop has it: with motion off it stays in the sky, not off the left edge.
+    expect(pct(cloud.style.left)).toBeGreaterThanOrEqual(0);
+    expect(cloud.style.getPropertyValue('--mx0')).toMatch(/^-/);
   });
-  const filter = container.querySelector('filter#scene-cloud-tones-bay');
+  expect(clouds.length).toBe(2);
+  const filter = container.querySelector('filter#scene-cloud-tones-pier');
   expect(filter).toBeInTheDocument();
   expect(filter.querySelectorAll('feFuncR, feFuncG, feFuncB').length).toBe(3);
   filter.querySelectorAll('feFuncR').forEach((fn) => expect(fn.getAttribute('tableValues').split(' ').length).toBe(16));

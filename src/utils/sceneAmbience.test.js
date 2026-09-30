@@ -271,8 +271,9 @@ test('after dark: a few painted stars twinkle, and no clouds, gulls, dragonflies
     if (night.tiles) expect(night.tiles.kind).toBe('snow');
     expect(night.stars.length).toBeGreaterThan(0);
     expect(night.stars.length).toBeLessThanOrEqual(4);
-    // Stars are one pixel, flashing a little cross now and then.
-    night.stars.forEach((star) => { expect(star.shape.cells.every((cell) => cell.length === 1 || cell.length === 5)).toBe(true); });
+    // A star is one art pixel on a painted one, stepping through three tones; a firefly too.
+    night.stars.forEach((star) => { expect([star.w, star.h]).toEqual([1, 1]); expect(new Set(star.shape.cells.map((cell) => cell[0][2])).size).toBe(3); });
+    night.fireflies.forEach((bug) => expect([bug.w, bug.h]).toEqual([1, 1]));
     expect(planStars(biome, season, 'day')).toEqual([]);
   });
   expect(planGleam('canyon', null, 'dusk').length).toBeGreaterThan(0);
@@ -307,8 +308,11 @@ test('the sky: clouds at their own size in the painting\'s own sky, gulls of one
     clouds.forEach((cloud, index) => {
       const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
       expect([cloud.w, cloud.h]).toEqual([sprite.w, sprite.h]);
-      // Across the whole painting, a pixel a step, no faster than the clock.
+      // Across the whole painting, a pixel a step, no faster than the clock; placed where the
+      // loop starts it, so with motion off it stays in the sky rather than off the left edge.
       expect(cloud.tx).toBe(ART_COLS + cloud.w);
+      expect(cloud.tx0).toBe(-(cloud.x + cloud.w));
+      expect(cloud.x).toBeGreaterThanOrEqual(0);
       expect(cloud.tx / cloud.duration).toBeLessThanOrEqual(MAX_STEPS_PER_S);
       expect(config.cloudTones).toHaveLength(4);
     });
@@ -319,10 +323,11 @@ test('the sky: clouds at their own size in the painting\'s own sky, gulls of one
     });
     planDragonflies(biome, season, 'day').forEach((fly) => { expect([fly.w, fly.h]).toEqual([AMBIENT_SPRITES.dragonfly.w, AMBIENT_SPRITES.dragonfly.h]); expect(fly.duration).toBe(12.5); expect(fly.wings).toBe(0.25); });
   });
-  // The canyon's sky is its own sunset and Baja's a clear desert one: no sprite clouds.
-  expect(planClouds('canyon')).toEqual([]);
-  expect(planClouds('baja')).toEqual([]);
-  expect(planClouds('bay').length).toBe(2);
+  // Where the painting's sky is its own — full of its painted cumulus, a sunset, a clear desert
+  // sky — no sprite clouds cross it.
+  ['bay', 'shoreline', 'offshore', 'flats', 'canyon', 'baja', 'swamp'].forEach((biome) => expect(planClouds(biome)).toEqual([]));
+  expect(planClouds('mountainlake').length).toBe(2);
+  expect(planClouds('pier').length).toBe(2);
   expect(planGulls('offshore').length).toBe(3);
   expect(planGulls('river')).toEqual([]);
   // The dock grounds' lamp post stands in front of the sky: its column is not sky.

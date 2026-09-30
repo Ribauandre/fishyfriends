@@ -1131,7 +1131,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes amb-flip-12 { 0% { background-position-x: 0; } 12.5%, 100% { background-position-x: 100%; } }
 /* A run across or down: --mx/--my is the whole run in the box's own size, and the inline
    steps(n) makes every step one art pixel. */
-@keyframes amb-run-x { from { transform: translateX(0); } to { transform: translateX(var(--mx, 0)); } }
+@keyframes amb-run-x { from { transform: translateX(var(--mx0, 0)); } to { transform: translateX(var(--mx, 0)); } }
 @keyframes amb-run-y { from { transform: translateY(0); } to { transform: translateY(var(--my, 0)); } }
 /* The sky: clouds and gulls fly inside the painting's own sky (a mask read off it). A cloud is
    drawn at its own size, repainted in the painting's cloud tones (an SVG filter), and drifts a
@@ -1375,7 +1375,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .map-hotspot.has-derby { padding-right: 24px; }
 .map-derby-flag { height: 20px; position: absolute; right: -6px; top: -12px; width: auto; }
 
-@media (prefers-reduced-motion: reduce) { .scene-stars { animation: none; } }
 
 
 /* Cast & Catch — play on the stage: the scene is the tap/hold surface and the meters sit where

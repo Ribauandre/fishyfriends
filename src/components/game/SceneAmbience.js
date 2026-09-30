@@ -65,7 +65,7 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
         className="scene-cloud"
         src={p.src}
         alt=""
-        style={{ ...box(p), '--mx': `${r4((p.tx / p.w) * 100)}%`, animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${p.tx})`, filter: cloudFilter ? `url(#${cloudFilter})` : undefined }}
+        style={{ ...box(p), '--mx0': `${r4((p.tx0 / p.w) * 100)}%`, '--mx': `${r4(((p.tx0 + p.tx) / p.w) * 100)}%`, animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${p.tx})`, filter: cloudFilter ? `url(#${cloudFilter})` : undefined }}
       />)}
       {plan.gulls.map((p, index) => <span
         key={`gull-${index}`}
