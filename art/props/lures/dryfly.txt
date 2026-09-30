@@ -1,0 +1,17 @@
+# The dry fly riding the surface, 11 x 8 art pixels, hook eye to the left: an upright pale wing,
+# a ginger hackle collar, a cream body, tail fibres trailing right, the hook bend under it.
+K #130f0c
+w #eef2f4
+g #aab4ba
+h #d0913f
+H #9c6426
+b #efd9a6
+
+..KKK......
+.KwwgK.....
+.KwggK.....
+KhKKKhK....
+KHhhhHKKKKK
+.KKbbbbbbKh
+...KKKKKKKK
+.......KK..

@@ -1,0 +1,14 @@
+# The shrimp fly (salt), 14 x 7 art pixels, hook eye to the left: a tan shrimp curled over the
+# hook with dark bead-chain eyes, pink legs and two feelers.
+K #130f0c
+a #f0c89a
+b #d69c68
+c #a9703f
+p #e88c8c
+
+.K...KKKKK....
+K.KKKaaaaaKK..
+.KaKaaaaabbbKK
+KKKbbbbbbbbccK
+..KpKpKpKKKKK.
+...K.K.K......

@@ -1,0 +1,37 @@
+# The plank sign, a nine-slice on the art grid: 24 x 24 art pixels, three boards between one-
+# pixel keylines, a nail in each corner. Slice 6 (the corners hold the nails, the middle twelve
+# tile): border-image: url(plank.png) 6 fill / (6 x the CSS pixels per art pixel) round.
+K #130f0c
+a #b58050
+b #925b31
+c #764726
+d #5e391f
+e #452815
+M #d9dcdc
+o #8e979c
+O #5d6468
+
+.KKKKKKKKKKKKKKKKKKKKKK.
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbMocccbbbbbccccbccbMobK
+KboObbbbbbbbbbbbbbbboObK
+KbbbbcccbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KddddddddddddddddddddddK
+KeeeeeeeeeeeeeeeeeeeeeeK
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbbccbbbbbbbbbbbbbbbbbbK
+KbbbbbbccccbcccbbccbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbccK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KddddddddddddddddddddddK
+KeeeeeeeeeeeeeeeeeeeeeeK
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbbbbbbbbbbccccbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbMobccbbbbbbbbbbbccMobK
+KboObbbbbbbbbbbbbbbboOcK
+KddddddddddddddddddddddK
+.KKKKKKKKKKKKKKKKKKKKKK.

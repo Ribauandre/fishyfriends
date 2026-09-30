@@ -1,0 +1,14 @@
+# The streamer (a woolly bugger), 16 x 6 art pixels, hook eye to the left: a gold bead, an olive
+# chenille body and a black marabou tail trailing behind.
+K #130f0c
+y #f2c94a
+o #7c8a3a
+p #5a6628
+t #3f4530
+
+.KK.............
+KyyKKKKKKKKKKKK.
+KyKooooooopKtttK
+.KKpppppppKKttK.
+....KKKKKKK.KK..
+.........KK.....

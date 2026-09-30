@@ -1,0 +1,7 @@
+[
+  { "name": "cloud1", "in": "art/ambient/cloud1.png", "out": "src/assets/ambient/cloud1.png", "rows": 18, "colors": 3, "keyLum": 0, "outline": "none", "tones": ["#f7f9f8", "#e1e8ea", "#b8c6ce", "#8d9fab"] },
+  { "name": "cloud2", "in": "art/ambient/cloud2.png", "out": "src/assets/ambient/cloud2.png", "rows": 16, "colors": 3, "keyLum": 0, "outline": "none", "tones": ["#f7f9f8", "#e1e8ea", "#b8c6ce", "#8d9fab"] },
+  { "name": "cloud3", "in": "art/ambient/cloud3.png", "out": "src/assets/ambient/cloud3.png", "rows": 14, "colors": 3, "keyLum": 0, "outline": "none", "tones": ["#f7f9f8", "#e1e8ea", "#b8c6ce", "#8d9fab"] },
+  { "name": "seagull", "draw": "art/ambient/seagull.txt", "out": "src/assets/ambient/seagull.png" },
+  { "name": "dragonfly", "draw": "art/ambient/dragonfly.txt", "out": "src/assets/ambient/dragonfly.png" }
+]

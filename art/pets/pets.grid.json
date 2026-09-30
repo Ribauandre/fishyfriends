@@ -1,0 +1,6 @@
+[
+  { "name": "dog", "src": "art/pets/dog.png", "frames": 3, "cell": 12.93, "colors": 8, "register": "overlap" },
+  { "name": "dog_cheer", "src": "art/pets/dog_cheer.png", "frames": 4, "cell": 12.93, "paletteFrom": "dog", "register": "mass" },
+  { "name": "cat", "src": "art/pets/cat.png", "frames": 3, "cell": 12.93, "colors": 5, "keyLum": 60, "keyChroma": 0.2, "register": "overlap", "grade": { "chroma": 0.8, "L": 0.97 } },
+  { "name": "cat_cheer", "src": "art/pets/cat_cheer.png", "frames": 4, "cell": 12.93, "paletteFrom": "cat", "keyLum": 60, "keyChroma": 0.2, "register": "mass" }
+]
