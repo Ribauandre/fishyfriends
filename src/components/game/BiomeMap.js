@@ -3,31 +3,41 @@ import { BIOMES, biomeUnlocked, charterFare, isRegular } from '../../utils/gameB
 import { DERBY_FLAG } from '../../utils/gameProps';
 import mapArt from '../../assets/scenes/map.webp';
 
-// The fishing-grounds map is the biome picker: one hotspot per ground, laid over the map's own
-// signposts (positions are percentages of the painting), plus the tackle shop, which just
-// scrolls you down to Sal. Beach on the map is the 'shoreline' biome key. The Canyon sits out
-// past the charter boat and The Flats off the bottom of the map to the south-west; both stay
-// locked rumors until Cap'n Ray's quests are done. The two open-water spots are kept far
-// enough apart that their labels clear each other at phone widths, where a label is a fifth
-// of the map wide. The week's derby grounds fly the pennant.
-const HOTSPOTS = [
-  { biome: 'mountainlake', x: 22.7, y: 10.3 },
-  { biome: 'swamp', x: 80.8, y: 16.9 },
-  { biome: 'river', x: 61.7, y: 37.6 },
-  { biome: 'shoreline', x: 36.5, y: 65 },
-  { biome: 'bay', x: 80.6, y: 66.7 },
-  { biome: 'offshore', x: 85, y: 89.3 },
-  { biome: 'canyon', x: 58, y: 94 },
-  { biome: 'flats', x: 40, y: 84 },
-  { biome: 'pier', x: 14, y: 58 },
-  { biome: 'creek', x: 66, y: 52 },
-  { biome: 'baja', x: 10, y: 47 },
+// The fishing-grounds map is the biome picker: one hotspot per ground, laid over the place the
+// map paints for it, plus the tackle shop, which just scrolls you down to Sal. Beach on the map
+// is the 'shoreline' biome key. The map is pixel art on the world's own terms (a top-down render
+// re-gridded by scripts/roomGrid.mjs onto its own 3.88 px block, stored at MAP_ART_SIZE and drawn
+// pixelated) and carries no painted words at all: these labels are the only ones. North is the
+// fresh water (the lake under the mountains, the river down to the bay, the swamp), the middle is
+// the coast (the town and Sal's, the beach and the town pier, the bay, the salt-marsh creek, the
+// charter boat), and along the bottom are the far trips: Baja's desert to the south-west, the
+// turquoise Flats to the south and the Canyon's deep water out past the charter boat. The far
+// three stay locked rumors until Cap'n Ray's quests are done. The week's derby grounds fly the
+// pennant.
+//
+// Positions are percentages of the painting, read off it. On a phone the map is about 340 CSS px
+// wide and a label a fifth of that, so the spots stand in three columns about a third of the map
+// apart (16, 34-49, 80) and, within a column, at least 15% of the map's height apart;
+// BiomeMap.test.js holds that rule for every pair.
+export const MAP_ART_SIZE = { width: 396, height: 264 };
+export const HOTSPOTS = [
+  { biome: 'mountainlake', x: 16, y: 18 },
+  { biome: 'swamp', x: 80, y: 12 },
+  { biome: 'river', x: 46, y: 28 },
+  { biome: 'creek', x: 80, y: 33 },
+  { biome: 'bay', x: 49, y: 45 },
+  { biome: 'shoreline', x: 16, y: 51 },
+  { biome: 'offshore', x: 80, y: 55 },
+  { biome: 'pier', x: 34, y: 67 },
+  { biome: 'canyon', x: 80, y: 80 },
+  { biome: 'flats', x: 48, y: 84 },
+  { biome: 'baja', x: 16, y: 84 },
 ];
-const SHOP_HOTSPOT = { x: 23.3, y: 34.8 };
+export const SHOP_HOTSPOT = { x: 16, y: 35 };
 
 export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = {}, derby = null, records = {}, member = false }) {
   return <div className="biome-map">
-    <img className="biome-map-art" src={mapArt} alt="Map of the fishing grounds" />
+    <img className="biome-map-art" src={mapArt} width={MAP_ART_SIZE.width} height={MAP_ART_SIZE.height} alt="Map of the fishing grounds" />
     {HOTSPOTS.map((spot) => {
       const config = BIOMES[spot.biome];
       const active = biome === spot.biome;
