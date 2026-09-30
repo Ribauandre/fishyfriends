@@ -4,14 +4,16 @@ import captainPortrait from '../../assets/npcs/captain.png';
 import shopkeeperPortrait from '../../assets/npcs/shopkeeper.png';
 import outfitterPortrait from '../../assets/npcs/outfitter.png';
 
-// Pixel-art portraits are dedicated renders for each character (downscaled to 256px for the
-// bundle), shown as dialogue cards rather than animated sprites.
+// Each character's portrait is pixel art on the chrome's grid: a dedicated render (kept in
+// art/npcs/) put on 64 x 64 art pixels by scripts/pixelGrid.mjs (art/props/chrome.json) and drawn
+// pixelated at a whole multiple, framed in the thin plank — shown as dialogue cards rather than
+// animated sprites.
 const PORTRAITS = { captain: captainPortrait, shopkeeper: shopkeeperPortrait, outfitter: outfitterPortrait };
 
 export default function NpcDialogue({ npc, line, compact = false }) {
   const character = NPCS[npc];
   return <figure className={`npc-dialogue npc-${npc} ${compact ? 'is-compact' : ''}`}>
-    <img className="npc-portrait" src={PORTRAITS[npc]} alt="" />
+    <span className="npc-frame"><img className="npc-portrait" src={PORTRAITS[npc]} alt="" /></span>
     <figcaption className="npc-bubble">
       <strong>{character.name}</strong>
       <small>{character.title}</small>
