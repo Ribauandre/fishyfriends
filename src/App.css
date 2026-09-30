@@ -1346,10 +1346,14 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   --ring-gold: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--gold);
 }
 @media (max-width: 500px) { .game-page { --ui-px: 1px; --frame-px: .5px; --t-s: calc(112px / 9); --t-m: calc(56px / 3); --t-l: calc(224px / 9); --t-card: var(--t-s); } }
+/* The log frame's art pixel in whole device pixels: one at DPR 2 (.5 CSS px), two at DPR 3 (2/3). */
+@media (max-width: 500px) and (min-resolution: 2.5dppx) { .game-page { --frame-px: calc(2px / 3); } }
 
 /* The frame: lashed logs (frame.png, 80 art px, 16 of them border) round bare wood — no site
-   halftone showing between the logs. Only its own border is pixelated; what is inside sets its own. */
-.game-frame { background: #2b1d0e; border: calc(16 * var(--frame-px)) solid transparent; border-image: url(./assets/props/frame.png) 16 round; box-shadow: var(--sticker-shadow-lg); image-rendering: pixelated; margin-top: 18px; overflow: hidden; position: relative; }
+   halftone showing between the logs. Only its own border is pixelated; what is inside sets its own.
+   The sides repeat the logs at their own scale (`round` squeezed them to fit a whole number,
+   stretching the art pixel along one axis only). */
+.game-frame { background: #2b1d0e; border: calc(16 * var(--frame-px)) solid transparent; border-image: url(./assets/props/frame.png) 16 repeat; box-shadow: var(--sticker-shadow-lg); image-rendering: pixelated; margin-top: 18px; overflow: hidden; position: relative; }
 .game-frame > * { image-rendering: auto; }
 .game-frame .game-scene { border-bottom: 0; }
 /* The strike shakes the frame in whole chrome pixels, a step every 125 ms. */
