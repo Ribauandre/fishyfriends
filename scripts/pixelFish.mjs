@@ -4,9 +4,11 @@
 // that way, but on the stage everything else is pixel art on one grid — one art pixel is ART_PX
 // (4/3) painting units, on the angler, the dog, the dock and the painting behind them — and a
 // sticker revealed there read as a glossy decal pasted over the game, its detail five times
-// finer than anything round it. So each sticker gets a pixel variant at the world's art pixel:
-// fitted inside a 120 x 72 box (160 x 96 painting units, drawn one file pixel to one art pixel),
-// in the same structure as the sticker, one art pixel each — the keyline, the neon ring
+// finer than anything round it. So each sticker gets a pixel variant at the world's art pixel,
+// drawn one file pixel to one art pixel, at a length that follows the species' real size
+// (lengthFor, below: 38 art px for the smallest panfish to 120 for the biggest billfish, on one
+// log scale for every fish, never past a 120 x 72 box — 160 x 96 painting units), in the same
+// structure as the sticker, one art pixel each — the keyline, the neon ring
 // (#e3fb14 exactly) and an outer keyline so it sits in the world the way the angler does — a
 // flat palette of about twenty colours and hard alpha. What it does, in order:
 //
@@ -54,6 +56,8 @@
 // (backing) rather than as a lime fill inside a keyline. PIXEL_OUT writes somewhere else to
 // look at first. Deterministic: the same stickers give the same files.
 import { readPng, writePng } from './png.mjs';
+// The game's size ranges and its length scale (a plain ES module with no imports of its own).
+import { SPECIES_SIZE, lengthFraction } from '../src/utils/gameSpecies.js';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import zlib from 'node:zlib';
 
@@ -67,6 +71,33 @@ export const KEYLINE = [19, 15, 12];
 export const NEON = [227, 251, 20];
 export const BOX = [120, 72];
 export const JUNK = ['stick', 'boot', 'plate', 'bottle'];
+
+// How long each fish is drawn. Every catch used to fill the whole box, so a 5-inch pumpkinseed
+// stood taller than the angler (69 art px) and as big as a 170-inch marlin. Real lengths on one
+// scale would make a panfish a few pixels, too small to read, so the scale is compressed: the
+// species' typical size — the middle of its SPECIES_SIZE range — goes through the same log
+// scale the fight's shadow is drawn on (lengthFraction, LENGTH_RANGE in gameSpecies), that is
+// stretched across the roster (the smallest typical fish is 0, the biggest 1), and the fish is
+// LENGTH_PX[0] + (LENGTH_PX[1] - LENGTH_PX[0]) x that art px long, its height following the
+// sticker's aspect and capped by BOX (so a deep or tall fish comes out shorter). A bluegill is
+// about 44 x 29 (under half the angler), a largemouth 64, a tuna 96, a blue marlin the box. The
+// flotsam is not on that scale: each is its own typical size, its longer side JUNK_LENGTH.
+export const LENGTH_PX = [38, 120];
+export const JUNK_LENGTH = { stick: 60, boot: 40, plate: 44, bottle: 36 };
+export function lengthFor(key, speciesSize, lengthFraction) {
+  if (JUNK_LENGTH[key]) return JUNK_LENGTH[key];
+  const typical = (k) => { const range = speciesSize[k]; return range ? lengthFraction((range[0] + range[1]) / 2) : null; };
+  const fs = Object.keys(speciesSize).filter((k) => !JUNK.includes(k)).map(typical);
+  const lo = Math.min(...fs), hi = Math.max(...fs); const f = typical(key) ?? lengthFraction(12);
+  const t = Math.max(0, Math.min(1, (f - lo) / (hi - lo)));
+  return Math.round(LENGTH_PX[0] + (LENGTH_PX[1] - LENGTH_PX[0]) * t);
+}
+// The box a sticker is fitted into: its length along, the box's height across (the flotsam, its
+// longer side either way).
+export function boxFor(key, speciesSize, lengthFraction) {
+  const L = lengthFor(key, speciesSize, lengthFraction);
+  return JUNK_LENGTH[key] ? [L, L] : [L, BOX[1]];
+}
 
 // Per-sticker settings the rules cannot find for themselves.
 export const OVERRIDES = {
@@ -417,11 +448,22 @@ export function pixelize(img, opts = {}) {
   }
   const eye = opts.eye === false ? null : (opts.eyeAt || findEye(img, body, [bx0, by0, bx1, by1], opts));
 
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  // Shrink the grid until the result fits the box. With `exact` (every fish, whose box is its
+  // length) a result that fits but falls short of it is grown back until it all but meets it:
+  // the first estimate of the scale can land a few pixels under, and at 40 px that is a tenth.
+  let fitted = null;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
     const res = render(f);
-    if (res.width <= box[0] && res.height <= box[1]) return { ...res, meta: { f, t50, kw, eye } };
-    f *= 1 + 1 / Math.max(res.width, res.height);
+    if (res.width <= box[0] && res.height <= box[1]) {
+      fitted = { ...res, meta: { f, t50, kw, eye } };
+      if (!opts.exact || res.width >= box[0] - 1 || res.height >= box[1] - 1) return fitted;
+      f *= 1 - 0.5 / Math.max(res.width, res.height);
+    } else {
+      if (fitted) return fitted;
+      f *= 1 + 1 / Math.max(res.width, res.height);
+    }
   }
+  if (fitted) return fitted;
   throw new Error('could not fit the box');
 
   function render(fx) {
@@ -536,7 +578,7 @@ export function pixelize(img, opts = {}) {
       const top = [...count].sort((p, q) => q[1] - p[1])[0]; if (top) { label[j] = top[0]; rgb[j] = palette[top[0]]; }
     }
     // the eye, stamped at its own size
-    if (eye) stampEye(eye, fx, ox, oy, gw, gh, inside, rgb);
+    if (eye) stampEye(eye, fx, ox, oy, gw, gh, inside, rgb, opts.eyeMin);
     // rings: our keyline, the neon, an outer keyline
     const dil = (set, sq) => { const r = new Uint8Array(G); for (let y = 0; y < gh; y += 1) for (let x = 0; x < gw; x += 1) { const j = y * gw + x; if (set[j]) continue; let hit = false; for (let dy = -1; dy <= 1 && !hit; dy += 1) for (let dx = -1; dx <= 1; dx += 1) { if (!dx && !dy) continue; if (!sq && dx && dy) continue; const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= gw || yy >= gh) continue; if (set[yy * gw + xx]) { hit = true; break; } } if (hit) r[j] = 1; } return r; };
     const SQ = opts.square ?? false;
@@ -564,9 +606,12 @@ export function pixelize(img, opts = {}) {
 // pupil in the keyline colour, a catchlight on a pupil of two pixels or more, and a keyline
 // round the iris wherever what is there is too close to the iris to hold it apart.
 export const CATCHLIGHT = [246, 246, 236];
-function stampEye(eye, fx, ox, oy, gw, gh, inside, rgb) {
+// `eyeMin` is the smallest pupil: a panfish drawn 40 px long works its eye out to a one-pixel
+// pupil in a pale plus that the eye does not find, so the fish get a pupil of two at least (a
+// catchlight, and the whole keyline round an iris of four).
+function stampEye(eye, fx, ox, oy, gw, gh, inside, rgb, eyeMin = 1) {
   const ax = (eye.cx - ox) / fx, ay = (eye.cy - oy) / fx;
-  const pd = Math.max(1, Math.min(6, Math.round(2 * eye.rp / fx)));
+  const pd = Math.max(eyeMin, Math.min(6, Math.round(2 * eye.rp / fx)));
   let ed = Math.max(pd + 2, Math.round(2 * eye.ri / fx)); if ((ed - pd) % 2) ed += ed > pd + 2 ? -1 : 1;
   const tx = Math.round(ax - ed / 2), ty = Math.round(ay - ed / 2);
   let iris = eye.iris; const L = toLab(iris); if (L[0] < 0.7) iris = toRgb([0.7, L[1], L[2]]);
@@ -626,7 +671,7 @@ if (isMain) {
     mkdirSync(OUT, { recursive: true });
     const keys = readdirSync(FISH).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)).filter((k) => !args.length || args.includes(k)).sort();
     for (const key of keys) {
-      const res = pixelize(readAnyPng(`${FISH}${key}.png`), { eye: JUNK.includes(key) ? false : undefined, ...OVERRIDES[key], ...extra });
+      const res = pixelize(readAnyPng(`${FISH}${key}.png`), { eye: JUNK.includes(key) ? false : undefined, box: boxFor(key, SPECIES_SIZE, lengthFraction), exact: true, eyeMin: 2, ...OVERRIDES[key], ...extra });
       writePng(`${OUT}${key}.png`, res);
       const e = res.meta.eye;
       console.log(key.padEnd(18), `${res.width}x${res.height}`.padEnd(7), 'colours', colours(res), 'eye', e ? `${Math.round(e.cx)},${Math.round(e.cy)} pupil ${e.rp.toFixed(1)} iris ${e.ri.toFixed(1)}` : '-');

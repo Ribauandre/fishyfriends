@@ -1,0 +1,5 @@
+[
+  { "name": "npc_captain", "in": "art/npcs/captain.png", "out": "src/assets/npcs/captain.png", "rows": 64, "crop": false, "trim": false, "colors": 16, "keyBorder": 0.05, "keyLum": 30, "bleed": "bottom", "ground": "2a3a48", "despeckle": true },
+  { "name": "npc_shopkeeper", "in": "art/npcs/shopkeeper.png", "out": "src/assets/npcs/shopkeeper.png", "rows": 64, "crop": false, "trim": false, "colors": 16, "keyBorder": 0.05, "keyLum": 30, "bleed": "bottom", "ground": "2a3a48", "despeckle": true },
+  { "name": "npc_outfitter", "in": "art/npcs/outfitter.png", "out": "src/assets/npcs/outfitter.png", "rows": 64, "crop": false, "trim": false, "colors": 16, "keyBorder": 0.05, "keyLum": 30, "bleed": "bottom", "ground": "2a3a48", "despeckle": true }
+]

@@ -7,14 +7,15 @@ import FishIllustration, { HERO_SPECIES, PIXEL_FISH_BOX, pixelFishSize, preloadP
 import { PIXEL_FISH } from '../assets/fish/pixel';
 import PIXEL_SIZES from '../assets/fish/pixel/sizes.json';
 import { BIOME_LIST } from '../utils/gameBiomes';
-import { JUNK_ROSTER, JUNK_SPECIES } from '../utils/gameSpecies';
+import { JUNK_ROSTER, JUNK_SPECIES, SPECIES_SIZE, lengthFraction } from '../utils/gameSpecies';
 
 // The pixel variants are generated art (scripts/pixelFish.mjs) that the stage and the game's
 // overlays draw instead of the stickers, and nothing at runtime notices when one is missing or
 // has drifted from its manifest: a species with no variant quietly falls back to a 900-pixel
 // sticker in a pixel world, and jsdom has no canvas to look at any of it. So the roster is held
 // against the files here, and the files are read for what makes them pixel art on the world's
-// grid: hard alpha, the box, and the one-pixel keyline, #e3fb14 ring and outer keyline.
+// grid: hard alpha, the box and each one's own length, and the one-pixel keyline, #e3fb14 ring
+// and outer keyline.
 const PIXEL = path.join(__dirname, '..', 'assets', 'fish', 'pixel');
 const LOGO = path.join(__dirname, '..', 'assets', 'props', 'logo_pixel.png');
 const KEYLINE = [19, 15, 12]; // #130f0c, the angler's keyline
@@ -130,8 +131,47 @@ test.each(Object.keys(PIXEL_FISH))('%s: the manifest size is the file, inside th
   expect(pixelFishSize(key)).toEqual({ w: width, h: height });
   expect(width).toBeLessThanOrEqual(PIXEL_FISH_BOX.w);
   expect(height).toBeLessThanOrEqual(PIXEL_FISH_BOX.h);
-  // fitted to the box: one side all but touches it
-  expect(width >= PIXEL_FISH_BOX.w - 4 || height >= PIXEL_FISH_BOX.h - 4).toBe(true);
+  // drawn at its own length (below): as long as the rule says, or as tall as the box allows
+  const length = expectedLength(key);
+  if (JUNK_LENGTHS[key]) expect(Math.max(width, height)).toBeGreaterThanOrEqual(length - 2);
+  else expect(width >= length - 2 || height >= PIXEL_FISH_BOX.h - 2).toBe(true);
+  expect(Math.max(width, JUNK_LENGTHS[key] ? height : 0)).toBeLessThanOrEqual(length);
+});
+
+// The catch is revealed one file pixel to one art pixel beside the angler, so a fish's size in
+// the file is its size on the stage. Every one used to fill the 120 x 72 box, which drew a 5-inch
+// pumpkinseed taller than the angler and as big as a 170-inch marlin. Now each is drawn at a
+// length that follows its species' typical size (the middle of SPECIES_SIZE) on one compressed
+// log scale — lengthFraction, stretched across the roster from 38 to 120 art pixels — and the
+// flotsam at its own (scripts/pixelFish.mjs, lengthFor). The same rule, stated again here:
+const JUNK_LENGTHS = { stick: 60, boot: 40, plate: 44, bottle: 36 };
+const ANGLER_ROWS = 69; // the angler's idle frame, cap to boots
+const typical = (key) => lengthFraction((SPECIES_SIZE[key][0] + SPECIES_SIZE[key][1]) / 2);
+const FISH_KEYS = Object.keys(SPECIES_SIZE).filter((key) => !JUNK_LENGTHS[key]);
+function expectedLength(key) {
+  if (JUNK_LENGTHS[key]) return JUNK_LENGTHS[key];
+  const fs = FISH_KEYS.map(typical); const lo = Math.min(...fs); const hi = Math.max(...fs);
+  return Math.round(38 + 82 * ((typical(key) - lo) / (hi - lo)));
+}
+
+test('a fish is drawn at its species\' size: a panfish well under half the angler, a billfish the whole box', () => {
+  const size = (key) => pixelFishSize(key);
+  for (const panfish of ['pumpkinseed', 'bluegill', 'warmouth', 'rockbass']) {
+    expect(size(panfish).h).toBeLessThanOrEqual(0.45 * ANGLER_ROWS);
+    expect(size(panfish).w).toBeLessThanOrEqual(50);
+  }
+  expect(size('bluemarlin').w).toBeGreaterThanOrEqual(PIXEL_FISH_BOX.w - 2);
+  expect(size('threshershark').h).toBe(PIXEL_FISH_BOX.h);
+  // the scale runs one way: a fish whose species runs bigger is never drawn shorter
+  const byTypical = [...FISH_KEYS].sort((a, b) => typical(a) - typical(b));
+  byTypical.forEach((key, i) => {
+    const next = byTypical[i + 1];
+    if (next && typical(next) > typical(key)) expect(expectedLength(next)).toBeGreaterThanOrEqual(expectedLength(key));
+  });
+  expect(size('largemouth').w).toBeGreaterThan(size('bluegill').w + 15);
+  expect(size('bluefintuna').w).toBeGreaterThan(size('largemouth').w + 30);
+  // the flotsam at its own size: a stick longer than a boot
+  expect(size('stick').w).toBeGreaterThan(Math.max(size('boot').w, size('boot').h));
 });
 
 test('the pixel logo is the same treatment at about 150 art pixels wide', () => {

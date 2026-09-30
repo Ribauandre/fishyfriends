@@ -58,10 +58,20 @@
 //   despeckle       true: a lone pixel unlike all eight neighbours takes their majority colour
 //   draw            a hand-drawn text source instead of a render (parseDrawing, below); `frame`
 //                   picks one of its frames
+//   keyBorder       a portrait rendered on a flat ground: flood from the top and side borders
+//                   through colours within this OKLab distance of the border's median colour and
+//                   make them transparent, before anything else
+//   bleed           "bottom": the subject runs off the bottom edge (a bust's shoulders), so the
+//                   grid is laid over the source extended by two cells of its last row and cut
+//                   back after — otherwise the outline closes along the cut as a keyline
+//   ground          hex: what is transparent after the grid becomes this one flat colour (the
+//                   NPC portraits' shared plain ground)
+//   src             (runJob, from code) an image in memory instead of `in`; without `out` the
+//                   job returns { image } instead of writing a file
 //
 // Pure Node on scripts/png.mjs, deterministic, no canvas. Paths in a batch are relative to the
 // working directory (run it from the repo root). The batches that made the game's art are
-// art/props/grid.json and art/ambient/grid.json; the pets go through scripts/petSlice.mjs.
+// art/props/grid.json and art/ambient/grid.json, and art/npcs/grid.json the three portraits; the pets go through scripts/petSlice.mjs.
 import { readPng, writePng } from './png.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -428,6 +438,42 @@ export function parseDrawing(text) {
   return images;
 }
 
+// keyBorder: the flat ground a portrait was rendered on, flooded from the top and side borders.
+export function keyBorder(img, tol) {
+  const { width: W, height: H, data } = img; const px = (i) => [data[i * 4], data[i * 4 + 1], data[i * 4 + 2]];
+  const samples = [];
+  for (let x = 0; x < W; x += 4) samples.push(px(x));
+  for (let y = 0; y < H / 2; y += 4) samples.push(px(y * W), px(y * W + W - 1));
+  const bg = oklab([0, 1, 2].map((c) => samples.map((q) => q[c]).sort((a, b) => a - b)[samples.length >> 1]));
+  const near = (i) => { const l = oklab(px(i)); return Math.hypot(l[0] - bg[0], l[1] - bg[1], l[2] - bg[2]) < tol; };
+  const off = new Uint8Array(W * H); const st = [];
+  const seed = (i) => { if (!off[i] && near(i)) { off[i] = 1; st.push(i); } };
+  for (let x = 0; x < W; x += 1) seed(x);
+  for (let y = 0; y < H; y += 1) { seed(y * W); seed(y * W + W - 1); }
+  while (st.length) {
+    const p = st.pop(); const x = p % W, y = (p / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const X = x + dx, Y = y + dy; if (X >= 0 && Y >= 0 && X < W && Y < H) seed(Y * W + X); }
+  }
+  const out = { width: W, height: H, data: Buffer.from(data) };
+  for (let i = 0; i < W * H; i += 1) out.data[i * 4 + 3] = off[i] ? 0 : 255;
+  return out;
+}
+// ground: every transparent pixel becomes one flat colour.
+export function onGround(img, hex) {
+  const g = hexToRgb(hex); const out = { width: img.width, height: img.height, data: Buffer.from(img.data) };
+  for (let i = 0; i < img.width * img.height; i += 1) if (!out.data[i * 4 + 3]) { out.data[i * 4] = g[0]; out.data[i * 4 + 1] = g[1]; out.data[i * 4 + 2] = g[2]; out.data[i * 4 + 3] = 255; }
+  return out;
+}
+function finishBleed(job, grown) {
+  let img = grown.image; const rows = job.rows;
+  img = crop(img, { x0: 0, y0: 0, x1: img.width, y1: rows });
+  if (job.ground) img = onGround(img, job.ground);
+  if (!job.out) return { image: img, cell: grown.cell, colors: grown.colors };
+  mkdirSync(dirname(job.out), { recursive: true });
+  writePng(job.out, img);
+  return { out: job.out, width: img.width, height: img.height, cell: grown.cell.map((v) => Math.round(v * 100) / 100), colors: grown.colors };
+}
+
 export function runJob(job) {
   if (job.draw) {
     // `frame` picks one frame of a drawing (a still of an animated piece).
@@ -439,7 +485,15 @@ export function runJob(job) {
     writePng(job.out, out);
     return { out: job.out, width: out.width, height: out.height, frames: images.length, drawn: true };
   }
-  const src = readPng(job.in);
+  let src = job.src || readPng(job.in);
+  if (job.keyBorder) src = keyBorder(src, job.keyBorder);
+  if (job.bleed === 'bottom') {
+    // two more cells of the last row (rows is required with bleed), gridded as rows + 2
+    const ext = Math.round((2 * src.height) / job.rows); const out = { width: src.width, height: src.height + ext, data: Buffer.alloc(src.width * (src.height + ext) * 4) };
+    for (let y = 0; y < out.height; y += 1) src.data.copy(out.data, y * src.width * 4, Math.min(y, src.height - 1) * src.width * 4, (Math.min(y, src.height - 1) + 1) * src.width * 4);
+    const grown = runJob({ ...job, keyBorder: null, bleed: null, ground: null, in: null, src: out, rows: job.rows + 2, out: null });
+    return finishBleed(job, grown);
+  }
   const frames = job.frames ? splitFrames(src, job.frames) : [src];
   const shared = job.frames ? classify(crop(src, alphaBox(src, job.on ?? 128)), job) : null;
   const done = frames.map((f) => gridImage(f, { ...job, trim: job.frames ? true : job.trim }, shared));
@@ -451,7 +505,9 @@ export function runJob(job) {
     const [bw, bh] = String(job.box).split('x').map(Number);
     images = images.map((i) => place(i, bw, bh, job.anchor || 'center'));
   }
-  const out = job.frames ? strip(images) : images[0];
+  let out = job.frames ? strip(images) : images[0];
+  if (job.ground) out = onGround(out, job.ground);
+  if (!job.out) return { image: out, cell: [done[0].cellX, done[0].cellY], colors: done[0].palette.length };
   mkdirSync(dirname(job.out), { recursive: true });
   writePng(job.out, out);
   return { out: job.out, width: out.width, height: out.height, cell: [done[0].cellX, done[0].cellY].map((v) => Math.round(v * 100) / 100), colors: done[0].palette.length };
