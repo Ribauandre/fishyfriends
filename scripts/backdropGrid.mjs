@@ -84,7 +84,11 @@ const NEIGHBOUR = 0.06;
 //   { x: [a0, a1, a2], y: [[y, y'], ...] }: the same x', and y' piecewise linear through those
 //     rows with no dependence on x — for the flats, whose night painting moved the horizon down
 //     20 units but not the skiff, where an affine map could only meet both by tilting the sea
-//     (its knots sit on the day horizon, row 118, and the top is pinned so no bar is exposed).
+//     (its knots sit on the day horizon, row 118, and the top is pinned so no bar is exposed);
+//   { pairs: [[dayX, dayY, nightX, nightY], ...], smooth }: a thin-plate spline through point
+//     pairs read off the two paintings (thinPlate) — for the shoreline, whose repaint moved the
+//     lamp against its own post and the dock's two ends different ways, which no one map of the
+//     whole painting meets (see its entry for how the pairs were read).
 // Each was chosen from --fit's affine and quadratic candidates (the quadratic where it scored
 // clearly higher) and then checked on the stage with the layout's anchors drawn: the angler on
 // the deck, the water box on water, the horizon level and where it is by day. The search is
@@ -95,7 +99,38 @@ export const NIGHT_FIT = {
   mountainlake: [2.125, 0.99528, -0.00956, 7.375, 1.04927, -0.00825, -0.171],
   swamp: [9.875, 0.94694, 0.00225, 12.875, 0.949, -0.00975, -0.04838],
   bay: [8.375, 1.00041, -0.02812, 9.188, 0.96265, -0.00056, 0],
-  shoreline: [14.613, 0.92775, -0.00581, 19.688, 0.93138, -0.00562, -0.08025],
+  // The shoreline's night painting is not one map of its day painting: the repaint moved the
+  // lamp 16 units right of its post, the post 6 right, the dock's middle a little left and its
+  // end a little right, lifted the deck, lowered the horizon and drew the beach's foot higher.
+  // The edge-correlation fit ([14.613, 0.92775, ...]) settled on a map that met none of them —
+  // the dock end 12 units right of day, the surf 20-35 units low and a second lamp in empty sky
+  // beside the glow. So it is a thin-plate spline through points read off the two paintings by
+  // eye at 3-4x: the lamp's glass, the post, the barrel and the posts, the deck's edges, the
+  // horizon and the lighthouse, the foam lines, the stones on the sand, and the bars' edges.
+  shoreline: {
+    smooth: 0.02,
+    pairs: [
+      // the top edge, below the bar
+      [0, 0, 0, 6], [240, 0, 240, 6], [480, 0, 480, 6], [720, 0, 720, 6], [960, 0, 960, 6],
+      // the lamp's glass and its post
+      [71, 86, 104, 85], [30, 50, 42, 50], [30, 150, 43, 150], [30, 230, 44, 230],
+      // the left edge
+      [0, 200, 8, 200], [0, 300, 10, 298], [0, 400, 2, 395],
+      // the barrel, the posts and the deck
+      [74, 215, 81, 215], [29, 300, 41, 298], [193, 212, 187, 212], [230, 262, 226, 250], [230, 330, 226, 325],
+      [330, 228, 330, 222], [330, 278, 330, 267], [330, 302, 330, 299],
+      [444, 230, 449, 230], [475, 230, 487, 230], [520, 230, 525, 230], [450, 246, 453, 246], [450, 300, 453, 297],
+      // the horizon, the lighthouse and the right edge
+      [150, 118, 150, 124], [400, 118, 400, 124], [650, 118, 650, 124], [780, 120, 780, 126], [905, 85, 908, 92],
+      [960, 120, 960, 125], [960, 250, 960, 248],
+      // the foam lines
+      [40, 480, 40, 466], [120, 518, 120, 505], [220, 503, 220, 493], [380, 452, 380, 458], [500, 436, 500, 435],
+      [560, 475, 560, 468], [590, 420, 590, 425], [800, 375, 800, 369], [866, 367, 870, 361], [920, 338, 915, 322],
+      // the stones on the sand, and the bottom edge above the bar
+      [500, 520, 500, 498], [610, 522, 610, 496], [740, 512, 740, 493],
+      [0, 540, 0, 515], [240, 540, 240, 515], [480, 540, 480, 515], [720, 540, 720, 515], [960, 540, 960, 515],
+    ],
+  },
   offshore: [-4.887, 0.97506, 0, 11.813, 0.94397, -0.00356, 0],
   canyon: [-14.075, 1.01725, -0.04875, 1.188, 0.92759, 0.00444, 0],
   flats: { x: [50.825, 0.88947, -0.03969], y: [[0, 0], [118, 158.2], [260, 269.5], [400, 399.2], [540, 532.8]] },
@@ -181,7 +216,35 @@ function piecewise(knots, y) {
   let k = 0; while (k < knots.length - 2 && y > knots[k + 1][0]) k += 1;
   const [[y0, v0], [y1, v1]] = [knots[k], knots[k + 1]]; return v0 + ((y - y0) / (y1 - y0)) * (v1 - v0);
 }
+// A thin-plate spline through point pairs [dayX, dayY, nightX, nightY] (source px), smoothed by
+// `smooth` (0 interpolates the pairs exactly). Solved once per fit and kept.
+const TPS = new WeakMap();
+const tpsU = (r2) => (r2 > 1e-9 ? r2 * Math.log(r2) : 0);
+export function thinPlate(pairs, smooth = 0) {
+  const n = pairs.length, m = n + 3; const S = 1 / 100; // work in hundreds of px, so the system is well scaled
+  const A = Array.from({ length: m }, () => new Float64Array(m)); const bx = new Float64Array(m), by = new Float64Array(m);
+  for (let i = 0; i < n; i += 1) {
+    const [xi, yi, ui, vi] = pairs[i];
+    for (let j = 0; j < n; j += 1) A[i][j] = tpsU(((xi - pairs[j][0]) * S) ** 2 + ((yi - pairs[j][1]) * S) ** 2) + (i === j ? smooth : 0);
+    A[i][n] = 1; A[i][n + 1] = xi * S; A[i][n + 2] = yi * S; A[n][i] = 1; A[n + 1][i] = xi * S; A[n + 2][i] = yi * S;
+    bx[i] = ui - xi; by[i] = vi - yi;
+  }
+  // Gaussian elimination with partial pivoting, both right-hand sides at once
+  const M = A.map((row, i) => [...row, bx[i], by[i]]);
+  for (let c = 0; c < m; c += 1) {
+    let p = c; for (let r = c + 1; r < m; r += 1) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < m; r += 1) { if (r === c) continue; const t = M[r][c] / M[c][c]; if (!t) continue; for (let k = c; k < m + 2; k += 1) M[r][k] -= t * M[c][k]; }
+  }
+  const wx = M.map((row, i) => row[m] / row[i]), wy = M.map((row, i) => row[m + 1] / row[i]);
+  return (x, y) => {
+    let dx = wx[n] + wx[n + 1] * x * S + wx[n + 2] * y * S, dy = wy[n] + wy[n + 1] * x * S + wy[n + 2] * y * S;
+    for (let i = 0; i < n; i += 1) { const u = tpsU(((x - pairs[i][0]) * S) ** 2 + ((y - pairs[i][1]) * S) ** 2); dx += wx[i] * u; dy += wy[i] * u; }
+    return [x + dx, y + dy];
+  };
+}
 export function mapNight(f, x, y) {
+  if (f.pairs) { if (!TPS.has(f)) TPS.set(f, thinPlate(f.pairs, f.smooth || 0)); return TPS.get(f)(x, y); }
   if (!Array.isArray(f)) return [f.x[0] + f.x[1] * x + f.x[2] * y, piecewise(f.y, y)];
   return [f[0] + f[1] * x + f[2] * y, f[3] + f[4] * y + f[5] * x + (f[6] || 0) * (y / SRC_H) ** 2 * SRC_H];
 }
