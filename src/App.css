@@ -1313,7 +1313,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    Cast & Catch — the chrome: the page round the stage and every overlay, in the world's own wood.
    One pixel: every raster here (the plank and log nine-slices, the deck, the icons and glyphs,
    the pixel fish, the logo, the room paintings) is drawn pixelated at a whole multiple of its art
-   pixels — --ui-px CSS px per art pixel for the planks, glyphs and sign icons, 1 for the fish.
+   pixels — --ui-px CSS px per art pixel for the planks, glyphs and sign icons, 1 for the fish. The
+   one exception is the map, which fills its panel where a whole multiple would cost it more than
+   a fifth of its width (BiomeMap's mapFit) — on a 1x window of 550-790 px, about 1.4-1.9x.
    One wood: signs (anything you press) are the plank sign filled; boards (anything you read) are
    the thin plank as a frame round the deck's dark stain; notes are pinned paper. One face:
    Jersey 10 (--font-pixel) for signage, labels, tags, numbers and headings, the site's body face
@@ -1495,7 +1497,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-overlay-panel { animation: board-rise .25s steps(2, jump-end) both; background: linear-gradient(rgba(19, 15, 12, .72), rgba(19, 15, 12, .72)), url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; background-clip: padding-box; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 / calc(6 * var(--ui-px)) repeat; image-rendering: pixelated; max-height: calc(100% - 116px); overflow-y: auto; padding: calc(5 * var(--ui-px)) calc(6 * var(--ui-px)) calc(8 * var(--ui-px)); position: relative; scrollbar-color: var(--wood) var(--key); width: 100%; }
 @keyframes board-rise { from { opacity: 0; transform: translateY(calc(12 * var(--ui-px))); } to { opacity: 1; transform: none; } }
 /* A room: its painting (native art, one file pixel to one art pixel) over the board, pixelated,
-   under GameOverlay's scrim. */
+   under GameOverlay's scrim, at the smallest whole number of CSS px an art pixel that covers the
+   panel (GameOverlay sizes it inline once it knows both); `cover` is only the first frame's. */
 .game-overlay-panel.has-backdrop { background-color: #2b1d0e; background-position: center top; background-repeat: no-repeat; background-size: cover; }
 .game-overlay-head { align-items: flex-start; border-bottom: var(--ui-px) solid var(--key); box-shadow: 0 var(--ui-px) 0 rgba(181, 128, 80, .35); display: flex; gap: calc(4 * var(--ui-px)); justify-content: space-between; margin-bottom: calc(6 * var(--ui-px)); padding-bottom: calc(4 * var(--ui-px)); }
 .game-frame .eyebrow { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
