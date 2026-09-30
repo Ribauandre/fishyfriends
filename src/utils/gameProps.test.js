@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
   ICON_PX, GEAR_ICONS, LURE_ICONS, HUD_ICONS, DOCK_ICONS, LURE_SPRITES, FISH_SHADOWS, fishShadowFor, GOLDEN_PENNANT,
-  PLANK, PLANK_THIN, GAME_FRAME, AMBIENT_SPRITES, VEHICLE_SPRITES, vehicleFor,
+  PLANK, PLANK_THIN, PLANK_GO, GAME_FRAME, AMBIENT_SPRITES, VEHICLE_SPRITES, vehicleFor, GLYPH_PX, UI_GLYPHS, GAME_LOGO_PIXEL, GAME_LOGO_SIZE,
 } from './gameProps';
 import { ART_PX } from './sceneLayout';
 import { readPng, measure } from '../test-utils/pixelArt';
@@ -110,7 +110,7 @@ test('the golden pennant is three frames drawn at their own 3:2 aspect (the CSS 
   }
 });
 
-test.each([['plank', PLANK], ['plank_thin', PLANK_THIN], ['frame', GAME_FRAME]])('the %s nine-slice is whole art pixels, its slice inside it', (name, piece) => {
+test.each([['plank', PLANK], ['plank_thin', PLANK_THIN], ['plank_go', PLANK_GO], ['frame', GAME_FRAME]])('the %s nine-slice is whole art pixels, its slice inside it', (name, piece) => {
   const img = readPng(fileOf(PROPS, piece.src));
   expect(img.width).toBe(piece.w);
   expect(img.height).toBe(piece.h);
@@ -185,4 +185,40 @@ test('travel to or from a charter ground is by boat, anything else by truck', ()
   expect(vehicleFor('river', 'bay')).toBe('truck');
   expect(vehicleFor('river', 'offshore')).toBe('boat');
   expect(vehicleFor('offshore', 'river')).toBe('boat');
+});
+
+// The go sign is the plank repainted, not redrawn: the same nine-slice, keyline, nails and boards,
+// so the primary button is the same object as every other sign.
+test('the go sign is the plank with its wood swapped for paint, pixel for pixel in shape', () => {
+  const plank = readPng(fileOf(PROPS, PLANK.src));
+  const go = readPng(fileOf(PROPS, PLANK_GO.src));
+  expect([go.width, go.height]).toEqual([plank.width, plank.height]);
+  for (let i = 0; i < plank.data.length; i += 4) {
+    expect(go.data[i + 3]).toBe(plank.data[i + 3]);
+    const key = (d) => d[i] === 0x13 && d[i + 1] === 0x0f && d[i + 2] === 0x0c;
+    expect(key(go.data)).toBe(key(plank.data));
+  }
+});
+
+// The chrome's glyphs stand where a font character used to (×, →, ★, ☾): each a GLYPH_PX square of
+// flat pixel art with the world's keyline round what is drawn, so it can be drawn at a whole
+// multiple beside the icons.
+describe.each(Object.entries(UI_GLYPHS))('the %s glyph', (name, src) => {
+  const img = readPng(fileOf(path.join(PROPS, 'glyphs'), src));
+  const stats = measure(img);
+
+  test('is one GLYPH_PX square of hard-alpha pixel art in the world\'s keyline', () => {
+    expect([img.width, img.height]).toEqual([GLYPH_PX, GLYPH_PX]);
+    expect(stats.soft).toBe(0);
+    expect(stats.colors.has('130f0c')).toBe(true);
+    expect(stats.colors.size).toBeLessThanOrEqual(5);
+    expect(stats.strayDark).toBe(0);
+    expect(stats.edgeKeyShare).toBe(1);
+  });
+});
+
+test('the pixel logo is the size the chrome lays it out at', () => {
+  const img = readPng(fileOf(PROPS, GAME_LOGO_PIXEL));
+  expect({ w: img.width, h: img.height }).toEqual(GAME_LOGO_SIZE);
+  expect(measure(img).soft).toBe(0);
 });

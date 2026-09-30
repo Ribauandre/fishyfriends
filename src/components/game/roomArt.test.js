@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
+import { readPng, measure } from '../../test-utils/pixelArt';
 
 // The chrome's paintings — the three interiors behind the overlays, the fishing-grounds map and
 // the dock's deck tile — are stored at their native art resolution, one file pixel per art pixel,
@@ -43,4 +44,20 @@ describe.each(ROOM_ART)('%s', (file, width, height, source) => {
 // boards' rows (keyline gap, lit edge, face, shade) repeat on the tile's own period.
 test('the deck tile is whole boards: its height is a multiple of the 12-row board', () => {
   expect(webpInfo(path.join(SCENES, 'deck.webp')).height % 12).toBe(0);
+});
+
+// The captain's, Sal's and Marina's portraits are on the chrome's grid too: 64 x 64 art pixels
+// (scripts/pixelGrid.mjs from the renders kept in art/npcs, art/props/chrome.json), opaque, a
+// small palette, drawn pixelated at a whole multiple. The 256 px renders they replace were four
+// times finer than the angler beside them.
+describe.each(['captain', 'shopkeeper', 'outfitter'])('the %s portrait', (npc) => {
+  test('is 64 x 64 flat pixel art, gridded from a render kept in art/npcs', () => {
+    const img = readPng(path.join(__dirname, '..', '..', 'assets', 'npcs', `${npc}.png`));
+    expect([img.width, img.height]).toEqual([64, 64]);
+    const stats = measure(img);
+    expect(stats.soft).toBe(0);
+    expect(stats.drawn).toBe(64 * 64);
+    expect(stats.colors.size).toBeLessThanOrEqual(32);
+    expect(existsSync(path.join(__dirname, '..', '..', '..', 'art', 'npcs', `${npc}.png`))).toBe(true);
+  });
 });

@@ -26,7 +26,7 @@ export default function GameOverlay({ eyebrow, title, onClose, backdrop = null, 
 
   return <div className="game-overlay" role="dialog" aria-modal="true" aria-label={title}>
     <button type="button" className="game-overlay-scrim" aria-label={`Dismiss ${title.toLowerCase()}`} onClick={onClose} />
-    <div className={`game-overlay-panel ${backdrop ? 'has-backdrop' : ''}`} data-backdrop={backdrop || undefined} style={backdropStyle(backdrop, scrim)}>
+    <div className={`game-overlay-panel ${backdrop ? 'has-backdrop' : ''}`} data-backdrop={backdrop || undefined} data-scrim={backdrop ? scrim.join(' ') : undefined} style={backdropStyle(backdrop, scrim)}>
       <div className="game-overlay-head">
         <div><span className="eyebrow">{eyebrow}</span><h2>{title}</h2></div>
         <button className="game-overlay-close" type="button" aria-label={`Close ${title.toLowerCase()}`} onClick={onClose}><img src={UI_GLYPHS.close} alt="" /></button>

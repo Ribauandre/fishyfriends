@@ -28,6 +28,20 @@ test('opens the far grounds once Cap\'n Ray\'s quests are done', () => {
   });
 });
 
+// The sign on the map says the fare short, so every label stays a fifth of a phone map wide; the
+// button's name keeps the whole of it for a screen reader.
+test('says the fare short on each sign and in full in its name', () => {
+  render(<BiomeMap biome="offshore" chartered onSelect={jest.fn()} onShop={jest.fn()} quests={ALL_QUESTS_DONE} member={false} />);
+  expect(screen.getByRole('button', { name: 'Offshore · Chartered for this trip' })).toHaveTextContent(/^OffshoreChartered$/);
+  expect(screen.getByRole('button', { name: 'The Canyon · Charter · 80 pts' })).toHaveTextContent(/^The Canyon80 pts$/);
+  expect(screen.getByRole('button', { name: 'River · Free' })).toHaveTextContent(/^RiverFree$/);
+});
+
+test('a charter club member\'s signs say Club', () => {
+  render(<BiomeMap biome="river" chartered={false} onSelect={jest.fn()} onShop={jest.fn()} member />);
+  expect(screen.getByRole('button', { name: 'Offshore · Charter · club member' })).toHaveTextContent(/^OffshoreClub$/);
+});
+
 test('shows the charter as paid for once you are out there', () => {
   render(<BiomeMap biome="offshore" chartered onSelect={jest.fn()} onShop={jest.fn()} />);
   expect(screen.getByRole('button', { name: 'Offshore · Chartered for this trip' })).toHaveAttribute('aria-pressed', 'true');

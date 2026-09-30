@@ -1295,8 +1295,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* A pixel fish in the chrome: its own size, one file pixel to one CSS pixel, never less. */
 .game-frame .fish-illustration.chrome-fish { display: block; flex: none; image-rendering: pixelated; object-fit: fill; overflow: visible; }
 .game-frame .fish-illustration.chrome-fish[data-variant="sticker"] { height: auto; image-rendering: auto; max-height: 72px; max-width: 120px; width: auto; }
-/* What is not pixel art stays smooth: the captain and the shopkeepers, and people's photos. */
-.game-frame :is(.npc-portrait, .mini-avatar img, .trophy-photo) { image-rendering: auto; }
+/* What is not pixel art stays smooth: people's photos. */
+.game-frame :is(.mini-avatar img, .trophy-photo) { image-rendering: auto; }
 
 /* The HUD: signage on the stage, above the overlays so its buttons always work. */
 .game-hud { align-items: start; display: grid; gap: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); grid-template-columns: auto 1fr auto; inset: 0 0 auto 0; padding: calc(4 * var(--ui-px)) calc(5 * var(--ui-px)); pointer-events: none; position: absolute; z-index: 6; }
@@ -1340,7 +1340,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-panel { align-items: center; animation: panel-step .25s steps(2, jump-end) both; display: flex; flex-direction: column; gap: calc(6 * var(--ui-px)); padding: calc(6 * var(--ui-px)) calc(3 * var(--ui-px)) calc(3 * var(--ui-px)); text-align: center; }
 @keyframes panel-step { from { opacity: 0; transform: translateY(calc(4 * var(--ui-px))); } to { opacity: 1; transform: none; } }
 .game-panel > p { color: var(--sign-ink); font-size: 13px; line-height: 1.45; margin: 0; max-width: 420px; text-shadow: var(--outline-1); }
-.game-panel .button { min-height: 56px; width: min(320px, 100%); }
+.game-panel .button { font-size: var(--t-m); min-height: 56px; width: min(320px, 100%); }
 .game-panel.is-play { gap: calc(4 * var(--ui-px)); padding-top: calc(5 * var(--ui-px)); }
 .game-panel.is-play > p { font-size: 12px; }
 .dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: center; width: 100%; }
@@ -1370,12 +1370,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: pennant-flutter .375s steps(3, jump-none) 2 alternate; aspect-ratio: 3 / 2; background-repeat: no-repeat; flex: none; height: calc(12 * var(--ui-px)); image-rendering: pixelated; }
 .derby-win-flag { height: calc(24 * var(--ui-px)); }
 
-/* The captain and the shopkeepers: their portrait in a thin plank frame, their line on a board. */
+/* The captain and the shopkeepers: their portrait (64 art px, pixelated — 1x on the deck, a
+   chrome pixel an art pixel in their own rooms) in a thin plank frame, their line on a board. */
 .npc-dialogue { align-items: start; display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: auto 1fr; margin: 0; text-align: left; width: min(460px, 100%); }
 .game-overlay .npc-dialogue { width: 100%; }
 .npc-frame { border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; display: block; filter: var(--sign-drop); image-rendering: pixelated; line-height: 0; }
-.npc-portrait { border: 0; box-shadow: none; display: block; height: 80px; object-fit: cover; width: 80px; }
-.npc-dialogue.is-compact .npc-portrait { height: 56px; width: 56px; }
+.npc-portrait { border: 0; box-shadow: none; display: block; height: calc(64 * var(--ui-px)); image-rendering: pixelated; object-fit: fill; width: calc(64 * var(--ui-px)); }
+.npc-dialogue.is-compact .npc-portrait { height: 64px; width: 64px; }
 .npc-bubble { padding: calc(3 * var(--ui-px)) calc(5 * var(--ui-px)); position: relative; }
 .npc-bubble::before { content: none; }
 .npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; text-shadow: var(--outline-1); text-transform: uppercase; }
@@ -1455,7 +1456,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .quest-list { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); list-style: none; margin: 0; padding: 0; width: 100%; }
 .quest-row { align-items: center; display: flex; flex-wrap: wrap; gap: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); padding: calc(3 * var(--ui-px)) calc(4 * var(--ui-px)); }
 .quest-title { color: var(--sign-ink); flex: 1; font-size: var(--t-card); text-align: left; text-shadow: var(--outline-1); }
-.quest-progress { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
+.quest-progress { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-card); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
 .quest-brief, .quest-goal { color: var(--sign-ink-2); flex-basis: 100%; font-size: 12px; line-height: 1.5; margin: 0; text-align: left; }
 .quest-brief em, .quest-card p em { color: var(--sign-ink); font-style: normal; }
 .quest-goal strong { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
@@ -1589,8 +1590,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .hud-nav { gap: 2px; grid-row: 1; }
   .hud-chips { display: none; }
   .game-overlay-panel { max-height: calc(100% - 64px); }
-  .npc-portrait { height: 64px; width: 64px; }
-  .npc-dialogue.is-compact .npc-portrait { height: 48px; width: 48px; }
   .upgrade-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -3,5 +3,8 @@
   { "name": "glyph_close", "draw": "art/props/glyphs/close.txt", "out": "src/assets/props/glyphs/close.png" },
   { "name": "glyph_arrow", "draw": "art/props/glyphs/arrow.txt", "out": "src/assets/props/glyphs/arrow.png" },
   { "name": "glyph_star", "draw": "art/props/glyphs/star.txt", "out": "src/assets/props/glyphs/star.png" },
-  { "name": "glyph_moon", "draw": "art/props/glyphs/moon.txt", "out": "src/assets/props/glyphs/moon.png" }
+  { "name": "glyph_moon", "draw": "art/props/glyphs/moon.txt", "out": "src/assets/props/glyphs/moon.png" },
+  { "name": "npc_captain", "in": "art/npcs/captain.png", "out": "src/assets/npcs/captain.png", "rows": 64, "colors": 24, "outline": "keep" },
+  { "name": "npc_shopkeeper", "in": "art/npcs/shopkeeper.png", "out": "src/assets/npcs/shopkeeper.png", "rows": 64, "colors": 24, "outline": "keep" },
+  { "name": "npc_outfitter", "in": "art/npcs/outfitter.png", "out": "src/assets/npcs/outfitter.png", "rows": 64, "colors": 24, "outline": "keep" }
 ]
