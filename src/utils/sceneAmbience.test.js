@@ -2,7 +2,7 @@ import {
   sceneKeyFor, ambienceFor, effectNames, paletteFor, planAmbience, planMovers, planCaps, planFoam, planRings, planWash, planMist,
   planMoss, planGrass, planBubbles, planFireflies, planGlints, planStars, planGleam, planTiles, planClouds, planGulls, planDragonflies,
   svgStrip, maskRects, maskUrl, polygonRuns, cloudTables, linePixels, ellipsePixels, inside, CLOUD_ART_TONES, RHYTHMS, TICK_MS, MAX_STEPS_PER_S,
-  ART_COLS, ART_ROWS, WASH_LEVELS, SWAY,
+  ART_COLS, ART_ROWS, WASH_LEVELS, SWAY, skyShare, MIN_SKY_SHARE, holesUrl,
 } from './sceneAmbience';
 import { BIOMES } from './gameBiomes';
 import { ART_PX } from './sceneLayout';
@@ -305,9 +305,10 @@ test('the sky: clouds at their own size in the painting\'s own sky, gulls of one
     const clouds = planClouds(biome, season, 'day');
     const gulls = planGulls(biome, season, 'day');
     if (clouds.length || gulls.length) expect(maskRects(config.sky).length).toBeGreaterThan(0);
-    clouds.forEach((cloud, index) => {
-      const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
-      expect([cloud.w, cloud.h]).toEqual([sprite.w, sprite.h]);
+    clouds.forEach((cloud) => {
+      expect(AMBIENT_SPRITES.clouds.some((sprite) => sprite.src === cloud.src && sprite.w === cloud.w && sprite.h === cloud.h)).toBe(true);
+      // Its band of the sky is open sky, not peaks with gaps for slivers of cloud.
+      expect(skyShare(config.sky, cloud.y, cloud.h)).toBeGreaterThanOrEqual(MIN_SKY_SHARE);
       // Across the whole painting, a pixel a step, no faster than the clock; placed where the
       // loop starts it, so with motion off it stays in the sky rather than off the left edge.
       expect(cloud.tx).toBe(ART_COLS + cloud.w);
@@ -326,10 +327,20 @@ test('the sky: clouds at their own size in the painting\'s own sky, gulls of one
   // Where the painting's sky is its own — full of its painted cumulus, a sunset, a clear desert
   // sky — no sprite clouds cross it.
   ['bay', 'shoreline', 'offshore', 'flats', 'canyon', 'baja', 'swamp'].forEach((biome) => expect(planClouds(biome)).toEqual([]));
-  expect(planClouds('mountainlake').length).toBe(2);
+  // The lake's second lane lies behind the peaks: only the high one crosses.
+  expect(planClouds('mountainlake').length).toBe(1);
+  expect(skyShare(ambienceFor('mountainlake').sky, px(24), 16)).toBeLessThan(MIN_SKY_SHARE);
   expect(planClouds('pier').length).toBe(2);
   expect(planGulls('offshore').length).toBe(3);
   expect(planGulls('river')).toEqual([]);
+  // Gulls pass behind the dock lamp and the pier's lamp posts, in front of far headlands.
+  expect(ambienceFor('bay').fore.length).toBeGreaterThan(0);
+  expect(ambienceFor('pier').fore.length).toBe(3);
+  expect(ambienceFor('baja').fore).toEqual([]);
+  const holes = decodeURIComponent(holesUrl([[4, 16, 46, 60]], '12:0-359;13:0-5,20-359').slice('url("data:image/svg+xml,'.length, -2));
+  expect(holes).toMatch(/fill-rule='evenodd' d='M0,0h360v203h-360zM3,12h32v33h-32z'/);
+  // Inside the lamp's rectangle the sky is given back, so the gull shows round the lamp.
+  expect(holes).toMatch(/<path fill='#000' d='M3,12h32v1h-32zM3,13h3v1h-3zM20,13h15v1h-15z'\/>/);
   // The dock grounds' lamp post stands in front of the sky: its column is not sky.
   const bay = maskRects(ambienceFor('bay').sky);
   const isSky = (rects, x, y) => rects.some(([rx, ry, w, h]) => x >= rx && x < rx + w && y >= ry && y < ry + h);

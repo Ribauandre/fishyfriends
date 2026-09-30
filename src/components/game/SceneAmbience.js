@@ -1,5 +1,5 @@
 import React from 'react';
-import { planAmbience, svgStrip, maskUrl, polygonRuns, cloudTables, ART_COLS, ART_ROWS } from '../../utils/sceneAmbience';
+import { planAmbience, svgStrip, maskUrl, holesUrl, polygonRuns, cloudTables, ART_COLS, ART_ROWS } from '../../utils/sceneAmbience';
 import { frameFor, layoutFor, stageX, stageLen, pctX, pctY, PAINT_W, PAINT_H } from '../../utils/sceneLayout';
 
 const r4 = (value) => Math.round(value * 10000) / 10000;
@@ -32,9 +32,10 @@ const opacity = (p, palette) => r4((p.opacity ?? 1) * palette.strength);
 // The whole layer is laid out on the painting, not the stage: it takes the same box the
 // backdrop does (`paintBox` in GameScene — the painting runs to PAINT_W however narrow the
 // stage is) and everything inside it is placed as a percentage of the painting, so a piece
-// on the painting's right edge sits there on every crop. The sky's clouds and gulls fly inside
-// the painting's own sky (a mask read off it), so they pass behind the lamp posts, the pines,
-// the peaks and the headland, never over them.
+// on the painting's right edge sits there on every crop. The clouds drift inside the painting's
+// own sky (a mask read off it), so they pass behind the lamp posts, the pines, the peaks and the
+// headland, never over them; the gulls fly nearer, in front of the far cliffs and headlands but
+// behind the dock lamp, the pier's lamp posts and the charter's tower (`fore`).
 //
 // Building the pieces' SVGs costs a few milliseconds, and GameScene renders on every tick of a
 // fight, so the layer only renders again when its own props change (they are all plain values).
@@ -64,7 +65,7 @@ function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
         </feComponentTransfer>
       </filter>
     </svg>}
-    {(plan.clouds.length > 0 || plan.gulls.length > 0) && <div className="scene-sky" style={masked(skyMask)}>
+    {plan.clouds.length > 0 && <div className="scene-sky" style={masked(skyMask)}>
       {plan.clouds.map((p, index) => <img
         key={`cloud-${index}`}
         className="scene-cloud"
@@ -72,6 +73,8 @@ function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
         alt=""
         style={{ ...box(p), '--mx0': `${r4((p.tx0 / p.w) * 100)}%`, '--mx': `${r4(((p.tx0 + p.tx) / p.w) * 100)}%`, animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${p.tx})`, filter: cloudFilter ? `url(#${cloudFilter})` : undefined }}
       />)}
+    </div>}
+    {plan.gulls.length > 0 && <div className="scene-flock" style={masked(config.fore.length ? holesUrl(config.fore, config.sky) : null)}>
       {plan.gulls.map((p, index) => <span
         key={`gull-${index}`}
         className="scene-gull"

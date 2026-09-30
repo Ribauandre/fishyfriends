@@ -14,10 +14,10 @@ test('salt water gets gulls in the painting\'s own sky; the dock lamp is not the
   expect(container.querySelector('.scene-lamp')).toBeNull();
   // The bay's sky is full of its own painted cumulus: no sprite clouds over it.
   expect(container.querySelector('.scene-cloud')).toBeNull();
-  // Clouds and gulls fly inside the sky the painting has, masked by it.
-  const sky = container.querySelector('.scene-sky');
-  expect(sky.style.maskImage || sky.style.webkitMaskImage).toMatch(/^url\("data:image\/svg\+xml,/);
-  sky.querySelectorAll('.scene-cloud, .scene-gull').forEach((el) => expect(el.closest('.scene-sky')).toBe(sky));
+  // Gulls fly behind what stands near (the dock lamp), masked by holes where it stands.
+  const flock = container.querySelector('.scene-flock');
+  expect(flock.style.maskImage || flock.style.webkitMaskImage).toMatch(/^url\("data:image\/svg\+xml,.*evenodd/);
+  container.querySelectorAll('.scene-gull').forEach((el) => expect(el.closest('.scene-flock')).toBe(flock));
   // One gull, one size: its own art pixels, never shrunk per index.
   container.querySelectorAll('.scene-gull').forEach((gull) => expect(pct(gull.style.width)).toBeCloseTo((AMBIENT_SPRITES.gull.w / ART_COLS) * 100, 3));
 
@@ -27,7 +27,10 @@ test('salt water gets gulls in the painting\'s own sky; the dock lamp is not the
 
 test('clouds are drawn at their own size, a pixel a step, repainted in the ground\'s own cloud tones', () => {
   const { container } = render(<SceneAmbience biome="pier" />);
-  const clouds = container.querySelectorAll('.scene-cloud');
+  // Clouds drift inside the sky the painting has, masked by it.
+  const sky = container.querySelector('.scene-sky');
+  expect(sky.style.maskImage || sky.style.webkitMaskImage).toMatch(/^url\("data:image\/svg\+xml,/);
+  const clouds = sky.querySelectorAll('.scene-cloud');
   clouds.forEach((cloud, index) => {
     const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
     expect(pct(cloud.style.width)).toBeCloseTo((sprite.w / ART_COLS) * 100, 3);

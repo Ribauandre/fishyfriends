@@ -1133,11 +1133,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    steps(n) makes every step one art pixel. */
 @keyframes amb-run-x { from { transform: translateX(var(--mx0, 0)); } to { transform: translateX(var(--mx, 0)); } }
 @keyframes amb-run-y { from { transform: translateY(0); } to { transform: translateY(var(--my, 0)); } }
-/* The sky: clouds and gulls fly inside the painting's own sky (a mask read off it). A cloud is
-   drawn at its own size, repainted in the painting's cloud tones (an SVG filter), and drifts a
-   pixel a step; a gull flaps on the clock (up, level, down and back), glides two pixels a step
-   and bobs a pixel. */
-.scene-sky { inset: 0; position: absolute; }
+/* The sky: clouds drift inside the painting's own sky (a mask read off it), gulls in front of it
+   but behind what stands near (a mask of holes). A cloud is drawn at its own size, repainted in
+   the painting's cloud tones (an SVG filter), and drifts a pixel a step; a gull flaps on the
+   clock (up, level, down and back), glides two pixels a step and bobs a pixel. */
+.scene-sky, .scene-flock { inset: 0; position: absolute; }
 .scene-cloud { animation-iteration-count: infinite; animation-name: amb-run-x; image-rendering: pixelated; position: absolute; }
 .scene-filters { height: 0; position: absolute; width: 0; }
 .scene-gull { animation-iteration-count: infinite; animation-name: amb-run-x; position: absolute; }

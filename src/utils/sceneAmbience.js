@@ -109,7 +109,10 @@ export const EFFECTS = ['current', 'leaves', 'glass', 'waves', 'caps', 'wash', '
 // moon path after dark, where the glints go then; `stars`, a few painted stars that twinkle;
 // `cloud`, the four tones sprite clouds are repainted in to cross the painting's sky — or
 // false where the painting's sky is its own: full of painted cumulus (the bay, the beach, the
-// charter grounds, the flats), a sunset, or a clear desert sky.
+// charter grounds, the flats), a sunset, or a clear desert sky; `fore`, rectangles round what
+// stands nearer than a gull flies (the dock lamp, the pier's lamp posts, the charter's tower and
+// rods), inside which the gulls show only against the sky — the far headlands and cliffs they
+// cross in front of.
 const SCENES = {
   // The river comes down out of the narrows at the top right, breaks white over the rocks and
   // runs down past the dock toward the viewer, so everything on it heads down and left.
@@ -172,6 +175,7 @@ const SCENES = {
     day: { foam: '#e6e4d7', hi: '#cec3be', mid: '#a1bad8', shade: '#185c87' },
     night: { foam: '#4b748f', hi: '#376688', mid: '#1f4b71', shade: '#000a25' },
     cloud: false,
+    fore: [[4, 16, 46, 60]],
     glitter: 0.4,
     clip: [[240, 60], [480, 60], [480, 195], [430, 215], [400, 245], [370, 270], [240, 270]],
     moon: [262, 56, 306, 230],
@@ -186,6 +190,7 @@ const SCENES = {
     day: { foam: '#f3f1eb', hi: '#c4f1f6', mid: '#97daed', shade: '#0f72b3', lace: '#d9d1d8' },
     night: { foam: '#4e7797', hi: '#41678a', mid: '#28496d', shade: '#010918', lace: '#28496d' },
     cloud: false,
+    fore: [[4, 12, 44, 60]],
     glitter: 0.28,
     clip: [[240, 60], [480, 60], [480, 162], [240, 196]],
     moon: [330, 56, 382, 150],
@@ -198,6 +203,7 @@ const SCENES = {
     day: { foam: '#f3fafa', hi: '#dbf4ff', mid: '#b7d0ec', shade: '#013b6e' },
     night: { foam: '#506683', hi: '#405673', mid: '#2e4360', shade: '#000513' },
     cloud: false,
+    fore: [[0, 0, 160, 64]],
     glitter: 0.35,
     clip: [[140, 78], [480, 78], [480, 270], [200, 270], [160, 230], [140, 200]],
     moon: [280, 76, 342, 160],
@@ -212,6 +218,7 @@ const SCENES = {
     day: { foam: '#513d81', hi: '#473b84', mid: '#373276', shade: '#1b214e', gleam0: '#ee7946', gleam1: '#e5683a', gleam2: '#c76b64' },
     night: { foam: '#4f6e90', hi: '#426082', mid: '#304a6a', shade: '#010817', gleam0: '#4f6e90', gleam1: '#426082', gleam2: '#304a6a' },
     cloud: false,
+    fore: [[0, 0, 40, 90]],
     glitter: 0.2,
     clip: [[300, 90], [480, 90], [480, 270], [300, 270]],
     moon: [290, 80, 350, 210],
@@ -238,6 +245,7 @@ const SCENES = {
     day: { foam: '#dddac2', hi: '#cec7ac', mid: '#b8b090', shade: '#525541', lace: '#c3c2ae' },
     night: { foam: '#487490', hi: '#3d6685', mid: '#28516f', shade: '#000a1e', lace: '#28516f' },
     cloud: ['#d7d0b5', '#cec7ac', '#c3c2ae', '#aaa88d'],
+    fore: [[20, 0, 42, 60], [66, 0, 92, 60], [106, 18, 130, 60]],
     glitter: 0.22,
     clip: [[260, 90], [480, 90], [480, 190], [340, 262], [260, 262]],
     moon: [294, 50, 346, 122],
@@ -254,6 +262,7 @@ const SCENES = {
     day: { foam: '#d39538', hi: '#c8821d', mid: '#a66d1a', shade: '#623a0a', grass0: '#d98e1a', grass1: '#b46b0b', grass2: '#7e430b' },
     night: { foam: '#3f6a87', hi: '#325d7a', mid: '#1b4768', shade: '#010913', grass0: '#061626', grass1: '#020f1d', grass2: '#00060f' },
     cloud: ['#f9d87f', '#fdc25d', '#f1b255', '#ebaa4e'],
+    fore: [[0, 0, 30, 40]],
     glitter: 0.12,
     clip: [[262, 124], [302, 124], [300, 150], [288, 178], [336, 196], [372, 206], [338, 232], [300, 262], [200, 262], [200, 190], [232, 168], [212, 150]],
     moon: [282, 110, 320, 214],
@@ -341,6 +350,7 @@ export function ambienceFor(biome, season = null) {
     moon: scene.moon,
     stars: scene.stars || [],
     sky: SKY[sceneKey] || SKY[key] || '',
+    fore: scene.fore || [],
     cloudTones: scene.cloud || null,
     effects,
   };
@@ -950,19 +960,32 @@ export function planTiles(biome, season = null, period = 'day') {
 // The sky's clouds, by day: each lane's cloud at its own size (never stretched to the lane),
 // crossing the whole painting a pixel at a time, started part-way across so the sky is never
 // empty. None after dark: every night painting has its own sky.
+// How much of a band of art-pixel rows is the painting's open sky.
+export function skyShare(runs, y, h) {
+  const perRow = new Map();
+  maskRects(runs).forEach(([, ry, w, rh]) => { for (let row = ry; row < ry + rh; row += 1) perRow.set(row, (perRow.get(row) || 0) + w); });
+  let sky = 0;
+  for (let row = y; row < y + h; row += 1) sky += perRow.get(row) || 0;
+  return sky / (ART_COLS * h);
+}
+// A lane whose band is mostly peaks or treetops would only show slivers of a cloud in the gaps.
+export const MIN_SKY_SHARE = 0.25;
+
 export function planClouds(biome, season = null, period = 'day') {
   const config = ambienceFor(biome, season);
   if (period === 'night') return [];
   const speeds = [2.5, 1.8, 2.2];
   return config.clouds.map((lane, index) => {
     const sprite = AMBIENT_SPRITES.clouds[index % AMBIENT_SPRITES.clouds.length];
+    const y = toPx(lane.y0);
+    if (skyShare(config.sky, y, sprite.h) < MIN_SKY_SHARE) return null;
     const travel = ART_COLS + sprite.w;
     const duration = onClock(travel / speeds[index % speeds.length]);
     // Where it is when the loop is where the delay puts it (and where it stays, with motion off):
     // the lane's own start, or somewhere along the sky.
     const from = Math.round(lane.from > 0 ? toPx(lane.from) : ART_COLS * (0.3 + index * 0.35));
-    return piece({ kind: 'cloud', x: from, y: toPx(lane.y0), w: sprite.w, h: sprite.h, src: sprite.src, tx0: -(from + sprite.w), tx: travel, duration, delay: startAt(duration, (from + sprite.w) / travel) });
-  });
+    return piece({ kind: 'cloud', x: from, y, w: sprite.w, h: sprite.h, src: sprite.src, tx0: -(from + sprite.w), tx: travel, duration, delay: startAt(duration, (from + sprite.w) / travel) });
+  }).filter(Boolean);
 }
 
 // Gulls over salt water by day (they roost after dark): one size, flapping on the stage's
@@ -1112,6 +1135,19 @@ export function polygonRuns(points) {
 // The mask image for row runs over the whole painting.
 export function maskUrl(runs) {
   return svgUrl(ART_COLS, ART_ROWS, `<path fill='#000' d='${rectPath(maskRects(runs))}'/>`);
+}
+
+// The mask image for the whole painting except, inside the `near` rectangles (painting units),
+// whatever is not the painting's sky: a gull crossing the dock lamp's rectangle shows round the
+// lamp's own silhouette and nowhere on it.
+export function holesUrl(near, skyRuns = '') {
+  const holes = near.map(([x0, y0, x1, y1]) => [toPx(x0), toPx(y0), toPx(x1) - toPx(x0), toPx(y1) - toPx(y0)]);
+  const open = [];
+  maskRects(skyRuns).forEach(([x, y, w, h]) => holes.forEach(([hx, hy, hw, hh]) => {
+    const x0 = Math.max(x, hx); const y0 = Math.max(y, hy); const x1 = Math.min(x + w, hx + hw); const y1 = Math.min(y + h, hy + hh);
+    if (x1 > x0 && y1 > y0) open.push([x0, y0, x1 - x0, y1 - y0]);
+  }));
+  return svgUrl(ART_COLS, ART_ROWS, `<path fill='#000' fill-rule='evenodd' d='${rectPath([[0, 0, ART_COLS, Math.ceil(ART_ROWS)], ...holes])}'/><path fill='#000' d='${rectPath(open)}'/>`);
 }
 
 // The sky's clouds are drawn in four tones (AMBIENT_SPRITES' art: lightest first). Each tone
