@@ -34,6 +34,12 @@ import plank from '../assets/props/plank.png';
 import plankThin from '../assets/props/plank_thin.png';
 import frame from '../assets/props/frame.png';
 import logo from '../assets/props/logo.webp';
+import logoPixel from '../assets/props/logo_pixel.png';
+import plankGo from '../assets/props/plank_go.png';
+import glyphClose from '../assets/props/glyphs/close.png';
+import glyphArrow from '../assets/props/glyphs/arrow.png';
+import glyphStar from '../assets/props/glyphs/star.png';
+import glyphMoon from '../assets/props/glyphs/moon.png';
 import lureCrankbait from '../assets/props/lures/crankbait.png';
 import lureJerkbait from '../assets/props/lures/jerkbait.png';
 import lureDryfly from '../assets/props/lures/dryfly.png';
@@ -121,8 +127,13 @@ export function fishShadowFor(lengthUnits) {
 // The class a 21-inch bass gets, for anything that shows one shadow.
 export const FISH_SHADOW = fishShadowFor(66).src;
 
-// The game's own sticker: on the loading screen, and a beat on the stage once it's up.
+// The game's own sticker (the site keeps it), and the logo again on the world's art pixel
+// (scripts/pixelFish.mjs --logo): 150 x 168 art pixels, what the game itself shows — on the
+// loading screen and for a beat on the stage once the dock is up — drawn at a whole multiple of
+// its pixels, pixelated, never rotated.
 export const GAME_LOGO = logo;
+export const GAME_LOGO_PIXEL = logoPixel;
+export const GAME_LOGO_SIZE = { w: 150, h: 168 };
 // The derby prize: a golden pennant that flies from the champion's rod tip, three flutter frames
 // of 18 x 12 art pixels (24 x 16 painting units — its aspect is 3:2), hoisted along its left edge.
 export const GOLDEN_PENNANT = { src: pennant, frames: 3, w: 18, h: 12, unitW: units(18), unitH: units(12) };
@@ -131,6 +142,14 @@ export const GOLDEN_PENNANT = { src: pennant, frames: 3, w: 18, h: 12, unitW: un
 // holding the nails; drawn with border-image `slice fill / (slice x CSS px per art px) round`.
 export const PLANK = { src: plank, w: 24, h: 24, slice: 6 };
 export const PLANK_THIN = { src: plankThin, w: 12, h: 12, slice: 3 };
+// The same plank painted in the club's lime: the sign for the one thing the deck is asking for
+// (Cast, and the phase buttons after it), drawn from art/props/plank_go.txt (art/props/chrome.json).
+export const PLANK_GO = { src: plankGo, w: 24, h: 24, slice: 6 };
+// The chrome's small marks, where a font glyph used to stand in for an icon (×, →, ★, ☾):
+// GLYPH_PX x GLYPH_PX art pixels each, in the world's keyline, hand-drawn in art/props/glyphs/
+// and drawn at a whole multiple, pixelated, like every other icon.
+export const GLYPH_PX = 12;
+export const UI_GLYPHS = { close: glyphClose, arrow: glyphArrow, star: glyphStar, moon: glyphMoon };
 // The game's outer frame of lashed logs: a nine-slice of 80 x 80 art pixels, 16 of them border.
 export const GAME_FRAME = { src: frame, w: 80, h: 80, slice: 16 };
 

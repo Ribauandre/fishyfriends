@@ -11,7 +11,7 @@ const PORTRAITS = { captain: captainPortrait, shopkeeper: shopkeeperPortrait, ou
 export default function NpcDialogue({ npc, line, compact = false }) {
   const character = NPCS[npc];
   return <figure className={`npc-dialogue npc-${npc} ${compact ? 'is-compact' : ''}`}>
-    <img className="npc-portrait" src={PORTRAITS[npc]} alt="" />
+    <span className="npc-frame"><img className="npc-portrait" src={PORTRAITS[npc]} alt="" /></span>
     <figcaption className="npc-bubble">
       <strong>{character.name}</strong>
       <small>{character.title}</small>

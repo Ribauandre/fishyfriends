@@ -1,0 +1,17 @@
+# The close mark on an overlay's sign: a cream X with the world's keyline, 12 x 12 art pixels.
+K #130f0c
+w #fff3d6
+s #e8d3a8
+
+............
+.KKK....KKK.
+.KwwK..KwwK.
+.KwwwKKwwsK.
+..KwwwwwsK..
+...KwwwsK...
+...KwwwsK...
+..KwwwwwsK..
+.KwwsKKwwsK.
+.KwsK..KwsK.
+.KKK....KKK.
+............

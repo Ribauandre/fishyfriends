@@ -57,6 +57,9 @@ export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = 
         </button>;
       }
       const cost = config.charterCost > 0 ? (chartered && active ? 'Chartered for this trip' : member ? 'Charter · club member' : `Charter · ${charterFare(config.key, records)} pts${isRegular(config.key, records) ? ' · regular' : ''}`) : 'Free';
+      // The sign says it short (the label is a fifth of the map wide on a phone); the button's
+      // name says it all.
+      const shortCost = config.charterCost > 0 ? (chartered && active ? 'Chartered' : member ? 'Club' : `${charterFare(config.key, records)} pts`) : 'Free';
       return <button
         key={spot.biome}
         type="button"
@@ -68,7 +71,7 @@ export default function BiomeMap({ biome, chartered, onSelect, onShop, quests = 
       >
         {derbyHere && <img className="map-derby-flag" src={DERBY_FLAG} alt="" title="Derby water this week" />}
         <strong>{config.label}</strong>
-        <span>{cost}</span>
+        <span>{shortCost}</span>
       </button>;
     })}
     <button

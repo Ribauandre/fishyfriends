@@ -1,0 +1,7 @@
+[
+  { "name": "plank_go", "draw": "art/props/plank_go.txt", "out": "src/assets/props/plank_go.png" },
+  { "name": "glyph_close", "draw": "art/props/glyphs/close.txt", "out": "src/assets/props/glyphs/close.png" },
+  { "name": "glyph_arrow", "draw": "art/props/glyphs/arrow.txt", "out": "src/assets/props/glyphs/arrow.png" },
+  { "name": "glyph_star", "draw": "art/props/glyphs/star.txt", "out": "src/assets/props/glyphs/star.png" },
+  { "name": "glyph_moon", "draw": "art/props/glyphs/moon.txt", "out": "src/assets/props/glyphs/moon.png" }
+]

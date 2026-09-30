@@ -1,0 +1,38 @@
+# The "go" sign: the plank sign painted in the club's lime, for the one action the deck is asking
+# for (Cast, and the phase buttons that take its place). Same boards, nails and nine-slice as
+# plank.txt (24 x 24 art pixels, slice 6), only the wood's ramp swapped for the paint's, so the
+# primary button is a sign in the world rather than a neon slab laid over it.
+K #130f0c
+a #f4ff8a
+b #e3fb14
+c #c3d810
+d #97a80d
+e #6c7909
+M #d9dcdc
+o #8e979c
+O #5d6468
+
+.KKKKKKKKKKKKKKKKKKKKKK.
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbMocccbbbbbccccbccbMobK
+KboObbbbbbbbbbbbbbbboObK
+KbbbbcccbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KddddddddddddddddddddddK
+KeeeeeeeeeeeeeeeeeeeeeeK
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbbccbbbbbbbbbbbbbbbbbbK
+KbbbbbbccccbcccbbccbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbccK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KddddddddddddddddddddddK
+KeeeeeeeeeeeeeeeeeeeeeeK
+KaaaaaaaaaaaaaaaaaaaaaaK
+KbbbbbbbbbbccccbbbbbbbbK
+KbbbbbbbbbbbbbbbbbbbbbbK
+KbMobccbbbbbbbbbbbccMobK
+KboObbbbbbbbbbbbbbbboOcK
+KddddddddddddddddddddddK
+.KKKKKKKKKKKKKKKKKKKKKK.

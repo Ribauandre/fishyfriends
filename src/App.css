@@ -858,33 +858,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 }
 .game-page .game-scene { aspect-ratio: auto; height: 100%; margin-top: 0; max-height: none; min-height: 0; }
 .game-page .game-dock { flex: 0 0 auto; max-height: 50%; min-height: 0; overflow-y: auto; }
-.game-frame { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 14px solid transparent; border-image: url(./assets/props/frame.png) 21% round; box-shadow: var(--sticker-shadow-lg); margin-top: 18px; overflow: hidden; position: relative; }
-.game-frame.is-hookset { animation: frame-shake .35s ease-out; }
-@keyframes frame-shake { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(-3px, 2px); } 40% { transform: translate(3px, -2px); } 60% { transform: translate(-2px, 1px); } 80% { transform: translate(1px, -1px); } }
-/* The HUD is signage on the stage: wooden planks (border-image) over the scene art, always
-   above the overlays so Travel / Shop / Trophies stay reachable while one is open. */
 .game-stage { position: relative; }
-.game-hud { align-items: start; display: grid; gap: 6px 10px; grid-template-columns: auto 1fr auto; inset: 0 0 auto 0; padding: 10px 12px; pointer-events: none; position: absolute; z-index: 6; }
-.game-hud > * { pointer-events: auto; }
-.hud-plate { border: 12px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 12px stretch; color: #fff3d6; display: flex; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); flex-direction: column; gap: 0; grid-column: 1; grid-row: 1; margin: -2px 0 0 -2px; padding: 0 4px; text-shadow: 1px 1px 0 #2a1c0b, -1px 1px 0 #2a1c0b, 1px -1px 0 #2a1c0b, -1px -1px 0 #2a1c0b; }
-.hud-brand { color: var(--mint); font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .12em; line-height: 1; text-transform: uppercase; white-space: nowrap; }
-.hud-points { align-items: center; display: flex; gap: 5px; position: relative; }
-.hud-coin { filter: drop-shadow(1px 1px 0 rgba(3,8,11,.6)); height: 20px; width: auto; }
-.hud-points strong { font-family: var(--font-display); font-size: 22px; letter-spacing: .02em; line-height: 1.1; }
-.hud-points strong.is-bumped { animation: points-bump .45s cubic-bezier(.34,1.56,.64,1); display: inline-block; }
-@keyframes points-bump { 0% { transform: scale(1); } 40% { transform: scale(1.25); } 100% { transform: scale(1); } }
-.hud-points em { animation: points-delta 1.4s ease-out both; font-family: var(--font-head); font-size: 12px; font-style: normal; font-weight: 800; left: 100%; margin-left: 8px; position: absolute; top: 2px; white-space: nowrap; }
-.hud-points em.is-gain { color: var(--mint); }
-.hud-points em.is-loss { color: var(--coral); }
-@keyframes points-delta { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
-.hud-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; grid-column: 1 / 3; grid-row: 2; }
-.hud-chip { align-items: center; border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; color: #fff3d6; display: inline-flex; filter: drop-shadow(2px 2px 0 rgba(3,8,11,.7)); font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .06em; line-height: 1; margin: -2px; padding: 0 2px; text-shadow: 1px 1px 0 #2a1c0b, -1px 1px 0 #2a1c0b, 1px -1px 0 #2a1c0b, -1px -1px 0 #2a1c0b; text-transform: uppercase; }
-.hud-nav { display: flex; gap: 4px; grid-column: 3; grid-row: 1 / 3; justify-self: end; }
-.hud-button, .dock-icon { align-items: center; background: transparent; border: 10px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 10px stretch; color: #fff3d6; cursor: pointer; display: flex; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); flex-direction: column; font-family: var(--font-head); font-size: 9px; font-weight: 800; gap: 1px; letter-spacing: .08em; line-height: 1; min-height: 44px; min-width: 58px; padding: 0 2px; text-shadow: 1px 1px 0 #2a1c0b, -1px 1px 0 #2a1c0b, 1px -1px 0 #2a1c0b, -1px -1px 0 #2a1c0b; text-transform: uppercase; transition: transform .12s ease-out; }
-.hud-button img, .dock-icon img { height: 24px; width: auto; }
-.hud-button:hover:not(:disabled), .dock-icon:hover:not(:disabled) { color: var(--mint); transform: translateY(-2px); }
-.hud-button.is-open, .hud-button.is-open:hover:not(:disabled), .dock-icon.is-open, .dock-icon.is-open:hover:not(:disabled) { color: var(--mint); filter: drop-shadow(0 0 5px rgba(227,251,20,.75)) drop-shadow(2px 3px 0 rgba(3,8,11,.7)); }
-.hud-button:disabled { cursor: not-allowed; opacity: .45; }
 .game-body { position: relative; }
 .game-frame .game-scene { border: 0; border-bottom: 1px solid var(--line); box-shadow: none; margin-top: 0; }
 .scene-backdrop { animation: scene-arrive .5s ease-out both; }
@@ -893,95 +867,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-bobber { animation: bobber-bob 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes bobber-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.6px); } }
 @keyframes scene-ripple { 0% { opacity: .9; transform: scale(.2); } 100% { opacity: 0; transform: scale(2.4); } }
-/* The dock panel is the deck: plank texture underfoot, and everything on it is signage,
-   a pinned note, a tackle tray or a notice board rather than form controls. */
-.game-dock { background: url(./assets/scenes/deck.webp) center top / 220px repeat, #2b1d0e; box-shadow: inset 0 14px 22px rgba(3,8,11,.6); padding: 8px 14px 16px; }
-.game-dock .game-panel { padding-top: 12px; }
-.game-dock .dock-ground { background: transparent; border: 10px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 10px stretch; box-shadow: none; color: #fff3d6; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); text-shadow: 1px 1px 0 #2a1c0b, -1px 1px 0 #2a1c0b, 1px -1px 0 #2a1c0b, -1px -1px 0 #2a1c0b; }
-.game-dock .dock-ground:hover { background: transparent; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)) brightness(1.12); }
-.game-dock .dock-ground span, .game-dock .dock-ground small { color: #e8d3a8; }
-.game-dock .lure-chip { background: rgba(3,8,11,.35); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; color: #fff3d6; filter: drop-shadow(2px 2px 0 rgba(3,8,11,.7)); text-shadow: 1px 1px 0 #2a1c0b; }
-.game-dock .lure-chip span { color: #e8d3a8; }
-.game-dock .lure-chip.is-active { filter: drop-shadow(0 0 5px rgba(227,251,20,.75)) drop-shadow(2px 2px 0 rgba(3,8,11,.7)); }
-.game-dock .lure-chip.is-active strong { color: var(--mint); }
-.game-dock .lure-chip.is-locked strong { color: #b9a27f; }
-.game-dock .game-panel > p.dock-hint { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.6); color: #2a1c0b; font-size: 12px; padding: 8px 14px; position: relative; transform: rotate(-.5deg); }
-.game-dock .dock-hint:before { background: var(--coral); border: 1px solid #2a1c0b; border-radius: 50%; content: ''; height: 9px; left: 50%; position: absolute; top: -6px; transform: translateX(-50%); width: 9px; }
-.game-dock .dock-derby { background: rgba(3,8,11,.45); border: 1px solid #ffc93c; color: #fff3d6; padding: 4px 10px; }
-.game-dock .npc-dialogue.is-compact .npc-portrait { border: 6px solid transparent; border-image: url(./assets/props/plank.png) 30% / 6px stretch; box-shadow: none; height: 56px; width: 56px; }
-.game-dock .npc-dialogue.is-compact { grid-template-columns: 56px 1fr; }
-.game-dock .npc-bubble { background: rgba(3,8,11,.5); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; }
-.game-dock .npc-bubble:before { display: none; }
-.game-dock .npc-bubble p { color: #fff3d6; }
-.game-dock .quest-row { background: rgba(3,8,11,.5); border: 8px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 8px stretch; color: #fff3d6; }
-.game-dock .quest-row.is-done { filter: drop-shadow(0 0 4px rgba(227,251,20,.6)); }
-.game-dock .dock-crew-label { background: transparent; border: 7px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 7px stretch; color: #fff3d6; padding: 0 2px; }
-.game-dock .dock-crew-chip { background: rgba(3,8,11,.5); border: 7px solid transparent; border-image: url(./assets/props/plank.png) 30% fill / 7px stretch; color: #fff3d6; }
-.game-dock .dock-crew-chip.is-here { filter: drop-shadow(0 0 4px rgba(227,251,20,.6)); }
-.game-dock .dock-crew-text small { color: #e8d3a8; }
-.game-dock .game-panel > p { color: #e8d3a8; }
-.game-dock .game-result h3, .game-dock .game-result p { text-shadow: 1px 1px 0 #03080b; }
-.game-dock .game-result p { color: #e8d3a8; }
-.game-dock .form-error { background: rgba(3,8,11,.5); padding: 4px 10px; }
-.game-dock .derby-win { background: rgba(3,8,11,.55); }
-.game-dock .game-panel { padding-top: 16px; }
-.dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
-/* The deck's signposts: the tackle tray (showing what's tied on), the crew, and the notice board,
-   each with a badge for what's waiting behind it. */
-.dock-icons { display: flex; gap: 6px; }
-.dock-icon { min-height: 52px; min-width: 66px; position: relative; }
-.dock-icon img { height: 30px; }
-.dock-icon-badge { background: var(--coral); border: 1px solid #2a1c0b; border-radius: 50%; color: #03080b; font-family: var(--font-head); font-size: 9px; font-weight: 900; height: 17px; line-height: 15px; min-width: 17px; padding: 0 3px; position: absolute; right: -8px; text-align: center; text-shadow: none; top: -9px; }
-.dock-icon-badge.is-claim { background: var(--mint); }
-.dock-icon.is-derby:after { background: url(./assets/props/flag.png) center / contain no-repeat; content: ''; height: 16px; left: -6px; position: absolute; top: -8px; width: 14px; }
-.game-overlay .quest-list { margin: 0; width: 100%; }
-.game-overlay .dock-crew { justify-content: flex-start; margin: 0; }
-.game-overlay .lure-chips { justify-content: flex-start; }
-.dock-ground { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; min-width: 120px; padding: 6px 12px; text-align: left; }
-.dock-ground span { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.dock-ground strong { font-family: var(--font-head); font-size: 13px; letter-spacing: .05em; text-transform: uppercase; }
-.dock-ground small { font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.dock-ground:hover { background: #fff2c6; }
-.lure-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.lure-chip { background: rgba(3,8,11,.28); border: 1px solid var(--line); color: var(--ink); display: flex; flex-direction: column; gap: 2px; min-width: 96px; padding: 6px 10px; text-align: left; }
-.lure-chip strong { font-size: 12px; }
-.lure-chip span { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-.lure-chip.is-active { border-color: var(--mint); }
-.lure-chip.is-active strong { color: var(--mint); }
-.lure-chip.is-locked strong { color: var(--muted); }
-.lure-chip.is-locked span { color: var(--coral); }
-.lure-chip:disabled { cursor: not-allowed; opacity: .6; }
-.dock-hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0; max-width: 460px; text-align: center; }
-.npc-dialogue.is-compact { grid-template-columns: 48px 1fr; margin-top: 4px; }
-.npc-dialogue.is-compact .npc-portrait { height: 48px; width: 48px; }
-.npc-dialogue.is-compact .npc-bubble { padding: 8px 10px; }
-.npc-dialogue.is-compact .npc-bubble p { font-size: 12px; margin-top: 4px; }
-.game-overlay { align-items: flex-end; display: flex; inset: 0; position: absolute; z-index: 5; }
-.game-overlay-scrim { background: rgba(3,8,11,.7); border: 0; inset: 0; padding: 0; position: absolute; }
-.game-overlay-panel { animation: overlay-rise .28s cubic-bezier(.2,.8,.2,1) both; background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border-top: 2px solid var(--mint); max-height: calc(100% - 78px); overflow-y: auto; padding: 16px 16px 20px; position: relative; width: 100%; }
 @keyframes overlay-rise { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-.game-overlay-head { align-items: center; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; }
-.game-overlay-head h2 { font-size: 22px; margin: 4px 0 0; }
-.game-overlay-body { display: flex; flex-direction: column; gap: 12px; }
-.game-overlay .npc-dialogue { margin-top: 0; width: 100%; }
-.game-overlay .upgrade-grid { margin-top: 0; }
-.game-overlay .trophy-grid { margin-top: 0; }
-.biome-map { border: 2px solid var(--line); box-shadow: var(--sticker-shadow); overflow: hidden; position: relative; width: 100%; }
-.biome-map-art { display: block; height: auto; width: 100%; }
-.map-hotspot { background: #efe0b4; border: 2px solid #2a1c0b; box-shadow: 2px 3px 0 rgba(3,8,11,.7); color: #2a1c0b; cursor: pointer; display: flex; flex-direction: column; gap: 1px; line-height: 1.1; min-height: 34px; padding: 4px 9px; position: absolute; text-align: center; transform: translate(-50%, -50%); }
-.map-hotspot strong { font-family: var(--font-head); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-.map-hotspot span { font-size: 9px; font-weight: 700; white-space: nowrap; }
-.map-hotspot:hover { background: #fff2c6; }
-.map-hotspot.is-active { background: var(--mint); box-shadow: 0 0 0 3px rgba(227,251,20,.45), 2px 3px 0 rgba(3,8,11,.7); }
-.map-hotspot-shop { background: #1c2a2e; border-color: var(--mint); color: var(--mint); }
-.map-hotspot-shop:hover { background: #243a40; }
-.lure-feedback { color: var(--mint); font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; margin: -8px 0 0; min-height: 14px; }
-.game-panel { align-items: center; animation: panel-in .28s cubic-bezier(.22, 1, .36, 1) both; display: flex; flex-direction: column; gap: 18px; padding: 26px 10px 10px; text-align: center; }
 @keyframes panel-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.game-panel > p { color: var(--muted); font-size: 13px; margin: 0; max-width: 380px; }
-.game-panel .button { justify-content: center; min-height: 56px; width: min(320px, 100%); }
-.game-waiting-text { color: var(--mint); font-weight: 700; }
-.game-alert { animation: game-alert-pulse .5s ease-in-out infinite alternate; color: var(--coral); font-family: var(--font-head); font-size: 15px; font-weight: 800; letter-spacing: .04em; }
 @keyframes game-alert-pulse { 0% { opacity: .7; } 100% { opacity: 1; } }
 
 .cast-meter { background: rgba(3,8,11,.4); border: 1px solid var(--line); height: 26px; margin: 6px 0; position: relative; width: min(420px, 100%); }
@@ -1020,21 +907,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-result h3 { font-size: 22px; margin: 4px 0; }
 .game-result p { color: var(--muted); font-size: 13px; margin: 0; }
 
-.upgrade-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin-top: 16px; }
-.upgrade-card { background: rgba(3,8,11,.28); border: 1px solid var(--line); padding: 16px; }
-.upgrade-card strong { display: block; font-size: 14px; }
-.upgrade-level { color: var(--mint); display: block; font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .06em; margin-top: 4px; }
-.upgrade-card p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 8px 0 14px; }
-.upgrade-card .button { min-height: 44px; width: 100%; }
-
-.trophy-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); margin-top: 16px; }
-.trophy-card { align-items: center; background: rgba(3,8,11,.28); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; padding: 16px 10px; text-align: center; }
-.trophy-card .fish-illustration { height: auto; width: 70px; }
-.trophy-card strong { font-size: 12px; }
-.trophy-card span:last-child { color: var(--muted); font-size: 10px; }
-.trophy-card.is-real { border-color: var(--coral); }
-.trophy-photo { border: 1px solid var(--line); height: 52px; object-fit: cover; width: 70px; }
-.rarity-tag.is-real { background: var(--coral); color: var(--deep); }
 
 /* Cast & Catch 2D stage: SVG backdrop + HTML overlays (the fish stays the PNG sticker art). */
 .game-scene { aspect-ratio: 16 / 9; background: var(--deep); border: 2px solid var(--line); box-shadow: var(--sticker-shadow); margin-top: 18px; overflow: hidden; position: relative; width: 100%; }
@@ -1097,13 +969,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-splash { animation: scene-splash .6s ease-out both; transform-box: fill-box; transform-origin: center; }
 @keyframes scene-splash { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.6); } }
 
-.npc-dialogue { align-items: start; display: grid; gap: 12px; grid-template-columns: 80px 1fr; margin: 16px 0 0; text-align: left; width: min(420px, 100%); }
-.npc-portrait { border: 2px solid var(--line); box-shadow: 3px 4px 0 var(--deep); display: block; height: 80px; object-fit: cover; width: 80px; }
-.npc-bubble { background: rgba(3,8,11,.35); border: 1px solid var(--line); padding: 10px 12px; position: relative; }
-.npc-bubble:before { border: 7px solid transparent; border-right-color: var(--line); content: ''; left: -14px; position: absolute; top: 16px; }
-.npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-head); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
-.npc-bubble small { color: var(--muted); font-size: 10px; margin-left: 8px; }
-.npc-bubble p { color: var(--ink); font-size: 13px; line-height: 1.45; margin: 6px 0 0; }
 
 
 /* Cast & Catch — the living world. The stage is the one place on the site with ambient looping
@@ -1211,30 +1076,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .travel-label { animation: overlay-rise .5s ease-out both; bottom: 8%; color: var(--ink); font-family: var(--font-head); font-size: 12px; font-weight: 800; left: 0; letter-spacing: .08em; margin: 0; position: absolute; right: 0; text-align: center; text-transform: uppercase; }
 .travel-label strong { color: var(--mint); }
 
-.hud-chip.has-icon { gap: 4px; }
-.hud-chip.has-icon img { height: 13px; width: auto; }
-.lure-chip { align-items: center; flex-direction: row; gap: 8px; }
-.lure-chip-text { display: flex; flex-direction: column; gap: 2px; }
-.lure-icon { flex: none; height: 26px; width: auto; }
-.lure-chip.is-locked .lure-icon { filter: grayscale(1) opacity(.5); }
-.upgrade-icon { display: block; filter: drop-shadow(2px 3px 0 rgba(3,8,11,.7)); height: 40px; margin-bottom: 8px; width: auto; }
-.game-overlay-panel.has-backdrop { background-position: center top; background-size: cover; }
-.game-overlay-panel.has-backdrop .upgrade-card { background: rgba(3,8,11,.55); }
-.game-overlay-panel.has-backdrop .trophy-card { background: linear-gradient(#6b4423, #4a2d14); border: 2px solid #2a1c0b; box-shadow: 3px 4px 0 rgba(3,8,11,.7), inset 0 0 0 1px rgba(255,200,120,.16); }
-.game-overlay-panel.has-backdrop .trophy-card.is-real { border-color: var(--coral); }
-.game-overlay-panel.has-backdrop .trophy-card strong { background: #c9a24a; color: #2a1c0b; font-family: var(--font-head); font-size: 10px; letter-spacing: .06em; padding: 2px 8px; text-transform: uppercase; }
-.game-overlay-panel.has-backdrop .trophy-card span:last-child { color: #e8d3a8; }
-.game-loading { align-items: center; display: flex; flex-direction: column; gap: 18px; padding: 40px 0 60px; }
-.game-loading-row { align-items: center; display: flex; flex-direction: column; gap: 10px; }
-.game-loading-box { animation: box-bob 1.1s ease-in-out infinite; height: 64px; width: auto; }
-/* The game's logo: slapped down on the loading screen, and held on the stage for a beat once
-   the dock is up (the load itself is often too quick to read), then gone. Never a tap target. */
-.game-logo { animation: sticker-slap .55s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(4px 6px 0 rgba(3,8,11,.6)); height: auto; max-width: min(78vw, 300px); transform: rotate(-4deg); width: 100%; }
-.game-splash { align-items: center; animation: splash-hold 1.8s ease-in both; display: flex; inset: 0; justify-content: center; pointer-events: none; position: absolute; z-index: 6; }
-.game-splash img { animation: sticker-slap .55s cubic-bezier(.34,1.56,.64,1) both; filter: drop-shadow(4px 6px 0 rgba(3,8,11,.6)); height: auto; max-height: 70%; max-width: min(60%, 340px); object-fit: contain; transform: rotate(-4deg); }
-@keyframes splash-hold { 0%, 70% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-12px); } }
-@media (prefers-reduced-motion: reduce) { .game-logo, .game-splash, .game-splash img { animation: none; } }
-@keyframes box-bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   .scene-cloud, .scene-gull, .scene-dragonfly, .scene-glitter, .scene-glitter:before, .scene-glitter:after, .scene-lamp, .scene-lamp-pool, .scene-mover > i, .scene-wash > i, .scene-foam, .scene-ring, .scene-bubble, .scene-mist, .scene-moss, .scene-grass, .scene-firefly, .scene-caustics, .scene-gleam, .scene-snow, .travel-road, .game-loading-box { animation: none; }
@@ -1262,72 +1103,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene[data-period="night"] .scene-mover.is-wave, .game-scene[data-period="night"] .scene-mover.is-cap { opacity: .35 !important; }
 .game-scene[data-period="dusk"] .scene-lamp { transform: translate(-50%, -50%) scale(1.2); }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
-.hud-chip.is-dawn { color: #ffe1b8; }
-.hud-button-sound { min-width: 50px; }
-.hud-button-sound img { height: 22px; }
-.hud-button-sound.is-muted img { filter: grayscale(1) opacity(.5); }
-.hud-button-sound.is-muted span { color: var(--coral); }
 
 .result-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .rarity-tag.is-record { background: var(--mint); color: var(--deep); animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; }
 .rarity-tag.is-derby { background: var(--coral); color: var(--deep); }
 .quest-complete { color: var(--mint); font-size: 13px; margin: 0; }
-.quest-complete strong { color: var(--ink); }
-.dock-derby { align-items: center; color: var(--ink); display: flex; font-size: 12px; gap: 6px; margin: -6px 0 0; }
-.dock-derby img { height: 18px; width: auto; }
-.dock-derby strong { color: var(--mint); }
-
-.quest-list { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: -8px 0 0; padding: 0; width: min(420px, 100%); }
-.quest-row { align-items: center; background: rgba(3,8,11,.3); border: 1px solid var(--line); display: flex; flex-wrap: wrap; font-size: 12px; gap: 6px 10px; padding: 6px 10px; }
-.quest-row.is-done { border-color: var(--mint); }
-.quest-title { flex: 1; font-weight: 700; text-align: left; }
-.quest-progress { color: var(--mint); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.quest-brief, .quest-goal { color: var(--muted); flex-basis: 100%; font-size: 11px; line-height: 1.5; margin: 0; text-align: left; }
-.quest-brief em { color: var(--ink); font-style: normal; }
-.quest-goal strong { color: var(--mint); font-family: var(--font-head); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
-.quest-card .quest-goal { text-align: left; }
-.quest-turn-in { min-height: 32px; padding: 4px 10px; width: auto; }
-.game-panel .quest-turn-in { min-height: 32px; width: auto; }
-.shop-boards { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.shop-board { display: flex; flex-direction: column; gap: 8px; }
-.quest-card { background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
-.quest-card.is-done { border-color: var(--mint); }
-.quest-card strong { font-size: 13px; }
-.quest-card p { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0; }
-.quest-card p em { color: var(--ink); font-style: normal; }
-.quest-card .button { align-self: flex-start; min-height: 36px; }
-
-.almanac-progress { color: var(--muted); font-size: 13px; margin: 0; }
-.almanac-progress strong { color: var(--mint); }
-.almanac-biome h3 { align-items: baseline; border-bottom: 1px solid var(--line); display: flex; font-size: 15px; gap: 10px; margin: 6px 0 10px; padding-bottom: 6px; }
-.almanac-biome h3 small { color: var(--muted); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .06em; }
-.almanac-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
-.almanac-card { align-items: center; background: rgba(3,8,11,.5); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 10px 6px; text-align: center; }
-.almanac-card .fish-illustration { height: auto; width: 64px; }
-.almanac-card.is-unknown .fish-illustration { filter: brightness(0) opacity(.55); }
-.almanac-card.is-known { border-color: rgba(227,251,20,.5); }
-.almanac-card strong { font-size: 11px; }
-.almanac-meta { align-items: center; color: var(--muted); display: inline-flex; font-size: 9px; font-weight: 700; gap: 4px; letter-spacing: .04em; text-transform: uppercase; }
-.almanac-meta em { color: #c9d6ff; font-style: normal; }
-.almanac-flag { height: 12px; width: auto; }
-.almanac-biome.is-locked .almanac-card .fish-illustration { filter: brightness(0) opacity(.3); }
-.rarity-dot { border: 1px solid var(--deep); border-radius: 50%; display: inline-block; height: 8px; width: 8px; }
-
-.derby-board { background: rgba(3,8,11,.5); border: 1px solid var(--coral); padding: 12px 14px; }
-.derby-head { align-items: center; display: flex; gap: 12px; margin-bottom: 8px; }
-.derby-head img { height: 44px; width: auto; }
-.derby-head h3 { font-size: 16px; margin: 2px 0; }
-.derby-head small { color: var(--muted); font-size: 11px; }
-.derby-list { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
-.derby-list li { align-items: center; display: flex; font-size: 13px; gap: 10px; padding: 4px 0; }
-.derby-list li.is-me { color: var(--mint); }
-.derby-rank { color: var(--muted); font-family: var(--font-display); font-size: 14px; min-width: 18px; text-align: right; }
-.derby-name { flex: 1; }
-.derby-list strong { font-family: var(--font-head); }
-
-.map-hotspot.is-locked { background: #2b2b2b; border-color: #111; color: #9a9a9a; cursor: not-allowed; }
-.map-hotspot.has-derby { padding-right: 24px; }
-.map-derby-flag { height: 20px; position: absolute; right: -6px; top: -12px; width: auto; }
 
 @media (prefers-reduced-motion: reduce) { .scene-stars { animation: none; } }
 
@@ -1357,31 +1137,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes feedback-rise { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-12px); } }
 /* Marina's Outfitters: the fitting room (a painted preview of your angler, free swatches for
    skin, beard and hair) and the racks, one card per item, worn or bought with a tap. */
-.outfit-fitting { display: grid; gap: 14px; grid-template-columns: 150px 1fr; margin: 0 0 14px; }
-.outfit-preview { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; justify-content: center; padding: 8px 4px 6px; }
-.angler-preview { background-position: center bottom; background-repeat: no-repeat; height: 150px; width: 180px; }
-.angler-preview.is-small { height: 60px; width: 72px; }
-.outfit-you { display: flex; flex-direction: column; gap: 10px; }
-.outfit-group { background: rgba(3,8,11,.5); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
-.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
-.swatch { border: 2px solid var(--line); border-radius: 50%; box-shadow: 2px 2px 0 rgba(3,8,11,.6); cursor: pointer; height: 30px; padding: 0; width: 30px; }
-.swatch.is-on { border-color: var(--mint); box-shadow: 0 0 0 2px var(--deep), 0 0 0 4px var(--mint); }
-.swatch:disabled { cursor: default; }
-.outfit-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.outfit-chip { background: rgba(3,8,11,.4); border: 1px solid var(--line); color: var(--ink); cursor: pointer; font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .05em; padding: 6px 10px; text-transform: uppercase; }
-.outfit-chip.is-on { border-color: var(--mint); color: var(--mint); }
-.outfit-rack { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.rack-items { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
-.rack-item { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: flex; flex-direction: column; gap: 4px; padding: 10px 6px 8px; text-align: center; }
-.rack-item strong { font-size: 12px; }
-.rack-item > span:last-child { color: var(--muted); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
-.rack-item.is-locked > span:last-child { color: var(--coral); }
-.rack-item.is-worn { border-color: var(--mint); }
-.rack-item.is-worn > span:last-child { color: var(--mint); }
-.rack-item:disabled { cursor: default; }
-.rack-item:not(:disabled):hover { border-color: var(--mint); }
-.rack-swatch { align-items: center; background: rgba(3,8,11,.35); border: 1px solid var(--line); display: flex; height: 62px; justify-content: center; overflow: hidden; width: 74px; }
-@media (max-width: 500px) { .outfit-fitting { grid-template-columns: 1fr; } .outfit-preview { flex-direction: row; justify-content: flex-start; gap: 12px; padding: 6px 10px; } }
 
 /* The fly rod: the rise ring the accuracy cast aims at, and the fly-shop card at Sal's. */
 .scene-rise-ring { animation: rise-ring 1.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
@@ -1407,37 +1162,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-pet { image-rendering: pixelated; }
 .scene-decor { pointer-events: none; z-index: 1; }
 .decor-preview { height: 46px; image-rendering: pixelated; width: auto; }
-/* The late game: a rebuilt track wears its stars, the grades on a record, the tag and flotsam shelves. */
-.upgrade-rebuilt { color: #ffc93c; font-size: 12px; letter-spacing: 2px; }
-.button.is-rebuild { border-color: #ffc93c; color: #ffc93c; }
-.shop-club { background: rgba(3,8,11,.5); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 10px 12px; }
-.shop-club p { color: var(--ink); font-size: 13px; margin: 0; }
-.grade-pip { border: 1px solid #03080b; border-radius: 50%; display: inline-block; height: 9px; margin-left: 6px; vertical-align: middle; width: 9px; }
-.grade-pip.is-bronze, .grade-tag.is-bronze { background: #b87333; }
-.grade-pip.is-silver, .grade-tag.is-silver { background: #c9ced6; }
-.grade-pip.is-gold, .grade-tag.is-gold { background: #ffc93c; }
-.grade-tag { border: 1px solid #03080b; color: #03080b; font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .05em; padding: 1px 6px; text-transform: uppercase; }
-.result-note { color: var(--ink); font-size: 13px; margin: 4px 0 0; }
-.result-note.is-tag strong { color: var(--mint); }
-.tag-shelf, .junk-shelf, .club-records, .weekly-board { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
-.quest-row.is-weekly { border-left: 3px solid var(--mint); }
-.club-records ul { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); list-style: none; margin: 0; padding: 0; }
-.club-record { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; gap: 8px; padding: 6px 8px; }
-.club-record img { flex: none; width: 48px; }
-.club-record div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.club-record strong { font-size: 12px; }
-.club-record span { color: var(--muted); font-size: 11px; }
-.club-record.is-me { border-color: var(--mint); }
-.club-record.is-me span { color: var(--mint); }
-.club-record-bar { background: rgba(255,255,255,.12); display: block; height: 4px; overflow: hidden; width: 100%; }
-.club-record-bar b { background: var(--mint); display: block; height: 100%; }
-.tag-shelf-note { color: var(--muted); font-size: 12px; margin: 0; }
-.tag-shelf ul, .junk-shelf ul { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); list-style: none; margin: 0; padding: 0; }
-.fish-tag, .junk-card { align-items: center; background: rgba(3,8,11,.55); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 8px 6px; text-align: center; }
-.fish-tag img, .junk-card img { max-width: 70px; }
-.fish-tag strong, .junk-card strong { font-size: 12px; }
-.fish-tag span { color: var(--muted); font-size: 11px; }
-.junk-card.is-unknown img { filter: brightness(0) opacity(.45); }
 .junk-card.is-unknown strong { color: var(--muted); }
 .scene-pet.is-idle { animation: pet-idle 1s step-end infinite; }
 @keyframes pet-idle { 0%, 80% { background-position-x: 0; } 80.01%, 84% { background-position-x: var(--pet-flick, 50%); } 84.01%, 88% { background-position-x: 0; } 88.01%, 92% { background-position-x: var(--pet-flick, 50%); } 92.01%, 100% { background-position-x: 0; } }
@@ -1450,17 +1174,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-crew-bubble:after { border: 5px solid transparent; border-top-color: var(--line); content: ''; left: 50%; margin-left: -5px; position: absolute; top: 100%; }
 .scene-crew-more { background: rgba(3,8,11,.7); border: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 700; padding: 2px 6px; pointer-events: none; position: absolute; z-index: 1; }
 .dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: -6px; width: 100%; }
-.dock-crew-label { color: var(--muted); font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.dock-crew-chip { align-items: center; background: rgba(3,8,11,.3); border: 1px solid var(--line); color: var(--ink); cursor: pointer; display: inline-flex; gap: 7px; padding: 4px 9px 4px 5px; text-align: left; }
-.dock-crew-chip .mini-avatar { height: 22px; width: 22px; font-size: 10px; }
-.dock-crew-chip.is-here { border-color: var(--mint); }
-.dock-crew-chip.is-you { cursor: default; }
-.dock-crew-chip.is-you strong { color: var(--mint); }
-.dock-crew-chip:disabled { cursor: default; opacity: .8; }
-.dock-crew-chip:not(:disabled):hover { border-color: var(--mint); }
-.dock-crew-text { display: flex; flex-direction: column; line-height: 1.15; }
-.dock-crew-text strong { font-size: 11px; }
-.dock-crew-text small { color: var(--muted); font-size: 9px; }
 
 
 /* The derby prize: the Golden Pennant flies from the champion's rod tip for a week. */
@@ -1470,18 +1183,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes pennant-flutter { from { background-position-x: 0; } to { background-position-x: 100%; } }
 .scene-crew-tag.is-champion { color: #ffc93c; }
 .hud-chip.is-champion { color: #ffc93c; }
-.hud-chip.is-champion .hud-pennant { animation: pennant-flutter .6s steps(3, jump-none) infinite alternate; aspect-ratio: 1.55; background-repeat: no-repeat; display: inline-block; height: 13px; }
-.derby-win { align-items: center; background: linear-gradient(90deg, rgba(255,201,60,.18), rgba(3,8,11,.4)); border: 1px solid #ffc93c; display: flex; gap: 12px; padding: 10px 14px; text-align: left; width: min(460px, 100%); animation: overlay-rise .4s ease-out both; }
-.derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: pennant-flutter .6s steps(3, jump-none) infinite alternate; aspect-ratio: 1.55; background-repeat: no-repeat; display: inline-block; flex: none; height: 28px; }
-.derby-win strong { color: #ffc93c; display: block; font-family: var(--font-head); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
-.derby-win span { color: var(--ink); font-size: 12px; }
-.derby-prize { align-items: center; color: var(--muted); display: flex; font-size: 11px; gap: 8px; margin: 6px 0 0; }
-.derby-prize strong { color: #ffc93c; }
-.derby-prize-flag { height: 20px; }
-.derby-ribbons ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 6px 0 0; padding: 0; }
-.derby-ribbon { align-items: center; background: linear-gradient(#6b4423, #4a2d14); border: 2px solid #ffc93c; display: inline-flex; gap: 8px; padding: 6px 10px; }
-.derby-ribbon-flag { height: 22px; }
-.derby-ribbon strong { color: #ffc93c; font-family: var(--font-head); font-size: 11px; }
 .derby-ribbon span { color: #e8d3a8; font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { .scene-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; } }
 
@@ -1498,38 +1199,403 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (max-width: 500px) {
   .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
   .game-page .game-stage { height: calc((100vw - 14px) / 1.12); }
-  .game-dock { padding: 6px 10px 12px; }
-  .game-dock .game-panel.is-ready > .dock-cast { bottom: 0; box-shadow: 0 -10px 16px rgba(3,8,11,.55); position: sticky; z-index: 2; }
   .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
-  .game-frame { border-width: 7px; margin-top: 0; }
-  .game-hud { gap: 4px 6px; padding: 6px 6px; }
-  .hud-plate { border-width: 9px; margin: -1px 0 0 -1px; padding: 0 2px; }
-  .hud-plate .hud-brand { font-size: 7px; }
-  .hud-points strong { font-size: 16px; }
-  .hud-coin { height: 15px; }
-  .hud-chip { border-width: 6px; font-size: 7px; margin: -1px; }
-  .hud-chip.has-icon img { height: 10px; }
-  .hud-chip:last-child { display: none; }
-  .hud-button { border-width: 7px; min-height: 36px; min-width: 36px; }
-  .hud-button span { display: none; }
-  .hud-button img { height: 20px; }
-  .hud-button-sound { min-width: 36px; }
-  .hud-button-sound img { height: 18px; }
-  .hud-nav { gap: 3px; grid-row: 1; }
   .hud-chips { display: none; }
   .stage-callout { font-size: 10px; padding: 4px 8px; white-space: normal; }
   .stage-callout.is-alert { font-size: 12px; }
   .hud-button img { height: 18px; }
-  .game-overlay-panel { max-height: calc(100% - 96px); }
-  .game-dock { padding: 0 12px 16px; }
-  .map-hotspot { min-height: 30px; padding: 3px 6px; }
-  .map-hotspot strong { font-size: 9px; }
-  .map-hotspot span { font-size: 8px; }
 }
 
 /* A phone on its side is past the mobile breakpoint; keep the game clear of the notch. */
 @media (min-width: 801px) {
   .game-page.content-shell { left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); }
+}
+
+/* ==========================================================================================
+   Cast & Catch — the chrome: the page round the stage and every overlay, in the world's own wood.
+   One pixel: every raster here (the plank and log nine-slices, the deck, the icons and glyphs,
+   the pixel fish, the logo, the room paintings) is drawn pixelated at a whole multiple of its art
+   pixels — --ui-px CSS px per art pixel for the planks, glyphs and sign icons, 1 for the fish.
+   One wood: signs (anything you press) are the plank sign filled; boards (anything you read) are
+   the thin plank as a frame round the deck's dark stain; notes are pinned paper. One face:
+   Pixelify Sans (--font-pixel) at 10 / 20 / 30 px — on its own grid, one font pixel a tenth of
+   the size — for signage, labels, tags, numbers and headings; the site's body face for running
+   text. One keyline, #130f0c. Shadows are hard offsets, corners square, and nothing here loops
+   (the one exception is the champion's pennant in the HUD, which is on the stage).
+   ========================================================================================== */
+.game-page {
+  --ui-px: 2px;
+  --frame-px: 1px;
+  --key: #130f0c;
+  --wood-hi: #b58050; --wood: #925b31; --wood-mid: #764726; --wood-lo: #5e391f; --wood-dk: #452815;
+  --sign-ink: #fff3d6; --sign-ink-2: #e8d3a8; --note: #efe0b4; --gold: #ffc93c; --brass: #c9a24a;
+  --stain: rgba(19, 15, 12, .66);
+  --font-text: 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif;
+  --t-s: 10px; --t-m: 20px; --t-l: 30px;
+  --t-card: calc(10 * var(--ui-px));
+  --outline-1: 1px 0 0 var(--key), -1px 0 0 var(--key), 0 1px 0 var(--key), 0 -1px 0 var(--key);
+  --outline-2: 2px 0 0 var(--key), -2px 0 0 var(--key), 0 2px 0 var(--key), 0 -2px 0 var(--key), 2px 2px 0 var(--key), -2px 2px 0 var(--key), 2px -2px 0 var(--key), -2px -2px 0 var(--key);
+  --sign-drop: drop-shadow(var(--ui-px) calc(2 * var(--ui-px)) 0 rgba(19, 15, 12, .7));
+  --ring-mint: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--mint);
+  --ring-coral: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--coral);
+  --ring-gold: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--gold);
+}
+@media (max-width: 500px) { .game-page { --ui-px: 1px; --frame-px: .5px; --t-l: 20px; } }
+
+/* The frame: lashed logs (frame.png, 80 art px, 16 of them border) round bare wood — no site
+   halftone showing between the logs. Only its own border is pixelated; what is inside sets its own. */
+.game-frame { background: #2b1d0e; border: calc(16 * var(--frame-px)) solid transparent; border-image: url(./assets/props/frame.png) 16 round; box-shadow: var(--sticker-shadow-lg); image-rendering: pixelated; margin-top: 18px; overflow: hidden; position: relative; }
+.game-frame > * { image-rendering: auto; }
+.game-frame .game-scene { border-bottom: 0; }
+/* The strike shakes the frame in whole chrome pixels, a step every 125 ms. */
+.game-frame.is-hookset { animation: frame-shake .5s step-end; }
+@keyframes frame-shake { 0%, 100% { transform: none; } 25% { transform: translate(calc(-2 * var(--ui-px)), var(--ui-px)); } 50% { transform: translate(calc(2 * var(--ui-px)), calc(-1 * var(--ui-px))); } 75% { transform: translate(calc(-1 * var(--ui-px)), 0); } }
+/* The wide deck row: the frame stops growing at about 2.6:1 (the deck row is about 150 px). */
+@media (min-width: 801px) {
+  .game-page .game-frame { max-width: calc((100vh - 300px) * 2.6 + 32px); }
+  .game-dock .game-panel.is-ready > .dock-cast { min-height: 0; min-width: 160px; width: auto; }
+}
+
+/* Signs: the plank nine-slice (plank.png, 24 art px, slice 6) filled, at the chrome's pixel. */
+.hud-plate, .hud-button, .dock-icon, .dock-ground, .game-loading-sign, .game-frame .button {
+  background: transparent; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 fill / calc(6 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; clip-path: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-1); text-transform: uppercase;
+}
+/* Small signs: the thin plank (plank_thin.png, 12 art px, slice 3), filled. */
+.hud-chip, .lure-chip, .dock-crew-chip, .map-hotspot, .game-overlay-close, .derby-ribbon, .rack-item {
+  background: transparent; border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(3 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-1); text-transform: uppercase;
+}
+/* A sign's words are all in its face, <strong> included (the site sets strong in the body face). */
+:is(.hud-plate, .hud-button, .dock-icon, .dock-ground, .game-loading-sign, .game-frame .button, .hud-chip, .lure-chip, .dock-crew-chip, .map-hotspot, .derby-ribbon, .rack-item) strong { font-family: inherit; font-weight: 400; }
+/* Boards: the thin plank as a frame round the dark stain — the cards inside every overlay, and
+   the captain's bubble on the deck. */
+.game-frame .npc-bubble, .derby-win, .upgrade-card, .quest-card, .quest-row, .shop-club, .outfit-group, .outfit-preview, .almanac-card, .club-record, .fish-tag, .junk-card, .derby-board, .trophy-card, .dock-derby, .game-frame .form-error {
+  background: var(--stain); background-clip: padding-box; border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; color: var(--sign-ink); image-rendering: pixelated;
+}
+/* Pressing a sign: a chrome pixel up on hover, down on press — a step, not a tween. */
+:is(.hud-button, .dock-icon, .dock-ground, .game-frame .button, .lure-chip, .dock-crew-chip, .game-overlay-close, .rack-item):hover:not(:disabled) { color: var(--mint); transform: translateY(calc(-1 * var(--ui-px))); transition: none; }
+:is(.hud-button, .dock-icon, .dock-ground, .game-frame .button, .lure-chip, .dock-crew-chip, .game-overlay-close, .rack-item):active:not(:disabled) { filter: drop-shadow(0 var(--ui-px) 0 rgba(19, 15, 12, .7)); transform: translateY(var(--ui-px)); }
+:is(.hud-button, .dock-icon, .game-frame .button, .lure-chip, .map-hotspot, .rack-item):disabled { cursor: not-allowed; filter: var(--sign-drop) grayscale(.85) brightness(.75); opacity: 1; }
+.game-frame .rack-item:disabled, .game-frame .dock-crew-chip:disabled { cursor: default; filter: var(--sign-drop); }
+/* Open, active, worn, done, yours: a hard mint ring round the sign or board. */
+.hud-button.is-open, .dock-icon.is-open, .lure-chip.is-active, .dock-crew-chip.is-here, .rack-item.is-worn, .quest-row.is-done, .quest-card.is-done, .club-record.is-me, .map-hotspot.is-active { box-shadow: var(--ring-mint); color: var(--mint); }
+.hud-button.is-open:hover:not(:disabled), .dock-icon.is-open:hover:not(:disabled) { color: var(--mint); }
+
+/* The buttons: every button in the frame is a sign — the plank with cream lettering — and the one
+   the deck is asking for is the same sign painted the club's lime (plank_go.png). */
+.game-frame .button { align-items: center; display: inline-flex; gap: calc(3 * var(--ui-px)); justify-content: center; margin: 0; min-height: max(36px, calc(20 * var(--ui-px))); padding: var(--ui-px) calc(5 * var(--ui-px)); width: auto; }
+.game-frame .button span { font-size: inherit; }
+.game-frame .button-primary { border-image-source: url(./assets/props/plank_go.png); color: var(--key); font-size: var(--t-m); text-shadow: none; }
+.game-frame .button-primary:hover:not(:disabled) { background: transparent; box-shadow: none; color: var(--key); }
+.game-frame .button.is-rebuild { color: var(--gold); }
+.game-frame .button:disabled { color: var(--sign-ink-2); }
+.game-frame .button-primary:disabled { color: var(--key); }
+.sign-glyph, .chrome-glyph { display: inline-block; flex: none; image-rendering: pixelated; vertical-align: middle; }
+.sign-glyph { height: calc(12 * var(--ui-px)); width: calc(12 * var(--ui-px)); }
+.chrome-glyph { height: 12px; width: 12px; }
+/* A pixel fish in the chrome: its own size, one file pixel to one CSS pixel, never less. */
+.game-frame .fish-illustration.chrome-fish { display: block; flex: none; image-rendering: pixelated; object-fit: fill; overflow: visible; }
+.game-frame .fish-illustration.chrome-fish[data-variant="sticker"] { height: auto; image-rendering: auto; max-height: 72px; max-width: 120px; width: auto; }
+/* What is not pixel art stays smooth: the captain and the shopkeepers, and people's photos. */
+.game-frame :is(.npc-portrait, .mini-avatar img, .trophy-photo) { image-rendering: auto; }
+
+/* The HUD: signage on the stage, above the overlays so its buttons always work. */
+.game-hud { align-items: start; display: grid; gap: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); grid-template-columns: auto 1fr auto; inset: 0 0 auto 0; padding: calc(4 * var(--ui-px)) calc(5 * var(--ui-px)); pointer-events: none; position: absolute; z-index: 6; }
+.game-hud > * { pointer-events: auto; }
+.game-frame[data-period="dusk"] .game-hud, .game-frame[data-period="dawn"] .game-hud { filter: brightness(.92); }
+.game-frame[data-period="night"] .game-hud { filter: brightness(.8) saturate(.85); }
+.hud-plate { display: flex; flex-direction: column; gap: var(--ui-px); grid-column: 1; grid-row: 1; margin: 0; padding: 0 var(--ui-px); }
+.hud-brand { color: var(--mint); font-size: var(--t-s); white-space: nowrap; }
+.hud-points { align-items: center; display: flex; gap: calc(2 * var(--ui-px)); position: relative; }
+.hud-coin { display: block; filter: none; height: 24px; image-rendering: pixelated; width: 24px; }
+.hud-points strong { font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-2); }
+.hud-points strong.is-bumped { animation: points-hop .375s step-end; display: inline-block; }
+@keyframes points-hop { 0%, 100% { transform: none; } 33% { transform: translateY(calc(-2 * var(--ui-px))); } 66% { transform: translateY(calc(-1 * var(--ui-px))); } }
+.hud-points em { animation: points-rise 1.5s step-end both; font-family: var(--font-pixel); font-size: var(--t-s); font-style: normal; font-weight: 400; left: 100%; margin-left: calc(4 * var(--ui-px)); position: absolute; text-shadow: var(--outline-1); top: 0; white-space: nowrap; }
+.hud-points em.is-gain { color: var(--mint); }
+.hud-points em.is-loss { color: var(--coral); }
+@keyframes points-rise { 0% { opacity: 0; transform: translateY(calc(3 * var(--ui-px))); } 8% { opacity: 1; transform: translateY(calc(2 * var(--ui-px))); } 16% { transform: translateY(var(--ui-px)); } 25%, 83% { opacity: 1; transform: none; } 92% { opacity: .6; transform: translateY(calc(-1 * var(--ui-px))); } 100% { opacity: 0; transform: translateY(calc(-2 * var(--ui-px))); } }
+.hud-chips { display: flex; flex-wrap: wrap; gap: calc(2 * var(--ui-px)); grid-column: 1 / 3; grid-row: 2; }
+.hud-chip { align-items: center; display: inline-flex; gap: calc(2 * var(--ui-px)); margin: 0; min-height: calc(12 * var(--ui-px)); padding: 0 var(--ui-px); }
+.hud-chip.has-icon img { display: block; height: 24px; image-rendering: pixelated; width: 24px; }
+.hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
+.hud-chip.is-dawn { color: #ffe1b8; }
+.hud-chip.is-champion { color: var(--gold); }
+/* The champion's pennant: 18 x 12 art px frames at their own 3:2, fluttering at 125 ms a frame
+   (the HUD is on the stage, where motion lives). */
+.hud-chip.is-champion .hud-pennant { animation: pennant-flutter .375s steps(3, jump-none) infinite alternate; aspect-ratio: 3 / 2; background-repeat: no-repeat; display: block; height: calc(12 * var(--ui-px)); image-rendering: pixelated; }
+.hud-nav { display: flex; gap: calc(2 * var(--ui-px)); grid-column: 3; grid-row: 1 / 3; justify-self: end; }
+.hud-button, .dock-icon { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); justify-content: center; min-height: 0; min-width: 0; padding: 0 var(--ui-px) var(--ui-px); position: relative; }
+.hud-button img, .dock-icon img { display: block; height: calc(24 * var(--ui-px)); image-rendering: pixelated; width: calc(24 * var(--ui-px)); }
+.hud-button-sound.is-muted img { filter: grayscale(1) opacity(.5); }
+.hud-button-sound.is-muted span { color: var(--coral); }
+
+/* The deck: deck.webp (192 x 72 art px) tiled at 2 CSS px an art pixel from its corner, so no
+   board lands on a half pixel, behind a hard lip where the stage ends. After dark the boards go
+   under the night and the signs on them dim a little (they still have to be read). */
+.game-dock { background: url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key), inset 0 8px 0 rgba(19, 15, 12, .35); image-rendering: pixelated; padding: calc(5 * var(--ui-px)) calc(7 * var(--ui-px)) calc(8 * var(--ui-px)); }
+.game-frame[data-period="dusk"] .game-dock, .game-frame[data-period="dawn"] .game-dock { background-image: linear-gradient(rgba(40, 24, 48, .3), rgba(40, 24, 48, .3)), url(./assets/scenes/deck.webp); background-size: auto, 384px 144px; }
+.game-frame[data-period="night"] .game-dock { background-image: linear-gradient(rgba(10, 14, 36, .58), rgba(10, 14, 36, .58)), url(./assets/scenes/deck.webp); background-size: auto, 384px 144px; }
+.game-frame[data-period="night"] .game-dock .game-panel { filter: brightness(.86) saturate(.9); }
+.game-dock .game-panel { padding-top: calc(2 * var(--ui-px)); }
+.game-panel { align-items: center; animation: panel-step .25s steps(2, jump-end) both; display: flex; flex-direction: column; gap: calc(6 * var(--ui-px)); padding: calc(6 * var(--ui-px)) calc(3 * var(--ui-px)) calc(3 * var(--ui-px)); text-align: center; }
+@keyframes panel-step { from { opacity: 0; transform: translateY(calc(4 * var(--ui-px))); } to { opacity: 1; transform: none; } }
+.game-panel > p { color: var(--sign-ink); font-size: 13px; line-height: 1.45; margin: 0; max-width: 420px; text-shadow: var(--outline-1); }
+.game-panel .button { min-height: 56px; width: min(320px, 100%); }
+.game-panel.is-play { gap: calc(4 * var(--ui-px)); padding-top: calc(5 * var(--ui-px)); }
+.game-panel.is-play > p { font-size: 12px; }
+.dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: center; width: 100%; }
+.dock-ground { align-items: flex-start; cursor: pointer; display: flex; flex-direction: column; gap: var(--ui-px); justify-content: center; min-width: 120px; padding: 0 calc(3 * var(--ui-px)) var(--ui-px); text-align: left; }
+.dock-ground span, .dock-ground small { color: var(--sign-ink-2); font-size: var(--t-s); }
+.dock-ground strong { font-size: var(--t-m); font-weight: 400; text-shadow: var(--outline-2); }
+.dock-ground small { max-width: 30ch; }
+.dock-icons { display: flex; gap: calc(3 * var(--ui-px)); }
+.dock-icon-badge { background: var(--coral); border: var(--ui-px) solid var(--key); border-radius: 0; box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; line-height: 1; min-width: calc(8 * var(--ui-px) + 2px); padding: var(--ui-px) calc(2 * var(--ui-px)); position: absolute; right: calc(-4 * var(--ui-px)); text-align: center; text-shadow: none; top: calc(-5 * var(--ui-px)); }
+.dock-icon-badge.is-claim { background: var(--mint); }
+.dock-icon.is-derby::after { background: url(./assets/props/flag.png) 0 0 / 100% 100% no-repeat; content: ''; height: 24px; image-rendering: pixelated; left: calc(-5 * var(--ui-px)); position: absolute; top: calc(-6 * var(--ui-px)); width: 24px; }
+.dock-cast { font-size: var(--t-m); }
+.game-dock .game-panel > p.game-alert { animation: alert-blink .5s step-end 3; color: var(--coral); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; margin: 0; text-shadow: var(--outline-2); text-transform: uppercase; }
+@keyframes alert-blink { 0%, 50% { opacity: 1; } 25%, 75% { opacity: .35; } }
+.game-dock .game-result h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; line-height: 1.1; margin: 0; text-shadow: var(--outline-2); }
+.game-result { padding-top: calc(4 * var(--ui-px)); }
+.game-dock .game-result p, .game-dock .result-note { color: var(--sign-ink-2); font-size: 13px; margin: 0; text-shadow: var(--outline-1); }
+.result-note.is-tag strong { color: var(--mint); }
+.quest-complete { color: var(--mint); font-size: 13px; margin: 0; text-shadow: var(--outline-1); }
+.quest-complete strong { color: var(--sign-ink); }
+.game-frame .form-error { color: #ffb38a; font-size: 12px; margin: 0; padding: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); }
+.derby-win { align-items: center; box-shadow: var(--ring-gold); display: flex; gap: calc(4 * var(--ui-px)); padding: calc(3 * var(--ui-px)) calc(4 * var(--ui-px)); text-align: left; }
+.derby-win strong { color: var(--gold); display: block; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; margin-bottom: var(--ui-px); text-transform: uppercase; }
+.derby-win span { color: var(--sign-ink); font-size: 12px; }
+/* The Golden Pennant off the stage (the derby-win note, the prize line, the ribbons): 18 x 12 art
+   px frames at their own 3:2, one flutter when it comes into view and then still. */
+.derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: pennant-flutter .375s steps(3, jump-none) 2 alternate; aspect-ratio: 3 / 2; background-repeat: no-repeat; flex: none; height: calc(12 * var(--ui-px)); image-rendering: pixelated; }
+.derby-win-flag { height: calc(24 * var(--ui-px)); }
+
+/* The captain and the shopkeepers: their portrait in a thin plank frame, their line on a board. */
+.npc-dialogue { align-items: start; display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: auto 1fr; margin: 0; text-align: left; width: min(460px, 100%); }
+.game-overlay .npc-dialogue { width: 100%; }
+.npc-frame { border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; display: block; filter: var(--sign-drop); image-rendering: pixelated; line-height: 0; }
+.npc-portrait { border: 0; box-shadow: none; display: block; height: 80px; object-fit: cover; width: 80px; }
+.npc-dialogue.is-compact .npc-portrait { height: 56px; width: 56px; }
+.npc-bubble { padding: calc(3 * var(--ui-px)) calc(5 * var(--ui-px)); position: relative; }
+.npc-bubble::before { content: none; }
+.npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; text-shadow: var(--outline-1); text-transform: uppercase; }
+.npc-bubble small { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); margin-left: calc(3 * var(--ui-px)); text-shadow: var(--outline-1); }
+.npc-bubble p { color: var(--sign-ink); font-size: 13px; line-height: 1.45; margin: calc(2 * var(--ui-px)) 0 0; }
+.npc-dialogue.is-compact .npc-bubble p { font-size: 12px; }
+
+/* Overlays: a board that rises into the frame — the plank as its border, the deck under a dark
+   stain inside (or the room it stands in), two steps up on the 125 ms clock. */
+.game-overlay { align-items: flex-end; display: flex; inset: 0; position: absolute; z-index: 5; }
+.game-overlay-scrim { background: rgba(3, 8, 11, .7); border: 0; inset: 0; padding: 0; position: absolute; }
+.game-overlay-panel { animation: board-rise .25s steps(2, jump-end) both; background: linear-gradient(rgba(19, 15, 12, .72), rgba(19, 15, 12, .72)), url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; background-clip: padding-box; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 / calc(6 * var(--ui-px)) repeat; image-rendering: pixelated; max-height: calc(100% - 116px); overflow-y: auto; padding: calc(5 * var(--ui-px)) calc(6 * var(--ui-px)) calc(8 * var(--ui-px)); position: relative; scrollbar-color: var(--wood) var(--key); width: 100%; }
+@keyframes board-rise { from { opacity: 0; transform: translateY(calc(12 * var(--ui-px))); } to { opacity: 1; transform: none; } }
+/* A room: its painting (native art, one file pixel to one art pixel) over the board, pixelated,
+   under GameOverlay's scrim. */
+.game-overlay-panel.has-backdrop { background-color: #2b1d0e; background-position: center top; background-repeat: no-repeat; background-size: cover; }
+.game-overlay-head { align-items: flex-start; border-bottom: var(--ui-px) solid var(--key); box-shadow: 0 var(--ui-px) 0 rgba(181, 128, 80, .35); display: flex; gap: calc(4 * var(--ui-px)); justify-content: space-between; margin-bottom: calc(6 * var(--ui-px)); padding-bottom: calc(4 * var(--ui-px)); }
+.game-frame .eyebrow { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
+.game-overlay-head h2 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-l); font-weight: 400; letter-spacing: 0; line-height: 1; margin: calc(2 * var(--ui-px)) 0 0; text-shadow: var(--outline-2); text-transform: uppercase; }
+.game-overlay-close { align-items: center; cursor: pointer; display: flex; flex: none; justify-content: center; min-height: 36px; min-width: 36px; padding: var(--ui-px); }
+.game-overlay-close img { display: block; height: calc(12 * var(--ui-px)); image-rendering: pixelated; width: calc(12 * var(--ui-px)); }
+.game-overlay-body { display: flex; flex-direction: column; gap: calc(6 * var(--ui-px)); }
+.game-overlay h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; letter-spacing: 0; line-height: 1.1; text-shadow: var(--outline-2); }
+.game-overlay .month-empty { color: var(--sign-ink-2); font-size: 12px; }
+.game-overlay .rarity-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: 1; padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
+.game-overlay .rarity-tag.is-real { background: var(--coral); color: var(--key); }
+/* Pinned notes: paper on a coral pin, square, straight — the hints under a board. */
+.game-frame .dock-hint { background: var(--note); border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) calc(2 * var(--ui-px)) 0 rgba(19, 15, 12, .6); color: var(--key); font-size: 12px; line-height: 1.5; margin: calc(2 * var(--ui-px)) 0 0; max-width: 560px; padding: calc(4 * var(--ui-px)) calc(6 * var(--ui-px)); position: relative; text-align: left; text-shadow: none; }
+.game-frame .dock-hint::before { background: var(--coral); border: var(--ui-px) solid var(--key); content: ''; height: calc(4 * var(--ui-px)); left: 50%; position: absolute; top: calc(-3 * var(--ui-px)); transform: translateX(-50%); width: calc(4 * var(--ui-px)); }
+/* Labels inside boards: the pixel face; running text: the body face. */
+.game-overlay :is(.quest-title, .upgrade-level, .quest-progress, .almanac-meta, .almanac-season, .dock-crew-label, .rack-item strong, .fish-tag strong, .junk-card strong, .club-record strong, .quest-card > strong, .upgrade-card > strong, .almanac-card strong, .lure-chip strong, .dock-crew-text strong) { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
+
+/* The map: its painting (396 x 264 art px) pixelated in a thin plank frame, the whole of it on
+   screen on a wide window; each ground a small plank sign on its own line. */
+.biome-map { border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; box-shadow: none; filter: var(--sign-drop); image-rendering: pixelated; margin: 0 auto; max-width: 100%; overflow: hidden; position: relative; width: 100%; }
+@media (min-width: 801px) { .biome-map { max-width: calc((100dvh - 440px) * 1.5 + 12px); } }
+.biome-map-art { display: block; height: auto; image-rendering: pixelated; width: 100%; }
+.map-hotspot { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: var(--ui-px); padding: 0 calc(2 * var(--ui-px)) var(--ui-px); position: absolute; text-align: center; transform: translate(-50%, -50%); white-space: nowrap; width: max-content; }
+.map-hotspot strong { font-size: var(--t-s); font-weight: 400; }
+.map-hotspot span { color: var(--sign-ink-2); font-size: var(--t-s); text-transform: none; }
+.map-hotspot:hover:not(:disabled) { color: var(--mint); transform: translate(-50%, calc(-50% - var(--ui-px))); }
+.map-hotspot.is-active span { color: var(--mint); }
+.map-hotspot.is-locked { color: var(--sign-ink-2); cursor: not-allowed; filter: var(--sign-drop) grayscale(1) brightness(.6); }
+.map-hotspot-shop strong { color: var(--mint); }
+.map-hotspot.has-derby { padding-right: 18px; }
+.map-derby-flag { height: 24px; image-rendering: pixelated; position: absolute; right: -9px; top: -12px; width: 24px; }
+.game-overlay .biome-map + .dock-hint { align-self: center; }
+
+/* The tackle tray. */
+.lure-chips { display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: flex-start; }
+.lure-chip { align-items: center; cursor: pointer; display: flex; flex-direction: row; gap: calc(3 * var(--ui-px)); min-width: 0; padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-align: left; }
+.lure-chip-text { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); }
+.lure-chip strong { font-size: var(--t-s); }
+.lure-chip-text span { color: var(--sign-ink-2); font-size: var(--t-s); }
+.lure-chip.is-active strong { color: var(--mint); }
+.lure-chip.is-locked strong { color: var(--sign-ink-2); }
+.lure-chip.is-locked .lure-chip-text span, .lure-chip-flyrod strong { color: var(--gold); }
+.lure-icon, .lure-chip-flyrod .fly-rod-icon { display: block; flex: none; height: calc(24 * var(--ui-px)); image-rendering: pixelated; margin: 0; width: calc(24 * var(--ui-px)); }
+.lure-chip.is-locked .lure-icon { filter: grayscale(1) opacity(.5); }
+
+/* Who's on the water. */
+.dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: flex-start; margin: 0; width: 100%; }
+.dock-crew-label { color: var(--sign-ink-2); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.dock-crew-chip { align-items: center; cursor: pointer; display: inline-flex; gap: calc(3 * var(--ui-px)); padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-align: left; }
+.dock-crew-chip.is-you { cursor: default; }
+.dock-crew-chip.is-you strong { color: var(--mint); }
+.dock-crew-text { display: flex; flex-direction: column; gap: var(--ui-px); line-height: 1.15; }
+.dock-crew-text strong { font-size: var(--t-s); }
+.dock-crew-text small { color: var(--sign-ink-2); font-family: var(--font-text); font-size: 11px; text-transform: none; }
+.game-frame .mini-avatar { background: var(--wood-lo); border: var(--ui-px) solid var(--key); border-radius: 0; color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; height: 24px; text-shadow: none; width: 24px; }
+
+/* Cap'n Ray's board: the week's bounties and his quests, one board each. */
+.dock-derby { align-items: center; display: flex; font-size: 12px; gap: calc(3 * var(--ui-px)); margin: 0; padding: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); }
+.dock-derby img { display: block; flex: none; height: 24px; image-rendering: pixelated; width: 24px; }
+.dock-derby strong { color: var(--gold); }
+.weekly-board, .tag-shelf, .junk-shelf, .club-records, .derby-ribbons { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); margin: 0; }
+.quest-list { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); list-style: none; margin: 0; padding: 0; width: 100%; }
+.quest-row { align-items: center; display: flex; flex-wrap: wrap; gap: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); padding: calc(3 * var(--ui-px)) calc(4 * var(--ui-px)); }
+.quest-title { color: var(--sign-ink); flex: 1; font-size: var(--t-card); text-align: left; text-shadow: var(--outline-1); }
+.quest-progress { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
+.quest-brief, .quest-goal { color: var(--sign-ink-2); flex-basis: 100%; font-size: 12px; line-height: 1.5; margin: 0; text-align: left; }
+.quest-brief em, .quest-card p em { color: var(--sign-ink); font-style: normal; }
+.quest-goal strong { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
+.game-frame .quest-turn-in { font-size: var(--t-s); min-height: 36px; width: auto; }
+
+/* Sal's: the four tracks, the charter club, his wall, the fly shop and the bounty board. */
+.upgrade-grid { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin: 0; }
+.upgrade-card { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(4 * var(--ui-px)); }
+.upgrade-icon, .fly-rod-icon { align-self: flex-start; display: block; filter: drop-shadow(var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7)); height: 48px; image-rendering: pixelated; margin: 0 0 var(--ui-px); width: 48px; }
+.upgrade-card > strong { color: var(--sign-ink); font-size: var(--t-m); line-height: 1; text-shadow: var(--outline-2); }
+.upgrade-level { color: var(--mint); display: block; font-size: var(--t-s); margin: 0; text-shadow: var(--outline-1); }
+.upgrade-card p { color: var(--sign-ink-2); flex: 1; font-size: 12px; line-height: 1.5; margin: calc(2 * var(--ui-px)) 0; }
+.upgrade-rebuilt { display: flex; gap: var(--ui-px); }
+.upgrade-card .button { width: 100%; }
+.shop-club { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); margin: 0; padding: calc(4 * var(--ui-px)); }
+.shop-club p { color: var(--sign-ink); font-size: 13px; margin: 0; }
+.shop-club .button, .quest-card .button { align-self: flex-start; }
+.shop-boards { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.shop-board { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); }
+.quest-card { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(4 * var(--ui-px)); }
+.quest-card > strong { color: var(--sign-ink); font-size: var(--t-card); text-shadow: var(--outline-1); }
+.quest-card p { color: var(--sign-ink-2); font-size: 12px; line-height: 1.5; margin: 0; }
+.quest-card .quest-goal { text-align: left; }
+
+/* Marina's: the fitting room and the racks. The angler, the pets and the props are drawn at a
+   whole number of CSS pixels an art pixel (AnglerPreview, PetPreview, DecorPreview set it), and
+   the rack's swatch is big enough for the 69-row angler at 1x. */
+.outfit-fitting { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: auto 1fr; margin: 0; }
+.outfit-preview { align-items: center; display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); justify-content: center; padding: calc(4 * var(--ui-px)); }
+.outfit-you { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); }
+.outfit-group { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); padding: calc(3 * var(--ui-px)) calc(4 * var(--ui-px)); }
+.swatches { display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); }
+.swatch { border: 2px solid var(--key); border-radius: 0; box-shadow: inset 0 2px 0 rgba(255, 255, 255, .22), inset 0 -2px 0 rgba(0, 0, 0, .25), 2px 2px 0 rgba(19, 15, 12, .7); cursor: pointer; height: 30px; padding: 0; width: 30px; }
+.swatch.is-on { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .22), inset 0 -2px 0 rgba(0, 0, 0, .25), 0 0 0 2px var(--mint); }
+.swatch:disabled { cursor: default; }
+.outfit-rack { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); margin: 0; }
+.rack-items { display: grid; gap: calc(3 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.rack-item { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(2 * var(--ui-px)); }
+.rack-item strong { font-size: var(--t-s); }
+.rack-item > span:last-child { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; }
+.rack-item.is-locked > span:last-child { color: var(--gold); }
+.rack-item.is-worn > span:last-child { color: var(--mint); }
+.rack-swatch { align-items: flex-end; background: var(--stain); border: 1px solid var(--key); display: flex; height: 76px; justify-content: center; overflow: hidden; padding: 0 0 2px; width: 100%; }
+.angler-preview { background-repeat: no-repeat; flex-shrink: 0; image-rendering: pixelated; }
+.pet-preview { background-position: 0 0; background-repeat: no-repeat; display: block; flex: none; image-rendering: pixelated; }
+.pet-preview.is-none { align-items: center; align-self: center; color: var(--sign-ink-2); display: flex; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; justify-content: center; letter-spacing: 0; text-transform: uppercase; }
+.decor-preview { display: block; flex: none; image-rendering: pixelated; }
+@media (max-width: 500px) { .outfit-fitting { grid-template-columns: 1fr; } .outfit-preview { flex-direction: row; justify-content: flex-start; gap: 12px; } }
+
+/* The almanac: every species a board with its pixel fish standing on the same line. */
+.almanac-progress { color: var(--sign-ink-2); font-size: 13px; line-height: 1.5; margin: 0; text-shadow: var(--outline-1); }
+.almanac-progress strong { color: var(--mint); font-family: var(--font-pixel); font-weight: 400; }
+.almanac-biome h3 { align-items: baseline; border-bottom: var(--ui-px) solid var(--key); box-shadow: 0 var(--ui-px) 0 rgba(181, 128, 80, .3); display: flex; gap: calc(4 * var(--ui-px)); margin: 0 0 calc(4 * var(--ui-px)); padding-bottom: calc(2 * var(--ui-px)); text-transform: uppercase; }
+.almanac-biome h3 small { color: var(--sign-ink-2); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.almanac-grid, .tag-shelf ul, .junk-shelf ul, .trophy-grid { display: grid; gap: calc(3 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(calc(120px + 10 * var(--ui-px)), 1fr)); list-style: none; margin: 0; padding: 0; }
+.almanac-card, .fish-tag, .junk-card, .trophy-card { align-items: center; display: grid; gap: calc(2 * var(--ui-px)); grid-template-rows: 72px; justify-items: center; padding: calc(2 * var(--ui-px)); text-align: center; }
+.almanac-card .chrome-fish, .fish-tag .chrome-fish, .junk-card .chrome-fish, .trophy-card .chrome-fish, .trophy-card .trophy-photo { align-self: end; }
+.almanac-card.is-known { box-shadow: 0 0 0 var(--ui-px) rgba(227, 251, 20, .55); }
+.almanac-card.is-unknown .chrome-fish { filter: brightness(0) opacity(.55); }
+.almanac-biome.is-locked .almanac-card .chrome-fish { filter: brightness(0) opacity(.3); }
+.almanac-card strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.almanac-meta { align-items: center; color: var(--sign-ink-2); display: inline-flex; flex-wrap: wrap; font-size: var(--t-s); gap: calc(2 * var(--ui-px)); justify-content: center; text-shadow: var(--outline-1); }
+.almanac-flag { display: block; height: 24px; image-rendering: pixelated; width: 24px; }
+.almanac-season { display: block; font-size: var(--t-s); margin-top: 0; text-shadow: var(--outline-1); }
+.grade-pip.is-bronze, .grade-tag.is-bronze { background: #b87333; }
+.grade-pip.is-silver, .grade-tag.is-silver { background: #c9ced6; }
+.grade-pip.is-gold, .grade-tag.is-gold { background: #ffc93c; }
+.game-frame .rarity-dot, .game-frame .grade-pip { border: 1px solid var(--key); border-radius: 0; display: inline-block; height: 8px; margin: 0; vertical-align: middle; width: 8px; }
+
+/* The trophy case: the derby, the club's records, the shelves and the wall. */
+.derby-board { box-shadow: var(--ring-gold); padding: calc(4 * var(--ui-px)) calc(5 * var(--ui-px)); }
+.derby-head { align-items: center; display: flex; flex-wrap: wrap; gap: calc(4 * var(--ui-px)); margin-bottom: calc(3 * var(--ui-px)); }
+.derby-head > img { display: block; flex: none; height: 48px; image-rendering: pixelated; width: 48px; }
+.derby-head > div { flex: 1 1 220px; min-width: 0; }
+.derby-head .derby-fish { margin-left: auto; }
+.derby-head h3 { margin: var(--ui-px) 0; }
+.derby-head small { color: var(--sign-ink-2); font-size: 12px; }
+.derby-prize { align-items: center; color: var(--sign-ink-2); display: flex; flex-wrap: wrap; font-size: 12px; gap: calc(2 * var(--ui-px)); margin: calc(2 * var(--ui-px)) 0 0; }
+.derby-prize strong { color: var(--gold); }
+.derby-list { display: flex; flex-direction: column; gap: var(--ui-px); list-style: none; margin: 0; padding: 0; }
+.derby-list li { align-items: center; border-top: var(--ui-px) solid rgba(181, 128, 80, .25); display: flex; font-size: 13px; gap: calc(3 * var(--ui-px)); padding: calc(2 * var(--ui-px)) 0; }
+.derby-list li.is-me { color: var(--mint); }
+.derby-rank { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-m); min-width: 20px; text-align: right; text-shadow: var(--outline-2); }
+.derby-name { flex: 1; }
+.derby-list strong { font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; text-shadow: var(--outline-2); }
+.club-records ul { display: grid; gap: calc(3 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.club-record { align-items: center; display: flex; gap: calc(4 * var(--ui-px)); padding: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)) calc(2 * var(--ui-px)) calc(2 * var(--ui-px)); }
+.club-record div { display: flex; flex: 1; flex-direction: column; gap: calc(2 * var(--ui-px)); min-width: 0; }
+.club-record strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.club-record span { color: var(--sign-ink-2); font-size: 12px; }
+.club-record.is-me span { color: var(--mint); }
+.club-record-bar { background: var(--key); border: 1px solid var(--key); display: block; height: calc(3 * var(--ui-px) + 2px); overflow: hidden; width: 100%; }
+.club-record-bar b { background: var(--mint); display: block; height: 100%; }
+.tag-shelf-note { color: var(--sign-ink-2); font-size: 12px; margin: 0; text-shadow: var(--outline-1); }
+.fish-tag strong, .junk-card strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.fish-tag span { color: var(--sign-ink-2); font-size: 11px; }
+.junk-card.is-unknown .chrome-fish { filter: brightness(0) opacity(.45); }
+.junk-card.is-unknown strong { color: var(--sign-ink-2); }
+.derby-ribbons ul { display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); list-style: none; margin: 0; padding: 0; }
+.derby-ribbon { align-items: center; display: inline-flex; gap: calc(3 * var(--ui-px)); padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) calc(2 * var(--ui-px)); }
+.derby-ribbon strong { color: var(--gold); font-size: var(--t-s); font-weight: 400; }
+.derby-ribbon span { color: var(--sign-ink-2); font-size: var(--t-s); text-transform: none; }
+.trophy-card { padding: calc(4 * var(--ui-px)) calc(2 * var(--ui-px)); }
+.trophy-card.is-real { box-shadow: var(--ring-coral); }
+.trophy-card .trophy-name { background: var(--brass); border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .6); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; padding: var(--ui-px) calc(3 * var(--ui-px)); text-transform: uppercase; }
+.trophy-card .trophy-size { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.game-overlay .grade-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .6); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: 1; padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
+/* A photo on the wall is a pinned snapshot: paper border, keyline, square. */
+.trophy-photo { background: var(--note); border: 3px solid var(--note); box-shadow: 0 0 0 1px var(--key), 2px 3px 0 rgba(19, 15, 12, .6); height: 72px; object-fit: cover; width: 96px; }
+
+/* Loading: already the game — the frame, the deck, the pixel logo and a plank sign. */
+.game-page .game-frame.is-loading { display: flex; }
+.game-loading { align-items: center; background: linear-gradient(rgba(19, 15, 12, .45), rgba(19, 15, 12, .45)), url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key); display: flex; flex: 1; flex-direction: column; gap: calc(8 * var(--ui-px)); image-rendering: pixelated; justify-content: center; min-height: 360px; padding: calc(8 * var(--ui-px)); }
+.game-logo, .game-splash img { filter: drop-shadow(calc(2 * var(--ui-px)) calc(3 * var(--ui-px)) 0 rgba(19, 15, 12, .6)); height: calc(168 * var(--ui-px)); image-rendering: pixelated; max-width: none; transform: none; width: calc(150 * var(--ui-px)); }
+.game-logo { animation: logo-drop .375s step-end both; }
+.game-loading-sign { align-items: center; display: inline-flex; font-size: var(--t-m); gap: calc(4 * var(--ui-px)); margin: 0; padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-shadow: var(--outline-2); }
+.game-loading-box { display: block; height: calc(24 * var(--ui-px)); image-rendering: pixelated; width: calc(24 * var(--ui-px)); }
+/* The splash: the logo drops onto the stage in three steps, holds, and steps off. */
+.game-splash { align-items: center; animation: splash-hold 1.8s step-end both; display: flex; inset: 0; justify-content: center; pointer-events: none; position: absolute; z-index: 6; }
+.game-splash img { animation: logo-drop .375s step-end both; }
+@keyframes logo-drop { 0% { opacity: 0; transform: translateY(calc(-12 * var(--ui-px))); } 33% { opacity: 1; transform: translateY(calc(-6 * var(--ui-px))); } 66% { transform: translateY(calc(-2 * var(--ui-px))); } 100% { opacity: 1; transform: none; } }
+@keyframes splash-hold { 0%, 79% { opacity: 1; transform: none; } 86% { opacity: .66; transform: translateY(calc(-4 * var(--ui-px))); } 93% { opacity: .33; transform: translateY(calc(-8 * var(--ui-px))); } 100% { opacity: 0; transform: translateY(calc(-12 * var(--ui-px))); } }
+/* A short window can't take the logo at two chrome pixels an art pixel; it takes it at one. */
+@media (min-width: 501px) and (max-height: 700px) { .game-logo, .game-splash img { height: 168px; width: 150px; } }
+
+@media (max-width: 500px) {
+  .game-dock { padding: calc(4 * var(--ui-px)) 10px 12px; }
+  .game-dock .game-panel.is-ready > .dock-cast { bottom: 0; box-shadow: none; filter: var(--sign-drop) drop-shadow(0 -4px 0 rgba(19, 15, 12, .55)); position: sticky; z-index: 2; }
+  .game-hud { gap: 2px 4px; padding: 4px; }
+  .hud-button span { display: none; }
+  .hud-nav { gap: 2px; grid-row: 1; }
+  .hud-chips { display: none; }
+  .game-overlay-panel { max-height: calc(100% - 64px); }
+  .npc-portrait { height: 64px; width: 64px; }
+  .npc-dialogue.is-compact .npc-portrait { height: 48px; width: 48px; }
+  .upgrade-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-frame.is-hookset, .game-panel, .game-overlay-panel, .hud-points strong.is-bumped, .hud-points em, .game-dock .game-panel > p.game-alert, .game-logo, .game-splash, .game-splash img, .hud-chip.is-champion .hud-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; }
+  .hud-points em { opacity: 1; }
 }
 
 /* The narrowest phones drop the wordmark so Log a catch, the bell and you still fit. */

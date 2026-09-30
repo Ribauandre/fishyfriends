@@ -153,7 +153,10 @@ test('a maxed track can be rebuilt for a permanent bonus, and the charter club m
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   expect(screen.getByText(/strip a track down and rebuild it better/i)).toBeInTheDocument();
   // The rod, rebuilt once, wears its star and offers the second rebuild at a higher price.
-  expect(screen.getByTitle(/rebuilt 1 time/i)).toHaveTextContent('★');
+  // (the star is the chrome's pixel glyph, not the ★ character).
+  const stars = screen.getByTitle(/rebuilt 1 time/i).querySelectorAll('img.chrome-glyph');
+  expect(stars).toHaveLength(1);
+  expect(stars[0]).toHaveAttribute('src', expect.stringContaining('star'));
   expect(screen.getByRole('button', { name: 'Rebuild · 2000 pts' })).toBeInTheDocument();
   await userEvent.click(screen.getAllByRole('button', { name: 'Rebuild · 1500 pts' })[0]);
   expect(rebuildTrack).toHaveBeenCalledWith('line');
