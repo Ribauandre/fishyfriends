@@ -1,0 +1,35 @@
+# Marina's outfitters: his olive fishing vest open over the cream shirt, front on, flapped pockets.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
+K #130f0c
+L #9aa84a
+N #24538d
+P #fff3d6
+k #555f24
+l #768337
+p #f2d9a6
+y #f2b632
+
+........................
+........................
+........KK....KK........
+.......KPPKKKKPPK.......
+.....KKPPpPPPPpPPKK.....
+....KLLLPpPKKPpPLLLK....
+...KLLLlPpKPPKpPlLLLK...
+..KLLllLPPpPPpPPLllllK..
+..KLlllLPPPpPPPPLlllkK..
+.KLLlllLPPPPPPPPLllllkK.
+.KLlLLLLlPPPPPPlLLLLlkK.
+.KLlkkkklPPPPPPlkkkklkK.
+.KLlLyLLlPPKPPPlLLyLlkK.
+.KLlLLLLlPPPPPPlLLLLlkK.
+.KLlllllLPPPPPPLlllllkK.
+.KLlkkkklPPKPPPlkkkklkK.
+.KLlLyLLlPPPPPPlLLyLlkK.
+.KLlLLLLlPPPPPPlLLLLlkK.
+.KLlllllLPPPPPPLlllllkK.
+.KkkkkkkkkPPPPkkkkkkkkK.
+..KKKKKKKKNNNNKKKKKKKK..
+..........KKKK..........
+........................
+........................

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import FishIllustration from './components/FishIllustration';
+import FishIllustration, { preloadPixelFish, pixelFishSize } from './components/FishIllustration';
 import GameScene from './components/game/GameScene';
 import GameOverlay from './components/game/GameOverlay';
 import PointsCounter from './components/game/PointsCounter';
@@ -8,7 +8,7 @@ import AnglerPreview from './components/game/AnglerPreview';
 import PetPreview from './components/game/PetPreview';
 import BiomeMap from './components/game/BiomeMap';
 import { TRAVEL_MS } from './components/game/TravelTransition';
-import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, GAME_LOGO, vehicleFor } from './utils/gameProps';
+import { GEAR_ICONS, LURE_ICONS, TACKLE_BOX, HUD_ICONS, DOCK_ICONS, DERBY_FLAG, GOLDEN_PENNANT, FLY_ROD_ICON, GAME_LOGO_PIXEL, GAME_LOGO_SIZE, UI_GLYPHS, vehicleFor } from './utils/gameProps';
 import shopBackdrop from './assets/scenes/shop.webp';
 import outfitterBackdrop from './assets/scenes/outfitter.webp';
 import trophyWallBackdrop from './assets/scenes/trophywall.webp';
@@ -45,6 +45,27 @@ const SPLASH_MS = 1800;
 const DEFAULT_GAME_PROFILE = { tackle_points: 0, rod_level: 1, line_level: 1, reel_level: 1, bait_level: 1, owned_lures: [], records: {}, quests: {}, bounties_claimed: [], derby_wins: [], look: {}, wardrobe: [], rebuilds: {}, charter_member: false, tags: [], junk_found: [], weekly: {}, bounty_stamps: 0 };
 // One landed fish in twenty-five carries another member's tag (AuthContext.logGameCatch).
 const TAG_CHANCE = 0.04;
+// How far each room's painting is dimmed under its overlay (GameOverlay's scrim, top to bottom):
+// Sal's shop is a bright room; Marina's and the trophy wall (behind the almanac too) are dark ones
+// and would vanish under the same scrim.
+const DARK_ROOM_SCRIM = [0.15, 0.45];
+
+// A fish in the chrome — the almanac, the trophy case and its shelves, the club records, the
+// derby board — is the in-game pixel variant, drawn one file pixel to one CSS pixel (its native
+// size, set here so the box has its shape before the art arrives), never scaled below that.
+function PixelFish({ species, className = '' }) {
+  const size = pixelFishSize(species);
+  return <FishIllustration species={species} variant="pixel" className={`chrome-fish ${className}`} style={size ? { width: `${size.w}px`, height: `${size.h}px` } : undefined} />;
+}
+
+// A board's state as a class: done and settled (turned in, or a quest that pays in a new ground
+// rather than points) is `is-done`, the mint ring; done and waiting to be turned in is
+// `is-claimable`, the gold ring — they used to wear the same mint ring, so a bounty you had already
+// cashed looked like one still owed.
+function questClass(quest, state) {
+  if (!state?.done) return '';
+  return state.claimed || !quest?.reward?.points ? 'is-done' : 'is-claimable';
+}
 
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
 // and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
@@ -70,6 +91,9 @@ export default function FishingGame({ clock = () => new Date() }) {
     const timer = setTimeout(() => setSplash(false), SPLASH_MS);
     return () => clearTimeout(timer);
   }, [loading]);
+  // The pixel fish load as a chunk of their own; fetch it now so a landed fish and the almanac
+  // draw on their first frame.
+  useEffect(() => { preloadPixelFish(); }, []);
   const [phase, setPhase] = useState('ready');
   const [overlay, setOverlay] = useState(null);
   const [biome, setBiome] = useState('river');
@@ -705,24 +729,28 @@ export default function FishingGame({ clock = () => new Date() }) {
     casting: flyOn ? 'Tap to stop the cast on the rise.' : 'Tap to stop the cast in the sweet spot.',
     waiting: waitingCallout,
     hookset: 'FISH ON! Tap to set the hook!',
-    reeling: 'Hold to reel — keep the fish in the glowing zone.',
+    reeling: 'Hold to reel — keep the fish inside the frame.',
   }[phase] || '';
   const tensionPct = phase === 'reeling' ? (reelDisplay.tension / tensionMaxRef.current) * 100 : 0;
   const almanacCaught = Object.keys(records).filter((species) => rarityOf(species) !== 'junk').length;
   const grades = gradeCounts(records);
 
+  // The loading screen is already the game: the same log frame and deck, the logo on its own art
+  // pixel, and a plank sign for the wait.
   if (loading) return <main className="content-shell game-page">
-    <div className="game-loading">
-      <img className="game-logo" src={GAME_LOGO} alt="Cast & Catch" />
-      <div className="game-loading-row"><img className="game-loading-box" src={TACKLE_BOX} alt="" /><p className="month-empty">Loading your tackle box...</p></div>
+    <div className="game-frame is-loading" data-period={period}>
+      <div className="game-loading">
+        <img className="game-logo" src={GAME_LOGO_PIXEL} alt="Cast & Catch" width={GAME_LOGO_SIZE.w} height={GAME_LOGO_SIZE.h} />
+        <p className="game-loading-sign"><img className="game-loading-box" src={TACKLE_BOX} alt="" />Loading your tackle box...</p>
+      </div>
     </div>
   </main>;
 
   return <main className="content-shell game-page">
-    <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`}>
+    <div className={`game-frame is-${phase} ${overlay ? 'has-overlay' : ''}`} data-period={period}>
       <div className="game-body">
       <div className="game-stage">
-      {splash && <div className="game-splash" aria-hidden="true"><img src={GAME_LOGO} alt="" /></div>}
+      {splash && <div className="game-splash" aria-hidden="true"><img src={GAME_LOGO_PIXEL} alt="" width={GAME_LOGO_SIZE.w} height={GAME_LOGO_SIZE.h} /></div>}
       <GameScene
         biome={biome}
         phase={phase}
@@ -804,12 +832,12 @@ export default function FishingGame({ clock = () => new Date() }) {
             <div><strong>You won last week's derby!</strong><span>Biggest {speciesLabel(derbyWin.species).toLowerCase()} in the club{derbyWin.sizeIn ? ` at ${sizeLabel(derbyWin.sizeIn)}` : ''}. The Golden Pennant flies from your rod all week.</span></div>
           </div>}
           <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, charterError, phase, period, quests, champion, justWon: derbyWin, flyRod: hasFlyRod(gameProfile), lure })} compact />
-          <button className="button button-primary dock-cast" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'} <span>→</span></button>
+          <button className="button button-primary dock-cast" type="button" aria-label="Cast" disabled={castBusy} onClick={startCast}>{castBusy ? 'Chartering...' : 'Cast'}<img className="sign-glyph" src={UI_GLYPHS.arrow} alt="" /></button>
         </div>}
 
         {phase === 'casting' && <div className="game-panel is-play">
           <p>Stop it in the sweet spot for a bonus.</p>
-          <button className="button button-primary" type="button" onClick={stopCast}>Cast! <span>⚓</span></button>
+          <button className="button button-primary" type="button" onClick={stopCast}>Cast!</button>
         </div>}
 
         {phase === 'waiting' && lureInteraction === 'wait' && <div className="game-panel is-play">
@@ -847,7 +875,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         </div>}
 
         {phase === 'reeling' && pendingCatch && <div className="game-panel is-play">
-          <p>Progress {Math.round(reelDisplay.progress)}% · tension {Math.round(tensionPct)}%</p>
+          <p className="reel-readout"><span>Reel <strong>{Math.round(reelDisplay.progress)}%</strong></span><span className={tensionPct >= 75 ? 'is-strained' : ''}>Line <strong>{Math.round(tensionPct)}%</strong></span></p>
           <button
             className="button button-primary game-reel-button"
             type="button"
@@ -871,7 +899,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             {result.completedWeekly?.map((slot) => <p key={slot} className="quest-complete">Bounty done: <strong>{weekly.bounties.find((bounty) => bounty.slot === slot)?.title}</strong> — turn it in at Ray's board.</p>)}
           </> : <h3>{result.message}</h3>}
           {(biomeConfig.charterCost > 0 || result.isRecord || result.rarity === 'junk') && <NpcDialogue npc="captain" line={captainLine({ biome, chartered, season, phase, result, period, quests, isRecord: result.isRecord })} compact />}
-          <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock <span>→</span></button>
+          <button className="button button-primary" type="button" aria-label="Back to the dock" onClick={returnToReady}>Back to the dock<img className="sign-glyph" src={UI_GLYPHS.arrow} alt="" /></button>
         </div>}
       </div>
 
@@ -909,7 +937,6 @@ export default function FishingGame({ clock = () => new Date() }) {
 
       {overlay === 'crew' && <GameOverlay eyebrow="Who's out" title="On the water" onClose={() => setOverlay(null)}>
         <div className="dock-crew" role="group" aria-label="On the water now">
-          <span className="dock-crew-label">On the water</span>
           <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
             <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
             <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
@@ -942,7 +969,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <ul className="quest-list">
             {weekly.bounties.map((bounty) => {
               const status = bountyStatus(bounty, gameProfile.weekly, clock());
-              return <li key={bounty.slot} className={`quest-row is-weekly ${status.done ? 'is-done' : ''}`} data-bounty={bounty.slot}>
+              return <li key={bounty.slot} className={`quest-row is-weekly ${questClass({ reward: { points: bounty.points } }, status)}`} data-bounty={bounty.slot}>
                 <span className="quest-title">{bounty.title}</span>
                 <span className="quest-progress">{status.claimed ? 'Turned in' : status.done ? 'Done — turn it in' : `${status.progress} / ${bounty.goal.count}`}</span>
                 <p className="quest-goal"><strong>To do:</strong> {weeklyGoalLabel(bounty)} <strong>Reward:</strong> {bounty.points} tackle points and a stamp.</p>
@@ -953,7 +980,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           {(gameProfile.bounty_stamps || 0) > 0 && <p className="dock-hint">{gameProfile.bounty_stamps} bounty stamp{gameProfile.bounty_stamps === 1 ? '' : 's'} in the case.</p>}
         </section>
         {captainQuests.length > 0 && <ul className="quest-list" aria-label="Cap'n Ray's quests">
-          {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
+          {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questClass(quest, questState(quests, quest.key))}`}>
             <span className="quest-title">{quest.title}</span>
             <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
             <p className="quest-brief">{quest.brief} <em>{quest.hint}</em></p>
@@ -978,7 +1005,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <strong>{track.label}</strong>
               <span className="upgrade-level">LV {level}{maxed ? ' · MAX' : ''}</span>
               <p>{track.blurb}</p>
-              {rebuilt > 0 && <span className="upgrade-rebuilt" title={`Rebuilt ${rebuilt} time${rebuilt === 1 ? '' : 's'}: plays ${rebuilt * 0.5} levels above its number`}>{'★'.repeat(rebuilt)}</span>}
+              {rebuilt > 0 && <span className="upgrade-rebuilt" title={`Rebuilt ${rebuilt} time${rebuilt === 1 ? '' : 's'}: plays ${rebuilt * 0.5} levels above its number`}>{Array.from({ length: rebuilt }, (_, index) => <img key={index} className="chrome-glyph" src={UI_GLYPHS.star} alt="★" />)}</span>}
               {maxed && rebuilt < MAX_REBUILDS
                 ? <button className="button button-quiet is-rebuild" type="button" disabled={upgradeBusy} onClick={() => handleRebuild(track.key)}>{`Rebuild · ${rebuildCost(rebuilt)} pts`}</button>
                 : <button className="button button-quiet" type="button" disabled={maxed || upgradeBusy} onClick={() => handleUpgrade(track.key)}>{maxed ? 'Rebuilt out' : `Upgrade · ${cost} pts`}</button>}
@@ -995,7 +1022,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <span className="eyebrow">SAL'S WALL</span>
             {shopQuests.map((quest) => {
               const state = questState(quests, quest.key);
-              return <div className={`quest-card ${state.done ? 'is-done' : ''}`} key={quest.key}>
+              return <div className={`quest-card ${questClass(quest, state)}`} key={quest.key}>
                 <strong>{quest.title}</strong>
                 <p>{quest.brief} <em>{quest.hint}</em></p>
                 <p className="quest-goal"><strong>To do:</strong> {questGoalLabel(quest, quests)} <strong>Reward:</strong> {questRewardLabel(quest)}.</p>
@@ -1011,7 +1038,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <strong>{FLY_ROD.label}</strong>
               <p>{FLY_ROD.blurb}</p>
               {gameProfile.fly_rod
-                ? <span className="quest-progress">Owned · flies are on the dock at the river, the lake and the flats</span>
+                ? <p className="fly-rod-owned"><strong>Owned</strong> The flies are on the dock at the river, the lake and the flats.</p>
                 : <button type="button" className="button button-quiet" disabled={flyRodBusy} onClick={handleFlyRodPurchase}>Buy · {FLY_ROD.cost} pts</button>}
             </div>
           </section>
@@ -1028,7 +1055,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         <p className="dock-hint">Lures are on the dock — pick one there, or unlock it from its chip.</p>
       </GameOverlay>}
 
-      {overlay === 'outfitter' && <GameOverlay eyebrow="Marina's Outfitters" title="Apparel" backdrop={outfitterBackdrop} onClose={() => setOverlay(null)}>
+      {overlay === 'outfitter' && <GameOverlay eyebrow="Marina's Outfitters" title="Apparel" backdrop={outfitterBackdrop} scrim={DARK_ROOM_SCRIM} onClose={() => setOverlay(null)}>
         <NpcDialogue npc="outfitter" line={outfitterLine({ gameProfile, event: outfitEvent })} />
         <div className="outfit-fitting">
           <div className="outfit-preview"><AnglerPreview look={look} /><span className="eyebrow">YOU</span></div>
@@ -1074,7 +1101,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         </section>)}
       </GameOverlay>}
 
-      {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
+      {overlay === 'almanac' && <GameOverlay eyebrow="Field guide" title="Almanac" backdrop={trophyWallBackdrop} scrim={DARK_ROOM_SCRIM} onClose={() => setOverlay(null)}>
         <p className="almanac-progress"><strong>{almanacCaught}</strong> of <strong>{almanacTotal}</strong> species landed — {grades.gold} gold, {grades.silver} silver, {grades.bronze} bronze. A record past the middle of a species' size range is silver, near the top gold. {period === 'night' ? 'Night feeders are marked.' : 'Some only feed after dark.'} It's {SEASON_LABELS[season].toLowerCase()}: fish that are only in for part of the year say when.</p>
         {BIOME_LIST.map((ground) => {
           const unlocked = biomeUnlocked(ground.key, quests);
@@ -1087,13 +1114,13 @@ export default function FishingGame({ clock = () => new Date() }) {
                 const seasons = SEASONS[species];
                 const here = inSeason(species, season);
                 return <div key={species} className={`almanac-card ${record ? 'is-known' : 'is-unknown'} ${here ? '' : 'is-away'}`} data-species={species} data-in-season={here ? 'yes' : 'no'}>
-                  <FishIllustration species={species} />
+                  <PixelFish species={species} />
                   <strong>{record && unlocked ? speciesLabel(species) : '???'}</strong>
                   <span className="almanac-meta">
                     <i className="rarity-dot" style={{ background: RARITY_INFO[rarity].color }} title={RARITY_INFO[rarity].label} />
                     {record ? `Best ${sizeLabel(record.size_in)}` : RARITY_INFO[rarity].label}
                     {record && <i className={`grade-pip is-${sizeGrade(species, record.size_in)}`} title={`${GRADE_LABELS[sizeGrade(species, record.size_in)]} record`} data-grade={sizeGrade(species, record.size_in)} />}
-                    {NOCTURNAL.includes(species) && <em title="Feeds after dark"> ☾</em>}
+                    {NOCTURNAL.includes(species) && <img className="chrome-glyph almanac-night" src={UI_GLYPHS.moon} alt="Feeds after dark" title="Feeds after dark" />}
                     {species === derby.species && <img className="almanac-flag" src={DERBY_FLAG} alt="Derby target" />}
                   </span>
                   {seasons && <span className={`almanac-season ${here ? 'is-in' : 'is-away'}`}>{here ? `In now · ${seasons.map((name) => SEASON_LABELS[name].toLowerCase()).join(', ')}` : `Back in ${SEASON_LABELS[seasons[0]].toLowerCase()}`}</span>}
@@ -1104,7 +1131,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         })}
       </GameOverlay>}
 
-      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game bests" backdrop={trophyWallBackdrop} onClose={() => setOverlay(null)}>
+      {overlay === 'trophies' && <GameOverlay eyebrow="Trophy case" title="Real bests and game bests" backdrop={trophyWallBackdrop} scrim={DARK_ROOM_SCRIM} onClose={() => setOverlay(null)}>
         <section className="derby-board" aria-label="Club derby">
           <div className="derby-head">
             <img src={DERBY_FLAG} alt="" />
@@ -1114,6 +1141,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <small>Found in {derby.grounds.map((ground) => BIOMES[ground].label).join(', ')}. Resets Monday.</small>
               <p className="derby-prize"><span className="derby-prize-flag" style={{ backgroundImage: `url(${GOLDEN_PENNANT.src})`, backgroundSize: `${GOLDEN_PENNANT.frames * 100}% 100%` }} /><strong>Prize: {PENNANT_PRIZE.name}.</strong> {PENNANT_PRIZE.blurb}{champion ? ' You are the defending champion.' : ''}</p>
             </div>
+            <PixelFish species={derby.species} className="derby-fish" />
           </div>
           {derbyLeaders === null && <p className="month-empty">Checking the board...</p>}
           {derbyLeaders?.length === 0 && <p className="month-empty">Nobody has landed one yet this week. First on the board wins bragging rights.</p>}
@@ -1132,7 +1160,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           {clubRecords?.length === 0 && <p className="month-empty">No club records yet. The first of each species to be landed takes it.</p>}
           {clubRecords?.length > 0 && <ul>
             {clubRecords.map((row) => <li key={row.species} className={`club-record ${row.userId === profile?.id ? 'is-me' : ''}`} data-species={row.species}>
-              <FishIllustration species={row.species} />
+              <PixelFish species={row.species} />
               <div>
                 <strong>{speciesLabel(row.species)}</strong>
                 <span>{sizeLabel(row.sizeIn)} · {row.userId === profile?.id ? 'yours' : row.anglerName}</span>
@@ -1145,7 +1173,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <span className="eyebrow">FISH TAGS · {gameProfile.tags.length}</span>
           <p className="tag-shelf-note">Fish another member caught before you did. One in twenty-five carries a tag.</p>
           <ul>
-            {[...gameProfile.tags].reverse().map((tag, index) => <li key={`${tag.catch_id || index}`} className="fish-tag"><FishIllustration species={tag.species} /><strong>{speciesLabel(tag.species)}</strong><span>{tag.from}'s, {new Date(tag.at).toLocaleDateString()}</span></li>)}
+            {[...gameProfile.tags].reverse().map((tag, index) => <li key={`${tag.catch_id || index}`} className="fish-tag"><PixelFish species={tag.species} /><strong>{speciesLabel(tag.species)}</strong><span>{tag.from}'s, {new Date(tag.at).toLocaleDateString()}</span></li>)}
           </ul>
         </section>}
         <section className="junk-shelf" aria-label="Flotsam shelf">
@@ -1153,7 +1181,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <ul>
             {[...new Set(JUNK_ROSTER)].map((piece) => {
               const found = (gameProfile.junk_found || []).includes(piece);
-              return <li key={piece} className={`junk-card ${found ? 'is-found' : 'is-unknown'}`} data-junk={piece}><FishIllustration species={piece} /><strong>{found ? speciesLabel(piece) : '???'}</strong></li>;
+              return <li key={piece} className={`junk-card ${found ? 'is-found' : 'is-unknown'}`} data-junk={piece}><PixelFish species={piece} /><strong>{found ? speciesLabel(piece) : '???'}</strong></li>;
             })}
           </ul>
         </section>
@@ -1169,16 +1197,16 @@ export default function FishingGame({ clock = () => new Date() }) {
         </section>}
         {trophies.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
-            {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <FishIllustration species={entry.icon} />}
+            {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <PixelFish species={entry.icon} />}
             <span className="rarity-tag is-real">Real PB</span>
-            <strong>{entry.species}</strong>
-            <span>{entry.sizeLabel || 'Logged for real'}</span>
+            <strong className="trophy-name">{entry.species}</strong>
+            <span className="trophy-size">{entry.sizeLabel || 'Logged for real'}</span>
           </div>)}
           {trophies.map((entry) => <div className="trophy-card" key={entry.id}>
-            <FishIllustration species={entry.species} />
+            <PixelFish species={entry.species} />
             <span className="rarity-tag" style={{ background: RARITY_INFO[entry.rarity]?.color, color: RARITY_INFO[entry.rarity]?.text }}>{RARITY_INFO[entry.rarity]?.label || entry.rarity}</span>
-            <strong>{speciesLabel(entry.species)}</strong>
-            <span>{entry.size_label}{entry.points_earned == null ? '' : ` · +${entry.points_earned} pts`}</span>
+            <strong className="trophy-name">{speciesLabel(entry.species)}</strong>
+            <span className="trophy-size">{entry.size_label}{entry.points_earned == null ? '' : ` · +${entry.points_earned} pts`}</span>
             {sizeGrade(entry.species, entry.size_in) && <span className={`grade-tag is-${sizeGrade(entry.species, entry.size_in)}`}>{GRADE_LABELS[sizeGrade(entry.species, entry.size_in)]}</span>}
           </div>)}
         </div>}

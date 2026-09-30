@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import pike from '../assets/fish/pike.png';
 import trout from '../assets/fish/trout.png';
 import largemouth from '../assets/fish/largemouth.png';
@@ -93,6 +93,7 @@ import giantseabass from '../assets/fish/giantseabass.png';
 import stripedmarlin from '../assets/fish/stripedmarlin.png';
 import corvina from '../assets/fish/corvina.png';
 import sierra from '../assets/fish/sierra.png';
+import PIXEL_SIZES from '../assets/fish/pixel/sizes.json';
 
 // Bold neon-outline sticker art, each one its own dedicated render (never a crop pulled out
 // of a shared multi-fish reference sheet — those were lower resolution and occasionally
@@ -199,7 +200,71 @@ const fishDetails = {
 
 export const HERO_SPECIES = Object.keys(fishDetails);
 
-export default function FishIllustration({ species, className = '', style }) {
+// The in-game variant: every sticker again at the game world's art pixel (scripts/pixelFish.mjs
+// writes them and the manifest) with a one-pixel keyline, #e3fb14 ring and outer keyline, drawn
+// at a length that follows its species' typical size — 38 art pixels for the smallest panfish to
+// 120 for a marlin, on one compressed log scale (lengthFor in the script), never past
+// PIXEL_FISH_BOX. Drawn one file pixel to one art pixel (ART_PX painting units) it sits on the
+// stage like the angler, so a bluegill held up beside him is under half his height and a marlin
+// fills the reveal; the site keeps the stickers.
+//
+// The files are small enough that the build inlines every one — about 200 kB gzipped for the
+// set — so they are kept out of the site's bundle: they load as a chunk of their own the first
+// time a pixel variant is drawn, and the game calls preloadPixelFish() when it opens, so by the
+// time a fish is landed the reveal draws at once. Their sizes are here from the start
+// (sizes.json), so a box can be laid out before the art arrives.
+// The largest any variant is drawn (a billfish's length, a deep fish's height).
+export const PIXEL_FISH_BOX = { w: 120, h: 72 };
+
+// The pixel variant's native size in art pixels, or null when the species has none.
+export function pixelFishSize(species) {
+  const size = PIXEL_SIZES[species];
+  return size ? { w: size[0], h: size[1] } : null;
+}
+
+// A load that fails (a dropped connection, a deploy that replaced the chunk mid-visit) is not
+// kept: the promise rejects for whoever asked, and the next call tries the chunk again.
+let pixelFish = null;
+let pixelLoad = null;
+export function preloadPixelFish() {
+  if (!pixelLoad) {
+    pixelLoad = import('../assets/fish/pixel').then(
+      (module) => { pixelFish = module.PIXEL_FISH; return pixelFish; },
+      (error) => { pixelLoad = null; throw error; },
+    );
+  }
+  return pixelLoad;
+}
+
+// A transparent pixel, so a pixel variant's box stays empty (not a broken image) for the moment
+// before its chunk arrives.
+const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+// variant="pixel" draws the pixel variant (pixelated, data-variant="pixel", with its native
+// size as width/height so the box keeps its shape before it loads); a species without one, or a
+// fish drawn when the pixel chunk failed to load, gets the sticker (data-variant="sticker").
+// Without a variant nothing changes.
+export default function FishIllustration({ species, className = '', style, variant }) {
   const fish = fishDetails[species] || fishDetails.trout;
+  const size = variant === 'pixel' ? PIXEL_SIZES[species] : null;
+  const [art, setArt] = useState(pixelFish);
+  // The chunk failed to arrive: this one draws the sticker (the next fish mounted tries again).
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!size || art || failed) return undefined;
+    let live = true;
+    preloadPixelFish().then(
+      (loaded) => { if (live) setArt(loaded); },
+      () => { if (live) setFailed(true); },
+    );
+    return () => { live = false; };
+  }, [size, art, failed]);
+  if (variant === 'pixel') {
+    if (size && !failed) {
+      const src = art?.[species]?.src;
+      return <img className={`fish-illustration is-pixel ${className}`} data-species={species} data-variant="pixel" data-loading={src ? undefined : 'yes'} src={src || BLANK} alt={fish.label} width={size[0]} height={size[1]} style={{ imageRendering: 'pixelated', ...style }} />;
+    }
+    return <img className={`fish-illustration ${className}`} data-species={species} data-variant="sticker" src={fish.src} alt={fish.label} style={style} />;
+  }
   return <img className={`fish-illustration ${className}`} data-species={species} src={fish.src} alt={fish.label} style={style} />;
 }

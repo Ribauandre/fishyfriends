@@ -1,0 +1,15 @@
+# The nymph, 12 x 6 art pixels, hook eye to the left: a gold bead head, a brown ribbed body
+# and the hook bend under it.
+K #130f0c
+y #f2c94a
+Y #c99a2a
+a #8d5a2e
+b #6b4020
+r #b98a52
+
+.KK.........
+KyyKKKKKKK..
+KYyKraraabKK
+.KKKbbbbbbbK
+....KKKKKKKK
+..........K.

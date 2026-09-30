@@ -1,0 +1,45 @@
+# Dock decoration: the rod rack. 19 x 27 art pixels (36 painting units tall). A green-painted
+# backboard and base (the angler's cap green) with three rods standing in front of it, so it
+# reads as a solid thing against the brown dock and the painted crates rather than as a wire
+# frame of brown sticks: red, blue and yellow blanks, cork grips, grey reels. Light from the
+# top left, one-pixel keyline, each rod a coloured core between two lines of keyline like his.
+K #130f0c
+g #3a9a68
+G #22754d
+h #15503a
+r #c4462a
+b #3f73b8
+y #dcaa3c
+c #ebc088
+C #bd8a52
+m #e3e8e8
+n #a2abae
+o #636b70
+
+.........K.........
+........KbK...K....
+....K...KbK..KyK...
+...KrK..KbK..KyK...
+...KrK..KbK..KyK...
+...KrK..KbK..KyK...
+KKKKrKKKKbKKKKyKKKK
+KggKrKggKbKggKyKggK
+KgGKrKGGKbKGGKyKGhK
+KgGKrKGGKbKGGKyKGhK
+KgGKrKGGKbKGGKyKGhK
+KKKKrKGGKbKKKKyKKKK
+KmnKrKGGKbKmnKyKmnK
+KnoKrKGGKbKnoKyKnoK
+KKKKrKGGKbKKKKyKKKK
+KgGKrKGGKbKGGKyKGhK
+KgGKcKGGKcKGGKcKGhK
+KgGKcKGGKcKGGKcKGhK
+KgGKCKGGKCKGGKCKGhK
+KgGKCKGGKCKGGKCKGhK
+KKKKKKKKKKKKKKKKKKK
+KgggggggggggggggggK
+KGGGGGGGGGGGGGGGGhK
+KhhhhhhhhhhhhhhhhhK
+KGGGGGGGGGGGGGGGGhK
+KGGGGGGGGGGGGGGGGhK
+KKKKKKKKKKKKKKKKKKK

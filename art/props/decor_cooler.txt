@@ -1,0 +1,26 @@
+# Dock decoration: the cooler. 21 x 15 art pixels (20 painting units tall), light from the top
+# left, one-pixel keyline. The lid is the angler's jeans blue, the body his shirt's cream.
+K #130f0c
+a #8fbde0
+b #5b93c8
+c #3a6ea6
+d #24538d
+w #f4efe4
+v #dcd6c9
+s #b3aea2
+
+...KKKKKKKKKKKKKKK...
+..KaaaaaaaaaaaaaabK..
+.KabbbbbbbbbbbbbbbcK.
+.KcccccccccccccccccK.
+.KdddddddddddddddddK.
+KKwwwwwwwdddwwwwwvsKK
+KdwwwwwwwwdwwwwwwvsdK
+KdwwwwwwwwwwwwwwwvsdK
+KKwwwwwwwwwwwwwwwvsKK
+.KwwwwwwwwwwwwwwwvsK.
+.KwwwwwwwwwwwwwwwvsK.
+.KwwwwwwwwwwwwwwwvsK.
+.KwwwwwwwwwwwwwwwvsK.
+.KvvvvvvvvvvvvvvvvsK.
+.KKKKKKKKKKKKKKKKKKK.

@@ -1,0 +1,50 @@
+# The golden pennant the derby champion flies from the rod tip: three flutter frames of 18 x 12
+# art pixels (24 x 16 painting units, an aspect of 3:2 — the CSS drew the old 54 x 48 frames at
+# 1.55 and stretched them 1.38 times). Gold, with the club emblem (the nine-by-five fish on the
+# club flag and the derby flag) riding a ripple that runs to the swallow-tail; hoisted along
+# its left edge.
+K #130f0c
+a #ffd966
+b #f2b632
+c #c98a1c
+f #5a3a14
+e #f2b632
+
+.KKKKK............
+KbbbbcKKKKKK......
+KbbbbcbabbcbKKKKK.
+KbbbbcbafffbabbcbK
+KbbbfcffffffabbcK.
+KbbbffffffeffbbK..
+KbbbfcffffffabbK..
+KbbbbcbafffbabbcK.
+KbbbbcbabbcbaccccK
+KbbbbccaccccKKKKK.
+KcccccKKKKKK......
+.KKKKK............
+---
+.KKKKK............
+KbbbbbKKKKKK.KKKK.
+KbbbbbbcbabbKbabbK
+KbbbbbbcfffbcbabK.
+KbbbfbffffffcbaK..
+KbbbffffffeffbaK..
+KbbbfbffffffcbabK.
+KbbbbbbcfffbccaccK
+KbbbbbbcbabbcKKKK.
+KbbbbbcccaccK.....
+KcccccKKKKKK......
+.KKKKK............
+---
+.KKKKK............
+KbbbbbKKKKKK......
+KbbbbbbbbcbaK.....
+KbbbbbbbfffabKKKK.
+KbbbfbffffffbbcbaK
+KbbbffffffeffbcbK.
+KbbbfbffffffbbcK..
+KbbbbbbbfffabbcK..
+KbbbbbbbbcbacbcbK.
+KbbbbbcccccaKcccaK
+KcccccKKKKKK.KKKK.
+.KKKKK............

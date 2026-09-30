@@ -20,13 +20,19 @@
 // (attached to his hand) and drops all the rest.
 //
 // Frames are hung on the feet, not the cell, so a pose never bobs; `strips.json` records the
-// shared box and `SPRITE_FRAME` in anglerSprites.js must match it.
+// shared box.
+//
+// This writes the strips at the resolution the artist drew into art/angler/, beside the part
+// masks scripts/anglerPixelMasks.mjs makes from them, and neither is what the game draws: both go
+// through scripts/anglerGrid.mjs, which puts them in lock-step onto the world's art pixel and
+// writes src/assets/angler/, whose strips.json `SPRITE_FRAME` in anglerSprites.js must match.
+// Run the three in that order.
 
 import { readPng, writePng } from './png.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 const SHEET = new URL('../art/angler-pixel-sheet.png', import.meta.url).pathname;
-const OUT = new URL('../src/assets/angler/', import.meta.url).pathname;
+const OUT = new URL('../art/angler/', import.meta.url).pathname;
 const ROWS = ['idle', 'walk', 'cast', 'reel', 'celebrate'];
 const ON = 128;
 

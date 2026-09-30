@@ -3,6 +3,7 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import FishingGame from './FishingGame';
 import { SPECIES_SIZE } from './utils/gameSpecies';
+import { pixelFishSize } from './components/FishIllustration';
 import { weeklyFor } from './utils/gameWeekly';
 import { useAuth } from './context/AuthContext';
 import { stepReel } from './utils/reelPhysics';
@@ -81,12 +82,15 @@ afterEach(() => {
 test('shows a loading state, then one game frame with the shop and trophy case as overlays', async () => {
   render(<FishingGame clock={NOON} />);
   expect(screen.getByText(/loading your tackle box/i)).toBeInTheDocument();
-  // The game's logo is on the loading screen...
-  expect(screen.getByAltText('Cast & Catch')).toHaveAttribute('src', expect.stringContaining('logo'));
+  // The game's logo is on the loading screen — the pixel logo, inside the game's own frame...
+  expect(screen.getByAltText('Cast & Catch')).toHaveAttribute('src', expect.stringContaining('logo_pixel'));
+  expect(screen.getByAltText('Cast & Catch').closest('.game-frame')).toHaveClass('is-loading');
   await act(async () => { await Promise.resolve(); });
   expect(screen.getByRole('button', { name: 'Cast' })).toBeInTheDocument();
   // ...and holds on the stage for a beat once the dock is up, without taking a tap.
-  expect(document.querySelector('.game-splash img')).toHaveAttribute('src', expect.stringContaining('logo'));
+  expect(document.querySelector('.game-splash img')).toHaveAttribute('src', expect.stringContaining('logo_pixel'));
+  // The frame knows the hour, so the deck can go under the night with the stage.
+  expect(document.querySelector('.game-frame')).toHaveAttribute('data-period', 'day');
   await advance(1800);
   expect(document.querySelector('.game-splash')).toBeNull();
   expect(screen.getByLabelText('100 tackle points')).toBeInTheDocument();
@@ -153,7 +157,10 @@ test('a maxed track can be rebuilt for a permanent bonus, and the charter club m
   await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
   expect(screen.getByText(/strip a track down and rebuild it better/i)).toBeInTheDocument();
   // The rod, rebuilt once, wears its star and offers the second rebuild at a higher price.
-  expect(screen.getByTitle(/rebuilt 1 time/i)).toHaveTextContent('★');
+  // (the star is the chrome's pixel glyph, not the ★ character).
+  const stars = screen.getByTitle(/rebuilt 1 time/i).querySelectorAll('img.chrome-glyph');
+  expect(stars).toHaveLength(1);
+  expect(stars[0]).toHaveAttribute('src', expect.stringContaining('star'));
   expect(screen.getByRole('button', { name: 'Rebuild · 2000 pts' })).toBeInTheDocument();
   await userEvent.click(screen.getAllByRole('button', { name: 'Rebuild · 1500 pts' })[0]);
   expect(rebuildTrack).toHaveBeenCalledWith('line');
@@ -183,6 +190,57 @@ test('the almanac grades records and the trophy case keeps the tag and flotsam s
   expect(screen.getByText(/flotsam shelf · 1 \/ 4/i)).toBeInTheDocument();
   expect(document.querySelector('.junk-card[data-junk="boot"]')).toHaveClass('is-found');
   expect(document.querySelector('.junk-card[data-junk="bottle"]')).toHaveClass('is-unknown');
+  // The size line and the grade tag each have their own class: the size line used to be styled
+  // as a :last-child, so a grade tag after it dropped it from 10px to 16px and took its colour
+  // (cream on silver and gold, about 1:1).
+  const card = document.querySelector('.trophy-card:not(.is-real)');
+  expect(card.querySelector('.trophy-size')).toHaveTextContent('12.0 in · +6 pts');
+  expect(card.querySelector('.trophy-name')).toHaveTextContent('Bluegill');
+  expect(card.querySelector('.grade-tag.is-gold')).toHaveTextContent('Gold');
+});
+
+// Every fish in the chrome is the in-game pixel variant, drawn at its own size (one file pixel
+// to one CSS pixel): the almanac, the trophy wall, the club records, the derby, the tag and
+// flotsam shelves. The site keeps the stickers.
+test('the almanac, the trophy case and its shelves show the pixel fish at their own size', async () => {
+  const profileData = makeGameProfile({ records: { walleye: { size_in: 22, catch_id: 'c1' } }, tags: [{ species: 'pike', from: 'Kevin', at: '2026-09-01T12:00:00Z', catch_id: 'k1' }], junk_found: ['boot'] });
+  useAuth.mockReturnValue(makeBaseAuth({
+    getGameProfile: jest.fn().mockResolvedValue(profileData),
+    listMyTrophies: jest.fn().mockResolvedValue([{ id: 'c1', species: 'walleye', rarity: 'rare', size_label: '22.0 in', size_in: 22, points_earned: 40 }]),
+    listClubRecords: jest.fn().mockResolvedValue([{ species: 'smallmouth', sizeIn: 21, userId: 'u2', anglerName: 'Kevin' }]),
+  }));
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  const isPixelAtOwnSize = (img, species) => {
+    expect(img).toHaveAttribute('data-variant', 'pixel');
+    expect(img).toHaveAttribute('data-species', species);
+    const { w, h } = pixelFishSize(species);
+    expect(img.style.width).toBe(`${w}px`);
+    expect(img.style.height).toBe(`${h}px`);
+  };
+  await userEvent.click(screen.getByRole('button', { name: 'Almanac' }));
+  isPixelAtOwnSize(document.querySelector('.almanac-card[data-species="walleye"] img'), 'walleye');
+  isPixelAtOwnSize(document.querySelector('.almanac-card[data-species="pike"] img'), 'pike');
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  isPixelAtOwnSize(document.querySelector('.trophy-card img'), 'walleye');
+  isPixelAtOwnSize(document.querySelector('.fish-tag img'), 'pike');
+  isPixelAtOwnSize(document.querySelector('.junk-card[data-junk="boot"] img'), 'boot');
+  isPixelAtOwnSize(await screen.findByRole('img', { name: /smallmouth/i }), 'smallmouth');
+  expect(document.querySelector('.derby-head .derby-fish')).toHaveAttribute('data-variant', 'pixel');
+  expect(document.querySelectorAll('.game-overlay img.fish-illustration:not([data-variant="pixel"])')).toHaveLength(0);
+});
+
+// The rooms are dimmed by how bright they are: Sal's shop is a bright room, Marina's and the
+// trophy wall (behind the almanac too) are dark ones and take a lighter scrim.
+test('the dark rooms take a lighter scrim than the shop', async () => {
+  render(<FishingGame clock={NOON} />);
+  await act(async () => { await Promise.resolve(); });
+  await userEvent.click(screen.getByRole('button', { name: 'Shop' }));
+  expect(document.querySelector('.game-overlay-panel')).toHaveAttribute('data-scrim', '0.3 0.55');
+  await userEvent.click(screen.getByRole('button', { name: 'Trophies' }));
+  expect(document.querySelector('.game-overlay-panel')).toHaveAttribute('data-scrim', '0.15 0.45');
+  await userEvent.click(screen.getByRole('button', { name: 'Outfit' }));
+  expect(document.querySelector('.game-overlay-panel')).toHaveAttribute('data-scrim', '0.15 0.45');
 });
 
 test('the catch is up the moment it is landed, before the log answers, and a tap after a beat returns to the dock', async () => {
@@ -443,7 +501,7 @@ test('the fly rod is bought at Sal\'s, then the flies show on the dock at the ri
   await act(async () => { await Promise.resolve(); });
   expect(purchaseFlyRod).toHaveBeenCalledTimes(1);
   expect(screen.getByText(/match the hatch/i)).toBeInTheDocument();
-  expect(screen.getByText(/owned · flies are on the dock/i)).toBeInTheDocument();
+  expect(document.querySelector('.fly-rod-owned')).toHaveTextContent(/^Owned The flies are on the dock/);
   await userEvent.click(screen.getByRole('button', { name: /close tackle shop/i }));
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.getByRole('button', { name: /dry fly unlock · 40 pts/i })).toBeInTheDocument();
@@ -1001,10 +1059,15 @@ test("Ray's board carries this week's three bounties, counts a finished one on t
   expect(screen.getByRole('region', { name: /this week's bounties/i }).querySelectorAll('.quest-row.is-weekly').length).toBe(3);
   expect(screen.getByText(week.key, { exact: false })).toBeInTheDocument();
   expect(screen.getByText('2 bounty stamps in the case.')).toBeInTheDocument();
+  // A bounty waiting to be turned in wears the gold ring; one already cashed, the mint.
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).toHaveClass('is-claimable');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).not.toHaveClass('is-done');
   await userEvent.click(screen.getByRole('button', { name: `Turn in · ${ground.points} pts` }));
   expect(claimWeeklyBounty).toHaveBeenCalledWith('ground');
   expect(await screen.findByText('3 bounty stamps in the case.')).toBeInTheDocument();
   expect(document.querySelector('.quest-row[data-bounty="ground"] .quest-progress')).toHaveTextContent('Turned in');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).toHaveClass('is-done');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).not.toHaveClass('is-claimable');
   // Last week's progress is nobody's business this week.
   expect(document.querySelector('.quest-row[data-bounty="hours"] .quest-progress')).toHaveTextContent(`0 / ${week.bounties[2].goal.count}`);
 });

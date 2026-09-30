@@ -1,0 +1,16 @@
+# Live bait, a minnow on the hook, 13 x 6 art pixels, facing left. (The stage draws the bobber
+# for live bait; this completes the set.)
+K #130f0c
+a #bcd2dc
+b #6f8f9c
+s #eef2f2
+r #d65a3a
+y #f3d64e
+m #c9d0d2
+
+...KKKKKKK..K
+.KKbbbbbbbKKK
+KyKaaaaaaaKrK
+KKsssssssssKK
+.KKKKKKKKKK.K
+.....KmK.....

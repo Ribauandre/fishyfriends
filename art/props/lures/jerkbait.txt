@@ -1,0 +1,16 @@
+# The jerkbait on the water, 17 x 6 art pixels, facing left: a long minnow, blue back over
+# silver sides, a yellow eye, a small lip and a forked tail. Trebles under water, not drawn.
+K #130f0c
+a #9fc4e0
+b #4f7fb5
+s #e8eef0
+t #c3cdd2
+y #f3d64e
+l #cfe4ec
+
+...KKKKKKKKKKKK.K
+.KKbbbbbbbbbbbbKK
+KyKaaaaaaaaaaaaKK
+KKsssssssssssstKK
+KlKttttttttttttK.
+.KKKKKKKKKKKKKK..

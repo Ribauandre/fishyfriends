@@ -1,0 +1,18 @@
+# A rebuild's star on Sal's cards: gold with the world's keyline, 12 x 12 art pixels.
+K #130f0c
+Y #ffe08a
+y #ffc93c
+u #c98a1c
+
+.....KK.....
+....KYyK....
+....KYyK....
+KKKKKYyKKKKK
+KYYYYyyyyyuK
+.KyyyyyyyuK.
+..KyyyyyuK..
+..KyyyyyuK..
+.KyyyKKyyuK.
+.KyuK..KyuK.
+.KKK....KKK.
+............
