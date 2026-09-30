@@ -9,6 +9,15 @@
 // (viewW x 270), which is what GameScene draws in. Pure, so the geometry is testable.
 export const PAINT_W = 480;
 export const PAINT_H = 270;
+// One art pixel for the whole world: every raster on the stage — the painting, the angler, the
+// pets, the props, the critters — is stored at its native art resolution and drawn at
+// rows x ART_PX painting units, pixelated, so a pixel on the angler is the same size as a pixel
+// on the dock he stands on. The painting is 360 art pixels across (WORLD_COLS).
+export const ART_PX = 4 / 3;
+export const WORLD_COLS = PAINT_W / ART_PX;
+// Rounds a painting-unit position onto the art grid, so a sprite's blocks line up with the
+// painting's instead of straddling them.
+export const snapArt = (p) => Math.round(Math.round(p / ART_PX) * ART_PX * 100) / 100;
 export const VIEW_W_MIN = 300;
 export const VIEW_W_MAX = 960;
 

@@ -4,6 +4,7 @@
   --deep: #03080b; --glow: rgba(227, 251, 20, .18);
   --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --font-head: 'Oswald', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
+  --font-pixel: 'Pixelify Sans', 'Oswald', 'Arial Narrow', sans-serif;
   /* Screenprint/sticker-sheet textures: halftone dots and hard diagonal rule stripes, to
      match the crisp vector sticker art rather than the painterly turbulence noise the
      hand-drawn SVG fish used to sit on. */
