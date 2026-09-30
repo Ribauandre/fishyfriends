@@ -1,0 +1,19 @@
+# The crankbait on the water, 16 x 8 art pixels, facing left: the line ties on at the nose and
+# runs back to the rod. Orange over a cream belly, a big yellow eye and a clear diving lip. The
+# trebles hang under water and are not drawn (on the icon they are dark wire, not white blocks).
+K #130f0c
+a #f7a64a
+b #e27322
+c #b04e16
+w #f6d79e
+y #f3d64e
+l #cfe4ec
+
+....KKKKKKKKK...
+..KKaaaaaaaaaKK.
+.KyyKaaaaaabbbbK
+.KyKKbbbbbbbbbcK
+KKKwwwwwwwwwwccK
+KllKwwwwwwwwccK.
+KllKKKKKKKKKKK..
+.KK.............

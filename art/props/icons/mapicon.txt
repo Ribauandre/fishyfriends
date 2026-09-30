@@ -1,0 +1,38 @@
+# The map: travel between grounds.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
+K #130f0c
+G #6fd08f
+P #fff3d6
+W #c08a55
+g #3fae6a
+h #247a48
+p #f2d9a6
+q #d9b27a
+r #e0533a
+v #74492a
+w #9c6a3e
+
+........................
+...KK...................
+..KWWKKKKKKKKKKKKKKKK...
+.KWwwWPPPPPPPPPPPPPPPK..
+.KWwvWpppppppppppppppqK.
+.KWwvWpppppppppprrpppqK.
+.KWwvWppppppppprpprppqK.
+.KWwvWpppppppppprrpppqK.
+.KWwvWppppppppprpprppqK.
+.KWwvWpppppppppqppqppqK.
+.KWwvWppppppppqppppppqK.
+.KWwvWpppppppqppppppqK..
+.KWwvWppppppqpppppppqK..
+.KWwvWpppqqqppppppppqK..
+.KWwvWppqpppppppppppqK..
+.KWwvWpqppppppppGGppqK..
+.KWwvWpqpppppppGgggpqqK.
+.KWwvWppppppppGgggghpqK.
+.KWwvWpppppppppgghhppqK.
+.KWwvWqqqqqqqqqqqqqqqqK.
+..KvvKKKKKKKKKKKKKKKKK..
+...KK...................
+........................
+........................
