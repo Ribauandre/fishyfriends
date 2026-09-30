@@ -139,9 +139,9 @@ test('every piece is pixel art: a hard-edged SVG in the painting\'s colours, ste
   expect(pieces.length).toBeGreaterThan(10);
   pieces.forEach((el) => {
     const svg = svgOf(el);
-    expect(svg).toMatch(/shape-rendering="crispEdges"/);
+    expect(svg).toMatch(/shape-rendering='crispEdges'/);
     // No pure white, no gradients, no blur.
-    expect(svg).not.toMatch(/#fff(fff)?"/i);
+    expect(svg).not.toMatch(/#fff(fff)?'/i);
     expect(svg).not.toMatch(/Gradient|feGaussianBlur/);
   });
   container.querySelectorAll('.scene-px[class*="amb-flip-"]').forEach((el) => {

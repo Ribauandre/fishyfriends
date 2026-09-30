@@ -35,7 +35,12 @@ const opacity = (p, palette) => r4((p.opacity ?? 1) * palette.strength);
 // on the painting's right edge sits there on every crop. The sky's clouds and gulls fly inside
 // the painting's own sky (a mask read off it), so they pass behind the lamp posts, the pines,
 // the peaks and the headland, never over them.
-export default function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
+//
+// Building the pieces' SVGs costs a few milliseconds, and GameScene renders on every tick of a
+// fight, so the layer only renders again when its own props change (they are all plain values).
+export default React.memo(SceneAmbience);
+
+function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
   const plan = planAmbience(biome, season, period);
   const { config, palette } = plan;
   const layout = layoutFor(biome, season);
@@ -44,9 +49,9 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
   const skyMask = config.sky ? maskUrl(config.sky) : null;
   const masked = (url) => (url ? { WebkitMaskImage: url, maskImage: url, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat' } : {});
   const cloudFilter = plan.clouds.length && config.cloudTones ? `scene-cloud-tones-${config.sceneKey.replace(/[^a-z]/g, '-')}` : null;
-  const flipPiece = (p, key, extra = '') => <span
+  const flipPiece = (p, key) => <span
     key={key}
-    className={`scene-px scene-${p.kind} amb-flip-${p.rhythm} ${extra}`}
+    className={`scene-px scene-${p.kind} amb-flip-${p.rhythm}`}
     style={{ ...box(p), ...flip(p, palette), opacity: opacity(p, palette) }}
   />;
   const tiles = plan.tiles;
@@ -97,7 +102,6 @@ export default function SceneAmbience({ biome, period = 'day', season = null, vi
     {plan.movers.map((p, index) => <span
       key={`mover-${index}`}
       className={`scene-mover is-${p.kind}`}
-      data-kind={p.kind}
       style={{ ...box(p), '--mx': `${r4((p.tx / p.w) * 100)}%`, '--my': `${r4((p.ty / p.h) * 100)}%` }}
     ><i style={{ animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${Math.max(1, Math.abs(p.tx))})` }}><b style={{
       backgroundImage: svgStrip(p.shape, palette),

@@ -94,7 +94,7 @@ const GULL_COUNT = { bay: 2, shoreline: 2, offshore: 3, canyon: 2, flats: 2, pie
 //   foam     — churn in one place: riffles at rocks, a wake, a rock the swell hits
 //   rings    — rises opening on still water
 //   bubbles  — mud gas surfacing
-//   mist     — dithered bands lying on the water
+//   mist     — bands of haze lying on the water
 //   moss     — strands hanging from the canopy
 //   grass    — marsh blades swaying at the bank
 //   fireflies — after dark only, over the water
@@ -190,7 +190,7 @@ const SCENES = {
     clip: [[240, 60], [480, 60], [480, 162], [240, 196]],
     moon: [330, 56, 382, 150],
     stars: [[212, 9.33], [116, 2.67], [440, 12]],
-    wash: { seconds: 8, reach: 12, beach: 1, line: [[0, 250], [40, 245], [80, 238], [120, 229], [160, 223], [200, 219], [240, 214], [280, 209], [320, 204], [360, 197], [400, 189], [440, 179], [480, 170]] },
+    wash: { seconds: 8, reach: 16, beach: 1, line: [[0, 250], [40, 245], [80, 238], [120, 229], [160, 223], [200, 219], [240, 214], [280, 209], [320, 204], [360, 197], [400, 189], [440, 179], [480, 170]] },
     waves: { seconds: 8, area: { x0: 250, x1: 480, y0: 95, y1: 155 }, rows: 3, perRow: 2, heading: 92, travel: 20, width: [40, 100] },
   },
   // Blue water: whitecaps breaking everywhere, and the stern wash churning at the transom.
@@ -243,7 +243,7 @@ const SCENES = {
     moon: [294, 50, 346, 122],
     stars: [[212, 10.67], [376, 8], [150, 30]],
     caps: { seconds: 5, area: { x0: 262, x1: 478, y0: 100, y1: 232 }, count: 9, width: [12, 34] },
-    wash: { seconds: 8, reach: 12, beach: 1, line: [[314, 262], [326, 252], [340, 246], [360, 239], [380, 232], [400, 228], [420, 224], [440, 216], [460, 207], [480, 202]] },
+    wash: { seconds: 8, reach: 16, beach: 1, line: [[314, 262], [326, 252], [340, 246], [360, 239], [380, 232], [400, 228], [420, 224], [440, 216], [460, 207], [480, 202]] },
     foam: { seconds: 1.5, spots: [[258, 262, 14], [158, 264, 12], [224, 236, 9]] },
   },
   // The marsh creek on the ebb: the channel bends down from the far bend past the dock and
@@ -312,9 +312,6 @@ const SKY = {
   canyon: '0:8-135,141-359;1:8-359;2:8-359;3:8-359;4:8-359;5:8-359;6:8-359;7:9-359;8:9-359;9:9-359;10:10-359;11:10-359;12:10-359;13:11-359;14:11-359;15:11-359;16:11-359;17:12-359;18:12-359;19:12-359;20:12-359;21:13-359;22:13-359;23:13-359;24:14-359;25:14-359;26:14-359;27:14-359;28:14-359;29:15-359;30:15-359;31:15-348;32:15-343;33:16-340;34:16-339;35:16-324;36:16-319;37:16-315;38:17-314;39:17-313;40:17-312;41:17-312;42:18-310;43:18-310;44:18-292,298-302,307-309;45:18-287;46:19-281;47:19-278;48:19-277;49:20-276;50:21-276;51:21-275;52:21-274;53:21-274;54:22-274;55:22-273;56:22-273;57:23-271;58:23-264;59:25-263;60:26-261;61:26-260;62:27-259;63:28-258;64:68-69,81-93,137-138,151-155,177-180,255-258',
 };
 
-// The layers that are a box rather than a list of things.
-export const LAYER_EFFECTS = ['caustics', 'snow'];
-
 export { sceneKeyFor };
 
 export function ambienceFor(biome, season = null) {
@@ -332,7 +329,7 @@ export function ambienceFor(biome, season = null) {
     critter,
     critters: critter === 'seagull' ? (GULL_COUNT[key] || 2) : dragonflies.length,
     // Sprite clouds cross the lanes the layout gives the painting's sky, unless the painting's
-    // own sky is full of its own (a sunset) or has none (a clear desert sky).
+    // sky is its own (see `cloud` above).
     clouds: scene.cloud ? layout.sky : [],
     gulls: layout.gulls,
     dragonflies,
@@ -365,8 +362,8 @@ export function paletteFor(biome, season = null, period = 'day') {
 
 // ---------------------------------------------------------------------------------------------
 // Pixel shapes. A shape is `cells`, one per flipbook frame, each a list of pixels [x, y, tone]
-// on a w x h grid of art pixels (a tone is a palette key); a dithered block is
-// ['dither', x, y, w, h, level, tone] (level 1 is a checker, 2 a quarter, 3 an eighth).
+// on a w x h grid of art pixels (a tone is a palette key, or a colour). Partial cover is
+// dithered — every other pixel, a scatter — never an alpha ramp.
 
 const shape = (w, h, cells) => ({ w, h, cells });
 
@@ -548,9 +545,10 @@ export function mistShape(w, h, seed, thin = false) {
 // turn — the fixed end never moves, the middle a pixel. `from` is the fixed end ('top' for
 // moss, 'bottom' for grass). A strand: its column from the clump's middle, its length, a lean
 // of its own at the free end (a tuft fans out), and whether it is two pixels wide (a shade
-// pixel beside it). `tones`: [free end, middle, fixed end, shade].
+// pixel beside it). `tones`: [free end, middle, fixed end, shade]; `ragged`, how often a strand
+// steps a pixel aside (moss is ragged, a blade of grass nearly straight).
 export const SWAY = [0, 1, 2, 1, 0, -1, -2, -1];
-export function swayShape(strands, seed, from, tones) {
+export function swayShape(strands, seed, from, tones, ragged = 0.14) {
   const h = Math.max(...strands.map((s) => s.length));
   const reach = Math.max(...strands.map((s) => Math.abs(s.col) + Math.abs(s.lean || 0) + (s.wide ? 1 : 0))) + 2;
   const w = reach * 2 + 1; const mid = reach;
@@ -562,7 +560,7 @@ export function swayShape(strands, seed, from, tones) {
         const y = from === 'top' ? i : h - 1 - i;
         const sway = Math.sign(a) * (t > 0.8 ? Math.abs(a) : t > 0.45 ? Math.min(1, Math.abs(a)) : 0);
         const own = Math.round((s.lean || 0) * t * t);
-        const jag = t > 0.2 && hash(seed, n, i) > 0.86 ? (hash(seed, n, i, 1) > 0.5 ? 1 : -1) : 0;
+        const jag = t > 0.2 && hash(seed, n, i) < ragged ? (hash(seed, n, i, 1) > 0.5 ? 1 : -1) : 0;
         const x = clamp(mid + s.col + own + sway + jag, 0, w - 1);
         px.push([x, y, t > 0.8 ? tones[0] : t > 0.3 ? tones[1] : tones[2]]);
         if (s.wide && t < 0.85) px.push([clamp(x + 1, 0, w - 1), y, tones[3]]);
@@ -738,13 +736,13 @@ export function planRings(biome, season = null) {
   });
 }
 
-// Surf running up the shore. The wet line is read off the painting as a polyline and drawn as
-// a pixel line of foam (the lip) with a dithered sheet of water behind it, and the whole line
-// runs up the beach a step at a time, holds, and drains back as it fades — one piece, so it
-// never shows a seam. A second, smaller one follows half a cycle behind. `beach` is the side
-// the sand is on (1 below the line, -1 above it).
-// A long run goes up in six steps, a short one (a thin beach) in three.
+// A long run up the beach goes in six steps, a short one (a thin beach) in three.
 export const WASH_LEVELS = { long: 6, short: 3 };
+// Surf running up the shore. The wet line is read off the painting as a polyline and drawn as
+// a pixel line of foam (the lip) with broken foam and lace behind it, and the whole line runs up
+// the beach a step at a time, holds, and drains back as it fades — one piece, so it never shows
+// a seam. A second, fainter one follows half a cycle behind. `beach` is the side the sand is on
+// (1 below the line, -1 above it) and `reach` how far up it runs, in painting units.
 export function planWash(biome, season = null) {
   const spec = ambienceFor(biome, season).effects.wash;
   if (!spec) return [];
@@ -780,7 +778,7 @@ export function planWash(biome, season = null) {
   });
 }
 
-// Mist lying on the water in dithered bands, drifting a pixel at a time.
+// Mist lying on the water in bands of haze, drifting a pixel at a time.
 export function planMist(biome, season = null, period = 'day') {
   const spec = ambienceFor(biome, season).effects.mist;
   if (!spec) return [];
@@ -808,7 +806,7 @@ export function planGrass(biome, season = null) {
   const spec = ambienceFor(biome, season).effects.grass;
   if (!spec) return [];
   return spec.blades.map(([x, y, height], index, all) => {
-    const s = swayShape(grassTuft(toPx(height)), index + 11, 'bottom', ['grass0', 'grass1', 'grass2', 'grass2']);
+    const s = swayShape(grassTuft(toPx(height)), index + 11, 'bottom', ['grass0', 'grass1', 'grass2', 'grass2'], 0.03);
     const duration = flipCycle(spec.seconds * (0.8 + ((index * 3) % 5) / 10), 8, 'loop');
     return piece({ kind: 'grass', x: toPx(x) - Math.floor(s.w / 2), y: toPx(y) - s.h, w: s.w, h: s.h, shape: s, rhythm: 'loop', duration, delay: startAt(duration, spread(all.length, index)) });
   });
@@ -1028,46 +1026,57 @@ export function planAmbience(biome, season = null, period = 'day') {
 // hard-edged), a mask of art-pixel row runs, a polygon rasterised to art-pixel runs, and the
 // table that repaints the sky's clouds in a painting's own four tones.
 
-const DITHER = {
-  1: (x, y) => (x + y) % 2 === 0,
-  2: (x, y) => x % 2 === 0 && y % 2 === 0,
-  3: (x, y) => x % 4 === 0 && y % 2 === 0,
+// An SVG as a data URL, percent-escaping only what a URL must (the path data is written without
+// spaces), which keeps the markup about half what encodeURIComponent makes of it.
+const URL_ESCAPES = { '%': '%25', '#': '%23', '<': '%3C', '>': '%3E', ' ': '%20', "'": '%27', '"': '%22' };
+const svgUrl = (w, h, body) => {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}' preserveAspectRatio='none' shape-rendering='crispEdges'>${body}</svg>`;
+  return `url("data:image/svg+xml,${svg.replace(/[%#<> '"]/g, (c) => URL_ESCAPES[c])}")`;
 };
-const svgUrl = (w, h, body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" shape-rendering="crispEdges">${body}</svg>`)}")`;
+const rectPath = (rects) => rects.map(([x, y, w, h]) => `M${x},${y}h${w}v${h}h-${w}z`).join('');
 
-// Pixels by colour, merged into horizontal runs, as one path per colour.
+// Rows of runs [[y, [[x0, x1], …]], …] (rows in order) → rectangles [x, y, w, h], a run that
+// repeats row after row (a strand of moss, a stretch of sky) merged into one taller rectangle.
+function runRects(rows) {
+  const rects = [];
+  let open = new Map();
+  rows.forEach(([y, runs]) => {
+    const next = new Map();
+    runs.forEach(([a, b]) => {
+      const key = `${a}-${b}`;
+      const prev = open.get(key);
+      if (prev && prev[1] + prev[3] === y) { prev[3] += 1; next.set(key, prev); } else { const r = [a, y, b - a + 1, 1]; rects.push(r); next.set(key, r); }
+    });
+    open = next;
+  });
+  return rects;
+}
+
+// Pixels by colour as rectangles, one path per colour.
 function pathsFor(pixels) {
   const byColour = new Map();
   pixels.forEach(([x, y, colour]) => { if (!byColour.has(colour)) byColour.set(colour, new Set()); byColour.get(colour).add(`${x},${y}`); });
   let body = '';
   byColour.forEach((set, colour) => {
     const pts = [...set].map((k) => k.split(',').map(Number)).sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-    let d = '';
+    const rows = [];
     for (let i = 0; i < pts.length;) {
       const [x, y] = pts[i];
       let n = 1;
       while (i + n < pts.length && pts[i + n][1] === y && pts[i + n][0] === x + n) n += 1;
-      d += `M${x} ${y}h${n}v1h-${n}z`;
+      if (!rows.length || rows[rows.length - 1][0] !== y) rows.push([y, []]);
+      rows[rows.length - 1][1].push([x, x + n - 1]);
       i += n;
     }
-    body += `<path fill="${colour}" d="${d}"/>`;
+    body += `<path fill='${colour}' d='${rectPath(runRects(rows))}'/>`;
   });
   return body;
 }
 
+// A shape's pixels laid out as its strip (cell i shifted i cells right), in colours.
 export function shapePixels(s, colours) {
   const out = [];
-  s.cells.forEach((cell, i) => cell.forEach((item) => {
-    if (item[0] === 'dither') {
-      const [, x, y, w, h, level, tone] = item;
-      const on = DITHER[level];
-      if (!on) return;
-      for (let yy = y; yy < y + h; yy += 1) for (let xx = x; xx < x + w; xx += 1) if (on(xx, yy)) out.push([xx + i * s.w, yy, colours[tone] || tone]);
-      return;
-    }
-    const [x, y, tone] = item;
-    out.push([x + i * s.w, y, colours[tone] || tone]);
-  }));
+  s.cells.forEach((cell, i) => cell.forEach(([x, y, tone]) => out.push([x + i * s.w, y, colours[tone] || tone])));
   return out;
 }
 
@@ -1078,21 +1087,10 @@ export function svgStrip(s, colours) {
 // Row runs "y:x0-x1,…;…" → rectangles [x, y, w, h], runs that repeat row after row merged.
 export function maskRects(runs) {
   if (!runs) return [];
-  const rects = [];
-  let open = new Map();
-  runs.split(';').forEach((row) => {
-    const [yText, list] = row.split(':');
-    const y = Number(yText);
-    const next = new Map();
-    list.split(',').forEach((run) => {
-      const [a, b] = run.split('-').map(Number);
-      const key = `${a}-${b}`;
-      const prev = open.get(key);
-      if (prev && prev[1] + prev[3] === y) { prev[3] += 1; next.set(key, prev); } else { const r = [a, y, b - a + 1, 1]; rects.push(r); next.set(key, r); }
-    });
-    open = next;
-  });
-  return rects;
+  return runRects(runs.split(';').map((row) => {
+    const [y, list] = row.split(':');
+    return [Number(y), list.split(',').map((run) => run.split('-').map(Number))];
+  }));
 }
 
 // A polygon in painting units as art-pixel row runs (a pixel is in when its centre is).
@@ -1113,8 +1111,7 @@ export function polygonRuns(points) {
 
 // The mask image for row runs over the whole painting.
 export function maskUrl(runs) {
-  const d = maskRects(runs).map(([x, y, w, h]) => `M${x} ${y}h${w}v${h}h-${w}z`).join('');
-  return svgUrl(ART_COLS, ART_ROWS, `<path fill="#000" d="${d}"/>`);
+  return svgUrl(ART_COLS, ART_ROWS, `<path fill='#000' d='${rectPath(maskRects(runs))}'/>`);
 }
 
 // The sky's clouds are drawn in four tones (AMBIENT_SPRITES' art: lightest first). Each tone

@@ -340,10 +340,13 @@ test('the sky: clouds at their own size in the painting\'s own sky, gulls of one
 test('drawing: hard-edged SVG strips, pixel masks, and the clouds repainted tone for tone', () => {
   const strip = svgStrip({ w: 2, h: 1, cells: [[[0, 0, 'foam']], [[1, 0, 'hi']]] }, { foam: '#d2e2ef', hi: '#aed0ee' });
   const svg = decodeURIComponent(strip.slice('url("data:image/svg+xml,'.length, -2));
-  expect(svg).toMatch(/shape-rendering="crispEdges"/);
-  expect(svg).toMatch(/viewBox="0 0 4 1"/);
-  expect(svg).toMatch(/fill="#d2e2ef" d="M0 0h1v1h-1z"/);
-  expect(svg).toMatch(/fill="#aed0ee" d="M3 0h1v1h-1z"/);
+  expect(svg).toMatch(/shape-rendering='crispEdges'/);
+  expect(svg).toMatch(/viewBox='0 0 4 1'/);
+  expect(svg).toMatch(/fill='#d2e2ef' d='M0,0h1v1h-1z'/);
+  expect(svg).toMatch(/fill='#aed0ee' d='M3,0h1v1h-1z'/);
+  // A strand one pixel wide and three tall is one rectangle, not three.
+  const strand = decodeURIComponent(svgStrip({ w: 1, h: 3, cells: [[[0, 0, 'hi'], [0, 1, 'hi'], [0, 2, 'hi']]] }, { hi: '#aed0ee' }).slice('url("data:image/svg+xml,'.length, -2));
+  expect(strand).toMatch(/d='M0,0h1v3h-1z'/);
   // Runs that repeat row after row merge into one rectangle.
   expect(maskRects('0:2-4;1:2-4;2:2-4,7-7')).toEqual([[2, 0, 3, 3], [7, 2, 1, 1]]);
   expect(maskUrl('0:0-1')).toMatch(/^url\("data:image\/svg\+xml,/);
