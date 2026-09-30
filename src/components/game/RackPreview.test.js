@@ -2,7 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import PetPreview, { RACK_PX, previewBox } from './PetPreview';
 import DecorPreview from './DecorPreview';
-import AnglerPreview from './AnglerPreview';
+import AnglerPreview, { PREVIEW_SCALE } from './AnglerPreview';
 import { PET_SPRITES } from '../../utils/petSprites';
 import { DECOR_PROPS } from '../../utils/dockDecor';
 import { SPRITE_FRAME, STILL_WINDOW } from '../../utils/anglerSprites';
@@ -13,6 +13,17 @@ import { SPRITE_FRAME, STILL_WINDOW } from '../../utils/anglerSprites';
 test('the rack scale is a whole number', () => {
   expect(Number.isInteger(RACK_PX)).toBe(true);
   expect(RACK_PX).toBeGreaterThanOrEqual(1);
+});
+
+// One pixel on the whole rack: the pets and the props at the rack angler's scale, so the dog is a
+// third of his height beside him as on the dock (at 2 beside him at 1 it was two thirds).
+test('the pets, the props and the rack angler share one scale', () => {
+  expect(RACK_PX).toBe(PREVIEW_SCALE.small);
+  const { container } = render(<><AnglerPreview look={{}} small label="" /><PetPreview petKey="pet_dog" /></>);
+  const angler = container.querySelector('.angler-preview');
+  const dog = container.querySelector('.pet-preview');
+  expect(angler.style.width).toBe(`${STILL_WINDOW.w * RACK_PX}px`);
+  expect(parseFloat(dog.style.height) / parseFloat(angler.style.height)).toBeLessThan(0.4);
 });
 
 test.each(Object.keys(PET_SPRITES))('%s sits on the rack at its own proportions, a whole multiple of its pixels', (petKey) => {

@@ -58,6 +58,15 @@ function PixelFish({ species, className = '' }) {
   return <FishIllustration species={species} variant="pixel" className={`chrome-fish ${className}`} style={size ? { width: `${size.w}px`, height: `${size.h}px` } : undefined} />;
 }
 
+// A board's state as a class: done and settled (turned in, or a quest that pays in a new ground
+// rather than points) is `is-done`, the mint ring; done and waiting to be turned in is
+// `is-claimable`, the gold ring — they used to wear the same mint ring, so a bounty you had already
+// cashed looked like one still owed.
+function questClass(quest, state) {
+  if (!state?.done) return '';
+  return state.claimed || !quest?.reward?.points ? 'is-done' : 'is-claimable';
+}
+
 // The whole game lives in one frame: the scene is the viewport, the HUD sits on it as signage,
 // and the dock below it holds whatever the current phase needs. The map, the tackle shop, the
 // almanac and the trophy case open as overlays inside the frame rather than as cards further
@@ -720,7 +729,7 @@ export default function FishingGame({ clock = () => new Date() }) {
     casting: flyOn ? 'Tap to stop the cast on the rise.' : 'Tap to stop the cast in the sweet spot.',
     waiting: waitingCallout,
     hookset: 'FISH ON! Tap to set the hook!',
-    reeling: 'Hold to reel — keep the fish in the glowing zone.',
+    reeling: 'Hold to reel — keep the fish inside the frame.',
   }[phase] || '';
   const tensionPct = phase === 'reeling' ? (reelDisplay.tension / tensionMaxRef.current) * 100 : 0;
   const almanacCaught = Object.keys(records).filter((species) => rarityOf(species) !== 'junk').length;
@@ -866,7 +875,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         </div>}
 
         {phase === 'reeling' && pendingCatch && <div className="game-panel is-play">
-          <p>Progress {Math.round(reelDisplay.progress)}% · tension {Math.round(tensionPct)}%</p>
+          <p className="reel-readout"><span>Reel <strong>{Math.round(reelDisplay.progress)}%</strong></span><span className={tensionPct >= 75 ? 'is-strained' : ''}>Line <strong>{Math.round(tensionPct)}%</strong></span></p>
           <button
             className="button button-primary game-reel-button"
             type="button"
@@ -928,7 +937,6 @@ export default function FishingGame({ clock = () => new Date() }) {
 
       {overlay === 'crew' && <GameOverlay eyebrow="Who's out" title="On the water" onClose={() => setOverlay(null)}>
         <div className="dock-crew" role="group" aria-label="On the water now">
-          <span className="dock-crew-label">On the water</span>
           <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
             <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
             <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
@@ -961,7 +969,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           <ul className="quest-list">
             {weekly.bounties.map((bounty) => {
               const status = bountyStatus(bounty, gameProfile.weekly, clock());
-              return <li key={bounty.slot} className={`quest-row is-weekly ${status.done ? 'is-done' : ''}`} data-bounty={bounty.slot}>
+              return <li key={bounty.slot} className={`quest-row is-weekly ${questClass({ reward: { points: bounty.points } }, status)}`} data-bounty={bounty.slot}>
                 <span className="quest-title">{bounty.title}</span>
                 <span className="quest-progress">{status.claimed ? 'Turned in' : status.done ? 'Done — turn it in' : `${status.progress} / ${bounty.goal.count}`}</span>
                 <p className="quest-goal"><strong>To do:</strong> {weeklyGoalLabel(bounty)} <strong>Reward:</strong> {bounty.points} tackle points and a stamp.</p>
@@ -972,7 +980,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           {(gameProfile.bounty_stamps || 0) > 0 && <p className="dock-hint">{gameProfile.bounty_stamps} bounty stamp{gameProfile.bounty_stamps === 1 ? '' : 's'} in the case.</p>}
         </section>
         {captainQuests.length > 0 && <ul className="quest-list" aria-label="Cap'n Ray's quests">
-          {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questState(quests, quest.key).done ? 'is-done' : ''}`}>
+          {captainQuests.map((quest) => <li key={quest.key} className={`quest-row ${questClass(quest, questState(quests, quest.key))}`}>
             <span className="quest-title">{quest.title}</span>
             <span className="quest-progress">{questProgressLabel(quest, quests)}</span>
             <p className="quest-brief">{quest.brief} <em>{quest.hint}</em></p>
@@ -1014,7 +1022,7 @@ export default function FishingGame({ clock = () => new Date() }) {
             <span className="eyebrow">SAL'S WALL</span>
             {shopQuests.map((quest) => {
               const state = questState(quests, quest.key);
-              return <div className={`quest-card ${state.done ? 'is-done' : ''}`} key={quest.key}>
+              return <div className={`quest-card ${questClass(quest, state)}`} key={quest.key}>
                 <strong>{quest.title}</strong>
                 <p>{quest.brief} <em>{quest.hint}</em></p>
                 <p className="quest-goal"><strong>To do:</strong> {questGoalLabel(quest, quests)} <strong>Reward:</strong> {questRewardLabel(quest)}.</p>
@@ -1030,7 +1038,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               <strong>{FLY_ROD.label}</strong>
               <p>{FLY_ROD.blurb}</p>
               {gameProfile.fly_rod
-                ? <span className="quest-progress">Owned · flies are on the dock at the river, the lake and the flats</span>
+                ? <p className="fly-rod-owned"><strong>Owned</strong> The flies are on the dock at the river, the lake and the flats.</p>
                 : <button type="button" className="button button-quiet" disabled={flyRodBusy} onClick={handleFlyRodPurchase}>Buy · {FLY_ROD.cost} pts</button>}
             </div>
           </section>
