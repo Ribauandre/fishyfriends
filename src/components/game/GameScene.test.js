@@ -1,7 +1,10 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import GameScene, { lampLight, rodTipFor, spriteFilter, NIGHT_GRADE } from './GameScene';
+import GameScene, {
+  lampLight, rodTipFor, spriteFilter, NIGHT_GRADE, LAMP_LIFT, hookSteps, tensionRows, METER_ROWS, crewLabelsFor, nameBox, plaqueWidth, sparkleAt,
+} from './GameScene';
+import { TRAVEL_MS } from './TravelTransition';
 import {
   layoutFor, frameFor, landingX, reelX, waterSpan, castWindow, fightBand, placements, ART_PX, PAINT_H, CAMERA_ANGLER_MARGIN, stageX, stageY,
 } from '../../utils/sceneLayout';
@@ -236,9 +239,12 @@ test('a landed fish gets a burst sized to its rarity, in its rarity\'s colour, r
   rerender(<GameScene biome="offshore" phase="result" displayName="Andre" result={{ success: true, species: 'shark', rarity: 'legendary' }} />);
   expect(container.querySelector('.scene-sparkles')).toHaveClass('is-legendary');
   expect(container.querySelector('.scene-sparkles').style.color).toBe('rgb(227, 251, 20)');
-  // Placed symmetrically about the catch's middle.
-  const xs = [...container.querySelectorAll('.scene-sparkles span')].map((s) => pct(s.style.left));
-  expect(xs.reduce((sum, x) => sum + x, 0) / xs.length).toBeCloseTo(50, 0);
+  // Placed on whole art pixels of the catch (so each plus lands on the grid), symmetrically
+  // about its middle.
+  const artX = (s) => Number(s.style.getPropertyValue('--sx'));
+  const xs = [...container.querySelectorAll('.scene-sparkles span')].map(artX);
+  xs.forEach((x) => expect(Number.isInteger(x)).toBe(true));
+  expect(Math.abs(xs.reduce((sum, x) => sum + x, 0) / xs.length - pixelFishSize('shark').w / 2)).toBeLessThanOrEqual(1.5);
   rerender(<GameScene biome="offshore" phase="result" displayName="Andre" result={{ success: false, message: 'Gone.' }} />);
   expect(container.querySelector('.scene-sparkles')).toBeNull();
 });
@@ -294,20 +300,38 @@ test('the hour tints the stage, night is its own painting laid over the day one,
   expect(container.querySelector('.scene-backdrop.is-day')).toBe(day);
   rerender(<GameScene biome="bay" phase="ready" displayName="Andre" period="day" />);
   expect(container.querySelector('.scene-lamp')).toBeNull();
-  expect(container.querySelector('.scene-backdrop.is-night')).toBeNull();
+  // By day the night painting stays mounted, hidden: the same element is only shown or hidden,
+  // so even a jump straight from day to night (a sleeping phone) steps through the fade.
+  const hiddenNight = container.querySelector('.scene-backdrop.is-night');
+  expect(hiddenNight).not.toHaveClass('is-shown');
   expect(container.querySelector('.scene-sprite.is-you')).not.toHaveAttribute('data-lit');
+  rerender(<GameScene biome="bay" phase="ready" displayName="Andre" period="night" />);
+  expect(container.querySelector('.scene-backdrop.is-night')).toBe(hiddenNight);
+  expect(hiddenNight).toHaveClass('is-shown');
   rerender(<GameScene biome="offshore" phase="ready" displayName="Andre" period="night" />);
   expect(container.querySelector('.scene-lamp')).toBeNull();
   expect(container.querySelector('.scene-sprite.is-you')).not.toHaveAttribute('data-lit');
-  // Pure: the reach falls off with distance and the hour.
-  expect(lampLight({ x: 32, y: 36 }, 60, 136, 92, 'night')).toBeGreaterThan(lampLight({ x: 32, y: 36 }, 140, 136, 92, 'night'));
-  expect(lampLight({ x: 32, y: 36 }, 100, 136, 92, 'night')).toBeGreaterThan(lampLight({ x: 32, y: 36 }, 100, 136, 92, 'dusk'));
-  expect(lampLight({ x: 32, y: 36 }, 178, 136, 92, 'day')).toBe(0);
+  // Pure: the lamp lights what stands in the pool it draws, and nothing past it — the dock's
+  // guest by the post (x 91), not the angler at the end of the dock (x 178) or his dog.
+  const dockLamp = layoutFor('river').lamp;
+  expect(lampLight(dockLamp, 91, 136, 92, 'night')).toBeGreaterThan(0);
+  expect(lampLight(dockLamp, 178, 136, 92, 'night')).toBe(0);
+  expect(lampLight(dockLamp, 136.67, 137.33, 30, 'night')).toBe(0);
+  expect(lampLight(dockLamp, 60, 136, 92, 'night')).toBeGreaterThan(lampLight(dockLamp, 91, 136, 92, 'night'));
+  expect(lampLight(dockLamp, 60, 136, 92, 'night')).toBeGreaterThan(lampLight(dockLamp, 60, 136, 92, 'dusk'));
+  expect(lampLight(dockLamp, 60, 136, 92, 'day')).toBe(0);
   expect(lampLight(null, 60, 136, 92, 'night')).toBe(0);
-  expect(lampLight({ x: 32, y: 36 }, 400, 136, 92, 'night')).toBe(0);
-  // Pure: the night grade, and the lamp bringing back what it reaches.
+  // A head right under the lamp takes its glow even off the pool.
+  expect(lampLight({ x: 32, y: 36, r: 14 }, 32, 130, 92, 'night')).toBeGreaterThan(0);
+  // Pure: the night grade, and the lamp bringing back what it reaches — never back to daylight.
   expect(spriteFilter({ night: true })).toBe(`brightness(${NIGHT_GRADE.brightness}) sepia(0) saturate(${NIGHT_GRADE.saturate})`);
-  expect(parseFloat(spriteFilter({ night: true, lit: 1 }).match(/brightness\(([\d.]+)/)[1])).toBeGreaterThan(1);
+  const litNight = parseFloat(spriteFilter({ night: true, lit: 1 }).match(/brightness\(([\d.]+)/)[1]);
+  expect(litNight).toBeGreaterThan(NIGHT_GRADE.brightness);
+  expect(litNight).toBeLessThanOrEqual(LAMP_LIFT);
+  // A painted light (the creek's gold) is laid on first by day, and dropped for the night grade.
+  expect(spriteFilter({ light: 'scene-light-creek' })).toBe('url(#scene-light-creek)');
+  expect(spriteFilter({ light: 'scene-light-creek', crew: true })).toMatch(/^url\(#scene-light-creek\) brightness\(0\.92\)/);
+  expect(spriteFilter({ light: 'scene-light-creek', night: true })).not.toMatch(/url/);
   expect(spriteFilter({})).toBeUndefined();
   expect(spriteFilter({ crew: true })).toMatch(/^brightness\(0\.92\)/);
   rerender(<GameScene biome="canyon" phase="ready" displayName="Andre" period="dusk" />);
@@ -315,7 +339,15 @@ test('the hour tints the stage, night is its own painting laid over the day one,
   expect(container.querySelector('.scene-tint')).toHaveClass('is-dusk');
   // The Canyon's sunset is painted in: the clock's dusk is only a breath over it (App.css).
   expect(container.querySelector('.game-scene')).toHaveAttribute('data-light', 'dusk');
+  // …and its figures are lit by it: the painting's light as a colour filter, laid on them first.
+  expect(container.querySelector('#scene-light-canyon')).toBeInTheDocument();
+  expect(container.querySelector('.scene-sprite.is-you').style.filter).toMatch(/^url\(#scene-light-canyon\)/);
+  rerender(<GameScene biome="creek" phase="ready" displayName="Andre" period="day" look={{ pet: 'pet_dog' }} />);
+  expect(container.querySelector('.scene-sprite.is-you').style.filter).toBe('url(#scene-light-creek)');
+  expect(container.querySelector('.scene-pet.is-you').style.filter).toBe('url(#scene-light-creek)');
   rerender(<GameScene biome="flats" phase="ready" displayName="Andre" period="day" />);
+  expect(container.querySelector('.scene-filters')).toBeNull();
+  expect(container.querySelector('.scene-sprite.is-you').style.filter).toBe('');
   expect(container.querySelector('.scene-backdrop')).toHaveAttribute('src', expect.stringContaining('flats'));
   expect(container.querySelector('.game-scene')).not.toHaveAttribute('data-light');
   // The mountain lake freezes over in winter, and only then.
@@ -350,7 +382,8 @@ test('the stage is the tap surface for the current phase, and the meters sit whe
   // A phone's long press must not turn into a text-selection callout over the stage.
   expect(fireEvent.contextMenu(surface)).toBe(false);
   const tension = container.querySelector('.stage-meter.is-tension');
-  expect(tension.querySelector('.stage-meter-fill').style.height).toBe('55%');
+  // In whole segments of the meter, never a sliver of one: 55% of seven segments lights four.
+  expect(tension.querySelector('.stage-meter-fill').style.getPropertyValue('--rows')).toBe('15');
   // Strain is a colour step, not a gradient: low, then amber past 60, coral past 85.
   expect(tension).toHaveAttribute('data-strain', 'low');
   expect(container.querySelector('.stage-progress span').style.width).toBe('30%');
@@ -395,6 +428,125 @@ test('a worked lure travels back toward the rod with its gauge over it, and the 
   expect(container.querySelector('.scene-lure')).toHaveClass('is-wobbling');
 });
 
+test('a worked lure comes in to the water\'s edge, not onto the dock, and holds still through the hookset', () => {
+  jest.useFakeTimers();
+  try {
+    const waterA = waterSpan(layoutFor('creek'), FULL)[0];
+    const { container, rerender } = render(<GameScene biome="creek" phase="waiting" displayName="Andre" lure="crankbait" lureDisplay={{ speed: 50, bandCenter: 50, attraction: 20, distance: 100 }} />);
+    const eye = (el) => sx(el.style.left) + 2 * ART_PX;
+    expect(eye(container.querySelector('.scene-lure'))).toBeGreaterThanOrEqual(waterA - ART_PX);
+    rerender(<GameScene biome="river" phase="waiting" displayName="Andre" lure="crankbait" lureDisplay={{ speed: 50, bandCenter: 50, attraction: 20, distance: 30 }} />);
+    const waiting = container.querySelector('.scene-lure').style.left;
+    rerender(<GameScene biome="river" phase="hookset" displayName="Andre" lure="crankbait" lureDisplay={{ speed: 50, bandCenter: 50, attraction: 20, distance: 30 }} hooksetWindowMs={600} />);
+    const at = [];
+    [0, 1, 2].forEach(() => {
+      at.push([container.querySelector('.scene-lure').style.left, container.querySelector('.scene-hook-ring').getAttribute('data-x')]);
+      act(() => { jest.advanceTimersByTime(FRAME_MS); });
+    });
+    expect(at.every(([left]) => left === waiting)).toBe(true);
+    expect(new Set(at.map(([, x]) => x)).size).toBe(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('the hookset ring steps on the stage\'s 125 ms clock whatever the window, the last step to its end', () => {
+  [420, 580, 600, 700, 850, 1100].forEach((windowMs) => {
+    const steps = hookSteps(windowMs);
+    expect(steps.length).toBeGreaterThanOrEqual(3);
+    steps.forEach((step, n) => {
+      expect(step.delay % 125).toBe(0);
+      if (n < steps.length - 1) expect(step.duration).toBe(125);
+    });
+    const last = steps[steps.length - 1];
+    expect(last.delay + last.duration).toBe(windowMs);
+    expect(steps[0].r).toBe(20);
+    expect(last.r).toBe(5);
+  });
+});
+
+test('the tension meter lights whole segments, and stays inside the frame on a wide stage', () => {
+  expect([0, 1, 14, 15, 55, 99, 100, 140].map(tensionRows)).toEqual([0, 3, 3, 7, 15, 27, 27, 27]);
+  withStage(1404, 540, () => ['river', 'creek', 'mountainlake'].forEach((biome) => {
+    const { container, unmount } = render(<GameScene biome={biome} phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 50, zonePos: 50, progress: 40 }} zoneWidth={20} tension={90} look={{ pet: 'pet_dog' }} others={[{ userId: 'u2', name: 'Kevin' }, { userId: 'u3', name: 'Sal' }]} />);
+    const meter = container.querySelector('.stage-meter');
+    const height = (METER_ROWS * ART_PX * frameFor(Number(container.querySelector('.game-scene').getAttribute('data-view-w'))).k) * Number(container.querySelector('.scene-world').getAttribute('data-camera-scale'));
+    expect({ biome, top: PAINT_H - sy(meter.style.bottom) - height >= -0.5 }).toEqual({ biome, top: true });
+    unmount();
+  }));
+});
+
+test('your name holds still over your head while the reel loop plays (the Canyon puts it there)', () => {
+  jest.useFakeTimers();
+  try {
+    const { container } = render(<GameScene biome="canyon" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 50, zonePos: 50, progress: 40 }} zoneWidth={20} holding />);
+    const tops = [];
+    [0, 1, 2, 3, 4].forEach(() => {
+      tops.push(container.querySelector('.scene-name-tag.is-you').style.top);
+      act(() => { jest.advanceTimersByTime(FRAME_MS); });
+    });
+    expect(new Set(tops).size).toBe(1);
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('a crew mate\'s news and the "+N more" sign keep off every name and inside the frame', () => {
+  const frame = frameFor(480);
+  const view = [0, 480];
+  const names = [nameBox('Andre', { x: 178, y: 136 }, 140, frame), nameBox('Kevin', { x: 91.33, y: 136 }, 140, frame)];
+  // Room over his head: the news goes there, the sign right of his name.
+  const open = crewLabelsFor({ name: 'Sal', news: 'Landed a striped bass!', extra: 2, feet: { x: 134.67, y: 121.33 }, headY: 36, tagY: 20, above: true, view, visTop: 0, frame, names });
+  const overlaps = (a, b) => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
+  open.boxes.forEach((box) => names.forEach((n) => expect(overlaps(box, n)).toBe(false)));
+  expect(open.boxes.every((box) => box[0] >= 0 && box[2] <= 480 && box[1] >= 0)).toBe(true);
+  // No room over him (a wide stage's top): both go on his name's line, clear of each other.
+  const tight = crewLabelsFor({ name: 'Sal', news: 'Landed a striped bass!', extra: 2, feet: { x: 134.67, y: 121.33 }, headY: 20, tagY: 4, above: true, view, visTop: 0, frame, names });
+  expect(tight.news.beside).toBe(true);
+  expect(overlaps(tight.boxes[0], tight.boxes[1])).toBe(false);
+  expect(tight.boxes.every((box) => box[0] >= 0 && box[2] <= 480)).toBe(true);
+  // Rendered: the sign hangs on the last name, never stacked over the news.
+  const others = [{ userId: 'u2', name: 'Kevin', lastCatch: { species: 'Striped bass', at: 99000 } }, { userId: 'u3', name: 'Sal' }, { userId: 'u4', name: 'Mo' }];
+  const { container } = render(<GameScene biome="river" phase="ready" displayName="Andre" others={others} now={() => 100000} />);
+  expect(screen.getByText('+1 more').closest('.scene-name-tag')).toHaveTextContent(/^SAL/);
+  expect(container.querySelector('.scene-crew-bubble')).toHaveTextContent('Landed a striped bass!');
+});
+
+test('the plaque makes room for itself: a small fish with long tags keeps its plaque in the frame on a phone', () => {
+  const result = { success: true, species: 'porgy', rarity: 'uncommon', isRecord: true, derbyFish: true, sizeLabel: '14.5 in', pointsEarned: 120 };
+  expect(plaqueWidth(result)).toBeGreaterThan(pixelFishSize('porgy').w);
+  withStage(390, 351, () => ['shoreline', 'pier', 'canyon', 'flats', 'baja'].forEach((biome) => {
+    const { container, unmount } = render(<GameScene biome={biome} phase="result" displayName="Andre" result={result} />);
+    const viewW = Number(container.querySelector('.game-scene').getAttribute('data-view-w'));
+    const world = container.querySelector('.scene-world');
+    const right = Number(world.getAttribute('data-camera-x')) + viewW / Number(world.getAttribute('data-camera-scale'));
+    const frame = frameFor(viewW);
+    const plaqueRight = sx(container.querySelector('.scene-plaque').style.left, viewW) + (plaqueWidth(result) * ART_PX * frame.k) / 2;
+    expect({ biome, inFrame: plaqueRight <= right + 0.5 }).toEqual({ biome, inFrame: true });
+    unmount();
+  }));
+  // Sparkles sit a clear three art pixels outside even a small fish.
+  expect(sparkleAt({ x: -4, y: 58 }, { w: 30, h: 16 })).toEqual({ x: -3, y: 9 });
+  expect(sparkleAt({ x: 104, y: 50 }, { w: 30, h: 16 })).toEqual({ x: 33, y: 8 });
+});
+
+test('a big fish\'s shadow is only drawn over the water: clipped where it passes under the post or the hull', () => {
+  const { container, rerender } = render(<GameScene biome="pier" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 0, zonePos: 0, progress: 40 }} zoneWidth={20} catchSize={60} />);
+  expect(container.querySelector('.scene-shadow').style.clipPath).toMatch(/^polygon\(/);
+  rerender(<GameScene biome="offshore" phase="reeling" displayName="Andre" species="pike" reel={{ fishPos: 0, zonePos: 0, progress: 40, fishVel: -2 }} zoneWidth={20} catchSize={60} />);
+  expect(container.querySelector('.scene-shadow')).toHaveClass('is-left');
+  expect(container.querySelector('.scene-shadow').style.clipPath).toMatch(/^polygon\(/);
+});
+
+test('a trip is lit like the world it crosses: graded after dark, the stage\'s width known for its entrance', () => {
+  const { container, rerender } = render(<GameScene biome="swamp" phase="ready" displayName="Andre" period="night" travel={{ to: 'swamp', vehicle: 'truck' }} />);
+  expect(container.querySelector('.travel-vehicle').style.filter).toBe(spriteFilter({ night: true }));
+  expect(container.querySelector('.scene-travel').style.getPropertyValue('--veh-w')).toMatch(/%$/);
+  rerender(<GameScene biome="swamp" phase="ready" displayName="Andre" period="day" travel={{ to: 'swamp', vehicle: 'truck' }} />);
+  expect(container.querySelector('.travel-vehicle').style.filter).toBe('');
+  expect(TRAVEL_MS % 125).toBe(0);
+});
+
 test('a harder cast lands the bobber further out', () => {
   const { container, rerender } = render(<GameScene biome="river" phase="waiting" displayName="Andre" castDistance={20} />);
   const shortCast = Number(container.querySelector('.scene-bobber').getAttribute('data-x'));
@@ -422,11 +574,12 @@ test('club members on the same ground stand in the layout\'s slots in their own 
   const you = container.querySelector('.scene-sprite.is-you');
   expect(pct(crew[0].style.left)).toBeLessThan(pct(you.style.left));
   expect(crew[0].style.height).toBe(you.style.height);
-  // On the pier the guest stands a row back, so their name goes over their head.
+  // On the pier the guest stands a row back, but the planks under them are open, so their name
+  // goes there — over their head it lay on the lamp.
   rerender(<GameScene biome="pier" phase="ready" displayName="Andre" others={[{ userId: 'u2', name: 'Kevin', phase: 'reeling' }]} now={now} />);
   expect(container.querySelector('.scene-sprite.is-crew')).toHaveAttribute('data-action', 'reel');
   expect(container.querySelector('.scene-sprite.is-crew')).toHaveClass('is-looping');
-  expect(screen.getByText('KEVIN')).toHaveClass('is-above');
+  expect(screen.getByText('KEVIN')).not.toHaveClass('is-above');
   expect(screen.getByText('ANDRE')).not.toHaveClass('is-above');
   expect(screen.queryByText(/more$/)).toBeNull();
 });
@@ -482,16 +635,32 @@ test('the derby champion flies the golden pennant from the rod tip, and so does 
   expect(screen.getByText('KEVIN')).toHaveClass('is-champion');
 });
 
-test('holding up his catch he has no rod to fly the pennant from, so it is struck for that frame', () => {
+test('holding up his catch he has no rod, so the pennant flies from his fist, above it, for the whole landing', () => {
   jest.useFakeTimers();
   try {
     const { container } = render(<GameScene biome="river" phase="result" displayName="Andre" champion result={{ success: true, species: 'pike' }} />);
     expect(container.querySelector('.scene-pennant')).toBeInTheDocument();
     act(() => { jest.advanceTimersByTime(FRAME_MS * 5); });
-    expect(container.querySelector('.scene-pennant')).toBeNull();
+    const pennant = container.querySelector('.scene-pennant');
+    expect(pennant).toHaveAttribute('data-hand', 'yes');
+    // Its foot at the top of his fist, so it clears the fish he holds up.
+    const feet = placements(layoutFor('river')).you;
+    const fist = rodTipFor(feet, 92, 'celebrate', 3);
+    expect(fist.hand).toBe(true);
+    expect(sy(pennant.style.top)).toBeCloseTo(fist.y - 12 * ART_PX, 0);
   } finally {
     jest.useRealTimers();
   }
+});
+
+test('on a wind-up frame the rod tip is behind him, and the pennant flies back, clear of his cap', () => {
+  const feet = placements(layoutFor('river')).you;
+  expect(rodTipFor(feet, 92, 'cast', 0).behind).toBe(true);
+  expect(rodTipFor(feet, 92, 'cast', 3).behind).toBe(false);
+  const { container } = render(<GameScene biome="river" phase="casting" displayName="Andre" champion />);
+  // The cast strip's first frame is on screen at its start.
+  expect(container.querySelector('.scene-pennant')).toHaveClass('is-back');
+  expect(container.querySelector('.scene-pennant').style.transform).toBe('scaleX(-1)');
 });
 
 test('the camera pans to the water on the cast, holds there for the fight and the landing, and settles back after', () => {
@@ -620,9 +789,12 @@ test('a dock pet sits in the layout\'s spot beside its angler, the crew bring th
 
   rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_none' }} others={[]} />);
   expect(container.querySelector('.scene-pet')).toBeNull();
-  // At night the pet near the post is lit by the lamp.
+  // At night his pet, which sits well past the lamp's pool, keeps the night's grade; a guest's
+  // pet in the pool is lit.
   rerender(<GameScene biome="river" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} period="night" />);
-  expect(container.querySelector('.scene-pet.is-you')).toHaveAttribute('data-lit');
+  expect(container.querySelector('.scene-pet.is-you')).not.toHaveAttribute('data-lit');
+  rerender(<GameScene biome="pier" phase="ready" displayName="Andre" look={{ pet: 'pet_dog' }} others={others} period="night" />);
+  expect(container.querySelector('.scene-pet.is-crew')).toHaveAttribute('data-lit');
 });
 
 test('when a fish is landed the pet celebrates with its angler, and settles again after', () => {

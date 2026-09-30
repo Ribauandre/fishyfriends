@@ -861,9 +861,12 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-stage { position: relative; }
 .game-body { position: relative; }
 .game-frame .game-scene { border: 0; border-bottom: 1px solid var(--line); box-shadow: none; margin-top: 0; }
-.scene-backdrop { animation: scene-arrive .5s steps(4, end) both; }
+/* A painting arrives in four steps on the clock from a quarter lit (jump-start: never a whole
+   tick of black under the lit sprites and ambience). */
+.scene-backdrop { animation: scene-arrive .5s steps(4, jump-start) both; }
 @keyframes scene-arrive { from { filter: brightness(0); } to { filter: brightness(1); } }
-.scene-ripple-ring { animation: ripple-step 2.4s step-end infinite; fill: #e7f4ef; opacity: .8; visibility: hidden; }
+/* Three rings open round the float a tick apart, every other beat of its bob. */
+.scene-ripple-ring { animation: ripple-step 2s step-end infinite; fill: #e7f4ef; opacity: .8; visibility: hidden; }
 .scene-bobber { animation: bobber-bob 1s step-end infinite; }
 @keyframes bobber-bob { 0% { transform: translateY(0); } 50% { transform: translateY(var(--cell, 1px)); } }
 @keyframes ripple-step { 0% { visibility: visible; } 6.25%, 100% { visibility: hidden; } }
@@ -967,9 +970,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    water in steps; glints pop round it in its rarity's colour, and its plaque is a wooden sign. */
 .game-scene .scene-catch { pointer-events: none; position: absolute; z-index: 4; }
 .game-scene .scene-catch .scene-trophy { animation: catch-rise .5s step-end both; display: block; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.7)); height: 100%; image-rendering: pixelated; max-width: none; object-fit: fill; width: 100%; }
-@keyframes catch-rise { 0% { clip-path: inset(100% 0 0 0); transform: translateY(calc(var(--apx) * 4)); } 25% { clip-path: inset(62% 0 0 0); transform: translateY(calc(var(--apx) * 3)); } 50% { clip-path: inset(25% 0 0 0); transform: translateY(calc(var(--apx) * 1)); } 75% { clip-path: inset(0 0 0 0); transform: translateY(calc(var(--apx) * -2)); } 100% { clip-path: inset(0 0 0 0); transform: translateY(0); } }
+/* It rises out of the water in whole rows (--rise-a and --rise-b, GameScene: 62% and 25% of its
+   rows, rounded), so the cut never falls through the middle of an art pixel. */
+@keyframes catch-rise { 0% { clip-path: inset(100% 0 0 0); transform: translateY(calc(var(--apx) * 4)); } 25% { clip-path: inset(calc(var(--apx) * var(--rise-a, 0)) 0 0 0); transform: translateY(calc(var(--apx) * 3)); } 50% { clip-path: inset(calc(var(--apx) * var(--rise-b, 0)) 0 0 0); transform: translateY(calc(var(--apx) * 1)); } 75% { clip-path: inset(0 0 0 0); transform: translateY(calc(var(--apx) * -2)); } 100% { clip-path: inset(0 0 0 0); transform: translateY(0); } }
 .game-scene .scene-plaque { align-items: center; animation: plaque-drop .375s step-end both; border: calc(var(--apx) * 6) solid transparent; border-image: url(./assets/props/plank.png) 6 fill / calc(var(--apx) * 6) round; color: #fff3d6; display: flex; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.75)); flex-direction: column; gap: var(--apx); image-rendering: pixelated; line-height: 1; padding: 0 calc(var(--apx) * 2); pointer-events: none; position: absolute; text-align: center; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translateX(-50%); white-space: nowrap; width: max-content; z-index: 4; }
-@keyframes plaque-drop { 0% { opacity: 0; } 33% { opacity: 1; margin-top: calc(var(--apx) * -3); } 66% { margin-top: calc(var(--apx) * 1); } 100% { margin-top: 0; } }
+@keyframes plaque-drop { 0% { opacity: 0; } 33.333% { opacity: 1; margin-top: calc(var(--apx) * -3); } 66.667% { margin-top: calc(var(--apx) * 1); } 100% { margin-top: 0; } }
 .scene-plaque-tags { display: flex; flex-wrap: wrap; gap: calc(var(--apx) * 3); justify-content: center; margin-bottom: var(--apx); }
 .scene-plaque-tags:empty { display: none; }
 .game-scene .scene-plaque strong { font-family: var(--font-pixel); font-size: calc(var(--apx) * 8); font-weight: 600; letter-spacing: calc(var(--apx) * 0.5); text-transform: uppercase; }
@@ -987,17 +992,23 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-splash-step.is-1 { animation-delay: .125s; }
 .scene-splash-step.is-2 { animation-delay: .25s; }
 @keyframes splash-step { from, to { visibility: visible; } }
-.scene-ripple-ring.is-1 { animation-delay: .15s; }
-.scene-ripple-ring.is-2 { animation-delay: .3s; }
+.scene-ripple-ring.is-1 { animation-delay: .125s; }
+.scene-ripple-ring.is-2 { animation-delay: .25s; }
 /* Names on the deck: one style for you and the crew — the pixel face with a one-art-pixel keyline,
    mint for you, cream for the crew, gold for the derby champion — above the night tint. */
 .scene-name-tag { color: var(--mint); font-family: var(--font-pixel); font-size: calc(var(--apx) * 7); font-weight: 600; letter-spacing: calc(var(--apx) * 0.5); line-height: 1; pointer-events: none; position: absolute; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translateX(-50%); white-space: nowrap; }
 .scene-name-tag.is-crew { color: #fff3d6; }
+/* Hung on a name's own line, beside it: the "+N more" sign, and a crew mate's news where the
+   frame has no room for it over their head (placed by its left edge, GameScene's crewLabelsFor). */
+.scene-name-tag > .scene-crew-more { top: 50%; transform: translateY(-50%); }
+.game-scene .scene-crew-bubble.is-beside { transform: translateY(-50%); }
+.scene-name-tag > .is-right { left: calc(100% + var(--apx) * 2); }
+.scene-name-tag > .is-left { right: calc(100% + var(--apx) * 2); }
 .scene-name-tag.is-champion { color: #ffc93c; }
 /* The dock lamp after dark (drawn after the tint in GameScene, screened over it): a glow at the
    lamp head and a pool on the deck below it, each a few hard bands of pixels with a dithered
    outer band, flickering in steps; a quarter of it at dawn, most of it at dusk. */
-.scene-lamp { display: block; height: 100%; inset: 0; mix-blend-mode: screen; overflow: visible; pointer-events: none; position: absolute; width: 100%; }
+.scene-lamp { display: block; height: 100%; inset: 0; mix-blend-mode: screen; overflow: visible; pointer-events: none; position: absolute; transition: opacity 1.25s steps(10, end); width: 100%; }
 .scene-lamp.is-dawn { opacity: .35; }
 .scene-lamp.is-dusk { opacity: .7; }
 .scene-lamp-glow, .scene-lamp-pool { animation: lamp-flicker 3.25s step-end infinite; }
@@ -1007,7 +1018,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-lamp-pool .is-band-0 { fill: rgba(255,196,110,.34); }
 .scene-lamp-pool .is-band-1 { fill: rgba(255,176,90,.22); }
 .scene-lamp-pool .is-band-2 { fill: rgba(255,160,70,.26); }
-@keyframes lamp-flicker { 0% { opacity: 1; } 38% { opacity: .8; } 42% { opacity: 1; } 71% { opacity: .88; } 75% { opacity: 1; } }
+/* 26 ticks; the two dips are a tick each, on the clock (1250 and 2250 ms). */
+@keyframes lamp-flicker { 0% { opacity: 1; } 38.4615% { opacity: .8; } 42.3077% { opacity: 1; } 69.2308% { opacity: .88; } 73.0769% { opacity: 1; } }
 /* Grounds with the light painted in (the Canyon's sunset, the creek's golden hour) take only a
    breath of the clock's dusk and dawn tint instead of a second one. */
 .game-scene[data-light] .scene-tint.is-dusk { opacity: .22; }
@@ -1023,11 +1035,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) {
   .scene-sprite.is-playing:not(.scene-pet) { animation: none; background-position-x: var(--sprite-end); }
   .scene-sprite.is-looping:not(.scene-pet) { animation: none; }
-  .scene-bobber, .scene-ripple-ring, .scene-rise-ring, .scene-lure, .scene-shadow img, .scene-lamp-glow, .scene-lamp-pool, .scene-sparkles span, .scene-catch .scene-trophy, .game-scene .scene-plaque, .game-scene .scene-plaque .scene-plaque-tag.is-record, .scene-crew-bubble, .stage-feedback, .stage-callout, .stage-meter, .game-scene .scene-zone.is-out, .scene-pennant, .travel-road, .travel-vehicle, .scene-travel { animation: none; }
+  .scene-bobber, .scene-ripple-ring, .scene-rise-ring, .scene-lure, .scene-shadow img, .scene-lamp-glow, .scene-lamp-pool, .scene-catch .scene-trophy, .game-scene .scene-plaque, .game-scene .scene-plaque .scene-plaque-tag.is-record, .scene-crew-bubble, .stage-callout, .stage-meter, .game-scene .scene-zone.is-out, .scene-pennant, .travel-road { animation: none; }
   .scene-ripple-ring.is-1, .scene-rise-ring.is-1 { visibility: visible; }
-  .scene-sparkles span { background-size: 100% 20%, 20% 100%; visibility: visible; }
-  .scene-backdrop.is-night, .scene-tint { transition: none; }
-  .travel-vehicle { left: 50%; }
 }
 
 
@@ -1153,22 +1162,36 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .scene-ambience *, .scene-ambience *:before, .scene-ambience *:after { animation: none !important; }
   .scene-ambience .scene-mover, .scene-ambience .scene-glint, .scene-ambience .scene-star, .scene-ambience .scene-gleam, .scene-ambience .scene-cap, .scene-ambience .scene-ring, .scene-ambience .scene-bubble, .scene-ambience .scene-wash, .scene-ambience .scene-firefly, .scene-ambience .scene-gull, .scene-ambience .scene-dragonfly { visibility: hidden; }
 }
-@keyframes snow-fall-b { from { background-position: 0 0, 0 0; } to { background-position: 0 0, -12px 96px; } }
 
+/* Sparkles round the catch: pixel plus-shapes in the rarity's colour with a pale centre pixel and
+   the world's one-art-pixel keyline all round (so a grey or a blue one reads on water of the same
+   colour), growing 1, 3, 5 art pixels across (7 for a legendary) and gone, a tick a step. Every
+   bar is a whole art pixel, centred in an odd box, so the plus lands on the grid. */
 .game-scene .scene-sparkles { inset: 0; pointer-events: none; position: absolute; }
-.game-scene .scene-sparkles span { animation: sparkle-step 1s step-end infinite; background: linear-gradient(currentColor, currentColor) center / 100% 20% no-repeat, linear-gradient(currentColor, currentColor) center / 20% 100% no-repeat; display: none; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.6)); height: calc(var(--apx) * 5); margin: calc(var(--apx) * -2) 0 0 calc(var(--apx) * -2); position: absolute; visibility: hidden; width: calc(var(--apx) * 5); }
+.game-scene .scene-sparkles span { --sp: 5; animation: sparkle-step 1s step-end infinite; left: calc(var(--apx) * var(--sx, 0)); top: calc(var(--apx) * var(--sy, 0)); background: linear-gradient(#fff3d6, #fff3d6) center / var(--apx) var(--apx) no-repeat, linear-gradient(currentColor, currentColor) center / var(--apx) var(--apx) no-repeat, linear-gradient(currentColor, currentColor) center / var(--apx) var(--apx) no-repeat; display: none; filter: drop-shadow(var(--apx) 0 0 #130f0c) drop-shadow(calc(var(--apx) * -1) 0 0 #130f0c) drop-shadow(0 var(--apx) 0 #130f0c) drop-shadow(0 calc(var(--apx) * -1) 0 #130f0c); height: calc(var(--apx) * 5); margin: calc(var(--apx) * -2) 0 0 calc(var(--apx) * -2); position: absolute; visibility: hidden; width: calc(var(--apx) * 5); }
 .game-scene .scene-sparkles.is-common span:nth-child(-n+2), .game-scene .scene-sparkles.is-uncommon span:nth-child(-n+3), .game-scene .scene-sparkles.is-rare span:nth-child(-n+5), .game-scene .scene-sparkles.is-epic span:nth-child(-n+7), .game-scene .scene-sparkles.is-legendary span { display: block; }
-.game-scene .scene-sparkles.is-legendary span { height: calc(var(--apx) * 7); margin: calc(var(--apx) * -3) 0 0 calc(var(--apx) * -3); width: calc(var(--apx) * 7); }
-@keyframes sparkle-step { 0% { background-size: 20% 20%, 20% 20%; visibility: visible; } 12.5% { background-size: 60% 20%, 20% 60%; } 25% { background-size: 100% 20%, 20% 100%; } 37.5% { background-size: 60% 20%, 20% 60%; } 50%, 100% { visibility: hidden; } }
+.game-scene .scene-sparkles.is-legendary span { --sp: 7; height: calc(var(--apx) * 7); margin: calc(var(--apx) * -3) 0 0 calc(var(--apx) * -3); width: calc(var(--apx) * 7); }
+@keyframes sparkle-step {
+  0% { background-size: var(--apx) var(--apx), var(--apx) var(--apx), var(--apx) var(--apx); visibility: visible; }
+  12.5% { background-size: var(--apx) var(--apx), calc(var(--apx) * 3) var(--apx), var(--apx) calc(var(--apx) * 3); }
+  25% { background-size: var(--apx) var(--apx), calc(var(--apx) * var(--sp)) var(--apx), var(--apx) calc(var(--apx) * var(--sp)); }
+  37.5% { background-size: var(--apx) var(--apx), calc(var(--apx) * 3) var(--apx), var(--apx) calc(var(--apx) * 3); }
+  50%, 100% { visibility: hidden; }
+}
 
-.scene-travel { animation: travel-dim 1.7s step-end both; background: rgba(3,8,11,.62); image-rendering: pixelated; inset: 0; overflow: hidden; pointer-events: none; position: absolute; z-index: 3; }
-@keyframes travel-dim { 0% { opacity: 0; } 4% { opacity: .34; } 8% { opacity: .67; } 12%, 84% { opacity: 1; } 90% { opacity: .67; } 95% { opacity: .34; } 100% { opacity: 0; } }
+/* The trip runs on the clock: TRAVEL_MS is 14 ticks, dimming in over two and out over two, the
+   vehicle driving in over four ticks, idling six and driving off over four, from wholly off the
+   stage to wholly off it (--veh-w, its width on this stage). */
+.scene-travel { animation: travel-dim 1.75s step-end both; background: rgba(3,8,11,.62); image-rendering: pixelated; inset: 0; overflow: hidden; pointer-events: none; position: absolute; z-index: 3; }
+@keyframes travel-dim { 0% { opacity: 0; } 7.143% { opacity: .5; } 14.286%, 85.714% { opacity: 1; } 92.857% { opacity: .5; } 100% { opacity: 0; } }
 .travel-road { animation: road-scroll .375s steps(3, end) infinite; background: repeating-linear-gradient(90deg, #b07a43 0 calc(var(--apx) * 6), transparent 0 calc(var(--apx) * 12)); bottom: 22%; box-shadow: 0 var(--apx) 0 #130f0c; height: var(--apx); left: 0; position: absolute; right: 0; }
 .scene-travel.is-boat .travel-road { background: repeating-linear-gradient(90deg, #eef6f1 0 calc(var(--apx) * 3), transparent 0 calc(var(--apx) * 5), #eef6f1 0 calc(var(--apx) * 6), transparent 0 calc(var(--apx) * 12)); bottom: 20%; box-shadow: none; }
+/* After dark the road and the wake are in the night's light, like the vehicle on them. */
+.game-scene[data-night-art] .scene-travel .travel-road { filter: brightness(.3) saturate(.6); }
 @keyframes road-scroll { from { background-position-x: 0; } to { background-position-x: calc(var(--apx) * -12); } }
-.travel-vehicle { animation: travel-drive 1.7s both, travel-idle .25s step-end infinite; bottom: 22%; image-rendering: pixelated; left: -40%; position: absolute; transform: translateX(-50%); width: auto; }
+.travel-vehicle { animation: travel-drive 1.75s both, travel-idle .25s step-end infinite; bottom: 22%; image-rendering: pixelated; left: -40%; position: absolute; transform: translateX(-50%); width: auto; }
 .scene-travel.is-boat .travel-vehicle { bottom: 18%; }
-@keyframes travel-drive { 0% { animation-timing-function: steps(4, end); left: -30%; } 35% { animation-timing-function: step-end; left: 50%; } 65% { animation-timing-function: steps(4, end); left: 50%; } 100% { left: 135%; } }
+@keyframes travel-drive { 0% { animation-timing-function: steps(4, end); left: calc(var(--veh-w, 60%) * -0.5); } 28.571% { animation-timing-function: step-end; left: 50%; } 71.429% { animation-timing-function: steps(4, end); left: 50%; } 100% { left: calc(100% + var(--veh-w, 60%) * 0.5); } }
 @keyframes travel-idle { 0% { translate: 0 0; } 50% { translate: 0 calc(var(--apx) * -1); } }
 .travel-label { animation: callout-in .25s steps(2, end) both; border: calc(var(--ui-px, 2px) * 6) solid transparent; border-image: url(./assets/props/plank.png) 6 fill / calc(var(--ui-px, 2px) * 6) round; bottom: 6%; color: #fff3d6; filter: drop-shadow(var(--ui-px, 2px) var(--ui-px, 2px) 0 rgba(19,15,12,.7)); font-family: var(--font-pixel); font-size: 15px; font-weight: 500; image-rendering: pixelated; left: 0; letter-spacing: .04em; line-height: 1.1; margin: 0 auto; padding: 0 4px; position: absolute; right: 0; text-align: center; text-shadow: 1px 1px 0 #130f0c, -1px 1px 0 #130f0c, 1px -1px 0 #130f0c, -1px -1px 0 #130f0c; text-transform: uppercase; width: max-content; }
 .travel-label strong { color: var(--mint); font-weight: 700; }
@@ -1191,13 +1214,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* Over a painting that is already night, the tint is only there to put the sprites in the
    same light as the deck: the painting carries the dark itself. */
 .game-scene[data-night-art] .scene-tint.is-night { opacity: .3; }
-.game-scene[data-night-art] .scene-stars { opacity: .35; }
-.scene-stars { background-image: radial-gradient(#fff 0.8px, transparent 1.2px), radial-gradient(rgba(255,255,255,.7) 0.6px, transparent 1px); background-position: 0 0, 17px 9px; background-size: 41px 29px, 67px 43px; inset: 0 0 auto 0; animation: stars-twinkle 4s ease-in-out infinite alternate; opacity: .8; position: absolute; }
-@keyframes stars-twinkle { from { opacity: .55; } to { opacity: .95; } }
 .game-scene[data-period="night"] .scene-lamp { opacity: 1; }
-.game-scene[data-period="night"] .scene-cloud { filter: brightness(.45); }
-.game-scene[data-period="night"] .scene-glitter, .game-scene[data-period="night"] .scene-caustics { opacity: .12 !important; }
-.game-scene[data-period="night"] .scene-mover.is-wave, .game-scene[data-period="night"] .scene-mover.is-cap { opacity: .35 !important; }
+.game-scene[data-period="night"] .scene-mover.is-cap { opacity: .35 !important; }
 .game-scene[data-period="dusk"] .scene-lamp { opacity: .7; }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
 
@@ -1213,12 +1231,15 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-action { background: transparent; border: 0; cursor: pointer; inset: 0; padding: 0; position: absolute; touch-action: none; user-select: none; z-index: 2; -webkit-tap-highlight-color: transparent; }
 .scene-action.is-hold { cursor: grab; }
 .scene-action.is-hold:active { cursor: grabbing; }
-.stage-meter { animation: meter-in .25s steps(2, end) both; background: #130f0c; background-clip: padding-box; border: calc(var(--sapx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(var(--sapx) * 3) round; box-sizing: border-box; filter: drop-shadow(var(--sapx) var(--sapx) 0 rgba(19,15,12,.6)); height: calc(var(--sapx) * 44); image-rendering: pixelated; pointer-events: none; position: absolute; width: calc(var(--sapx) * 12); z-index: 1; }
+/* The meter (GameScene's METER_ROWS): 33 art pixels, a 3-pixel plank top and bottom round seven
+   segments of 3 with a keyline between, the top one flush under the plank; the tension fill is
+   whole segments (tensionRows). */
+.stage-meter { animation: meter-in .25s steps(2, end) both; background: #130f0c; background-clip: padding-box; border: calc(var(--sapx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(var(--sapx) * 3) round; box-sizing: border-box; filter: drop-shadow(var(--sapx) var(--sapx) 0 rgba(19,15,12,.6)); height: calc(var(--sapx) * 33); image-rendering: pixelated; pointer-events: none; position: absolute; width: calc(var(--sapx) * 12); z-index: 1; }
 .stage-meter::after { background: repeating-linear-gradient(to top, transparent 0 calc(var(--sapx) * 3), rgba(19,15,12,.6) 0 calc(var(--sapx) * 4)); content: ''; inset: 0; pointer-events: none; position: absolute; }
 @keyframes meter-in { from { opacity: 0; transform: translateY(calc(var(--sapx) * 2)); } to { opacity: 1; transform: translateY(0); } }
 .stage-meter-band { background: rgba(227,251,20,.4); box-shadow: 0 calc(var(--sapx) * -1) 0 var(--mint), 0 var(--sapx) 0 var(--mint); left: 0; position: absolute; right: 0; z-index: 1; }
 .stage-meter-fill { background: #fff3d6; bottom: 0; height: 0; left: 0; position: absolute; right: 0; }
-.stage-meter.is-tension .stage-meter-fill { background: var(--mint); }
+.stage-meter.is-tension .stage-meter-fill { background: var(--mint); height: calc(var(--sapx) * var(--rows, 0)); }
 .stage-meter.is-tension[data-strain="mid"] .stage-meter-fill { background: #ffc93c; }
 .stage-meter.is-tension[data-strain="high"] .stage-meter-fill { background: var(--coral); }
 .game-scene .stage-progress { background: #130f0c; background-clip: padding-box; border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(var(--apx) * 3) round; box-sizing: border-box; height: calc(var(--apx) * 8); image-rendering: pixelated; pointer-events: none; position: absolute; z-index: 1; }
@@ -1227,13 +1248,14 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-lure.is-wobbling { animation: lure-wobble .25s step-end infinite; }
 @keyframes lure-wobble { 0% { transform: translateY(0); } 50% { transform: translateY(calc(var(--apx) * -1)); } }
 .stage-gauge { display: flex; flex-direction: column; gap: var(--apx); pointer-events: none; position: absolute; transform: translateX(-50%); width: calc(var(--apx) * 46); z-index: 1; }
-.stage-gauge-track { background: #130f0c; background-clip: padding-box; border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(var(--apx) * 3) round; display: block; height: calc(var(--apx) * 4); image-rendering: pixelated; position: relative; }
+/* 10 art pixels with its 3-pixel plank top and bottom: a 4-pixel channel inside for the band. */
+.stage-gauge-track { background: #130f0c; background-clip: padding-box; border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(var(--apx) * 3) round; display: block; height: calc(var(--apx) * 10); image-rendering: pixelated; position: relative; }
 .stage-gauge-band { background: rgba(227,251,20,.35); bottom: 0; box-shadow: calc(var(--apx) * -1) 0 0 var(--mint), var(--apx) 0 0 var(--mint); position: absolute; top: 0; }
 .stage-gauge-marker { background: var(--coral); box-shadow: 0 0 0 var(--apx) #130f0c; height: calc(var(--apx) * 6); margin-left: calc(var(--apx) * -1); position: absolute; top: calc(var(--apx) * -1); width: calc(var(--apx) * 2); }
 .stage-gauge-fill { background: #130f0c; box-shadow: 0 0 0 var(--apx) #130f0c; display: block; height: var(--apx); margin: 0 calc(var(--apx) * 3); }
 .stage-gauge-fill span { background: var(--mint); display: block; height: 100%; }
 .stage-feedback { animation: feedback-rise .75s step-end both; color: var(--mint); font-family: var(--font-pixel); font-size: calc(var(--apx) * 6); font-weight: 600; letter-spacing: calc(var(--apx) * 0.5); line-height: 1; position: absolute; text-align: center; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; text-transform: uppercase; top: calc(var(--apx) * -9); white-space: nowrap; width: 100%; }
-@keyframes feedback-rise { 0% { opacity: 1; transform: translateY(0); } 33% { transform: translateY(calc(var(--apx) * -2)); } 66% { transform: translateY(calc(var(--apx) * -4)); } 100% { opacity: 0; transform: translateY(calc(var(--apx) * -4)); } }
+@keyframes feedback-rise { 0% { opacity: 1; transform: translateY(0); } 33.333% { transform: translateY(calc(var(--apx) * -2)); } 66.667% { transform: translateY(calc(var(--apx) * -4)); } 100% { opacity: 0; transform: translateY(calc(var(--apx) * -4)); } }
 /* Marina's Outfitters: the fitting room (a painted preview of your angler, free swatches for
    skin, beard and hair) and the racks, one card per item, worn or bought with a tap. */
 
@@ -1271,7 +1293,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) { .scene-pet.is-idle, .scene-pet.is-cheer { animation: none; } }
 .scene-crew-bubble { animation: bubble-pop .25s steps(2, end) both; border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(var(--apx) * 3) round; color: #fff3d6; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.7)); font-family: var(--font-pixel); font-size: calc(var(--apx) * 6); font-weight: 500; image-rendering: pixelated; line-height: 1; padding: 0 var(--apx); pointer-events: none; position: absolute; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translate(-50%, -100%); white-space: nowrap; }
 @keyframes bubble-pop { from { opacity: 0; margin-top: calc(var(--apx) * 2); } to { opacity: 1; margin-top: 0; } }
-.scene-crew-more { border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(var(--apx) * 3) round; color: #e8d3a8; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.7)); font-family: var(--font-pixel); font-size: calc(var(--apx) * 5.5); image-rendering: pixelated; line-height: 1; padding: 0 var(--apx); pointer-events: none; position: absolute; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translateX(-50%); white-space: nowrap; }
+.scene-crew-more { border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(var(--apx) * 3) round; color: #e8d3a8; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.7)); font-family: var(--font-pixel); font-size: calc(var(--apx) * 5.5); font-weight: 500; image-rendering: pixelated; line-height: 1; padding: 0 var(--apx); pointer-events: none; position: absolute; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translateX(-50%); white-space: nowrap; }
 .dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: -6px; width: 100%; }
 
 
@@ -1279,10 +1301,26 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .scene-dock-prop { image-rendering: pixelated; position: absolute; }
 
 .scene-pennant { animation: pennant-flutter .375s steps(3, jump-none) infinite alternate; aspect-ratio: 3 / 2; background-repeat: no-repeat; image-rendering: pixelated; pointer-events: none; position: absolute; }
+/* The figures' light steps with the world's when the hour turns (the backdrop and the tint take
+   1.25 s in ten steps), rather than snapping ahead of the dock they stand on. */
+.scene-sprite, .scene-decor, .scene-pennant { transition: filter 1.25s steps(10, end); }
 @keyframes pennant-flutter { from { background-position-x: 0; } to { background-position-x: 100%; } }
 .hud-chip.is-champion { color: #ffc93c; }
 .derby-ribbon span { color: #e8d3a8; font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { .scene-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; } }
+/* Reduced motion on the stage, after every base rule it overrides (an override before its base
+   rule, at the same specificity, loses): the trip is a still card — the dim up, the vehicle
+   parked mid-stage, the sign — the catch's sparkles stand lit, the hookset ring is its widest
+   step for the whole window, the lure's word shows, and the hour changes without a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-travel, .travel-vehicle, .stage-feedback { animation: none; }
+  .scene-travel { opacity: 1; }
+  .travel-vehicle { left: 50%; }
+  .game-scene .scene-sparkles span { animation: none; background-size: var(--apx) var(--apx), calc(var(--apx) * var(--sp)) var(--apx), var(--apx) calc(var(--apx) * var(--sp)); visibility: visible; }
+  .scene-hook-step { animation: none; }
+  .scene-hook-step:first-child { visibility: visible; }
+  .scene-backdrop.is-night, .scene-tint, .scene-lamp, .scene-sprite, .scene-decor, .scene-pennant { transition: none; }
+}
 
 @media (max-width: 800px) {
   .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
