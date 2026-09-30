@@ -431,14 +431,16 @@ test('club members on the same ground stand in the layout\'s slots in their own 
   expect(screen.queryByText(/more$/)).toBeNull();
 });
 
-test('the charter has room for the angler and his pet alone: guests are counted on a sign', () => {
-  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready' }, { userId: 'u3', name: 'Sam', phase: 'ready' }];
+test('the charter takes one guest, a row back, and the rest are counted on a sign', () => {
+  const others = [{ userId: 'u2', name: 'Kevin', phase: 'ready' }, { userId: 'u3', name: 'Sam', phase: 'ready' }, { userId: 'u4', name: 'Mo', phase: 'ready' }];
   const { container } = render(<GameScene biome="offshore" phase="ready" displayName="Andre" others={others} />);
-  expect(container.querySelectorAll('.scene-sprite.is-crew').length).toBe(0);
+  expect(container.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(screen.getByText('KEVIN')).toHaveClass('is-above');
   expect(screen.getByText('+2 more')).toBeInTheDocument();
-  // The dock has room for one.
+  // The dock takes two: one beside him and one a row back between them, name over his head.
   const { container: dock } = render(<GameScene biome="river" phase="ready" displayName="Andre" others={others} />);
-  expect(dock.querySelectorAll('.scene-sprite.is-crew').length).toBe(1);
+  expect(dock.querySelectorAll('.scene-sprite.is-crew').length).toBe(2);
+  expect(screen.getByText('+1 more')).toBeInTheDocument();
 });
 
 test('a taller stage keeps the scene on the painting: positions follow the visible width', () => {

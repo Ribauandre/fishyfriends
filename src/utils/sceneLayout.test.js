@@ -21,7 +21,7 @@ test('every ground has a layout whose water is right of (or above) where the ang
     expect(layout.cast.max).toBeLessThanOrEqual(layout.water.x1);
     expect(layout.fishY).toBeGreaterThanOrEqual(layout.water.y0);
     expect(layout.fishY).toBeLessThanOrEqual(layout.water.y1);
-    layout.crew.forEach((dx) => expect(layout.angler.x + dx).toBeGreaterThan(40));
+    layout.crew.forEach((slot) => expect(layout.angler.x + (typeof slot === 'object' ? slot.x : slot)).toBeGreaterThan(40));
   });
   // The shore paintings share the dock: the deck runs to x 240, so nothing fishable sits under it.
   ['river', 'mountainlake', 'swamp', 'bay', 'shoreline'].forEach((biome) => expect(layoutFor(biome).water.x0).toBeGreaterThanOrEqual(240));
@@ -73,7 +73,7 @@ function figures(layout) {
   const pet = (at, name) => ({ name, y: at.y, x0: at.x + PET[0] * A, x1: at.x + PET[1] * A, vx0: at.x + PET[0] * A, vx1: at.x + PET[1] * A, top: at.y - PET_ROWS * A, floorTop: at.y - PET_ROWS * A });
   const list = [man(p.you, 'you')];
   if (p.pet) list.push(pet(p.pet, 'your pet'));
-  p.crew.forEach((c, i) => { list.push(man(c, `crew ${i}`)); if (c.pet) list.push(pet(c.pet, `crew ${i}'s pet`)); });
+  p.crew.forEach((c, i) => { list.push({ ...man(c, `crew ${i}`), back: c.back }); if (c.pet) list.push(pet(c.pet, `crew ${i}'s pet`)); });
   if (p.decor) {
     const half = (DECOR_W * A) / 2;
     list.push({ name: 'decoration', y: p.decor.y, x0: p.decor.x - half, x1: p.decor.x + half, vx0: p.decor.x - half, vx1: p.decor.x + half, top: p.decor.y - DECOR_H * A, floorTop: p.decor.y - DECOR_H * A });
@@ -92,7 +92,10 @@ function clashes(list) {
         if (a.x0 < b.x1 - 0.01 && b.x0 < a.x1 - 0.01) out.push(`${a.name} and ${b.name} share floor`);
       } else {
         const [back, front] = a.y < b.y ? [a, b] : [b, a];
-        if (front.vx0 < back.x1 - 0.01 && back.x0 < front.vx1 - 0.01 && front.top < back.y - 0.01 && back.floorTop < front.y - 0.01) out.push(`${front.name} stands over ${back.name}'s feet`);
+        const covers = front.vx0 < back.x1 - 0.01 && back.x0 < front.vx1 - 0.01 && front.top < back.y - 0.01 && back.floorTop < front.y - 0.01;
+        // A guest on a back-row slot is meant to stand partly behind the figures in front, the way
+        // a crowded dock looks; only their head has to stay clear above whoever covers them.
+        if (covers && back.back) { if (back.top > front.top - 8) out.push(`${front.name} hides ${back.name}'s head`); } else if (covers) out.push(`${front.name} stands over ${back.name}'s feet`);
       }
     }
   }
@@ -106,7 +109,12 @@ test('nobody on the deck sits inside anybody else: the angler, the crew, every p
   SCENES.forEach((key) => {
     expect({ key, clashes: clashes(figures(SCENE_LAYOUTS[key])) }).toEqual({ key, clashes: [] });
   });
-  // …and the check is not vacuous: the old slots (two crew on the dock, pets at every heel) clash.
+  // The deck is crowded, not emptied: two guests on the dock (one a row back) and one on the charter.
+  expect(placements(SCENE_LAYOUTS.river).crew).toHaveLength(2);
+  expect(placements(SCENE_LAYOUTS.offshore).crew).toHaveLength(1);
+  // …and the check is not vacuous: the old slots (two crew on the dock, pets at every heel) clash,
+  // and so does a back-row guest pushed so close behind that his head is hidden.
+  expect(clashes(figures({ ...SCENE_LAYOUTS.river, crew: [-86.67, { x: -44, y: -6.67 }] }))).toContain('you hides crew 1\'s head');
   const crowded = { ...SCENE_LAYOUTS.river, crew: [-58, -112], pets: { you: -36, crew: [-36, -36] } };
   expect(clashes(figures(crowded)).length).toBeGreaterThan(0);
 });

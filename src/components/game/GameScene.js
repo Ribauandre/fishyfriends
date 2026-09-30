@@ -444,7 +444,7 @@ export default function GameScene({
   }
   crewShown.forEach((other, index) => {
     const slot = place.crew[index];
-    deck.push({ y: slot.y, node: <CrewMember key={other.userId} other={other} slot={slot} boxH={spriteH} viewW={viewW} frame={frame} layout={layout} period={period} night={night} recent={Boolean(other.lastCatch) && now() - other.lastCatch.at < RECENT_CATCH_MS} tagAbove={crewTagAbove} view={[camera.x, camera.x + viewW / camera.scale]} /> });
+    deck.push({ y: slot.y, node: <CrewMember key={other.userId} other={other} slot={slot} boxH={spriteH} viewW={viewW} frame={frame} layout={layout} period={period} night={night} recent={Boolean(other.lastCatch) && now() - other.lastCatch.at < RECENT_CATCH_MS} tagAbove={crewTagAbove || slot.back} view={[camera.x, camera.x + viewW / camera.scale]} /> });
   });
   if (place.pet && petOf(look)) {
     const lit = lampLight(layout.lamp, place.pet.x, place.pet.y, 30, period);
@@ -458,7 +458,7 @@ export default function GameScene({
   deck.sort((a, b) => a.y - b.y);
   const lastName = crewShown.length ? place.crew[crewShown.length - 1] : place.you;
   const lastFeet = { x: stageX(lastName.x, frame), y: stageY(lastName.y, frame) };
-  const lastAbove = crewShown.length ? crewTagAbove : Boolean(layout.tagAbove);
+  const lastAbove = crewShown.length ? crewTagAbove || lastName.back : Boolean(layout.tagAbove);
   const moreTop = lastAbove ? tagTop(lastFeet, spriteH, true, frame) - stageLen(13 * A, frame) : tagTop(lastFeet, spriteH, false, frame) + stageLen(TAG_H + 2 * A, frame);
 
   return <div
@@ -536,7 +536,7 @@ export default function GameScene({
         </g>}
       </svg>}
       <NameTag feet={feet} boxH={spriteH} above={Boolean(layout.tagAbove)} pose={{ action: current.action, frame: shownFrame }} name={displayName || 'You'} you champion={champion} frame={frame} />
-      {crewShown.map((other, index) => <NameTag key={other.userId} feet={{ x: stageX(place.crew[index].x, frame), y: stageY(place.crew[index].y, frame) }} boxH={spriteH} above={crewTagAbove} pose={{ action: crewAction(other).action, frame: heldFrame(crewAction(other)) }} name={other.name || 'Angler'} champion={Boolean(other.champion)} frame={frame} user={other.userId} />)}
+      {crewShown.map((other, index) => <NameTag key={other.userId} feet={{ x: stageX(place.crew[index].x, frame), y: stageY(place.crew[index].y, frame) }} boxH={spriteH} above={crewTagAbove || place.crew[index].back} pose={{ action: crewAction(other).action, frame: heldFrame(crewAction(other)) }} name={other.name || 'Angler'} champion={Boolean(other.champion)} frame={frame} user={other.userId} />)}
       {crewExtra > 0 && <span className="scene-crew-more" style={{ left: pctX(lastFeet.x, frame), top: pctY(moreTop) }}>+{crewExtra} more</span>}
       {phase === 'reeling' && reel && <>
         {/* The zone the fish has to be held in: a hard frame on the water, mint while the fish

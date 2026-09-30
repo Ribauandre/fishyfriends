@@ -37,13 +37,14 @@ export const VIEW_W_MAX = 960;
 //
 // The five shore paintings share one dock: the deck runs y 115-140 and ends at the rope post at
 // x 213, with the crate and barrel in its first 50 units and the lamp post at x 5-20. The deck
-// holds the angler, his pet, one club member and the decoration by the barrel, and no more.
+// holds the angler, his pet, one club member beside him and the decoration by the barrel, and a
+// second club member a row back between the two of them.
 const DOCK = {
   crop: 'center',
   angler: { x: 178, y: 136 },
-  crew: [-86.67],
+  crew: [-86.67, { x: -44, y: -14.67 }],
   crewY: 0,
-  pets: { you: -41.33, crew: [null] },
+  pets: { you: -41.33, crew: [null, null] },
   spriteH: 92,
   cast: { min: 255, max: 400, y: 143 },
   water: { x0: 246, x1: 470, y0: 150, y1: 228 },
@@ -171,14 +172,15 @@ export const SCENE_LAYOUTS = {
     light: null,
   },
   // The charter: the angler stands at the stern corner on the gunwale line (y 176), which runs
-  // from the painted cooler (x 0-45) to the transom at x 125 — room for him and his pet and
-  // nobody else, so a guest is counted on the tag. The decoration stands on the cooler's lid.
+  // from the painted cooler (x 0-45) to the transom at x 125 — room for him and his pet on it,
+  // and one guest a row back in the cockpit, partly behind him. The decoration stands on the
+  // cooler's lid.
   offshore: {
     crop: 'center',
     angler: { x: 101.33, y: 176 },
-    crew: [],
+    crew: [{ x: -36, y: -14.67 }],
     crewY: 0,
-    pets: { you: -41.33, crew: [] },
+    pets: { you: -41.33, crew: [null] },
     spriteH: 92,
     cast: { min: 200, max: 400, y: 150 },
     water: { x0: 150, x1: 470, y0: 120, y1: 232 },
@@ -261,10 +263,14 @@ const petOffset = (entry) => (entry === null || entry === undefined ? null : ent
 export function placements(layout) {
   const you = { x: snapArt(layout.angler.x), y: snapArt(layout.angler.y) };
   const petBy = (owner, dx) => (petOffset(dx) === null ? null : { x: snapArt(owner.x + dx), y: round2(owner.y + ART_PX) });
-  const crewY = snapArt(you.y + (layout.crewY || 0));
-  const crew = layout.crew.map((dx, index) => {
-    const feet = { x: snapArt(you.x + dx), y: crewY };
-    return { ...feet, pet: petBy(feet, layout.pets?.crew?.[index]) };
+  // A slot is an x offset on the layout's crew row, or { x, y } for one on a row of its own
+  // further back (`back`): a guest there stands partly behind the figures in front, the way a
+  // crowded dock looks, rather than being left off the deck.
+  const crew = layout.crew.map((slot, index) => {
+    const dx = typeof slot === 'object' ? slot.x : slot;
+    const dy = typeof slot === 'object' ? slot.y : (layout.crewY || 0);
+    const feet = { x: snapArt(you.x + dx), y: snapArt(you.y + dy) };
+    return { ...feet, back: typeof slot === 'object', pet: petBy(feet, layout.pets?.crew?.[index]) };
   });
   return {
     you,
