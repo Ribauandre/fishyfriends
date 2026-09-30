@@ -125,7 +125,6 @@ button { cursor: pointer; }
 .welcome-banner { animation: banner-shockwave .5s ease-out .27s; }
 .home-page .season-recap { animation: banner-shockwave-soft .4s ease-out .3s; }
 .home-page .activity-section { animation: banner-shockwave-soft .45s ease-out .32s; }
-.home-page .dock-notes { animation: banner-shockwave-soft .4s ease-out .37s; }
 
 /* Shared one-shot motion: a panel unfolding in place (card details, comment threads, the
    species grid) versus a menu popping from its anchor (dropdowns). Both fire only when the
@@ -250,7 +249,6 @@ button { cursor: pointer; }
 .activity-thumb { border: 1px solid var(--line); flex-shrink: 0; height: 48px; overflow: hidden; width: 48px; }
 .activity-thumb img { height: 100%; object-fit: cover; width: 100%; }
 .activity-thumb .fish-illustration { height: 100%; object-fit: contain; opacity: .6; padding: 4px; width: 100%; }
-.dock-notes { margin-top: 62px; }
 .section-heading { border-bottom: 1px solid var(--line); padding-bottom: 18px; }
 .section-heading h2 { font-size: 23px; letter-spacing: 0; margin: 8px 0 0; }
 .collapsible-header { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: inherit; cursor: pointer; font: inherit; padding: 0 0 18px; text-align: left; width: 100%; }
@@ -874,24 +872,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes panel-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes game-alert-pulse { 0% { opacity: .7; } 100% { opacity: 1; } }
 
-.cast-meter { background: rgba(3,8,11,.4); border: 1px solid var(--line); height: 26px; margin: 6px 0; position: relative; width: min(420px, 100%); }
-.cast-sweet-spot { background: rgba(227,251,20,.28); border-left: 1px solid var(--mint); border-right: 1px solid var(--mint); bottom: 0; position: absolute; top: 0; }
-.cast-indicator { background: var(--coral); border-radius: 50%; box-shadow: 0 0 10px rgba(255,90,31,.6); height: 20px; left: 50%; margin-left: -10px; position: absolute; top: 3px; width: 20px; }
 
-.hookset-bar { background: rgba(3,8,11,.4); border: 1px solid var(--coral); height: 12px; overflow: hidden; width: min(420px, 100%); }
-.hookset-bar-fill { animation: hookset-drain linear forwards; background: var(--coral); height: 100%; width: 100%; }
 @keyframes hookset-drain { from { width: 100%; } to { width: 0%; } }
 
-.reel-bar { background: rgba(3,8,11,.4); border: 1px solid var(--line); height: 64px; margin: 6px 0; position: relative; width: min(420px, 100%); }
 .reel-zone { background: rgba(227,251,20,.22); border-left: 1px solid var(--mint); border-right: 1px solid var(--mint); bottom: 0; position: absolute; top: 0; }
-.reel-bar .reel-fish { height: 46px; margin-left: -23px; position: absolute; top: 9px; transition: left .08s linear; width: 46px; }
-.reel-meters { display: grid; gap: 10px; width: min(420px, 100%); }
-.reel-meter { text-align: left; }
-.reel-meter span { color: var(--muted); display: block; font-size: 10px; font-weight: 800; letter-spacing: .06em; margin-bottom: 4px; text-transform: uppercase; }
-.reel-meter-track { background: rgba(3,8,11,.4); border: 1px solid var(--line); height: 10px; overflow: hidden; }
-.reel-meter-fill { height: 100%; transition: width .08s linear; }
-.reel-meter-fill.is-progress { background: var(--mint); }
-.reel-meter-fill.is-tension { background: var(--coral); }
 /* Phones: a hold on the reel or crank is a long press, which the browser reads as "select
    text" or "show the callout" — the whole game frame is a control surface, not prose. */
 .game-frame, .game-frame * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -1219,7 +1203,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene[data-period="dusk"] .scene-lamp { opacity: .7; }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
 
-.result-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .rarity-tag.is-record { background: var(--mint); color: var(--deep); animation: sticker-slap .5s cubic-bezier(.34,1.56,.64,1) both; }
 .rarity-tag.is-derby { background: var(--coral); color: var(--deep); }
 .quest-complete { color: var(--mint); font-size: 13px; margin: 0; }
@@ -1332,7 +1315,6 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @media (max-width: 500px) {
   .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
   .game-page .game-stage { height: calc((100vw - 14px) / 1.12); }
-  .cast-meter, .hookset-bar, .reel-bar, .reel-meters { width: 100%; }
   .hud-chips { display: none; }
   .stage-callout { border-image-width: 6px; border-width: 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
   .stage-callout.is-alert { font-size: 14px; }
@@ -1570,7 +1552,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-frame .dock-hint { background: var(--note); border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) calc(2 * var(--ui-px)) 0 rgba(19, 15, 12, .6); color: var(--key); font-size: 12px; line-height: 1.5; margin: calc(2 * var(--ui-px)) 0 0; max-width: 560px; padding: calc(4 * var(--ui-px)) calc(6 * var(--ui-px)); position: relative; text-align: left; text-shadow: none; }
 .game-frame .dock-hint::before { background: var(--coral); border: var(--ui-px) solid var(--key); content: ''; height: calc(4 * var(--ui-px)); left: 50%; position: absolute; top: calc(-3 * var(--ui-px)); transform: translateX(-50%); width: calc(4 * var(--ui-px)); }
 /* Labels inside boards: the pixel face; running text: the body face. */
-.game-overlay :is(.quest-title, .upgrade-level, .quest-progress, .almanac-meta, .almanac-season, .dock-crew-label, .rack-item strong, .fish-tag strong, .junk-card strong, .club-record strong, .quest-card > strong, .upgrade-card > strong, .almanac-card strong, .lure-chip strong, .dock-crew-text strong) { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
+.game-overlay :is(.quest-title, .upgrade-level, .quest-progress, .almanac-meta, .almanac-season, .rack-item strong, .fish-tag strong, .junk-card strong, .club-record strong, .quest-card > strong, .upgrade-card > strong, .almanac-card strong, .lure-chip strong, .dock-crew-text strong) { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
 
 /* The map: its painting (396 x 264 art px) pixelated in a thin plank frame, the whole of it on
    screen on a wide window — at a whole multiple of its art pixels where BiomeMap's mapFit can
