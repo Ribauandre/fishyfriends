@@ -201,15 +201,19 @@ const fishDetails = {
 export const HERO_SPECIES = Object.keys(fishDetails);
 
 // The in-game variant: every sticker again at the game world's art pixel (scripts/pixelFish.mjs
-// writes them and the manifest), fitted inside PIXEL_FISH_BOX art pixels with a one-pixel
-// keyline, #e3fb14 ring and outer keyline. Drawn one file pixel to one art pixel (ART_PX
-// painting units) it sits on the stage like the angler; the site keeps the stickers.
+// writes them and the manifest) with a one-pixel keyline, #e3fb14 ring and outer keyline, drawn
+// at a length that follows its species' typical size — 38 art pixels for the smallest panfish to
+// 120 for a marlin, on one compressed log scale (lengthFor in the script), never past
+// PIXEL_FISH_BOX. Drawn one file pixel to one art pixel (ART_PX painting units) it sits on the
+// stage like the angler, so a bluegill held up beside him is under half his height and a marlin
+// fills the reveal; the site keeps the stickers.
 //
 // The files are small enough that the build inlines every one — about 200 kB gzipped for the
 // set — so they are kept out of the site's bundle: they load as a chunk of their own the first
 // time a pixel variant is drawn, and the game calls preloadPixelFish() when it opens, so by the
 // time a fish is landed the reveal draws at once. Their sizes are here from the start
 // (sizes.json), so a box can be laid out before the art arrives.
+// The largest any variant is drawn (a billfish's length, a deep fish's height).
 export const PIXEL_FISH_BOX = { w: 120, h: 72 };
 
 // The pixel variant's native size in art pixels, or null when the species has none.
