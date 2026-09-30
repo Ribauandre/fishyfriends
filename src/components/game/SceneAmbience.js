@@ -1,152 +1,136 @@
 import React from 'react';
-import { ambienceFor, planMovers, planFoam, planRings, planWash, planMist, planMoss, planGrass, planBubbles, planFireflies, clipFor } from '../../utils/sceneAmbience';
+import { planAmbience, svgStrip, maskUrl, polygonRuns, cloudTables, ART_COLS, ART_ROWS } from '../../utils/sceneAmbience';
 import { frameFor, layoutFor, stageX, stageLen, pctX, pctY, PAINT_W, PAINT_H } from '../../utils/sceneLayout';
-import seagull from '../../assets/ambient/seagull.png';
-import dragonfly from '../../assets/ambient/dragonfly.png';
-import cloud1 from '../../assets/ambient/cloud1.png';
-import cloud2 from '../../assets/ambient/cloud2.png';
-import cloud3 from '../../assets/ambient/cloud3.png';
 
-const CLOUDS = [cloud1, cloud2, cloud3];
-const SEAGULL_FRAMES = 3;
-const round2 = (value) => Math.round(value * 100) / 100;
+const r4 = (value) => Math.round(value * 10000) / 10000;
+const col = (px) => `${r4((px / ART_COLS) * 100)}%`;
+const row = (px) => `${r4((px / ART_ROWS) * 100)}%`;
+const secs = (value) => `${value}s`;
+// A piece's box on the painting, in whole art pixels.
+const box = (p) => ({ left: col(p.x), top: row(p.y), width: col(p.w), height: row(p.h) });
+// One art pixel of a piece's own box, for the keyframes that move it a pixel at a time.
+const unit = (p) => ({ '--ax': `${r4(100 / p.w)}%`, '--ay': `${r4(100 / p.h)}%` });
+const cells = (p) => p.shape.cells.length;
+// A flipbook: the shape's cells side by side, stepped through on the stage's clock.
+const flip = (p, colours) => ({
+  backgroundImage: svgStrip(p.shape, colours),
+  backgroundSize: `${cells(p) * 100}% 100%`,
+  animationDuration: secs(p.duration),
+  animationDelay: secs(p.delay),
+  animationTimingFunction: `steps(${cells(p)}, jump-none)`,
+});
+const opacity = (p, palette) => r4((p.opacity ?? 1) * palette.strength);
 
-// Everything on the stage that moves without the player: see utils/sceneAmbience.js for
-// the per-ground plan — no two grounds move the same way. Every plan is a list of things in
-// painting units, and this maps them onto this stage's crop (utils/sceneLayout.js) as pure
-// CSS loops: a thing that travels (a streak, a roller, a whitecap, a leaf) is a lane rotated
-// to its heading with the piece running along it; surf is a bar rotated along the sand line
-// that runs up it and back; foam, rings, bubbles, mist, moss and grass sit where they were
-// planned and pulse, open, rise, drift or sway in place (the surf bar straddles its line, a third
-// over the water, so the foam shows against the water before it runs up the sand); the sun glint, caustics, horizon
-// gleam and snow are tiled layers over a box. Nothing here is a fish: the only one on the
-// water is the one the player is fighting.
+// Everything on the stage that moves without the player: see utils/sceneAmbience.js for the
+// per-ground plans — no two grounds move the same way. Every piece is pixel art on the world's
+// one art pixel: a box of whole art pixels on the painting, drawn as a hard-edged SVG in the
+// painting's own colours (a flipbook of cells where it changes shape), stepped a pixel at a
+// time or a cell at a time on the stage's 125 ms clock by the keyframes in App.css. A thing
+// that travels is three nested boxes — its lane, its run across and its run down — so each axis
+// steps a whole pixel on its own count, the way a pixel line is drawn.
 //
 // The whole layer is laid out on the painting, not the stage: it takes the same box the
 // backdrop does (`paintBox` in GameScene — the painting runs to PAINT_W however narrow the
 // stage is) and everything inside it is placed as a percentage of the painting, so a piece
-// at x 468 sits on the painting's right edge on every crop. It used to fill the stage and
-// clip at its edge, which on a phone is 340 painting units in — the water the cast camera
-// pans across was bare past that line.
+// on the painting's right edge sits there on every crop. The sky's clouds and gulls fly inside
+// the painting's own sky (a mask read off it), so they pass behind the lamp posts, the pines,
+// the peaks and the headland, never over them.
 export default function SceneAmbience({ biome, period = 'day', season = null, viewW = 480 }) {
-  const config = ambienceFor(biome, season);
+  const plan = planAmbience(biome, season, period);
+  const { config, palette } = plan;
   const layout = layoutFor(biome, season);
   const frame = frameFor(viewW, layout.crop);
-  // Gulls roost after dark; the fresh-water bugs keep going (crickets take over the sound).
-  const night = period === 'night';
-  const gullCount = config.critter === 'seagull' && !night ? config.critters : 0;
-  const stars = night && config.clouds.length > 0;
-  const skyBottom = stars ? Math.max(...config.clouds.map((lane) => lane.y1)) + 6 : 0;
-  const effects = config.effects;
-  const movers = planMovers(biome, season);
-  const foam = planFoam(biome, season);
-  const rings = planRings(biome, season);
-  const wash = planWash(biome, season);
-  const mist = planMist(biome, season);
-  const moss = planMoss(biome, season);
-  const grass = planGrass(biome, season);
-  const bubbles = planBubbles(biome, season);
-  const fireflies = night ? planFireflies(biome, season) : [];
   const paintBox = { left: 0, top: pctY(-frame.cropTop * frame.k), width: pctX(stageX(PAINT_W, frame), frame), height: pctY(stageLen(PAINT_H, frame)) };
-  const px = (value) => `${round2((value / PAINT_W) * 100)}%`;
-  const py = (value) => `${round2((value / PAINT_H) * 100)}%`;
-  const at = (x, y) => ({ left: px(x), top: py(y) });
-  const size = (w, h) => ({ width: px(w), height: py(h) });
-  const box = (rect) => ({ ...at(rect.x0, rect.y0), ...size(rect.x1 - rect.x0, rect.y1 - rect.y0) });
-  const loop = (piece) => ({ animationDuration: `${piece.duration}s`, animationDelay: `${piece.delay}s` });
-  const waterClip = clipFor(effects.clip, config.sparkle);
+  const skyMask = config.sky ? maskUrl(config.sky) : null;
+  const masked = (url) => (url ? { WebkitMaskImage: url, maskImage: url, WebkitMaskSize: '100% 100%', maskSize: '100% 100%', WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat' } : {});
+  const cloudFilter = plan.clouds.length && config.cloudTones ? `scene-cloud-tones-${config.sceneKey.replace(/[^a-z]/g, '-')}` : null;
+  const flipPiece = (p, key, extra = '') => <span
+    key={key}
+    className={`scene-px scene-${p.kind} amb-flip-${p.rhythm} ${extra}`}
+    style={{ ...box(p), ...flip(p, palette), opacity: opacity(p, palette) }}
+  />;
+  const tiles = plan.tiles;
 
   return <div className="scene-ambience" aria-hidden="true" data-critter={config.critter} data-period={period} style={paintBox}>
-    {stars && <div className="scene-stars" style={{ height: py(Math.max(6, skyBottom)) }} />}
-    {config.clouds.map((lane, index) => <img
-      key={index}
-      className="scene-cloud"
-      src={CLOUDS[index % CLOUDS.length]}
-      alt=""
-      style={{ top: py(lane.y0), height: py(lane.y1 - lane.y0), animationDuration: `${lane.duration}s`, animationDelay: `${lane.delay}s`, '--drift-from': lane.from > 0 ? px(lane.from) : '-22%' }}
-    />)}
-    {moss.map((strand, index) => <span
-      key={`moss-${index}`}
-      className="scene-moss"
-      style={{ ...at(strand.x, strand.y), ...size(3, strand.length), ...loop(strand) }}
-    />)}
-    {grass.map((blade, index) => <span
-      key={`grass-${index}`}
-      className="scene-grass"
-      style={{ ...at(blade.x, blade.y - blade.height), ...size(3.5, blade.height), ...loop(blade) }}
-    />)}
-    {effects.glitter > 0 && <div
-      className="scene-glitter"
-      style={{ ...box(config.sparkle), opacity: effects.glitter, clipPath: waterClip }}
-    />}
-    {effects.caustics && <div
-      className="scene-caustics"
-      style={{ ...box(config.sparkle), opacity: effects.caustics.opacity, clipPath: waterClip, animationDuration: `${effects.caustics.seconds}s, ${effects.caustics.seconds * 1.6}s` }}
-    />}
-    {effects.gleam && <div
-      className="scene-gleam"
-      style={{ ...box(effects.gleam.box), animationDuration: `${effects.gleam.seconds}s, ${effects.gleam.seconds * 0.45}s` }}
-    />}
-    {movers.map((piece, index) => <span
+    {cloudFilter && <svg className="scene-filters" width="0" height="0" focusable="false">
+      <filter id={cloudFilter} colorInterpolationFilters="sRGB">
+        <feComponentTransfer>
+          {cloudTables(config.cloudTones).map((table, index) => React.createElement(['feFuncR', 'feFuncG', 'feFuncB'][index], { key: index, type: 'discrete', tableValues: table }))}
+        </feComponentTransfer>
+      </filter>
+    </svg>}
+    {(plan.clouds.length > 0 || plan.gulls.length > 0) && <div className="scene-sky" style={masked(skyMask)}>
+      {plan.clouds.map((p, index) => <img
+        key={`cloud-${index}`}
+        className="scene-cloud"
+        src={p.src}
+        alt=""
+        style={{ ...box(p), '--mx': `${r4((p.tx / p.w) * 100)}%`, animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${p.tx})`, filter: cloudFilter ? `url(#${cloudFilter})` : undefined }}
+      />)}
+      {plan.gulls.map((p, index) => <span
+        key={`gull-${index}`}
+        className="scene-gull"
+        data-critter="seagull"
+        style={{ ...box(p), '--mx': `${r4((p.tx / p.w) * 100)}%`, animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${Math.round(p.tx / p.stride)})` }}
+      ><i style={{ ...unit(p), backgroundImage: `url(${p.src})`, backgroundSize: `${p.frames * 100}% 100%`, animationDuration: `${secs(p.flap)}, ${secs(p.bob)}`, animationDelay: `0s, ${secs(-index * 0.5)}` }} /></span>)}
+    </div>}
+    {plan.stars.map((p, index) => flipPiece(p, `star-${index}`))}
+    {plan.moss.map((p, index) => flipPiece(p, `moss-${index}`))}
+    {plan.grass.map((p, index) => flipPiece(p, `grass-${index}`))}
+    {plan.glints.length > 0 && <div className={period === 'night' ? 'scene-moonpath' : 'scene-glitter'} data-glints={plan.glints.length}>
+      {plan.glints.map((p, index) => flipPiece(p, `glint-${index}`))}
+    </div>}
+    {tiles && <div className={`scene-tiles scene-${tiles.kind}`} style={{ opacity: r4(tiles.opacity * palette.strength), ...masked(tiles.clip ? maskUrl(polygonRuns(tiles.clip)) : null) }}>
+      {tiles.layers.map((layer, index) => <i
+        key={index}
+        style={{
+          backgroundImage: svgStrip(layer.tile, palette),
+          backgroundSize: `${col(layer.tile.w)} ${row(layer.tile.h)}`,
+          '--tx': `${r4((layer.x / (ART_COLS - layer.tile.w)) * 100)}%`,
+          '--ty': `${r4((layer.y / (ART_ROWS - layer.tile.h)) * 100)}%`,
+          animationDuration: `${secs(layer.seconds[0])}, ${secs(layer.seconds[1])}`,
+          animationTimingFunction: `steps(${Math.abs(layer.x)}), steps(${Math.abs(layer.y)})`,
+        }}
+      />)}
+    </div>}
+    {plan.gleam.map((p, index) => flipPiece(p, `gleam-${index}`))}
+    {plan.movers.map((p, index) => <span
       key={`mover-${index}`}
-      className={`scene-mover is-${piece.kind}`}
-      data-heading={piece.heading}
-      style={{ ...at(piece.x, piece.y), ...size(piece.across ? piece.h : piece.w, piece.across ? piece.w : piece.h), opacity: piece.opacity, transform: `translateY(-50%) rotate(${piece.heading}deg)`, '--travel': `${Math.round((piece.travel / (piece.across ? piece.h : piece.w)) * 100)}%` }}
-    ><i style={loop(piece)} /></span>)}
-    {wash.map((piece, index) => <span
+      className={`scene-mover is-${p.kind}`}
+      data-kind={p.kind}
+      style={{ ...box(p), '--mx': `${r4((p.tx / p.w) * 100)}%`, '--my': `${r4((p.ty / p.h) * 100)}%` }}
+    ><i style={{ animationDuration: secs(p.duration), animationDelay: secs(p.delay), animationTimingFunction: `steps(${Math.max(1, Math.abs(p.tx))})` }}><b style={{
+      backgroundImage: svgStrip(p.shape, palette),
+      backgroundSize: `${cells(p) * 100}% 100%`,
+      animationDuration: `${secs(p.duration)}, ${secs(p.duration)}${p.flipSeconds ? `, ${secs(p.flipSeconds)}` : ''}`,
+      animationDelay: `${secs(p.delay)}, ${secs(p.delay)}${p.flipSeconds ? ', 0s' : ''}`,
+      animationTimingFunction: `steps(${Math.max(1, Math.abs(p.ty))}), step-end${p.flipSeconds ? `, steps(${cells(p)}, jump-none)` : ''}`,
+      '--o': opacity(p, palette),
+    }} /></i></span>)}
+    {plan.caps.map((p, index) => flipPiece(p, `cap-${index}`))}
+    {plan.wash.map((p, index) => <span
       key={`wash-${index}`}
-      className="scene-wash"
-      style={{ ...at(piece.x, piece.y), ...size(piece.length, piece.reach * 1.5), transform: `rotate(${piece.angle}deg) translateY(-33%)` }}
-    ><i style={loop(piece)} /></span>)}
-    {foam.map((spot, index) => <span
-      key={`foam-${index}`}
-      className="scene-foam"
-      style={{ ...at(spot.x, spot.y), ...size(spot.size, spot.size * 0.55), ...loop(spot) }}
+      className={`scene-px scene-wash is-${p.levels}`}
+      style={{ ...box(p), backgroundImage: svgStrip(p.shape, palette), backgroundSize: '100% 100%', '--wy': `${r4((p.step / p.h) * 100)}%`, '--o': opacity(p, palette), animationDuration: secs(p.duration), animationDelay: secs(p.delay) }}
     />)}
-    {rings.map((ring, index) => <span
-      key={`ring-${index}`}
-      className="scene-ring"
-      style={{ ...at(ring.x, ring.y), ...size(ring.size, ring.size * 0.42), ...loop(ring) }}
-    />)}
-    {bubbles.map((bubble, index) => <span
-      key={`bubble-${index}`}
-      className="scene-bubble"
-      style={{ ...at(bubble.x, bubble.y), ...size(bubble.size, bubble.size), ...loop(bubble) }}
-    />)}
-    {mist.map((band, index) => <div
+    {plan.foam.map((p, index) => flipPiece(p, `foam-${index}`))}
+    {plan.rings.map((p, index) => flipPiece(p, `ring-${index}`))}
+    {plan.bubbles.map((p, index) => flipPiece(p, `bubble-${index}`))}
+    {plan.mist.map((p, index) => <span
       key={`mist-${index}`}
-      className="scene-mist"
-      style={{ ...at(band.x, band.y), ...size(band.w, band.h), ...loop(band) }}
+      className="scene-px scene-mist"
+      style={{ ...box(p), ...unit(p), backgroundImage: svgStrip(p.shape, palette), backgroundSize: '100% 100%', opacity: opacity(p, palette), animationDuration: secs(p.duration), animationDelay: secs(p.delay) }}
     />)}
-    {effects.snow && <div
-      className="scene-snow"
-      style={{ inset: 0, opacity: effects.snow.opacity, animationDuration: `${effects.snow.seconds}s, ${effects.snow.seconds * 1.7}s` }}
-    />}
-    {fireflies.map((bug, index) => <span
+    {plan.fireflies.map((p, index) => <span
       key={`firefly-${index}`}
       className="scene-firefly"
-      style={{ ...at(bug.x, bug.y), ...size(bug.size, bug.size), animationDuration: `${bug.duration}s, ${bug.duration / 4}s`, animationDelay: `${bug.delay}s, ${bug.delay / 2}s` }}
-    />)}
-    {Array.from({ length: gullCount }, (_, index) => <div
-      key={index}
-      className="scene-gull"
-      data-critter="seagull"
-      style={{
-        top: py(config.gulls.y0 + ((config.gulls.y1 - config.gulls.y0) * index) / Math.max(1, config.critters - 1)),
-        width: px(28 - index * 4),
-        backgroundImage: `url(${seagull})`,
-        backgroundSize: `${SEAGULL_FRAMES * 100}% 100%`,
-        animationDuration: `${0.5 + index * 0.08}s, ${26 + index * 9}s`,
-        animationDelay: `0s, ${-8 - index * 11}s`,
-      }}
-    />)}
-    {config.critter === 'dragonfly' && config.dragonflies.map((spot, index) => <img
-      key={index}
+      style={{ ...box(p), ...unit(p), animationDuration: secs(p.wander), animationDelay: secs(p.wanderDelay) }}
+    ><i className="scene-px amb-flip-25" style={flip(p, palette)} /></span>)}
+    {plan.dragonflies.map((p, index) => <span
+      key={`dragonfly-${index}`}
       className="scene-dragonfly"
       data-critter="dragonfly"
-      src={dragonfly}
-      alt=""
-      style={{ ...at(spot.x, spot.y), width: px(17), animationDuration: `${13 + index * 4}s`, animationDelay: `${-index * 5}s` }}
-    />)}
+      style={{ ...box(p), ...unit(p), animationDuration: secs(p.duration), animationDelay: secs(p.delay) }}
+    ><i style={{ backgroundImage: `url(${p.src})`, backgroundSize: `${p.frames * 100}% 100%`, animationDuration: secs(p.wings) }} /></span>)}
   </div>;
 }
