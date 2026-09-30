@@ -218,10 +218,17 @@ export function pixelFishSize(species) {
   return size ? { w: size[0], h: size[1] } : null;
 }
 
+// A load that fails (a dropped connection, a deploy that replaced the chunk mid-visit) is not
+// kept: the promise rejects for whoever asked, and the next call tries the chunk again.
 let pixelFish = null;
 let pixelLoad = null;
 export function preloadPixelFish() {
-  if (!pixelLoad) pixelLoad = import('../assets/fish/pixel').then((module) => { pixelFish = module.PIXEL_FISH; return pixelFish; });
+  if (!pixelLoad) {
+    pixelLoad = import('../assets/fish/pixel').then(
+      (module) => { pixelFish = module.PIXEL_FISH; return pixelFish; },
+      (error) => { pixelLoad = null; throw error; },
+    );
+  }
   return pixelLoad;
 }
 
@@ -230,20 +237,26 @@ export function preloadPixelFish() {
 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 // variant="pixel" draws the pixel variant (pixelated, data-variant="pixel", with its native
-// size as width/height so the box keeps its shape before it loads); a species without one gets
-// the sticker (data-variant="sticker"). Without a variant nothing changes.
+// size as width/height so the box keeps its shape before it loads); a species without one, or a
+// fish drawn when the pixel chunk failed to load, gets the sticker (data-variant="sticker").
+// Without a variant nothing changes.
 export default function FishIllustration({ species, className = '', style, variant }) {
   const fish = fishDetails[species] || fishDetails.trout;
   const size = variant === 'pixel' ? PIXEL_SIZES[species] : null;
   const [art, setArt] = useState(pixelFish);
+  // The chunk failed to arrive: this one draws the sticker (the next fish mounted tries again).
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (!size || art) return undefined;
+    if (!size || art || failed) return undefined;
     let live = true;
-    preloadPixelFish().then((loaded) => { if (live) setArt(loaded); });
+    preloadPixelFish().then(
+      (loaded) => { if (live) setArt(loaded); },
+      () => { if (live) setFailed(true); },
+    );
     return () => { live = false; };
-  }, [size, art]);
+  }, [size, art, failed]);
   if (variant === 'pixel') {
-    if (size) {
+    if (size && !failed) {
       const src = art?.[species]?.src;
       return <img className={`fish-illustration is-pixel ${className}`} data-species={species} data-variant="pixel" data-loading={src ? undefined : 'yes'} src={src || BLANK} alt={fish.label} width={size[0]} height={size[1]} style={{ imageRendering: 'pixelated', ...style }} />;
     }
