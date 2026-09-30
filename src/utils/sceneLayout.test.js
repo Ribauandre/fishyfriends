@@ -2,6 +2,7 @@ import path from 'node:path';
 import {
   SCENE_LAYOUTS, layoutFor, viewWidthFor, frameFor, stageX, stageY, stageLen, waterSpan, landingX, reelX, cameraFor, cameraForLayout, castWindow,
   REST_CAMERA, PAINT_H, PAINT_W, ART_PX, snapArt, placements, fightBand, fightBox, FIGHT_HALF, CAMERA_ANGLER_MARGIN,
+  HOOK_EDGE, HOOK_R, TAG_ROOM, tagAboveFor, insidePolygon, clipPathFor, cropAnchor,
 } from './sceneLayout';
 import { BIOMES } from './gameBiomes';
 import { readPng } from '../test-utils/pixelArt';
@@ -173,7 +174,7 @@ test('casts land in the water that is actually on screen, weakest to strongest',
   const phone = frameFor(338);
   const reach = castWindow(layout, phone)[1];
   expect(reach).toBeGreaterThan(338);
-  expect(landingX(layout, 100, phone)).toBe(Math.min(layout.cast.max, reach - 24));
+  expect(landingX(layout, 100, phone)).toBeCloseTo(Math.min(layout.cast.max, reach - HOOK_EDGE), 1);
   expect(landingX(layout, 50, phone)).toBeGreaterThan(layout.cast.min);
   const wide = frameFor(720);
   expect(landingX(layout, 0, wide)).toBe(layout.cast.min * 1.5);
@@ -277,4 +278,86 @@ test('a landed fish keeps the fight\'s frame, eased off only as far as the catch
     const paintRight = Math.max(viewW, PAINT_W);
     expect(right).toBeGreaterThanOrEqual(Math.min(paintRight, feetX + room) - 0.5);
   }));
+});
+
+// A wide window crops a centred painting top and bottom; it must never crop off the crowd on
+// the deck — a guest's head, or the name over it. At 2.6:1 the dock's back-row guest once stood
+// with his cap cut off and no name at all.
+test('a wide stage never crops a head on the deck, or the name over it', () => {
+  SCENES.forEach((key) => [300, 480, 600, 702, 960].forEach((viewW) => {
+    const layout = SCENE_LAYOUTS[key];
+    const frame = frameFor(viewW, layout.crop);
+    const place = placements(layout);
+    [place.you, ...place.crew].forEach((feet, index) => {
+      const above = tagAboveFor(layout, index === 0 ? null : place.crew[index - 1]);
+      const top = feet.y - layout.spriteH - (above ? TAG_ROOM : 0);
+      expect({ key, viewW, index, inFrame: stageY(top, frame) >= -0.01 }).toEqual({ key, viewW, index, inFrame: true });
+    });
+  }));
+  // A painting whose crowd stands low keeps the centred crop, and the Canyon keeps its bottom.
+  expect(frameFor(702, SCENE_LAYOUTS.flats.crop).cropTop).toBeCloseTo((PAINT_H - PAINT_H / (702 / 480)) / 2, 1);
+  expect(cropAnchor(SCENE_LAYOUTS.canyon.crop)).toBe('bottom');
+  expect(cropAnchor(SCENE_LAYOUTS.river.crop)).toBe('center');
+});
+
+test('names go under feet unless the deck below is somebody else\'s or the painting\'s edge', () => {
+  const dock = layoutFor('river');
+  const [beside, back] = placements(dock).crew;
+  expect(tagAboveFor(dock)).toBe(false);
+  expect(tagAboveFor(dock, beside)).toBe(false);
+  expect(tagAboveFor(dock, back)).toBe(true);
+  // The pier and the creek put their guest a row back, on open planks: the name goes under them.
+  expect(tagAboveFor(layoutFor('pier'), placements(layoutFor('pier')).crew[0])).toBe(false);
+  expect(tagAboveFor(layoutFor('creek'), placements(layoutFor('creek')).crew[0])).toBe(false);
+  expect(tagAboveFor(layoutFor('canyon'))).toBe(true);
+});
+
+// The landing keeps the fight's frame, but where the fight's bottom pushed that frame past his
+// cap (a wide stage), the result lifts it back: the celebrating angler keeps his head.
+test('the landing never cuts the celebrating angler\'s head off', () => {
+  SCENES.forEach((key) => [300, 480, 600, 640, 680, 702, 960].forEach((viewW) => {
+    const layout = SCENE_LAYOUTS[key];
+    const frame = frameFor(viewW, layout.crop);
+    const room = stageLen((31 + 8) * ART_PX + PIXEL_FISH_BOX.w * ART_PX, frame);
+    const camera = cameraForLayout('result', layout, frame, { room });
+    const feet = placements(layout).you;
+    expect({ key, viewW, head: camera.y <= stageY(feet.y - layout.spriteH, frame) + 0.01 }).toEqual({ key, viewW, head: true });
+  }));
+});
+
+// The hookset ring closes on the strike from HOOK_R art pixels round it (a keyline outside
+// that): the hardest cast lands far enough inside the cast camera's frame for the whole ring.
+test('the hardest cast leaves room for the whole hookset ring inside the frame', () => {
+  expect(HOOK_EDGE).toBeCloseTo((HOOK_R + 3) * ART_PX, 5);
+  SCENES.forEach((key) => [300, 338, 480, 702].forEach((viewW) => {
+    const layout = SCENE_LAYOUTS[key];
+    const frame = frameFor(viewW, layout.crop);
+    const camera = cameraForLayout('casting', layout, frame);
+    const right = camera.x + viewW / camera.scale;
+    expect({ key, viewW, fits: landingX(layout, 100, frame) + stageLen(HOOK_EDGE, frame) <= right + 0.01 }).toEqual({ key, viewW, fits: true });
+  }));
+});
+
+// A fish's shadow is only drawn over water: every ground's water polygon holds the fish's row
+// across the water it fights in, and leaves out the dock's end post, the hulls and the banks.
+test('the water a shadow shows in covers the fight and leaves out the posts, hulls and banks', () => {
+  SCENES.forEach((key) => {
+    const layout = SCENE_LAYOUTS[key];
+    expect(Array.isArray(layout.waterClip)).toBe(true);
+    const { x0, x1 } = layout.water;
+    for (let x = x0 + 4; x <= Math.min(x1, 470) - 4; x += 8) expect({ key, x, water: insidePolygon([x, layout.fishY], layout.waterClip) }).toEqual({ key, x, water: true });
+  });
+  // The dock's end post and rope (x 214-241 above y 182), the charter's hull, the canyon's
+  // gunwale, the pier's end post, the creek's mud bank, the frozen lake's ice and the beach.
+  expect(insidePolygon([230, 170], layoutFor('river').waterClip)).toBe(false);
+  expect(insidePolygon([125, 190], layoutFor('offshore').waterClip)).toBe(false);
+  expect(insidePolygon([270, 175], layoutFor('canyon').waterClip)).toBe(false);
+  expect(insidePolygon([268, 200], layoutFor('pier').waterClip)).toBe(false);
+  expect(insidePolygon([400, 200], layoutFor('creek').waterClip)).toBe(false);
+  expect(insidePolygon([420, 220], layoutFor('mountainlake', 'winter').waterClip)).toBe(false);
+  expect(insidePolygon([350, 210], layoutFor('shoreline').waterClip)).toBe(false);
+  // As a clip-path on a box of its own, in the box's percentages (mirrored with the box).
+  const frame = frameFor(480);
+  expect(clipPathFor([[0, 0], [240, 0], [240, 100]], { left: 200, top: 0, width: 80, height: 100 }, frame)).toBe('polygon(-250% 0%, 50% 0%, 50% 100%)');
+  expect(clipPathFor([[240, 0]], { left: 200, top: 0, width: 80, height: 100 }, frame, true)).toBe('polygon(50% 0%)');
 });

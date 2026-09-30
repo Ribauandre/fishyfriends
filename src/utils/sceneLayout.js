@@ -59,8 +59,15 @@ const DOCK = {
   dragonflies: [],
   tagAbove: false,
   // Light painted into the picture itself (canyon: sunset; creek: golden hour), which the
-  // real-clock tint must not lay a second dusk over.
+  // real-clock tint must not lay a second dusk over. `lightTone` is that light as a per-channel
+  // multiplier for the sprites (the painting's own lit white, mixed about 60% toward it), so the
+  // figures on the deck are lit by the same sun as the painting rather than pasted on in daylight.
   light: null,
+  lightTone: null,
+  // Where a fish's shadow can be seen (painting units): the water, not the dock's end post and
+  // pilings, a hull or a bank. The shadow is clipped to it, so a fish at the near end of the
+  // fight noses under the post the way the painting would hide it. Read off each painting.
+  waterClip: [[242, 0], [480, 0], [480, 270], [0, 270], [0, 182], [242, 182]],
 };
 
 export const SCENE_LAYOUTS = {
@@ -75,6 +82,8 @@ export const SCENE_LAYOUTS = {
     cast: { min: 255, max: 380, y: 143 },
     water: { x0: 246, x1: 390, y0: 148, y1: 196 },
     fishY: 170,
+    // Above the surf's foam line, and clear of the dock's end post.
+    waterClip: [[242, 0], [480, 0], [480, 160], [430, 170], [400, 176], [350, 186], [300, 188], [250, 198], [242, 198]],
     sky: [{ y0: 4, y1: 26, from: -22 }, { y0: 24, y1: 48, from: -22 }],
     gulls: { y0: 10, y1: 45 },
   },
@@ -100,6 +109,9 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
     light: null,
+    lightTone: null,
+    // Right of the skiff's hull, from the bow tip down to the waterline at the foot.
+    waterClip: [[0, 0], [480, 0], [480, 270], [232, 270], [218, 235], [196, 200], [161, 165], [97, 136], [0, 170]],
   },
   // The pier's end: a wide, deep deck (x 20-250, y 80-185, rail at the back left, the trash
   // can at its front left, barrel and rope posts at its end), grey-green swell to the right and
@@ -110,6 +122,9 @@ export const SCENE_LAYOUTS = {
     angler: { x: 170, y: 176 },
     crew: [-78.67],
     crewY: -40,
+    // The guest's name goes under their feet, on the open planks: over their head it lay on the
+    // lamp, the only light here after dark, and a wide stage cropped it off the top.
+    crewTagBelow: true,
     pets: { you: -41.33, crew: [-41.33] },
     spriteH: 92,
     cast: { min: 290, max: 440, y: 150 },
@@ -125,6 +140,10 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
     light: null,
+    lightTone: null,
+    // Right of the end post with its rope (x 275) and the barrel's post above it, above the
+    // beach's foam in the bottom right.
+    waterClip: [[0, 0], [480, 0], [480, 188], [400, 215], [340, 245], [276, 262], [276, 168], [262, 164], [256, 105], [0, 105]],
   },
   // The marsh creek: a short dock (x 0-200) seen from above enough to have depth (its planks
   // run y 115-155), the creek's channel right of it (x 210-330 below y 150) with mud and crabs
@@ -135,6 +154,8 @@ export const SCENE_LAYOUTS = {
     angler: { x: 140, y: 155 },
     crew: [-81.33],
     crewY: -33.33,
+    // The back boards are open under the guest's feet (the pier's reason too).
+    crewTagBelow: true,
     pets: { you: -41.33, crew: [null] },
     spriteH: 92,
     cast: { min: 225, max: 320, y: 175 },
@@ -148,9 +169,15 @@ export const SCENE_LAYOUTS = {
     dragonflies: [{ x: 420, y: 150 }],
     tagAbove: false,
     light: 'golden',
+    // The egret's gold, (249, 217, 130), mixed 60% toward.
+    lightTone: [0.99, 0.91, 0.71],
+    // The channel: right of the dock's front post, left of the mud bank and its crabs.
+    waterClip: [[202, 150], [300, 150], [310, 155], [322, 160], [335, 167], [347, 175], [362, 182], [376, 190], [382, 202], [375, 216], [355, 226], [327, 238], [300, 250], [270, 262], [202, 262]],
   },
   // The mountain lake frozen over (winter only): the snowed-in dock ends at x 200 with a barrel
-  // at 12-40, and the open lead runs x 215-430, y 150-255; everything else is ice. The
+  // at 12-40, and the open lead runs x 190-383, y 138-256 (at the fish's row it ends at 383;
+  // past that is the ice shelf, where a cast once landed and a fish once swam); everything else
+  // is ice. The
   // decoration stands on the barrel's lid.
   'mountainlake:winter': {
     crop: 'center',
@@ -159,8 +186,8 @@ export const SCENE_LAYOUTS = {
     crewY: 0,
     pets: { you: -41.33, crew: [null] },
     spriteH: 92,
-    cast: { min: 250, max: 400, y: 162 },
-    water: { x0: 240, x1: 430, y0: 156, y1: 250 },
+    cast: { min: 250, max: 360, y: 162 },
+    water: { x0: 240, x1: 372, y0: 156, y1: 250 },
     fishY: 200,
     sparkle: { x0: 215, y0: 150, x1: 435, y1: 258 },
     lamp: { x: 26, y: 62, r: 14, pool: { x: 50, y: 140, rx: 46, ry: 9 } },
@@ -170,6 +197,9 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
     light: null,
+    lightTone: null,
+    // The open lead itself, never the ice round it or the dock's post.
+    waterClip: [[262, 148], [300, 140], [345, 138], [358, 146], [368, 153], [366, 162], [362, 170], [372, 184], [383, 198], [379, 210], [366, 220], [342, 230], [330, 240], [315, 252], [262, 256], [250, 248], [210, 245], [196, 238], [196, 196], [235, 193], [250, 183], [250, 160]],
   },
   // The charter: the angler stands at the stern corner on the gunwale line (y 176), which runs
   // from the painted cooler (x 0-45) to the transom at x 125 — room for him and his pet on it,
@@ -193,6 +223,9 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
     light: null,
+    lightTone: null,
+    // Right of the hull's bow edge.
+    waterClip: [[136, 0], [480, 0], [480, 270], [112, 270], [118, 215], [127, 190], [135, 165]],
   },
   // The Canyon at dusk, from the charter's open stern cockpit: the deck fills the lower left
   // (the big cooler at x 75-180), the gunwale corner is at (295, 180) and the water runs from the
@@ -218,6 +251,10 @@ export const SCENE_LAYOUTS = {
     // The cockpit floor runs to the painting's foot, so names go over heads here.
     tagAbove: true,
     light: 'dusk',
+    // The hull's lit peach, (243, 209, 184), mixed 60% toward.
+    lightTone: [0.97, 0.89, 0.83],
+    // Beyond the gunwale: right of the hull's corner and above the rail's top.
+    waterClip: [[0, 0], [480, 0], [480, 270], [285, 270], [293, 230], [298, 190], [298, 176], [276, 168], [250, 157], [200, 146], [0, 146]],
   },
   // The Flats from the skiff: the bow's casting platform fills the lower left (its flat top
   // runs y 150-200, the cockpit with the cooler and the rope below it), the hull's edge runs
@@ -242,8 +279,40 @@ export const SCENE_LAYOUTS = {
     dragonflies: [],
     tagAbove: false,
     light: null,
+    lightTone: null,
+    // Outside the skiff's hull, from the bow tip down its side.
+    waterClip: [[0, 0], [480, 0], [480, 270], [270, 270], [260, 250], [241, 215], [221, 190], [176, 150], [125, 128], [70, 150], [0, 190]],
   },
 };
+
+// Names over heads. A figure's name goes under its feet, on the deck — except where the deck
+// below them is somebody else's (a guest on a row of their own further back: `back` slots, and a
+// crew row behind the angler's unless the layout says the boards under the guest are open,
+// `crewTagBelow`) or the painting's edge (`tagAbove`, the Canyon's cockpit floor). `slot` is a
+// crew slot from placements(), or null for the angler.
+export function tagAboveFor(layout, slot = null) {
+  if (!slot) return Boolean(layout.tagAbove);
+  if (slot.back) return true;
+  if (layout.crewTagBelow) return false;
+  return Boolean(layout.tagAbove) || (layout.crewY || 0) < 0;
+}
+// The room a name over a head takes above the top of the sprite's box: the tag (7 art pixels),
+// the three between it and the head, the plank of a sign hung beside it (it stands 2.5 above
+// the tag's line) and one clear of the frame's edge.
+export const TAG_ROOM = 14 * ART_PX;
+
+// How far a wide stage may crop the painting's top: never past the highest head on the deck and
+// the name over it, so a wide window — which crops a centred painting top and bottom — shows the
+// whole crowd at rest rather than a guest without a head or a name. A painting whose figures all
+// stand low enough keeps its centred crop.
+function deckTop(layout) {
+  const place = placements(layout);
+  const tops = [place.you, ...place.crew].map((feet, index) => {
+    const above = tagAboveFor(layout, index === 0 ? null : place.crew[index - 1]);
+    return feet.y - layout.spriteH - (above ? TAG_ROOM : 2 * ART_PX);
+  });
+  return round2(Math.max(0, Math.min(...tops)));
+}
 
 // Which painting and layout a ground uses this season: only the mountain lake changes (it
 // freezes), and only in winter.
@@ -313,12 +382,17 @@ export function viewWidthFor(width, height) {
 }
 
 // How the painting sits in a stage this wide (object-fit: cover): k painting->stage scale and
-// which painting row lands at the top of the stage.
+// which painting row lands at the top of the stage. `crop` is where the crop is anchored
+// ('center', 'top', 'bottom'), or a layout's { at, maxTop }: that anchor, never cropping more
+// than maxTop off the painting's top.
+export const cropAnchor = (crop) => (crop && typeof crop === 'object' ? crop.at : crop) || 'center';
 export function frameFor(viewW, crop = 'center') {
   const k = Math.max(1, viewW / PAINT_W);
   const visibleH = PAINT_H / k;
-  const cropTop = k === 1 ? 0 : crop === 'bottom' ? PAINT_H - visibleH : crop === 'top' ? 0 : (PAINT_H - visibleH) / 2;
-  return { viewW, k, cropTop, visibleRight: viewW / k };
+  const at = cropAnchor(crop);
+  let cropTop = k === 1 ? 0 : at === 'bottom' ? PAINT_H - visibleH : at === 'top' ? 0 : (PAINT_H - visibleH) / 2;
+  if (crop && typeof crop === 'object' && Number.isFinite(crop.maxTop)) cropTop = Math.min(cropTop, crop.maxTop);
+  return { viewW, k, cropTop: round2(cropTop), visibleRight: viewW / k };
 }
 
 export const stageX = (px, frame) => round2(px * frame.k);
@@ -360,9 +434,14 @@ export function waterSpan(layout, frame) {
   return [stageX(layout.water.x0, frame), stageX(Math.max(layout.water.x0 + 40, x1), frame)];
 }
 
-// Where a cast lands: meter power 0-100 across the landing range, squeezed to what's visible.
+// Where a cast lands: meter power 0-100 across the landing range, squeezed to what's visible —
+// far enough inside the cast camera's frame that the hookset ring closing on the strike (HOOK_R
+// art pixels round it, a keyline outside that, and a pixel for the strike's snap to the grid)
+// is whole in it too.
+export const HOOK_R = 20;
+export const HOOK_EDGE = (HOOK_R + 3) * ART_PX;
 export function landingX(layout, power, frame) {
-  const max = Math.min(layout.cast.max, castWindow(layout, frame)[1] - 24);
+  const max = Math.min(layout.cast.max, castWindow(layout, frame)[1] - HOOK_EDGE);
   const p = Math.max(0, Math.min(100, power)) / 100;
   return stageX(layout.cast.min + p * Math.max(0, max - layout.cast.min), frame);
 }
@@ -424,9 +503,44 @@ export function cameraFor(phase, { anglerX, anglerY, spriteH, fight = null, pain
   const h = PAINT_H / scale;
   let y = fight ? Math.min(headY, fight[0]) : headY;
   if (fight && y + h < fight[1]) y = fight[1] - h;
+  // The landing has no zone or callout to keep in shot, so where the fight's bottom pushed the
+  // frame down past his cap (a wide stage), the result lifts it back to his hat.
+  if (phase === 'result') y = Math.min(y, headY);
   y = round2(clamp(y, fight ? paintTop : 0, (fight ? paintBottom : PAINT_H) - h));
   const x = round2(Math.max(0, Math.min(paintRight - w, anglerX - CAMERA_ANGLER_MARGIN)));
   return { x, y, scale };
 }
 
 export const cameraTransform = ({ x, y, scale }, viewW) => `scale(${scale}) translate(${round2(-(x / viewW) * 100)}%, ${round2(-(y / PAINT_H) * 100)}%)`;
+
+// Whether a point lies inside a polygon (both in the same units).
+export function insidePolygon([x, y], polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const [xi, yi] = polygon[i];
+    const [xj, yj] = polygon[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// A polygon in painting units as a CSS clip-path on an element's own box (stage units: left,
+// top, width, height), its vertices on the art grid; `mirrored` for a box drawn scaleX(-1) about
+// its middle, whose own coordinates run the other way.
+export function clipPathFor(polygon, box, frame, mirrored = false) {
+  if (!polygon || !(box.width > 0) || !(box.height > 0)) return undefined;
+  const points = polygon.map(([px, py]) => {
+    let x = ((stageX(snapArt(px), frame) - box.left) / box.width) * 100;
+    if (mirrored) x = 100 - x;
+    const y = ((stageY(snapArt(py), frame) - box.top) / box.height) * 100;
+    return `${round2(x)}% ${round2(y)}%`;
+  });
+  return `polygon(${points.join(', ')})`;
+}
+
+// Each layout's crop carries that limit with it, so everything that frames the painting (the
+// stage, the ambience) crops it the same way from the one value.
+Object.values(SCENE_LAYOUTS).forEach((layout) => {
+  if (layout.crop === 'bottom') return;
+  layout.crop = { at: layout.crop, maxTop: deckTop(layout) };
+});

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { FRAME_MS } from '../../utils/anglerSprites';
 
 // Which frame of a sprite strip is on screen, in JS, for the things that have to follow it: the
@@ -24,18 +24,36 @@ export function heldFrame(current) {
   return loop ? 0 : play - 1;
 }
 
-const reducedMotion = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-  && Boolean(window.matchMedia('(prefers-reduced-motion: reduce)')?.matches);
+// The preference is followed live, the way the CSS follows it: turned on mid-strip, the sprite
+// drops to its held frame and so does this; turned off, the CSS starts the strip again from its
+// first frame and this restarts its clock with it.
+const REDUCED = '(prefers-reduced-motion: reduce)';
+const reducedQuery = () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(REDUCED) : null);
+const reducedMotion = () => Boolean(reducedQuery()?.matches);
+function subscribeReduced(onChange) {
+  const query = reducedQuery();
+  if (!query) return () => {};
+  if (typeof query.addEventListener === 'function') {
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }
+  if (typeof query.addListener === 'function') {
+    query.addListener(onChange);
+    return () => query.removeListener(onChange);
+  }
+  return () => {};
+}
 const clock = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now());
 
 export default function useStripFrame(current, key) {
   const { play, loop } = current;
-  const first = () => (play && !reducedMotion() ? 0 : heldFrame(current));
-  const [state, setState] = useState(() => ({ key, frame: first() }));
+  const reduced = useSyncExternalStore(subscribeReduced, reducedMotion, reducedMotion);
+  const first = () => (play && !reduced ? 0 : heldFrame(current));
+  const [state, setState] = useState(() => ({ key, frame: first(), reduced }));
   useEffect(() => {
     if (!play) return undefined;
-    if (reducedMotion() || typeof requestAnimationFrame !== 'function') {
-      setState({ key, frame: heldFrame({ play, loop }) });
+    if (reduced || typeof requestAnimationFrame !== 'function') {
+      setState({ key, frame: heldFrame({ play, loop }), reduced });
       return undefined;
     }
     const start = clock();
@@ -43,13 +61,14 @@ export default function useStripFrame(current, key) {
     const tick = () => {
       const elapsed = clock() - start;
       const frame = stripFrameAt({ play, loop }, elapsed);
-      setState((prev) => (prev.key === key && prev.frame === frame ? prev : { key, frame }));
+      setState((prev) => (prev.key === key && prev.frame === frame && prev.reduced === reduced ? prev : { key, frame, reduced }));
       if (loop || elapsed < play * FRAME_MS) raf = requestAnimationFrame(tick);
     };
     tick();
     return () => cancelAnimationFrame(raf);
-  }, [key, play, loop]);
+  }, [key, play, loop, reduced]);
   if (!play) return heldFrame(current);
-  // The first render of a new strip, before its clock has ticked: its first frame.
-  return state.key === key ? state.frame : first();
+  // The first render of a new strip (or of a changed preference), before its clock has ticked:
+  // its first frame, or its held one.
+  return state.key === key && state.reduced === reduced ? state.frame : first();
 }
