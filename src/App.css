@@ -4,7 +4,7 @@
   --deep: #03080b; --glow: rgba(227, 251, 20, .18);
   --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --font-head: 'Oswald', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
-  --font-pixel: 'Pixelify Sans', 'Oswald', 'Arial Narrow', sans-serif;
+  --font-pixel: 'Jersey 10', 'Oswald', 'Arial Narrow', sans-serif;
   /* Screenprint/sticker-sheet textures: halftone dots and hard diagonal rule stripes, to
      match the crisp vector sticker art rather than the painterly turbulence noise the
      hand-drawn SVG fish used to sit on. */
@@ -1283,13 +1283,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    celebration strip stepped through on a fast loop while its angler celebrates. */
 .scene-pet { image-rendering: pixelated; }
 .scene-decor { pointer-events: none; }
-.decor-preview { height: 46px; image-rendering: pixelated; width: auto; }
 .junk-card.is-unknown strong { color: var(--muted); }
 .scene-pet.is-idle { animation: pet-idle 1s step-end infinite; }
 @keyframes pet-idle { 0%, 80% { background-position-x: 0; } 80.01%, 84% { background-position-x: var(--pet-flick, 50%); } 84.01%, 88% { background-position-x: 0; } 88.01%, 92% { background-position-x: var(--pet-flick, 50%); } 92.01%, 100% { background-position-x: 0; } }
 .scene-pet.is-cheer { animation-iteration-count: infinite; animation-name: sprite-play; }
-.pet-preview { background-position: 0 0; background-repeat: no-repeat; height: 48px; image-rendering: pixelated; width: 54px; }
-.pet-preview.is-none { align-items: center; color: var(--muted); display: flex; font-family: var(--font-head); font-size: 10px; font-weight: 800; justify-content: center; letter-spacing: .05em; text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) { .scene-pet.is-idle, .scene-pet.is-cheer { animation: none; } }
 .scene-crew-bubble { animation: bubble-pop .25s steps(2, end) both; border: calc(var(--apx) * 3) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(var(--apx) * 3) round; color: #fff3d6; filter: drop-shadow(var(--apx) var(--apx) 0 rgba(19,15,12,.7)); font-family: var(--font-pixel); font-size: calc(var(--apx) * 6); font-weight: 500; image-rendering: pixelated; line-height: 1; padding: 0 var(--apx); pointer-events: none; position: absolute; text-shadow: var(--apx) 0 0 #130f0c, calc(var(--apx) * -1) 0 0 #130f0c, 0 var(--apx) 0 #130f0c, 0 calc(var(--apx) * -1) 0 #130f0c, var(--apx) var(--apx) 0 #130f0c, calc(var(--apx) * -1) var(--apx) 0 #130f0c, var(--apx) calc(var(--apx) * -1) 0 #130f0c, calc(var(--apx) * -1) calc(var(--apx) * -1) 0 #130f0c; transform: translate(-50%, -100%); white-space: nowrap; }
 @keyframes bubble-pop { from { opacity: 0; margin-top: calc(var(--apx) * 2); } to { opacity: 1; margin-top: 0; } }
@@ -1351,12 +1348,18 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    Cast & Catch — the chrome: the page round the stage and every overlay, in the world's own wood.
    One pixel: every raster here (the plank and log nine-slices, the deck, the icons and glyphs,
    the pixel fish, the logo, the room paintings) is drawn pixelated at a whole multiple of its art
-   pixels — --ui-px CSS px per art pixel for the planks, glyphs and sign icons, 1 for the fish.
+   pixels — --ui-px CSS px per art pixel for the planks, glyphs and sign icons, 1 for the fish. The
+   one exception is the map, which fills its panel where a whole multiple would cost it more than
+   a fifth of its width (BiomeMap's mapFit) — on a 1x window of 550-790 px, about 1.4-1.9x.
    One wood: signs (anything you press) are the plank sign filled; boards (anything you read) are
    the thin plank as a frame round the deck's dark stain; notes are pinned paper. One face:
-   Pixelify Sans (--font-pixel) at 10 / 20 / 30 px — on its own grid, one font pixel a tenth of
-   the size — for signage, labels, tags, numbers and headings; the site's body face for running
-   text. One keyline, #130f0c. Shadows are hard offsets, corners square, and nothing here loops
+   Jersey 10 (--font-pixel) for signage, labels, tags, numbers and headings, the site's body face
+   for running text. Jersey draws on a grid of 75 units in 1400 (caps 10 font pixels, x-height 8),
+   so its sizes are whole or third font pixels: --t-s / --t-m / --t-l are 1 / 1.5 / 2 CSS px a font
+   pixel on a wide window (18.67 / 28 / 37.33 px) and 2/3, 1 and 4/3 on a phone — 2, 3 and 4
+   device px at DPR 3. Its line boxes are .75em (caps centred, 2 font px either side). Ligatures and
+   synthesized bold are off for the whole game (Pixelify, the face before it, drew fi and fl as an
+   'A'; Jersey has one weight, and a faux bold smears it). One keyline, #130f0c. Shadows are hard offsets, corners square, and nothing here loops
    (the one exception is the champion's pennant in the HUD, which is on the stage).
    ========================================================================================== */
 .game-page {
@@ -1366,9 +1369,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   --wood-hi: #b58050; --wood: #925b31; --wood-mid: #764726; --wood-lo: #5e391f; --wood-dk: #452815;
   --sign-ink: #fff3d6; --sign-ink-2: #e8d3a8; --note: #efe0b4; --gold: #ffc93c; --brass: #c9a24a;
   --stain: rgba(19, 15, 12, .66);
+  /* The deck's wood (deck.webp, a 192 x 72 art px tile) at the chrome's pixel, like the planks. */
+  --deck-size: calc(192 * var(--ui-px)) calc(72 * var(--ui-px));
   --font-text: 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif;
-  --t-s: 10px; --t-m: 20px; --t-l: 30px;
-  --t-card: calc(10 * var(--ui-px));
+  --t-s: calc(56px / 3); --t-m: 28px; --t-l: calc(112px / 3);
+  --t-card: var(--t-m);
+  --lh-pixel: .75;
+  font-feature-settings: "liga" 0, "clig" 0; font-synthesis: none; font-variant-ligatures: none;
   --outline-1: 1px 0 0 var(--key), -1px 0 0 var(--key), 0 1px 0 var(--key), 0 -1px 0 var(--key);
   --outline-2: 2px 0 0 var(--key), -2px 0 0 var(--key), 0 2px 0 var(--key), 0 -2px 0 var(--key), 2px 2px 0 var(--key), -2px 2px 0 var(--key), 2px -2px 0 var(--key), -2px -2px 0 var(--key);
   --sign-drop: drop-shadow(var(--ui-px) calc(2 * var(--ui-px)) 0 rgba(19, 15, 12, .7));
@@ -1376,11 +1383,15 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   --ring-coral: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--coral);
   --ring-gold: 0 0 0 var(--ui-px) var(--key), 0 0 0 calc(2 * var(--ui-px)) var(--gold);
 }
-@media (max-width: 500px) { .game-page { --ui-px: 1px; --frame-px: .5px; --t-l: 20px; } }
+@media (max-width: 500px) { .game-page { --ui-px: 1px; --frame-px: .5px; --t-s: calc(112px / 9); --t-m: calc(56px / 3); --t-l: calc(224px / 9); --t-card: var(--t-s); } }
+/* The log frame's art pixel in whole device pixels: one at DPR 2 (.5 CSS px), two at DPR 3 (2/3). */
+@media (max-width: 500px) and (min-resolution: 2.5dppx) { .game-page { --frame-px: calc(2px / 3); } }
 
 /* The frame: lashed logs (frame.png, 80 art px, 16 of them border) round bare wood — no site
-   halftone showing between the logs. Only its own border is pixelated; what is inside sets its own. */
-.game-frame { background: #2b1d0e; border: calc(16 * var(--frame-px)) solid transparent; border-image: url(./assets/props/frame.png) 16 round; box-shadow: var(--sticker-shadow-lg); image-rendering: pixelated; margin-top: 18px; overflow: hidden; position: relative; }
+   halftone showing between the logs. Only its own border is pixelated; what is inside sets its own.
+   The sides repeat the logs at their own scale (`round` squeezed them to fit a whole number,
+   stretching the art pixel along one axis only). */
+.game-frame { background: #2b1d0e; border: calc(16 * var(--frame-px)) solid transparent; border-image: url(./assets/props/frame.png) 16 repeat; box-shadow: var(--sticker-shadow-lg); image-rendering: pixelated; margin-top: 18px; overflow: hidden; position: relative; }
 .game-frame > * { image-rendering: auto; }
 .game-frame .game-scene { border-bottom: 0; }
 /* The strike shakes the frame in whole chrome pixels, a step every 125 ms. */
@@ -1394,11 +1405,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* Signs: the plank nine-slice (plank.png, 24 art px, slice 6) filled, at the chrome's pixel. */
 .hud-plate, .hud-button, .dock-icon, .dock-ground, .game-loading-sign, .game-frame .button {
-  background: transparent; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 fill / calc(6 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; clip-path: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-1); text-transform: uppercase;
+  background: transparent; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 fill / calc(6 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; clip-path: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: var(--lh-pixel); text-shadow: var(--outline-1); text-transform: uppercase;
 }
 /* Small signs: the thin plank (plank_thin.png, 12 art px, slice 3), filled. */
 .hud-chip, .lure-chip, .dock-crew-chip, .map-hotspot, .game-overlay-close, .derby-ribbon, .rack-item {
-  background: transparent; border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(3 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-1); text-transform: uppercase;
+  background: transparent; border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 fill / calc(3 * var(--ui-px)) repeat; border-radius: 0; box-shadow: none; color: var(--sign-ink); filter: var(--sign-drop); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; image-rendering: pixelated; letter-spacing: 0; line-height: var(--lh-pixel); text-shadow: var(--outline-1); text-transform: uppercase;
 }
 /* A sign's words are all in its face, <strong> included (the site sets strong in the body face). */
 :is(.hud-plate, .hud-button, .dock-icon, .dock-ground, .game-loading-sign, .game-frame .button, .hud-chip, .lure-chip, .dock-crew-chip, .map-hotspot, .derby-ribbon, .rack-item) strong { font-family: inherit; font-weight: 400; }
@@ -1413,6 +1424,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 :is(.hud-button, .dock-icon, .game-frame .button, .lure-chip, .map-hotspot, .rack-item):disabled { cursor: not-allowed; filter: var(--sign-drop) grayscale(.85) brightness(.75); opacity: 1; }
 .game-frame .rack-item:disabled, .game-frame .dock-crew-chip:disabled { cursor: default; filter: var(--sign-drop); }
 /* Open, active, worn, done, yours: a hard mint ring round the sign or board. */
+.quest-row.is-claimable, .quest-card.is-claimable { box-shadow: var(--ring-gold); }
+.is-claimable .quest-progress { color: var(--gold); }
 .hud-button.is-open, .dock-icon.is-open, .lure-chip.is-active, .dock-crew-chip.is-here, .rack-item.is-worn, .quest-row.is-done, .quest-card.is-done, .club-record.is-me, .map-hotspot.is-active { box-shadow: var(--ring-mint); color: var(--mint); }
 .hud-button.is-open:hover:not(:disabled), .dock-icon.is-open:hover:not(:disabled) { color: var(--mint); }
 
@@ -1442,8 +1455,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .hud-plate { display: flex; flex-direction: column; gap: var(--ui-px); grid-column: 1; grid-row: 1; margin: 0; padding: 0 var(--ui-px); }
 .hud-brand { color: var(--mint); font-size: var(--t-s); white-space: nowrap; }
 .hud-points { align-items: center; display: flex; gap: calc(2 * var(--ui-px)); position: relative; }
-.hud-coin { display: block; filter: none; height: 24px; image-rendering: pixelated; width: 24px; }
-.hud-points strong { font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; letter-spacing: 0; line-height: 1; text-shadow: var(--outline-2); }
+.hud-coin { display: block; filter: none; height: calc(24 * var(--ui-px)); image-rendering: pixelated; width: calc(24 * var(--ui-px)); }
+.hud-points strong { font-family: var(--font-pixel); font-size: var(--t-m); font-variant-numeric: tabular-nums; font-weight: 400; letter-spacing: 0; line-height: var(--lh-pixel); text-shadow: var(--outline-2); }
 .hud-points strong.is-bumped { animation: points-hop .375s step-end; display: inline-block; }
 @keyframes points-hop { 0%, 100% { transform: none; } 33% { transform: translateY(calc(-2 * var(--ui-px))); } 66% { transform: translateY(calc(-1 * var(--ui-px))); } }
 .hud-points em { animation: points-rise 1.5s step-end both; font-family: var(--font-pixel); font-size: var(--t-s); font-style: normal; font-weight: 400; left: 100%; margin-left: calc(4 * var(--ui-px)); position: absolute; text-shadow: var(--outline-1); top: 0; white-space: nowrap; }
@@ -1452,7 +1465,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 @keyframes points-rise { 0% { opacity: 0; transform: translateY(calc(3 * var(--ui-px))); } 8% { opacity: 1; transform: translateY(calc(2 * var(--ui-px))); } 16% { transform: translateY(var(--ui-px)); } 25%, 83% { opacity: 1; transform: none; } 92% { opacity: .6; transform: translateY(calc(-1 * var(--ui-px))); } 100% { opacity: 0; transform: translateY(calc(-2 * var(--ui-px))); } }
 .hud-chips { display: flex; flex-wrap: wrap; gap: calc(2 * var(--ui-px)); grid-column: 1 / 3; grid-row: 2; }
 .hud-chip { align-items: center; display: inline-flex; gap: calc(2 * var(--ui-px)); margin: 0; min-height: calc(12 * var(--ui-px)); padding: 0 var(--ui-px); }
-.hud-chip.has-icon img { display: block; height: 24px; image-rendering: pixelated; width: 24px; }
+.hud-chip.has-icon img { display: block; height: calc(24 * var(--ui-px)); image-rendering: pixelated; margin: calc(-3 * var(--ui-px)) 0; width: calc(24 * var(--ui-px)); }
 .hud-chip.is-night, .hud-chip.is-dusk { color: #c9d6ff; }
 .hud-chip.is-dawn { color: #ffe1b8; }
 .hud-chip.is-champion { color: var(--gold); }
@@ -1468,9 +1481,9 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* The deck: deck.webp (192 x 72 art px) tiled at 2 CSS px an art pixel from its corner, so no
    board lands on a half pixel, behind a hard lip where the stage ends. After dark the boards go
    under the night and the signs on them dim a little (they still have to be read). */
-.game-dock { background: url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key), inset 0 8px 0 rgba(19, 15, 12, .35); image-rendering: pixelated; padding: calc(5 * var(--ui-px)) calc(7 * var(--ui-px)) calc(8 * var(--ui-px)); }
-.game-frame[data-period="dusk"] .game-dock, .game-frame[data-period="dawn"] .game-dock { background-image: linear-gradient(rgba(40, 24, 48, .3), rgba(40, 24, 48, .3)), url(./assets/scenes/deck.webp); background-size: auto, 384px 144px; }
-.game-frame[data-period="night"] .game-dock { background-image: linear-gradient(rgba(10, 14, 36, .58), rgba(10, 14, 36, .58)), url(./assets/scenes/deck.webp); background-size: auto, 384px 144px; }
+.game-dock { background: url(./assets/scenes/deck.webp) 0 0 / var(--deck-size) repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key), inset 0 8px 0 rgba(19, 15, 12, .35); image-rendering: pixelated; padding: calc(5 * var(--ui-px)) calc(7 * var(--ui-px)) calc(8 * var(--ui-px)); }
+.game-frame[data-period="dusk"] .game-dock, .game-frame[data-period="dawn"] .game-dock { background-image: linear-gradient(rgba(40, 24, 48, .3), rgba(40, 24, 48, .3)), url(./assets/scenes/deck.webp); background-size: auto, var(--deck-size); }
+.game-frame[data-period="night"] .game-dock { background-image: linear-gradient(rgba(10, 14, 36, .58), rgba(10, 14, 36, .58)), url(./assets/scenes/deck.webp); background-size: auto, var(--deck-size); }
 .game-frame[data-period="night"] .game-dock .game-panel { filter: brightness(.86) saturate(.9); }
 .game-dock .game-panel { padding-top: calc(2 * var(--ui-px)); }
 .game-panel { align-items: center; animation: panel-step .25s steps(2, jump-end) both; display: flex; flex-direction: column; gap: calc(6 * var(--ui-px)); padding: calc(6 * var(--ui-px)) calc(3 * var(--ui-px)) calc(3 * var(--ui-px)); text-align: center; }
@@ -1479,19 +1492,25 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-panel .button { font-size: var(--t-m); min-height: 56px; width: min(320px, 100%); }
 .game-panel.is-play { gap: calc(4 * var(--ui-px)); padding-top: calc(5 * var(--ui-px)); }
 .game-panel.is-play > p { font-size: 12px; }
+/* The fight's live numbers are signage in the pixel face, their digits on one width so they do not
+   jitter as they count; the line's number turns coral as it nears breaking. */
+.game-panel.is-play > p.reel-readout { display: flex; font-family: var(--font-pixel); font-size: var(--t-s); gap: calc(8 * var(--ui-px)); line-height: var(--lh-pixel); text-transform: uppercase; }
+.reel-readout span { align-items: baseline; display: inline-flex; gap: calc(3 * var(--ui-px)); }
+.reel-readout strong { color: var(--mint); font-size: var(--t-m); font-variant-numeric: tabular-nums; font-weight: 400; min-width: 3.4ch; text-align: right; text-shadow: var(--outline-2); }
+.reel-readout .is-strained strong { color: var(--coral); }
 .dock-row { align-items: stretch; display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: center; width: 100%; }
 .dock-ground { align-items: flex-start; cursor: pointer; display: flex; flex-direction: column; gap: var(--ui-px); justify-content: center; min-width: 120px; padding: 0 calc(3 * var(--ui-px)) var(--ui-px); text-align: left; }
 .dock-ground span, .dock-ground small { color: var(--sign-ink-2); font-size: var(--t-s); }
 .dock-ground strong { font-size: var(--t-m); font-weight: 400; text-shadow: var(--outline-2); }
 .dock-ground small { max-width: 30ch; }
 .dock-icons { display: flex; gap: calc(3 * var(--ui-px)); }
-.dock-icon-badge { background: var(--coral); border: var(--ui-px) solid var(--key); border-radius: 0; box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; line-height: 1; min-width: calc(8 * var(--ui-px) + 2px); padding: var(--ui-px) calc(2 * var(--ui-px)); position: absolute; right: calc(-4 * var(--ui-px)); text-align: center; text-shadow: none; top: calc(-5 * var(--ui-px)); }
+.dock-icon-badge { background: var(--coral); border: var(--ui-px) solid var(--key); border-radius: 0; box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; line-height: var(--lh-pixel); min-width: calc(8 * var(--ui-px) + 2px); padding: var(--ui-px) calc(2 * var(--ui-px)); position: absolute; right: calc(-4 * var(--ui-px)); text-align: center; text-shadow: none; top: calc(-5 * var(--ui-px)); }
 .dock-icon-badge.is-claim { background: var(--mint); }
 .dock-icon.is-derby::after { background: url(./assets/props/flag.png) 0 0 / 100% 100% no-repeat; content: ''; height: 24px; image-rendering: pixelated; left: calc(-5 * var(--ui-px)); position: absolute; top: calc(-6 * var(--ui-px)); width: 24px; }
 .dock-cast { font-size: var(--t-m); }
 .game-dock .game-panel > p.game-alert { animation: alert-blink .5s step-end 3; color: var(--coral); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; margin: 0; text-shadow: var(--outline-2); text-transform: uppercase; }
 @keyframes alert-blink { 0%, 50% { opacity: 1; } 25%, 75% { opacity: .35; } }
-.game-dock .game-result h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; line-height: 1.1; margin: 0; text-shadow: var(--outline-2); }
+.game-dock .game-result h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; line-height: var(--lh-pixel); margin: 0; text-shadow: var(--outline-2); }
 .game-result { padding-top: calc(4 * var(--ui-px)); }
 .game-dock .game-result p, .game-dock .result-note { color: var(--sign-ink-2); font-size: 13px; margin: 0; text-shadow: var(--outline-1); }
 .result-note.is-tag strong { color: var(--mint); }
@@ -1512,7 +1531,14 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-overlay .npc-dialogue { width: 100%; }
 .npc-frame { border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; display: block; filter: var(--sign-drop); image-rendering: pixelated; line-height: 0; }
 .npc-portrait { border: 0; box-shadow: none; display: block; height: calc(64 * var(--ui-px)); image-rendering: pixelated; object-fit: fill; width: calc(64 * var(--ui-px)); }
-.npc-dialogue.is-compact .npc-portrait { height: 64px; width: 64px; }
+.npc-dialogue.is-compact .npc-portrait { height: calc(64 * var(--ui-px)); width: calc(64 * var(--ui-px)); }
+/* On the deck of a wide window the portrait keeps its 64 px footprint but at the chrome's own pixel:
+   its head and shoulders (the middle 32 x 32 art px, a few rows down from the top), not the whole of
+   it at half the frame's pixel. A phone's chrome pixel is 1, so there the whole portrait fits. */
+@media (min-width: 501px) {
+  .npc-dialogue.is-compact .npc-frame { height: calc(38 * var(--ui-px)); overflow: hidden; width: calc(38 * var(--ui-px)); }
+  .npc-dialogue.is-compact .npc-portrait { margin: calc(-4 * var(--ui-px)) 0 0 calc(-16 * var(--ui-px)); max-width: none; }
+}
 .npc-bubble { padding: calc(3 * var(--ui-px)) calc(5 * var(--ui-px)); position: relative; }
 .npc-bubble::before { content: none; }
 .npc-bubble strong { color: var(--mint); display: inline; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; text-shadow: var(--outline-1); text-transform: uppercase; }
@@ -1524,20 +1550,21 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
    stain inside (or the room it stands in), two steps up on the 125 ms clock. */
 .game-overlay { align-items: flex-end; display: flex; inset: 0; position: absolute; z-index: 5; }
 .game-overlay-scrim { background: rgba(3, 8, 11, .7); border: 0; inset: 0; padding: 0; position: absolute; }
-.game-overlay-panel { animation: board-rise .25s steps(2, jump-end) both; background: linear-gradient(rgba(19, 15, 12, .72), rgba(19, 15, 12, .72)), url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; background-clip: padding-box; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 / calc(6 * var(--ui-px)) repeat; image-rendering: pixelated; max-height: calc(100% - 116px); overflow-y: auto; padding: calc(5 * var(--ui-px)) calc(6 * var(--ui-px)) calc(8 * var(--ui-px)); position: relative; scrollbar-color: var(--wood) var(--key); width: 100%; }
+.game-overlay-panel { animation: board-rise .25s steps(2, jump-end) both; background: linear-gradient(rgba(19, 15, 12, .72), rgba(19, 15, 12, .72)), url(./assets/scenes/deck.webp) 0 0 / var(--deck-size) repeat, #2b1d0e; background-clip: padding-box; border: calc(6 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank.png) 6 / calc(6 * var(--ui-px)) repeat; image-rendering: pixelated; max-height: calc(100% - 116px); overflow-y: auto; padding: calc(5 * var(--ui-px)) calc(6 * var(--ui-px)) calc(8 * var(--ui-px)); position: relative; scrollbar-color: var(--wood) var(--key); width: 100%; }
 @keyframes board-rise { from { opacity: 0; transform: translateY(calc(12 * var(--ui-px))); } to { opacity: 1; transform: none; } }
 /* A room: its painting (native art, one file pixel to one art pixel) over the board, pixelated,
-   under GameOverlay's scrim. */
+   under GameOverlay's scrim, at the smallest whole number of CSS px an art pixel that covers the
+   panel (GameOverlay sizes it inline once it knows both); `cover` is only the first frame's. */
 .game-overlay-panel.has-backdrop { background-color: #2b1d0e; background-position: center top; background-repeat: no-repeat; background-size: cover; }
 .game-overlay-head { align-items: flex-start; border-bottom: var(--ui-px) solid var(--key); box-shadow: 0 var(--ui-px) 0 rgba(181, 128, 80, .35); display: flex; gap: calc(4 * var(--ui-px)); justify-content: space-between; margin-bottom: calc(6 * var(--ui-px)); padding-bottom: calc(4 * var(--ui-px)); }
 .game-frame .eyebrow { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
-.game-overlay-head h2 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-l); font-weight: 400; letter-spacing: 0; line-height: 1; margin: calc(2 * var(--ui-px)) 0 0; text-shadow: var(--outline-2); text-transform: uppercase; }
+.game-overlay-head h2 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-l); font-weight: 400; letter-spacing: 0; line-height: var(--lh-pixel); margin: calc(2 * var(--ui-px)) 0 0; text-shadow: var(--outline-2); text-transform: uppercase; }
 .game-overlay-close { align-items: center; cursor: pointer; display: flex; flex: none; justify-content: center; min-height: 36px; min-width: 36px; padding: var(--ui-px); }
 .game-overlay-close img { display: block; height: calc(12 * var(--ui-px)); image-rendering: pixelated; width: calc(12 * var(--ui-px)); }
 .game-overlay-body { display: flex; flex-direction: column; gap: calc(6 * var(--ui-px)); }
-.game-overlay h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; letter-spacing: 0; line-height: 1.1; text-shadow: var(--outline-2); }
+.game-overlay h3 { color: var(--sign-ink); font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; letter-spacing: 0; line-height: var(--lh-pixel); text-shadow: var(--outline-2); }
 .game-overlay .month-empty { color: var(--sign-ink-2); font-size: 12px; }
-.game-overlay .rarity-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: 1; padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
+.game-overlay .rarity-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: var(--lh-pixel); padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
 .game-overlay .rarity-tag.is-real { background: var(--coral); color: var(--key); }
 /* Pinned notes: paper on a coral pin, square, straight — the hints under a board. */
 .game-frame .dock-hint { background: var(--note); border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) calc(2 * var(--ui-px)) 0 rgba(19, 15, 12, .6); color: var(--key); font-size: 12px; line-height: 1.5; margin: calc(2 * var(--ui-px)) 0 0; max-width: 560px; padding: calc(4 * var(--ui-px)) calc(6 * var(--ui-px)); position: relative; text-align: left; text-shadow: none; }
@@ -1546,23 +1573,57 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-overlay :is(.quest-title, .upgrade-level, .quest-progress, .almanac-meta, .almanac-season, .dock-crew-label, .rack-item strong, .fish-tag strong, .junk-card strong, .club-record strong, .quest-card > strong, .upgrade-card > strong, .almanac-card strong, .lure-chip strong, .dock-crew-text strong) { font-family: var(--font-pixel); font-weight: 400; letter-spacing: 0; text-transform: uppercase; }
 
 /* The map: its painting (396 x 264 art px) pixelated in a thin plank frame, the whole of it on
-   screen on a wide window; each ground a small plank sign on its own line. */
-.biome-map { border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; box-shadow: none; filter: var(--sign-drop); image-rendering: pixelated; margin: 0 auto; max-width: 100%; overflow: hidden; position: relative; width: 100%; }
-@media (min-width: 801px) { .biome-map { max-width: calc((100dvh - 440px) * 1.5 + 12px); } }
+   screen on a wide window — at a whole multiple of its art pixels where BiomeMap's mapFit can
+   afford it (.is-snapped, sized inline), filling the panel where it cannot. Each ground is a pin
+   in the painting and a small plank sign hung beside it on a stake (.is-n/.is-s/.is-e/.is-w: which
+   side of the pin the sign hangs), so the sign never hides the place it names; the week's derby
+   grounds fly the pennant from the pin, the cloth turned away from the sign. A sign's tap area is
+   at least 44 px tall and wide, however small the sign. */
+.biome-map { --stake: calc(6 * var(--ui-px)); border: calc(3 * var(--ui-px)) solid transparent; border-image: url(./assets/props/plank_thin.png) 3 / calc(3 * var(--ui-px)) repeat; box-shadow: none; filter: var(--sign-drop); image-rendering: pixelated; margin: 0 auto; max-width: 100%; overflow: hidden; position: relative; width: 100%; }
+@media (min-width: 801px) { .biome-map { max-width: min(100%, max(540px, calc((100dvh - 440px) * 1.5 + 12px))); } }
+/* A narrow window past the phone breakpoint takes the phone's signs, so they stay a fifth of the map. */
+@media (min-width: 501px) and (max-width: 640px) { .biome-map { --ui-px: 1px; --t-s: calc(112px / 9); } }
+.biome-map.is-snapped { max-width: none; }
 .biome-map-art { display: block; height: auto; image-rendering: pixelated; width: 100%; }
-.map-hotspot { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: var(--ui-px); padding: 0 calc(2 * var(--ui-px)) var(--ui-px); position: absolute; text-align: center; transform: translate(-50%, -50%); white-space: nowrap; width: max-content; }
+.map-hotspot { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: var(--ui-px); min-height: 0; min-width: 44px; padding: var(--ui-px) calc(2 * var(--ui-px)); position: absolute; text-align: center; white-space: nowrap; width: max-content; }
+.map-hotspot.is-s { transform: translate(-50%, var(--stake)); }
+.map-hotspot.is-n { transform: translate(-50%, calc(-100% - var(--stake))); }
+.map-hotspot.is-e { transform: translate(var(--stake), -50%); }
+.map-hotspot.is-w { transform: translate(calc(-100% - var(--stake)), -50%); }
+.map-hotspot::after { content: ''; height: max(44px, 100% + 6 * var(--ui-px)); left: calc(-3 * var(--ui-px)); position: absolute; right: calc(-3 * var(--ui-px)); top: 50%; transform: translateY(-50%); }
 .map-hotspot strong { font-size: var(--t-s); font-weight: 400; }
-.map-hotspot span { color: var(--sign-ink-2); font-size: var(--t-s); text-transform: none; }
-.map-hotspot:hover:not(:disabled) { color: var(--mint); transform: translate(-50%, calc(-50% - var(--ui-px))); }
-.map-hotspot.is-active span { color: var(--mint); }
+.map-hotspot > span:not(.map-stake) { color: var(--sign-ink-2); font-size: var(--t-s); text-transform: none; }
+.map-hotspot:hover:not(:disabled) { color: var(--mint); }
+.map-hotspot.is-active > span:not(.map-stake) { color: var(--mint); }
 .map-hotspot.is-locked { color: var(--sign-ink-2); cursor: not-allowed; filter: var(--sign-drop) grayscale(1) brightness(.6); }
 .map-hotspot-shop strong { color: var(--mint); }
-.map-hotspot.has-derby { padding-right: 18px; }
-.map-derby-flag { height: 24px; image-rendering: pixelated; position: absolute; right: -9px; top: -12px; width: 24px; }
+/* The stake: two chrome pixels of pale wood with a keyline side, from the sign's edge to the pin,
+   and the pin a coral head (mint on the ground you are on) with a keyline. */
+.map-stake { background: var(--sign-ink-2); box-shadow: var(--ui-px) 0 0 var(--key); position: absolute; }
+.map-hotspot.is-s .map-stake, .map-hotspot.is-n .map-stake { height: var(--stake); left: 50%; margin-left: calc(-1 * var(--ui-px)); width: calc(2 * var(--ui-px)); }
+.map-hotspot.is-s .map-stake { top: calc(-3 * var(--ui-px) - var(--stake)); }
+.map-hotspot.is-n .map-stake { bottom: calc(-3 * var(--ui-px) - var(--stake)); }
+.map-hotspot.is-e .map-stake, .map-hotspot.is-w .map-stake { box-shadow: 0 var(--ui-px) 0 var(--key); height: calc(2 * var(--ui-px)); margin-top: calc(-1 * var(--ui-px)); top: 50%; width: var(--stake); }
+.map-hotspot.is-e .map-stake { left: calc(-3 * var(--ui-px) - var(--stake)); }
+.map-hotspot.is-w .map-stake { right: calc(-3 * var(--ui-px) - var(--stake)); }
+.map-stake::after { background: var(--coral); border: var(--ui-px) solid var(--key); box-sizing: border-box; content: ''; height: calc(4 * var(--ui-px)); position: absolute; width: calc(4 * var(--ui-px)); }
+.map-hotspot.is-active .map-stake::after { background: var(--mint); }
+.map-hotspot.is-s .map-stake::after { left: calc(-1 * var(--ui-px)); top: calc(-2 * var(--ui-px)); }
+.map-hotspot.is-n .map-stake::after { bottom: calc(-2 * var(--ui-px)); left: calc(-1 * var(--ui-px)); }
+.map-hotspot.is-e .map-stake::after { left: calc(-2 * var(--ui-px)); top: calc(-1 * var(--ui-px)); }
+.map-hotspot.is-w .map-stake::after { right: calc(-2 * var(--ui-px)); top: calc(-1 * var(--ui-px)); }
+/* The derby pennant (24 art px, its pole at x 1-4 with the foot at y 22) stands on the pin. */
+.map-derby-flag { height: 24px; image-rendering: pixelated; pointer-events: none; position: absolute; width: 24px; z-index: 1; }
+.map-hotspot.is-s .map-derby-flag { left: calc(50% - 3px); top: -22px; }
+.map-hotspot.is-w .map-derby-flag { left: calc(100% - 3px); top: calc(50% - 22px); }
+.map-hotspot.is-e .map-derby-flag { left: -21px; top: calc(50% - 22px); transform: scaleX(-1); }
+.map-hotspot.is-n .map-derby-flag { left: calc(50% - 3px); top: calc(100% - 2px); transform: scaleY(-1); }
 .game-overlay .biome-map + .dock-hint { align-self: center; }
 
 /* The tackle tray. */
-.lure-chips { display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: flex-start; }
+/* Anything that can wear a ring stands 5 chrome px from its neighbour: the ring is 2 px out on each
+   side, so at 3 two rings met and fused into one bar. */
+.lure-chips { display: flex; flex-wrap: wrap; gap: calc(5 * var(--ui-px)); justify-content: flex-start; }
 .lure-chip { align-items: center; cursor: pointer; display: flex; flex-direction: row; gap: calc(3 * var(--ui-px)); min-width: 0; padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-align: left; }
 .lure-chip-text { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); }
 .lure-chip strong { font-size: var(--t-s); }
@@ -1574,8 +1635,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .lure-chip.is-locked .lure-icon { filter: grayscale(1) opacity(.5); }
 
 /* Who's on the water. */
-.dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); justify-content: flex-start; margin: 0; width: 100%; }
-.dock-crew-label { color: var(--sign-ink-2); font-size: var(--t-s); text-shadow: var(--outline-1); }
+.dock-crew { align-items: center; display: flex; flex-wrap: wrap; gap: calc(5 * var(--ui-px)); justify-content: flex-start; margin: 0; width: 100%; }
 .dock-crew-chip { align-items: center; cursor: pointer; display: inline-flex; gap: calc(3 * var(--ui-px)); padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-align: left; }
 .dock-crew-chip.is-you { cursor: default; }
 .dock-crew-chip.is-you strong { color: var(--mint); }
@@ -1589,7 +1649,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .dock-derby img { display: block; flex: none; height: 24px; image-rendering: pixelated; width: 24px; }
 .dock-derby strong { color: var(--gold); }
 .weekly-board, .tag-shelf, .junk-shelf, .club-records, .derby-ribbons { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); margin: 0; }
-.quest-list { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); list-style: none; margin: 0; padding: 0; width: 100%; }
+.quest-list { display: flex; flex-direction: column; gap: calc(5 * var(--ui-px)); list-style: none; margin: 0; padding: 0; width: 100%; }
 .quest-row { align-items: center; display: flex; flex-wrap: wrap; gap: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)); padding: calc(3 * var(--ui-px)) calc(4 * var(--ui-px)); }
 .quest-title { color: var(--sign-ink); flex: 1; font-size: var(--t-card); text-align: left; text-shadow: var(--outline-1); }
 .quest-progress { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-card); font-weight: 400; letter-spacing: 0; text-shadow: var(--outline-1); text-transform: uppercase; }
@@ -1599,10 +1659,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-frame .quest-turn-in { font-size: var(--t-s); min-height: 36px; width: auto; }
 
 /* Sal's: the four tracks, the charter club, his wall, the fly shop and the bounty board. */
-.upgrade-grid { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); margin: 0; }
+/* The four tracks: four across on a wide window, two by two below it — auto-fill left two empty
+   tracks beside them on a desktop. */
+.upgrade-grid { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; }
+@media (min-width: 801px) { .upgrade-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .upgrade-card { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(4 * var(--ui-px)); }
-.upgrade-icon, .fly-rod-icon { align-self: flex-start; display: block; filter: drop-shadow(var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7)); height: 48px; image-rendering: pixelated; margin: 0 0 var(--ui-px); width: 48px; }
-.upgrade-card > strong { color: var(--sign-ink); font-size: var(--t-m); line-height: 1; text-shadow: var(--outline-2); }
+.upgrade-icon, .fly-rod-icon { align-self: flex-start; display: block; filter: drop-shadow(var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .7)); height: calc(24 * var(--ui-px)); image-rendering: pixelated; margin: 0 0 var(--ui-px); width: calc(24 * var(--ui-px)); }
+.upgrade-card > strong { color: var(--sign-ink); font-size: var(--t-m); line-height: var(--lh-pixel); text-shadow: var(--outline-2); }
 .upgrade-level { color: var(--mint); display: block; font-size: var(--t-s); margin: 0; text-shadow: var(--outline-1); }
 .upgrade-card p { color: var(--sign-ink-2); flex: 1; font-size: 12px; line-height: 1.5; margin: calc(2 * var(--ui-px)) 0; }
 .upgrade-rebuilt { display: flex; gap: var(--ui-px); }
@@ -1611,15 +1674,18 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .shop-club p { color: var(--sign-ink); font-size: 13px; margin: 0; }
 .shop-club .button, .quest-card .button { align-self: flex-start; }
 .shop-boards { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.shop-board { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); }
+.shop-board { display: flex; flex-direction: column; gap: calc(5 * var(--ui-px)); }
 .quest-card { display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(4 * var(--ui-px)); }
 .quest-card > strong { color: var(--sign-ink); font-size: var(--t-card); text-shadow: var(--outline-1); }
 .quest-card p { color: var(--sign-ink-2); font-size: 12px; line-height: 1.5; margin: 0; }
+/* The fly rod once bought: a sentence, not a counter — OWNED as a small tag, the rest in the body face. */
+.fly-rod-owned strong { color: var(--mint); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; margin-right: calc(2 * var(--ui-px)); text-shadow: var(--outline-1); text-transform: uppercase; }
 .quest-card .quest-goal { text-align: left; }
 
-/* Marina's: the fitting room and the racks. The angler, the pets and the props are drawn at a
-   whole number of CSS pixels an art pixel (AnglerPreview, PetPreview, DecorPreview set it), and
-   the rack's swatch is big enough for the 69-row angler at 1x. */
+/* Marina's: the fitting room and the racks. Every rack thumbnail — the angler, the pets and the
+   props — is drawn at one CSS pixel an art pixel (RACK_PX, the same scale as the pixel fish in the
+   other boards), so neighbouring racks share one pixel and the dog stands a third of the angler's
+   height, as on the dock; the rack's swatch is big enough for the 69-row angler. */
 .outfit-fitting { display: grid; gap: calc(4 * var(--ui-px)); grid-template-columns: auto 1fr; margin: 0; }
 .outfit-preview { align-items: center; display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); justify-content: center; padding: calc(4 * var(--ui-px)); }
 .outfit-you { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); }
@@ -1629,7 +1695,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .swatch.is-on { box-shadow: inset 0 2px 0 rgba(255, 255, 255, .22), inset 0 -2px 0 rgba(0, 0, 0, .25), 0 0 0 2px var(--mint); }
 .swatch:disabled { cursor: default; }
 .outfit-rack { display: flex; flex-direction: column; gap: calc(3 * var(--ui-px)); margin: 0; }
-.rack-items { display: grid; gap: calc(3 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.rack-items { display: grid; gap: calc(5 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
 .rack-item { align-items: center; cursor: pointer; display: flex; flex-direction: column; gap: calc(2 * var(--ui-px)); padding: calc(2 * var(--ui-px)); }
 .rack-item strong { font-size: var(--t-s); }
 .rack-item > span:last-child { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; }
@@ -1638,7 +1704,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .rack-swatch { align-items: flex-end; background: var(--stain); border: 1px solid var(--key); display: flex; height: 76px; justify-content: center; overflow: hidden; padding: 0 0 2px; width: 100%; }
 .angler-preview { background-repeat: no-repeat; flex-shrink: 0; image-rendering: pixelated; }
 .pet-preview { background-position: 0 0; background-repeat: no-repeat; display: block; flex: none; image-rendering: pixelated; }
-.pet-preview.is-none { align-items: center; align-self: center; color: var(--sign-ink-2); display: flex; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; justify-content: center; letter-spacing: 0; text-transform: uppercase; }
+.pet-preview.is-none { align-items: center; align-self: center; color: var(--sign-ink-2); display: flex; font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; height: 24px; justify-content: center; letter-spacing: 0; padding: 0 4px; text-transform: uppercase; }
 .decor-preview { display: block; flex: none; image-rendering: pixelated; }
 @media (max-width: 500px) { .outfit-fitting { grid-template-columns: 1fr; } .outfit-preview { flex-direction: row; justify-content: flex-start; gap: 12px; } }
 
@@ -1651,8 +1717,10 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .almanac-card, .fish-tag, .junk-card, .trophy-card { align-items: center; display: grid; gap: calc(2 * var(--ui-px)); grid-template-rows: 72px; justify-items: center; padding: calc(2 * var(--ui-px)); text-align: center; }
 .almanac-card .chrome-fish, .fish-tag .chrome-fish, .junk-card .chrome-fish, .trophy-card .chrome-fish, .trophy-card .trophy-photo { align-self: end; }
 .almanac-card.is-known { box-shadow: 0 0 0 var(--ui-px) rgba(227, 251, 20, .55); }
-.almanac-card.is-unknown .chrome-fish { filter: brightness(0) opacity(.55); }
-.almanac-biome.is-locked .almanac-card .chrome-fish { filter: brightness(0) opacity(.3); }
+/* A fish not yet found is its silhouette in a dusty wood tone, which reads on the dark stain (black
+   at half opacity all but vanished into it); a locked ground's, a step darker. */
+.almanac-card.is-unknown .chrome-fish { filter: brightness(0) invert(.3) sepia(.5); }
+.almanac-biome.is-locked .almanac-card .chrome-fish { filter: brightness(0) invert(.2) sepia(.5); }
 .almanac-card strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
 .almanac-meta { align-items: center; color: var(--sign-ink-2); display: inline-flex; flex-wrap: wrap; font-size: var(--t-s); gap: calc(2 * var(--ui-px)); justify-content: center; text-shadow: var(--outline-1); }
 .almanac-flag { display: block; height: 24px; image-rendering: pixelated; width: 24px; }
@@ -1665,7 +1733,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* The trophy case: the derby, the club's records, the shelves and the wall. */
 .derby-board { box-shadow: var(--ring-gold); padding: calc(4 * var(--ui-px)) calc(5 * var(--ui-px)); }
 .derby-head { align-items: center; display: flex; flex-wrap: wrap; gap: calc(4 * var(--ui-px)); margin-bottom: calc(3 * var(--ui-px)); }
-.derby-head > img { display: block; flex: none; height: 48px; image-rendering: pixelated; width: 48px; }
+.derby-head > img { display: block; flex: none; height: calc(24 * var(--ui-px)); image-rendering: pixelated; width: calc(24 * var(--ui-px)); }
 .derby-head > div { flex: 1 1 220px; min-width: 0; }
 .derby-head .derby-fish { margin-left: auto; }
 .derby-head h3 { margin: var(--ui-px) 0; }
@@ -1678,7 +1746,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .derby-rank { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-m); min-width: 20px; text-align: right; text-shadow: var(--outline-2); }
 .derby-name { flex: 1; }
 .derby-list strong { font-family: var(--font-pixel); font-size: var(--t-m); font-weight: 400; text-shadow: var(--outline-2); }
-.club-records ul { display: grid; gap: calc(3 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); list-style: none; margin: 0; padding: 0; }
+.club-records ul { display: grid; gap: calc(5 * var(--ui-px)); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); list-style: none; margin: 0; padding: 0; }
 .club-record { align-items: center; display: flex; gap: calc(4 * var(--ui-px)); padding: calc(2 * var(--ui-px)) calc(4 * var(--ui-px)) calc(2 * var(--ui-px)) calc(2 * var(--ui-px)); }
 .club-record div { display: flex; flex: 1; flex-direction: column; gap: calc(2 * var(--ui-px)); min-width: 0; }
 .club-record strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
@@ -1689,7 +1757,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .tag-shelf-note { color: var(--sign-ink-2); font-size: 12px; margin: 0; text-shadow: var(--outline-1); }
 .fish-tag strong, .junk-card strong { color: var(--sign-ink); font-size: var(--t-s); text-shadow: var(--outline-1); }
 .fish-tag span { color: var(--sign-ink-2); font-size: 11px; }
-.junk-card.is-unknown .chrome-fish { filter: brightness(0) opacity(.45); }
+.junk-card.is-unknown .chrome-fish { filter: brightness(0) invert(.3) sepia(.5); }
 .junk-card.is-unknown strong { color: var(--sign-ink-2); }
 .derby-ribbons ul { display: flex; flex-wrap: wrap; gap: calc(3 * var(--ui-px)); list-style: none; margin: 0; padding: 0; }
 .derby-ribbon { align-items: center; display: inline-flex; gap: calc(3 * var(--ui-px)); padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) calc(2 * var(--ui-px)); }
@@ -1699,13 +1767,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .trophy-card.is-real { box-shadow: var(--ring-coral); }
 .trophy-card .trophy-name { background: var(--brass); border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .6); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; padding: var(--ui-px) calc(3 * var(--ui-px)); text-transform: uppercase; }
 .trophy-card .trophy-size { color: var(--sign-ink-2); font-family: var(--font-pixel); font-size: var(--t-s); text-shadow: var(--outline-1); }
-.game-overlay .grade-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .6); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: 1; padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
+.game-overlay .grade-tag { border: var(--ui-px) solid var(--key); box-shadow: var(--ui-px) var(--ui-px) 0 rgba(19, 15, 12, .6); color: var(--key); font-family: var(--font-pixel); font-size: var(--t-s); font-weight: 400; letter-spacing: 0; line-height: var(--lh-pixel); padding: var(--ui-px) calc(3 * var(--ui-px)); text-shadow: none; text-transform: uppercase; }
 /* A photo on the wall is a pinned snapshot: paper border, keyline, square. */
 .trophy-photo { background: var(--note); border: 3px solid var(--note); box-shadow: 0 0 0 1px var(--key), 2px 3px 0 rgba(19, 15, 12, .6); height: 72px; object-fit: cover; width: 96px; }
 
 /* Loading: already the game — the frame, the deck, the pixel logo and a plank sign. */
 .game-page .game-frame.is-loading { display: flex; }
-.game-loading { align-items: center; background: linear-gradient(rgba(19, 15, 12, .45), rgba(19, 15, 12, .45)), url(./assets/scenes/deck.webp) 0 0 / 384px 144px repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key); display: flex; flex: 1; flex-direction: column; gap: calc(8 * var(--ui-px)); image-rendering: pixelated; justify-content: center; min-height: 360px; padding: calc(8 * var(--ui-px)); }
+.game-loading { align-items: center; background: linear-gradient(rgba(19, 15, 12, .45), rgba(19, 15, 12, .45)), url(./assets/scenes/deck.webp) 0 0 / var(--deck-size) repeat, #2b1d0e; box-shadow: inset 0 4px 0 var(--key); display: flex; flex: 1; flex-direction: column; gap: calc(8 * var(--ui-px)); image-rendering: pixelated; justify-content: center; min-height: 360px; padding: calc(8 * var(--ui-px)); }
 .game-logo, .game-splash img { filter: drop-shadow(calc(2 * var(--ui-px)) calc(3 * var(--ui-px)) 0 rgba(19, 15, 12, .6)); height: calc(168 * var(--ui-px)); image-rendering: pixelated; max-width: none; transform: none; width: calc(150 * var(--ui-px)); }
 .game-logo { animation: logo-drop .375s step-end both; }
 .game-loading-sign { align-items: center; display: inline-flex; font-size: var(--t-m); gap: calc(4 * var(--ui-px)); margin: 0; padding: var(--ui-px) calc(4 * var(--ui-px)) var(--ui-px) var(--ui-px); text-shadow: var(--outline-2); }
@@ -1727,6 +1795,13 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .hud-chips { display: none; }
   .game-overlay-panel { max-height: calc(100% - 64px); }
   .upgrade-grid { grid-template-columns: 1fr 1fr; }
+  /* Touch targets: at one chrome pixel a small sign is its words and a sliver of plank, so every
+     sign and swatch you tap in an overlay is at least 44 px tall (the plank stays exact: the extra
+     is padding in whole chrome pixels, and the words centre in it). */
+  .game-frame :is(.lure-chip, .dock-crew-chip, .rack-item, .button) { min-height: 44px; }
+  .game-frame .game-overlay-close { min-height: 44px; min-width: 44px; }
+  .swatches { gap: 6px; }
+  .swatch { height: 44px; width: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .game-frame.is-hookset, .game-panel, .game-overlay-panel, .hud-points strong.is-bumped, .hud-points em, .game-dock .game-panel > p.game-alert, .game-logo, .game-splash, .game-splash img, .hud-chip.is-champion .hud-pennant, .derby-win-flag, .derby-prize-flag, .derby-ribbon-flag { animation: none; }

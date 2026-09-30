@@ -11,7 +11,6 @@ import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
 import Anglers from './Anglers';
-import FishingGame from './FishingGame';
 import AdminBugReports from './AdminBugReports';
 import Waypoints from './Waypoints';
 import WaypointDetail from './WaypointDetail';
@@ -20,6 +19,21 @@ import TripDetail from './TripDetail';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { rememberReturnTo, takeReturnTo } from './utils/returnTo';
+
+// Cast & Catch is its own chunk: the game (its stage, its art inlined as data URIs, its rules) is
+// about a third of what the site would otherwise send to every page. A chunk that fails to load
+// (an old tab after a deploy has replaced the files) reloads the page once to pick up the new ones.
+const GAME_RETRY_KEY = 'game-chunk-retry';
+const FishingGame = React.lazy(() => import('./FishingGame').then((module) => {
+  try { sessionStorage.removeItem(GAME_RETRY_KEY); } catch { /* storage blocked: nothing to clear */ }
+  return module;
+}, (error) => {
+  let retried = true;
+  try { retried = sessionStorage.getItem(GAME_RETRY_KEY) === '1'; sessionStorage.setItem(GAME_RETRY_KEY, '1'); } catch { /* storage blocked: don't risk a reload loop */ }
+  if (retried) throw error;
+  window.location.reload();
+  return new Promise(() => {});
+}));
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -55,7 +69,7 @@ function App() {
       <Route path="/waypoints/:mapId" element={<ProtectedRoute><WaypointDetail /></ProtectedRoute>} />
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
-      <Route path="/fishing-game" element={<ProtectedRoute><FishingGame /></ProtectedRoute>} />
+      <Route path="/fishing-game" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Loading your dock...</div>}><FishingGame /></React.Suspense></ProtectedRoute>} />
       <Route path="/admin/bugs" element={<ProtectedRoute><AdminBugReports /></ProtectedRoute>} />
     </Routes></div></div></Router></AuthProvider>
   );

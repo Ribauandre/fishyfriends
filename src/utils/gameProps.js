@@ -33,7 +33,6 @@ import questicon from '../assets/props/questicon.png';
 import plank from '../assets/props/plank.png';
 import plankThin from '../assets/props/plank_thin.png';
 import frame from '../assets/props/frame.png';
-import logo from '../assets/props/logo.webp';
 import logoPixel from '../assets/props/logo_pixel.png';
 import plankGo from '../assets/props/plank_go.png';
 import glyphClose from '../assets/props/glyphs/close.png';
@@ -124,14 +123,11 @@ export function fishShadowFor(lengthUnits) {
   const want = lengthUnits / ART_PX;
   return FISH_SHADOWS.reduce((best, s) => (Math.abs(s.w - want) < Math.abs(best.w - want) ? s : best), FISH_SHADOWS[0]);
 }
-// The class a 21-inch bass gets, for anything that shows one shadow.
-export const FISH_SHADOW = fishShadowFor(66).src;
 
-// The game's own sticker (the site keeps it), and the logo again on the world's art pixel
-// (scripts/pixelFish.mjs --logo): 150 x 168 art pixels, what the game itself shows — on the
-// loading screen and for a beat on the stage once the dock is up — drawn at a whole multiple of
-// its pixels, pixelated, never rotated.
-export const GAME_LOGO = logo;
+// The game's logo on the world's art pixel (scripts/pixelFish.mjs --logo, from the sticker the
+// game used to show, assets/props/logo.webp, which nothing imports any more so it stays out of the
+// build): 150 x 168 art pixels, on the loading screen and for a beat on the stage once the dock is
+// up — drawn at a whole multiple of its pixels, pixelated, never rotated.
 export const GAME_LOGO_PIXEL = logoPixel;
 export const GAME_LOGO_SIZE = { w: 150, h: 168 };
 // The derby prize: a golden pennant that flies from the champion's rod tip, three flutter frames
@@ -166,7 +162,6 @@ export const AMBIENT_SPRITES = {
 // the pickup about a head taller than the 92-unit angler, as a pickup is (the old art was drawn
 // at two world pixels to one of its own and at 0.72 of that), and Ray's boat half again his
 // height — a tower boat is several people tall, and this is as big as the stage takes.
-export const VEHICLES = { truck, boat };
 export const VEHICLE_SPRITES = {
   truck: { src: truck, w: 121, h: 74, unitW: units(121), unitH: units(74) },
   boat: { src: boat, w: 162, h: 101, unitW: units(162), unitH: units(101) },

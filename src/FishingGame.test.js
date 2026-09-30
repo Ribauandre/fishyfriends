@@ -501,7 +501,7 @@ test('the fly rod is bought at Sal\'s, then the flies show on the dock at the ri
   await act(async () => { await Promise.resolve(); });
   expect(purchaseFlyRod).toHaveBeenCalledTimes(1);
   expect(screen.getByText(/match the hatch/i)).toBeInTheDocument();
-  expect(screen.getByText(/owned · flies are on the dock/i)).toBeInTheDocument();
+  expect(document.querySelector('.fly-rod-owned')).toHaveTextContent(/^Owned The flies are on the dock/);
   await userEvent.click(screen.getByRole('button', { name: /close tackle shop/i }));
   await userEvent.click(screen.getByRole('button', { name: /^lures/i }));
   expect(screen.getByRole('button', { name: /dry fly unlock · 40 pts/i })).toBeInTheDocument();
@@ -1059,10 +1059,15 @@ test("Ray's board carries this week's three bounties, counts a finished one on t
   expect(screen.getByRole('region', { name: /this week's bounties/i }).querySelectorAll('.quest-row.is-weekly').length).toBe(3);
   expect(screen.getByText(week.key, { exact: false })).toBeInTheDocument();
   expect(screen.getByText('2 bounty stamps in the case.')).toBeInTheDocument();
+  // A bounty waiting to be turned in wears the gold ring; one already cashed, the mint.
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).toHaveClass('is-claimable');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).not.toHaveClass('is-done');
   await userEvent.click(screen.getByRole('button', { name: `Turn in · ${ground.points} pts` }));
   expect(claimWeeklyBounty).toHaveBeenCalledWith('ground');
   expect(await screen.findByText('3 bounty stamps in the case.')).toBeInTheDocument();
   expect(document.querySelector('.quest-row[data-bounty="ground"] .quest-progress')).toHaveTextContent('Turned in');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).toHaveClass('is-done');
+  expect(document.querySelector('.quest-row[data-bounty="ground"]')).not.toHaveClass('is-claimable');
   // Last week's progress is nobody's business this week.
   expect(document.querySelector('.quest-row[data-bounty="hours"] .quest-progress')).toHaveTextContent(`0 / ${week.bounties[2].goal.count}`);
 });
