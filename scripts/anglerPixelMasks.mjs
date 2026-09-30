@@ -1,7 +1,9 @@
 // Part masks for the angler's strips: which pixel is skin, cap, hair, shirt, vest, jeans, boots,
-// rod or the keyline, so that a look can dye each one. Reads the strips the slicer wrote and
-// writes assets/angler/masks/*.png (the part id in the red channel), a preview to look at, and
-// paint.json — each part's dye base and his own skin ramp, measured off the art.
+// rod or the keyline, so that a look can dye each one. Reads the hi-res strips the slicer wrote
+// into art/angler/ and writes art/angler/masks/*.png (the part id in the red channel), a preview
+// to look at, and paint.json — each part's dye base and his own skin ramp, measured off the art.
+// scripts/anglerGrid.mjs then takes strips and masks together onto the world's art pixel, tidies
+// what the labels scatter at that size, and writes what the game draws into src/assets/angler/.
 //
 // The sheet this reads is flat pixel art: every block of him is one colour, and the colours are
 // the parts. So this is a palette lookup and four position rules, and no more than that. The
@@ -25,7 +27,7 @@
 import { readPng, writePng } from './png.mjs';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
-const DIR = new URL('../src/assets/angler/', import.meta.url).pathname;
+const DIR = new URL('../art/angler/', import.meta.url).pathname;
 const ACTIONS = ['idle', 'walk', 'cast', 'reel', 'celebrate'];
 const strips = JSON.parse(readFileSync(`${DIR}strips.json`, 'utf8'));
 
