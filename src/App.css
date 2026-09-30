@@ -1081,8 +1081,8 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .game-scene .scene-shadow.is-left { transform: scaleX(-1); }
 .game-scene .scene-shadow.is-in { filter: drop-shadow(var(--apx) 0 0 var(--mint)) drop-shadow(calc(var(--apx) * -1) 0 0 var(--mint)) drop-shadow(0 var(--apx) 0 var(--mint)) drop-shadow(0 calc(var(--apx) * -1) 0 var(--mint)); }
 .game-scene .scene-shadow.is-out { filter: drop-shadow(var(--apx) 0 0 var(--coral)) drop-shadow(calc(var(--apx) * -1) 0 0 var(--coral)) drop-shadow(0 var(--apx) 0 var(--coral)) drop-shadow(0 calc(var(--apx) * -1) 0 var(--coral)); }
-.game-scene[data-period="night"] .scene-shadow { opacity: .7; }
-.game-scene[data-period="night"] .scene-shadow img { filter: brightness(0) invert(.7) sepia(.3) hue-rotate(180deg) saturate(1.3); }
+.game-scene[data-period="night"] .scene-shadow { opacity: .62; }
+.game-scene[data-period="night"] .scene-shadow img { filter: brightness(0) invert(.42) sepia(.35) hue-rotate(185deg) saturate(1.4); }
 /* The line through the fish's centre, one art pixel wide in the zone's colour and keylined: the
    point the zone judges, with a pixel pointer over the zone's top cap. */
 .game-scene .scene-fish-mark { background: var(--mint); box-shadow: calc(var(--apx) * -1) 0 0 #130f0c, var(--apx) 0 0 #130f0c; pointer-events: none; position: absolute; width: var(--apx); z-index: 1; }

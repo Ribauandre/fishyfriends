@@ -326,7 +326,7 @@ export const pctH = (p, frame) => pctY(stageLen(p, frame));
 // The camera for a layout on a stage: the angler's feet, his height and the fight's box turned
 // into stage units, with the painting's own top and bottom (a wide stage crops them, and the
 // camera may show what the crop hides).
-export function cameraForLayout(phase, layout, frame, { room = 0 } = {}) {
+export function cameraForLayout(phase, layout, frame, { room = 0, roomH = 0 } = {}) {
   const feet = placements(layout).you;
   const [fightTop, fightBottom] = fightBox(layout);
   return cameraFor(phase, {
@@ -336,6 +336,7 @@ export function cameraForLayout(phase, layout, frame, { room = 0 } = {}) {
     fight: [stageY(fightTop, frame), stageY(fightBottom, frame)],
     paint: [stageY(0, frame), stageY(PAINT_H, frame)],
     room,
+    roomH,
   }, frame.viewW);
 }
 
@@ -385,8 +386,9 @@ export function reelX(layout, pos, frame) {
 // painting's top and bottom in stage units, which is as far as the frame may go.
 //
 // A landed fish keeps that frame ('result' with a `room`: the stage units the catch needs right
-// of the angler's feet), so the reveal lands beside him over the water with no camera move, and
-// the push eases off further where a phone would not have the width for it.
+// of the angler's feet, and `roomH`, the height it and its plaque need), so the reveal lands
+// beside him over the water with no camera move, and the push eases off further where a phone
+// would not have the width for it, or a wide stage the height.
 //
 // The margin at his back is where the cast and tension meters stand.
 export const FIGHT_PHASES = new Set(['waiting', 'hookset', 'reeling']);
@@ -397,7 +399,7 @@ const CAMERA_FEET_ROOM = 6;
 export const REST_CAMERA = { x: 0, y: 0, scale: 1 };
 const floor2 = (value) => Math.floor(value * 100) / 100;
 
-export function cameraFor(phase, { anglerX, anglerY, spriteH, fight = null, paint = null, room = 0 }, viewW) {
+export function cameraFor(phase, { anglerX, anglerY, spriteH, fight = null, paint = null, room = 0, roomH = 0 }, viewW) {
   if (phase !== 'casting' && !FIGHT_PHASES.has(phase) && !(phase === 'result' && room > 0)) return REST_CAMERA;
   // The painting runs to PAINT_W in stage units however narrow the stage is — a phone crops
   // it, it does not shorten it — so that, not the stage, is how far right the camera can go.
@@ -411,6 +413,7 @@ export function cameraFor(phase, { anglerX, anglerY, spriteH, fight = null, pain
     scale = Math.max(1, Math.min(scale, floor2(PAINT_H / (bottom - top))));
   }
   if (room > 0) scale = Math.max(1, Math.min(scale, floor2(viewW / (CAMERA_ANGLER_MARGIN + room))));
+  if (roomH > 0) scale = Math.max(1, Math.min(scale, floor2(PAINT_H / roomH)));
   const w = viewW / scale;
   const h = PAINT_H / scale;
   let y = fight ? Math.min(headY, fight[0]) : headY;

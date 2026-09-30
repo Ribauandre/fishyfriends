@@ -18,7 +18,7 @@ import {
   waterSpan, landingX as landingFor, reelX, cameraForLayout, cameraTransform, REST_CAMERA, placements, fightBand, FIGHT_ABOVE, sceneKeyFor,
 } from '../../utils/sceneLayout';
 import {
-  stageGrid, cellsPath, lineCells, quadPoints, ringCells, glowBands, BOBBER, spriteCells, plusCells, snapX, snapY,
+  stageGrid, cellsPath, lineCells, quadPoints, ringCells, glowBands, BOBBER, spriteCells, snapX, snapY,
 } from '../../utils/stagePixels';
 import riverArt from '../../assets/scenes/river.webp';
 import mountainlakeArt from '../../assets/scenes/mountainlake.webp';
@@ -219,7 +219,7 @@ function crewAction(other) {
 // A club member on the deck, in their own look and pose (each needs its own paint job and its
 // own strip clock, so its own hooks), with their pet, their pennant if they are the champion,
 // their name, and a bubble for a fresh catch.
-function CrewMember({ other, slot, boxH, viewW, frame, layout, period, night, recent, tagAbove }) {
+function CrewMember({ other, slot, boxH, viewW, frame, layout, period, night, recent, tagAbove, view }) {
   const sheets = useAnglerSheets(other.look || null);
   const action = crewAction(other);
   const stripKey = `crew-${other.phase || 'ready'}-${action.action}-${action.play ? 'play' : 'hold'}`;
@@ -229,11 +229,17 @@ function CrewMember({ other, slot, boxH, viewW, frame, layout, period, night, re
   const lit = lampLight(layout.lamp, slot.x, slot.y, layout.spriteH, period);
   const petLit = slot.pet ? lampLight(layout.lamp, slot.pet.x, slot.pet.y, 30, period) : 0;
   const tip = rodTipFor(feet, boxH, action.action, shown);
+  // The bubble is centred over them, but kept inside the frame the camera shows (a crew mate at
+  // the edge of a pushed-in frame had half his news cut off): its width is reckoned from the text
+  // in the pixel face, about 3.7 art pixels a letter at its size, plus the sign's plank.
+  const bubbleText = recent ? `Landed a ${String(other.lastCatch.species).toLowerCase()}!` : '';
+  const bubbleHalf = stageLen(((bubbleText.length * 3.7) + 8) * A, frame) / 2;
+  const bubbleX = Math.max(view[0] + bubbleHalf, Math.min(view[1] - bubbleHalf, feet.x));
   return <>
     <PetSprite petKey={slot.pet ? petOf(other.look) : null} mood={action.action === 'celebrate' ? 'cheer' : 'idle'} feet={petFeet} viewW={viewW} frame={frame} className="is-crew" lit={petLit} filter={spriteFilter({ lit: petLit, night, crew: true })} />
     <AnglerSprite look={other.look || null} sheets={sheets} feet={feet} boxH={boxH} stripKey={stripKey} current={action} className="is-crew" viewW={viewW} lit={lit} filter={spriteFilter({ lit, night, crew: true })} />
     {other.champion && <Pennant tip={tip} frame={frame} filter={spriteFilter({ lit, night })} />}
-    {recent && <span className="scene-crew-bubble" style={{ left: pctX(feet.x, frame), top: pctY(feet.y - boxH - stageLen((tagAbove ? TAG_H + 5 * A : 3 * A), frame)) }}>Landed a {String(other.lastCatch.species).toLowerCase()}!</span>}
+    {recent && <span className="scene-crew-bubble" style={{ left: pctX(bubbleX, frame), top: pctY(feet.y - boxH - stageLen((tagAbove ? TAG_H + 5 * A : 3 * A), frame)) }}>{bubbleText}</span>}
   </>;
 }
 
@@ -259,6 +265,8 @@ const SPARKLES = [
 // The celebrating angler reaches this far right of his feet (art pixels; the fish he holds up).
 const CELEBRATE_REACH = 31;
 const REVEAL_GAP = 4 * A;
+// The HUD's strip across the top of the stage, which the reveal keeps below (stage units at rest).
+const REVEAL_HUD = 26;
 // Where the meters stand: at his back, above his pet's head (painting units from his feet).
 const METER = { dx: -42.67, w: 12 * A, bottom: 32, h: 44 * A };
 
@@ -343,9 +351,12 @@ export default function GameScene({
   const catchW = catchPx ? stageLen(catchPx.w * A, frame) : 0;
   const catchH = catchPx ? stageLen(catchPx.h * A, frame) : 0;
   const room = catchPx ? stageLen(CELEBRATE_REACH * A + 2 * REVEAL_GAP, frame) + catchW : 0;
+  // The catch over its plaque (about 50 art pixels tall: tags, name, size, points, the plank
+  // round them), with the HUD's strip at the top of the frame.
+  const revealH = catchPx ? catchH + stageLen((3 + 50 + 2) * A, frame) + REVEAL_HUD : 0;
 
   // The camera, and the meters that sit outside it in screen space at the angler's back.
-  const camera = cameraForLayout(landed ? 'result' : phase, layout, frame, { room });
+  const camera = cameraForLayout(landed ? 'result' : phase, layout, frame, { room, roomH: revealH });
   // The painting's own box in stage units. It is laid out like everything else on the stage
   // rather than fitted by the browser, so a narrow stage — which crops the painting's right
   // rather than shrinking it — still has the rest of it there for the camera to pan across. The
@@ -407,9 +418,11 @@ export default function GameScene({
     const roomLeft = feet.x + stageLen(CELEBRATE_REACH * A + REVEAL_GAP, frame);
     const roomRight = visRight - stageLen(REVEAL_GAP, frame);
     const left = snapX(grid, Math.max(roomLeft, Math.min(roomRight - catchW, (roomLeft + roomRight) / 2 - catchW / 2)));
-    const plaqueH = stageLen(44 * A, frame);
-    const hud = 26 / camera.scale;
-    const top = snapY(grid, Math.max(visTop + hud, visTop + hud + (visBottom - visTop - hud - catchH - plaqueH) / 2));
+    // The group sits in the frame's height below the HUD, and never below the frame's foot.
+    const groupH = catchH + stageLen(53 * A, frame);
+    const hud = REVEAL_HUD / camera.scale;
+    const middle = visTop + hud + Math.max(0, (visBottom - visTop - hud - groupH) / 2);
+    const top = snapY(grid, Math.max(visTop + stageLen(2 * A, frame), Math.min(middle, visBottom - groupH)));
     reveal = { left, top, w: catchW, h: catchH };
   }
 
@@ -431,7 +444,7 @@ export default function GameScene({
   }
   crewShown.forEach((other, index) => {
     const slot = place.crew[index];
-    deck.push({ y: slot.y, node: <CrewMember key={other.userId} other={other} slot={slot} boxH={spriteH} viewW={viewW} frame={frame} layout={layout} period={period} night={night} recent={Boolean(other.lastCatch) && now() - other.lastCatch.at < RECENT_CATCH_MS} tagAbove={crewTagAbove} /> });
+    deck.push({ y: slot.y, node: <CrewMember key={other.userId} other={other} slot={slot} boxH={spriteH} viewW={viewW} frame={frame} layout={layout} period={period} night={night} recent={Boolean(other.lastCatch) && now() - other.lastCatch.at < RECENT_CATCH_MS} tagAbove={crewTagAbove} view={[camera.x, camera.x + viewW / camera.scale]} /> });
   });
   if (place.pet && petOf(look)) {
     const lit = lampLight(layout.lamp, place.pet.x, place.pet.y, 30, period);
