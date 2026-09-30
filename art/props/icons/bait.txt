@@ -1,5 +1,5 @@
 # Bait: a green bucket of worms.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 G #6fd08f
 H #15503a

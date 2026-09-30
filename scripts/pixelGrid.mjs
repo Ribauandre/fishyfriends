@@ -31,15 +31,23 @@
 //
 // Options (CLI flags, or keys of a batch job):
 //   rows / cols     output size in art pixels (cols defaults to the aspect of the cropped source)
-//   pitch           source pixels per art pixel, instead of rows (the render's own grid; with
-//                   `phase` the grid's offset, so an exact pitch lands every cell on one block)
+//   fit             the longer side in art pixels instead (an icon's content inside its box)
+//   pitch           source pixels per art pixel, instead of rows (the render's own grid; pitchX /
+//                   pitchY for a non-square one, phaseX / phaseY its offset, so an exact pitch
+//                   lands every cell on one block)
 //   colors          palette size, not counting the keyline (default 12)
+//   palette         ["rrggbb", ...] a fixed palette instead of k-means
 //   keyline         hex, default 130f0c
 //   keyLum          source pixels darker than this (0-255 luma) and greyer than keyChroma are
 //                   keyline (default 56; keyChroma 0.09 in OKLab)
 //   keyShare        how much of a cell's drawn area the keyline needs to win it (default 0.34)
+//   on              how opaque a source pixel must be to count as drawn (default 128; nearly 255
+//                   leaves out a baked translucent ground shadow)
 //   alpha           how much of a cell has to be drawn for it to be opaque (default 0.5)
+//   ditherLo        a cell drawn at least this much but under `alpha` is on a checkerboard
 //   outline         force | keep | none (default force)
+//   ditherEdge      true: the outer ring kept on a checkerboard (a shadow's soft edge, hard alpha)
+//   tones           [lit, body, shade, rim]: a cloud's four flat tones, with no keyline
 //   box             WxH: centre the result on a transparent canvas of this size (icons)
 //   anchor          where in the box: center (default) or bottom
 //   frames          the source is a strip of this many equal frames; each is gridded on its own
@@ -48,9 +56,12 @@
 //   pin             ["#rrggbb", ...] palette colours kept exactly (k-means only fills the rest)
 //   crop            false to keep the source's own canvas instead of cropping to its alpha
 //   despeckle       true: a lone pixel unlike all eight neighbours takes their majority colour
+//   draw            a hand-drawn text source instead of a render (parseDrawing, below); `frame`
+//                   picks one of its frames
 //
-// Pure Node on scripts/png.mjs, deterministic, no canvas. Batch jobs name their files relative
-// to the batch file's folder's repo root (the working directory).
+// Pure Node on scripts/png.mjs, deterministic, no canvas. Paths in a batch are relative to the
+// working directory (run it from the repo root). The batches that made the game's art are
+// art/props/grid.json and art/ambient/grid.json; the pets go through scripts/petSlice.mjs.
 import { readPng, writePng } from './png.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -241,20 +252,16 @@ export function outline(art, mode = 'force') {
   const edge = (x, y) => at(x, y) >= 0 && N4.some(([dx, dy]) => at(x + dx, y + dy) < 0);
   if (mode === 'none') return art;
   if (mode === 'force') for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) if (edge(x, y)) cls[y * W + x] = 0;
-  // A line two pixels thick at the edge loses its inner pixel to the fill behind it, unless that
-  // pixel joins a line inside the sprite to the outline.
+  // A line two pixels thick at the edge loses its inner pixel to the fill behind it: an inner
+  // keyline pixel with the outline on one side and fill straight across from it on the other is
+  // doubling the outline. A keyline pixel with more keyline across from the outline is where a
+  // line inside the sprite meets it, and stays.
   const next = Int16Array.from(cls);
   for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
     if (at(x, y) !== 0 || edge(x, y)) continue;
-    const keyNb = N4.filter(([dx, dy]) => at(x + dx, y + dy) === 0);
-    if (!keyNb.length || !keyNb.every(([dx, dy]) => edge(x + dx, y + dy))) continue;
-    const fill = new Map();
-    N8.forEach(([dx, dy]) => { const c = at(x + dx, y + dy); if (c > 0) fill.set(c, (fill.get(c) || 0) + 1); });
-    if (!fill.size) continue;
-    // Only where the inner pixel really is doubling the edge: the pixel opposite an edge
-    // neighbour is fill.
-    if (!keyNb.some(([dx, dy]) => at(x - dx, y - dy) > 0)) continue;
-    next[y * W + x] = [...fill.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const doubling = N4.find(([dx, dy]) => at(x + dx, y + dy) === 0 && edge(x + dx, y + dy) && at(x - dx, y - dy) > 0);
+    if (!doubling) continue;
+    next[y * W + x] = at(x - doubling[0], y - doubling[1]);
   }
   art.cls = next;
   return art;
@@ -301,78 +308,6 @@ export function cloudTones(art, tones) {
   }
   art.cls = next;
   art.palette = palette;
-  return art;
-}
-
-// Up, not down: a piece whose render was drawn chunkier than the world (the travel vehicles, at
-// about two world pixels to one of theirs) is enlarged by Scale2x/Scale3x (AdvMAME), which keeps
-// its edges hard and turns a staircase into a diagonal instead of a bigger staircase, and its
-// lines — now two or three pixels thick — are thinned back to one: the keyline is skeletonised
-// (Zhang-Suen), a keyline pixel it drops on the outside of the silhouette goes transparent and one
-// inside takes the colour of the fill beside it. Then the outline pass closes the silhouette.
-export function upscale(art, n) {
-  const { width: W, height: H, cls } = art;
-  const at = (x, y) => cls[Math.max(0, Math.min(H - 1, y)) * W + Math.max(0, Math.min(W - 1, x))];
-  const OW = W * n, OH = H * n;
-  const out = new Int16Array(OW * OH);
-  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
-    const A = at(x - 1, y - 1), B = at(x, y - 1), C = at(x + 1, y - 1), D = at(x - 1, y), E = at(x, y), F = at(x + 1, y), G = at(x - 1, y + 1), Hh = at(x, y + 1), I = at(x + 1, y + 1);
-    let e;
-    if (n === 2) {
-      e = [D === B && B !== F && D !== Hh ? D : E, B === F && B !== D && F !== Hh ? F : E, D === Hh && D !== B && Hh !== F ? D : E, Hh === F && D !== Hh && B !== F ? F : E];
-    } else {
-      const c1 = D === B && D !== Hh && B !== F, c2 = B === F && B !== D && F !== Hh, c3 = D === Hh && D !== B && Hh !== F, c4 = Hh === F && D !== Hh && B !== F;
-      e = [c1 ? D : E, (c1 && E !== C) || (c2 && E !== A) ? B : E, c2 ? F : E,
-        (c1 && E !== G) || (c3 && E !== A) ? D : E, E, (c2 && E !== I) || (c4 && E !== C) ? F : E,
-        c3 ? D : E, (c3 && E !== I) || (c4 && E !== G) ? Hh : E, c4 ? F : E];
-    }
-    for (let j = 0; j < n; j += 1) for (let i = 0; i < n; i += 1) out[(y * n + j) * OW + x * n + i] = e[j * n + i];
-  }
-  return { ...art, width: OW, height: OH, cls: out };
-}
-
-export function thinKeyline(art) {
-  const { width: W, height: H } = art;
-  const cls = Int16Array.from(art.cls);
-  const key = (x, y) => (x >= 0 && y >= 0 && x < W && y < H && cls[y * W + x] === 0 ? 1 : 0);
-  // Zhang-Suen on the keyline mask.
-  const drop = [];
-  for (let changed = true; changed;) {
-    changed = false;
-    for (let pass = 0; pass < 2; pass += 1) {
-      const kill = [];
-      for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
-        if (!key(x, y)) continue;
-        const p = [key(x, y - 1), key(x + 1, y - 1), key(x + 1, y), key(x + 1, y + 1), key(x, y + 1), key(x - 1, y + 1), key(x - 1, y), key(x - 1, y - 1)];
-        const b = p.reduce((s, v) => s + v, 0);
-        if (b < 2 || b > 6) continue;
-        let a = 0; for (let i = 0; i < 8; i += 1) if (!p[i] && p[(i + 1) % 8]) a += 1;
-        if (a !== 1) continue;
-        if (pass === 0 && (p[0] * p[2] * p[4] || p[2] * p[4] * p[6])) continue;
-        if (pass === 1 && (p[0] * p[2] * p[6] || p[0] * p[4] * p[6])) continue;
-        kill.push(y * W + x);
-      }
-      kill.forEach((i) => { cls[i] = -2; drop.push(i); });
-      if (kill.length) changed = true;
-    }
-  }
-  // What the thinning dropped: outside the silhouette it goes, inside it takes the fill beside it.
-  for (let round = 0; round < 8; round += 1) {
-    let left = 0;
-    for (const i of drop) {
-      if (cls[i] !== -2) continue;
-      const x = i % W, y = (i - x) / W;
-      const nb = N4.map(([dx, dy]) => (x + dx < 0 || y + dy < 0 || x + dx >= W || y + dy >= H ? -1 : cls[(y + dy) * W + x + dx]));
-      if (nb.includes(-1)) { cls[i] = -1; continue; }
-      const fill = new Map();
-      N8.forEach(([dx, dy]) => { const c = x + dx < 0 || y + dy < 0 || x + dx >= W || y + dy >= H ? -1 : cls[(y + dy) * W + x + dx]; if (c > 0) fill.set(c, (fill.get(c) || 0) + 1); });
-      if (fill.size) cls[i] = [...fill.entries()].sort((p, q) => q[1] - p[1])[0][0];
-      else left += 1;
-    }
-    if (!left) break;
-  }
-  for (let i = 0; i < cls.length; i += 1) if (cls[i] === -2) cls[i] = 0;
-  art.cls = cls;
   return art;
 }
 
@@ -447,7 +382,6 @@ export function gridImage(src, opts = {}, shared = null) {
   const originY = opts.phaseY !== undefined ? opts.phaseY - box.y0 - Math.ceil((opts.phaseY - box.y0) / cellY) * cellY : (img.height - rows * cellY) / 2;
   const art = vote(img, clsImg, palette, { cols, rows, cellX, cellY, originX, originY, alpha: opts.alpha ?? 0.5, keyShare: opts.keyShare ?? 0.34, ditherLo: opts.ditherLo ?? null });
   if (opts.despeckle) despeckle(art);
-  if (opts.upscale) Object.assign(art, thinKeyline(upscale(art, opts.upscale)));
   if (opts.tones) cloudTones(art, opts.tones);
   if (opts.ditherEdge) ditherEdge(art);
   outline(art, opts.outline || 'force');
@@ -496,7 +430,9 @@ export function parseDrawing(text) {
 
 export function runJob(job) {
   if (job.draw) {
-    const images = parseDrawing(readFileSync(job.draw, 'utf8'));
+    // `frame` picks one frame of a drawing (a still of an animated piece).
+    const drawn = parseDrawing(readFileSync(job.draw, 'utf8'));
+    const images = job.frame !== undefined ? [drawn[job.frame]] : drawn;
     let out = images.length > 1 ? strip(images) : images[0];
     if (job.box && images.length === 1) { const [bw, bh] = String(job.box).split('x').map(Number); out = place(out, bw, bh, job.anchor || 'center'); }
     mkdirSync(dirname(job.out), { recursive: true });
@@ -521,7 +457,8 @@ export function runJob(job) {
   return { out: job.out, width: out.width, height: out.height, cell: [done[0].cellX, done[0].cellY].map((v) => Math.round(v * 100) / 100), colors: done[0].palette.length };
 }
 
-const isMain = process.argv[1] && new URL(import.meta.url).pathname === process.argv[1];
+// Run as a script (not imported by a test or by petSlice.mjs).
+const isMain = /pixelGrid\.mjs$/.test(process.argv[1] || '');
 if (isMain) {
   const args = process.argv.slice(2);
   const opt = (name) => { const i = args.indexOf(`--${name}`); return i === -1 ? undefined : args[i + 1]; };

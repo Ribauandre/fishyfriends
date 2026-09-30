@@ -31,6 +31,8 @@
   {"name": "lure_streamer", "draw": "art/props/lures/streamer.txt", "out": "src/assets/props/lures/streamer.png"},
   {"name": "lure_shrimpfly", "draw": "art/props/lures/shrimpfly.txt", "out": "src/assets/props/lures/shrimpfly.png"},
   {"name": "lure_livebait", "draw": "art/props/lures/livebait.txt", "out": "src/assets/props/lures/livebait.png"},
+  {"name": "truck", "draw": "art/props/truck.txt", "out": "src/assets/props/truck.png"},
+  {"name": "boat", "draw": "art/props/boat.txt", "out": "src/assets/props/boat.png"},
   {"name": "pennant", "draw": "art/props/pennant.txt", "out": "src/assets/props/pennant.png"},
   {"name": "plank", "draw": "art/props/plank.txt", "out": "src/assets/props/plank.png"},
   {"name": "plank_thin", "draw": "art/props/plank_thin.txt", "out": "src/assets/props/plank_thin.png"},

@@ -61,6 +61,7 @@ import cloud2 from '../assets/ambient/cloud2.png';
 import cloud3 from '../assets/ambient/cloud3.png';
 import seagull from '../assets/ambient/seagull.png';
 import dragonfly from '../assets/ambient/dragonfly.png';
+import dragonflyWings from '../assets/ambient/dragonfly_wings.png';
 import { BIOMES } from './gameBiomes';
 import { ART_PX } from './sceneLayout';
 
@@ -134,14 +135,23 @@ export const PLANK_THIN = { src: plankThin, w: 12, h: 12, slice: 3 };
 export const GAME_FRAME = { src: frame, w: 80, h: 80, slice: 16 };
 
 // The sky's critters, at their own size (never stretched to a lane): three clouds, the gull's
-// three wing beats (up, level, down, all facing right, the body still) and the dragonfly's two.
+// three wing beats (up, level, down, all facing right, the body still) and the dragonfly's two
+// (`src`; `still` is the first alone, for anything that draws it as one image).
 export const AMBIENT_SPRITES = {
   clouds: [{ src: cloud1, w: 26, h: 18 }, { src: cloud2, w: 24, h: 16 }, { src: cloud3, w: 21, h: 14 }].map((c) => ({ ...c, unitW: units(c.w), unitH: units(c.h) })),
   gull: { src: seagull, frames: 3, w: 18, h: 14, unitW: units(18), unitH: units(14) },
-  dragonfly: { src: dragonfly, frames: 2, w: 12, h: 7, unitW: units(12), unitH: units(7) },
+  dragonfly: { src: dragonflyWings, still: dragonfly, frames: 2, w: 12, h: 7, unitW: units(12), unitH: units(7) },
 };
 
+// The vehicles of the travel scene, side on, facing right, at their own size on the world grid:
+// the pickup about a head taller than the 92-unit angler, as a pickup is (the old art was drawn
+// at two world pixels to one of its own and at 0.72 of that), and Ray's boat half again his
+// height — a tower boat is several people tall, and this is as big as the stage takes.
 export const VEHICLES = { truck, boat };
+export const VEHICLE_SPRITES = {
+  truck: { src: truck, w: 121, h: 74, unitW: units(121), unitH: units(74) },
+  boat: { src: boat, w: 162, h: 101, unitW: units(162), unitH: units(101) },
+};
 
 // Getting to a charter ground (or back from one) means Ray's boat; every other trip is the pickup.
 export function vehicleFor(fromBiome, toBiome) {

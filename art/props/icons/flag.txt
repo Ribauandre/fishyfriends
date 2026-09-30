@@ -1,5 +1,5 @@
 # The derby flag: red cloth with the club fish in cream.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 P #fff3d6
 R #ff7a5c

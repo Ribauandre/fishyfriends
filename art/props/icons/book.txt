@@ -1,5 +1,5 @@
 # The almanac: a navy cloth book with the club fish on the cover in gold.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 N #24538d
 P #fff3d6

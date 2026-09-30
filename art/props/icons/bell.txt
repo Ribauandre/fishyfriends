@@ -1,5 +1,5 @@
 # Sound: the dock bell on its bracket.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 U #8a5a12
 W #c08a55

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {
   ICON_PX, GEAR_ICONS, LURE_ICONS, HUD_ICONS, DOCK_ICONS, LURE_SPRITES, FISH_SHADOWS, fishShadowFor, GOLDEN_PENNANT,
-  PLANK, PLANK_THIN, GAME_FRAME, AMBIENT_SPRITES, vehicleFor,
+  PLANK, PLANK_THIN, GAME_FRAME, AMBIENT_SPRITES, VEHICLE_SPRITES, vehicleFor,
 } from './gameProps';
 import { ART_PX } from './sceneLayout';
 import { readPng, measure } from '../test-utils/pixelArt';
@@ -140,6 +140,10 @@ describe('the sky\'s critters', () => {
     expect(img.width).toBe(sprite.frames * sprite.w);
     expect(img.height).toBe(sprite.h);
     expect(measure(img).soft).toBe(0);
+    if (sprite.still) {
+      const still = readPng(fileOf(path.join(ASSETS, 'ambient'), sprite.still));
+      expect([still.width, still.height]).toEqual([sprite.w, sprite.h]);
+    }
   });
 
   // Frame 0 used to face backwards, and the body hopped between frames.
@@ -163,6 +167,18 @@ describe('the sky\'s critters', () => {
     beak.forEach((x) => expect(x).toBeGreaterThan(w * 0.7));
     body.forEach(([x, y]) => { expect(Math.abs(x - body[0][0])).toBeLessThan(1); expect(Math.abs(y - body[0][1])).toBeLessThan(1); });
   });
+});
+
+test.each(Object.entries(VEHICLE_SPRITES))('the %s is drawn at its own art pixels, to scale beside the 92-unit angler', (name, sprite) => {
+  const img = readPng(fileOf(PROPS, sprite.src));
+  expect(img.width).toBe(sprite.w);
+  expect(img.height).toBe(sprite.h);
+  expect(sprite.unitH).toBeCloseTo(sprite.h * ART_PX, 5);
+  expect(sprite.unitH).toBeGreaterThan(92);
+  const stats = measure(img);
+  expect(stats.soft).toBe(0);
+  expect(stats.strayDark).toBe(0);
+  expect(stats.edgeKeyShare).toBe(1);
 });
 
 test('travel to or from a charter ground is by boat, anything else by truck', () => {

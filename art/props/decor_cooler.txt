@@ -5,7 +5,6 @@ a #8fbde0
 b #5b93c8
 c #3a6ea6
 d #24538d
-e #d9dde0
 w #f4efe4
 v #dcd6c9
 s #b3aea2

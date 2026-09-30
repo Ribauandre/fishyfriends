@@ -1,5 +1,5 @@
 # Tackle points: a gold coin with the club fish struck in it.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 U #8a5a12
 Y #ffe08a

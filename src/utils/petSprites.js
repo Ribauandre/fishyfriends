@@ -28,9 +28,9 @@ import { ART_PX } from './sceneLayout';
 export const stripUnits = (name) => pets[name].h * ART_PX;
 
 // How tall the dog sits in painting units (the angler is 92), and where a pet sits: a little
-// behind his heel, on the deck (27 art pixels back).
+// behind his heel (27 art pixels back) and one art pixel nearer, on the deck.
 export const PET_H = stripUnits('dog');
-export const PET_OFFSET = { x: -36, y: 1 };
+export const PET_OFFSET = { x: -36, y: ART_PX };
 
 export const PET_SPRITES = {
   pet_dog: {

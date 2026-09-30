@@ -1,5 +1,5 @@
 # Rod: a spinning rod, diagonal, with its reel and cork grip.
-# 24 x 24 art pixels; drawn in scratch/icons.py as the inside, keyline added round it.
+# 24 x 24 art pixels: the inside drawn by hand, the one-pixel keyline added round it by dilation.
 K #130f0c
 M #eef1f0
 O #5d6468
