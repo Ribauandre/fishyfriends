@@ -67,6 +67,36 @@ const PADDING = 8;
 const MARGIN = 12;
 const GAP = 14;
 
+// The safe-area insets (status bar and Dynamic Island, home indicator, the island's side in
+// landscape) as the page sees them — 0 in a browser tab, real in the installed app, which is
+// viewport-fit=cover. CSS knows them only as env(), so a hidden probe reads them back.
+function safeInsets() {
+  if (typeof document === 'undefined') return { top: 0, right: 0, bottom: 0, left: 0 };
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const read = (value) => parseFloat(value) || 0;
+  const insets = { top: read(style.paddingTop), right: read(style.paddingRight), bottom: read(style.paddingBottom), left: read(style.paddingLeft) };
+  probe.remove();
+  return insets;
+}
+
+// Where the card goes beside the spotlight: below it if it fits, else above, and always clamped
+// fully on screen inside the safe area, so its button never lands under the home indicator or
+// its text under the island in landscape. Pure, for the tests.
+export function placeCard(spotlight, card, view, insets = { top: 0, right: 0, bottom: 0, left: 0 }) {
+  const minLeft = MARGIN + insets.left;
+  const maxLeft = Math.max(minLeft, view.width - insets.right - card.width - MARGIN);
+  const left = Math.min(Math.max(minLeft, spotlight.left), maxLeft);
+  const minTop = MARGIN + insets.top;
+  const maxTop = Math.max(minTop, view.height - insets.bottom - card.height - MARGIN);
+  const belowTop = spotlight.top + spotlight.height + GAP;
+  const aboveTop = spotlight.top - GAP - card.height;
+  const top = belowTop <= maxTop || aboveTop < minTop ? belowTop : aboveTop;
+  return { top: Math.min(Math.max(minTop, top), maxTop), left };
+}
+
 export default function AppTour() {
   const { shouldShowTour, completeTour } = useAuth();
   const location = useLocation();
@@ -160,16 +190,8 @@ export default function AppTour() {
   useLayoutEffect(() => {
     if (!spotlight) { setCardStyle({}); return; }
     const node = cardRef.current;
-    const cardWidth = node?.offsetWidth || 340;
-    const cardHeight = node?.offsetHeight || 200;
-    const maxLeft = Math.max(MARGIN, window.innerWidth - cardWidth - MARGIN);
-    const left = Math.min(Math.max(MARGIN, spotlight.left), maxLeft);
-    const belowTop = spotlight.top + spotlight.height + GAP;
-    const aboveTop = spotlight.top - GAP - cardHeight;
-    const fitsBelow = belowTop + cardHeight + MARGIN <= window.innerHeight;
-    let top = fitsBelow || aboveTop < MARGIN ? belowTop : aboveTop;
-    top = Math.min(Math.max(MARGIN, top), Math.max(MARGIN, window.innerHeight - cardHeight - MARGIN));
-    setCardStyle({ top, left });
+    const card = { width: node?.offsetWidth || 340, height: node?.offsetHeight || 200 };
+    setCardStyle(placeCard(spotlight, card, { width: window.innerWidth, height: window.innerHeight }, safeInsets()));
   }, [spotlight, step]);
 
   if (!running || !step) return null;

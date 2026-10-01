@@ -2,6 +2,14 @@
   --ink: #e7f4ef; --muted: #819b98; --line: #203f45; --paper: #060e12; --cream: #0e1b1f;
   --coral: #ff5a1f; --mint: #e3fb14; --teal: #08767a; --navy: #071419; --rust: #c9622f;
   --deep: #03080b; --glow: rgba(227, 251, 20, .18);
+  /* How far a full-screen layer keeps its content in from each edge: 20px, or the safe-area
+     inset plus 12px where that is more. The installed app is viewport-fit=cover with a
+     black-translucent status bar, so the insets (status bar and Dynamic Island, home indicator,
+     the island's side in landscape) are real there and 0 in a browser tab. */
+  --safe-top: max(20px, calc(env(safe-area-inset-top) + 12px));
+  --safe-right: max(20px, calc(env(safe-area-inset-right) + 12px));
+  --safe-bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  --safe-left: max(20px, calc(env(safe-area-inset-left) + 12px));
   --font-display: 'Anton', 'Impact', 'Arial Narrow', sans-serif;
   --font-head: 'Oswald', 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;
   --font-pixel: 'Jersey 10', 'Oswald', 'Arial Narrow', sans-serif;
@@ -49,7 +57,7 @@ button { cursor: pointer; }
 .nav-log-catch > span { font-size: 15px; line-height: 1; }
 .nav-log-catch em { font-style: normal; }
 /* The one Log a catch form: the fish, then every place it counts. */
-.log-catch-modal { max-height: calc(100dvh - 40px); overflow-y: auto; }
+.log-catch-modal { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom)); overflow-y: auto; }
 .log-catch-sizes { display: grid; gap: 0 14px; grid-template-columns: 1fr 1fr; }
 .log-catch-destinations { border: 1px solid var(--line); margin: 22px 0 0; min-width: 0; padding: 4px 14px 12px; }
 .log-catch-destinations legend { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; padding: 0 6px; text-transform: uppercase; }
@@ -133,7 +141,9 @@ button { cursor: pointer; }
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.reveal-in { animation: panel-reveal .22s ease-out both; }
+/* backwards, not both: holding the final transform after the reveal made the panel the containing
+   block for any position: fixed child (a photo opened full screen came out panel-sized). */
+.reveal-in { animation: panel-reveal .22s ease-out backwards; }
 @keyframes dropdown-pop {
   from { opacity: 0; transform: scale(.92) translateY(-4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -332,7 +342,7 @@ button { cursor: pointer; }
 .profile-admin-link { display: block; margin-top: 14px; }
 .bug-report-panel { margin-top: 22px; }
 .bug-report-panel > p { color: var(--muted); font-size: 13px; margin: 0; }
-.update-banner { align-items: center; background: var(--cream); border: 2px solid var(--mint); bottom: 20px; box-shadow: var(--sticker-shadow); display: flex; gap: 14px; left: 50%; max-width: calc(100% - 24px); padding: 10px 12px 10px 16px; position: fixed; transform: translateX(-50%); z-index: 90; }
+.update-banner { align-items: center; background: var(--cream); border: 2px solid var(--mint); bottom: calc(20px + env(safe-area-inset-bottom)); box-shadow: var(--sticker-shadow); display: flex; gap: 14px; left: 50%; max-width: calc(100% - 24px); padding: 10px 12px 10px 16px; position: fixed; transform: translateX(-50%); z-index: 90; }
 .update-banner span { color: var(--ink); font-size: 13px; font-weight: 700; }
 .update-banner .button { margin-top: 0; white-space: nowrap; width: auto; }
 @media (max-width: 800px) {
@@ -472,8 +482,8 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .waypoint-popup p { color: var(--muted); font-size: 12px; margin: 6px 0; }
 .waypoint-popup-meta { color: var(--muted); display: block; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
 
-.warden-view-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(3,8,11,.9); display: flex; inset: 0; justify-content: center; padding: 24px; position: fixed; z-index: 100; }
-.warden-view-card { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); max-width: 380px; padding: 32px 28px 28px; position: relative; text-align: center; width: 100%; }
+.warden-view-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(3,8,11,.9); display: flex; inset: 0; justify-content: center; overflow-y: auto; overscroll-behavior: contain; padding: max(24px, var(--safe-top)) max(24px, var(--safe-right)) max(24px, var(--safe-bottom)) max(24px, var(--safe-left)); position: fixed; z-index: 100; }
+.warden-view-card { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); border: 2px solid var(--line); box-shadow: var(--sticker-shadow-lg); margin: auto; max-width: 380px; padding: 32px 28px 28px; position: relative; text-align: center; width: 100%; }
 .warden-view-card h2 { font-size: 34px; margin: 10px 0 4px; }
 .warden-view-card .modal-close { position: absolute; right: 14px; top: 10px; }
 .warden-view-name { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
@@ -507,7 +517,11 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .preview-note { background: #eef2e6; color: var(--muted); font-size: 11px; line-height: 1.5; padding: 11px; }
 .preview-note button { background: none; border: 0; color: var(--teal); font-weight: 800; margin-left: 8px; }
 .loading-screen { align-items: center; color: var(--muted); display: flex; height: 100vh; justify-content: center; }
-.auth-page { display: grid; grid-template-columns: 1fr 480px; margin: -112px -32px -72px; min-height: calc(100vh + 184px); }
+.auth-page { display: grid; grid-template-columns: minmax(0, 1fr) min(480px, 50%); margin: -112px calc(-1 * max(32px, env(safe-area-inset-right))) -72px calc(-1 * max(32px, env(safe-area-inset-left))); min-height: calc(100vh + 184px); }
+/* Signed out there is no top bar, so nothing backs the black-translucent status bar of the
+   installed app: without this its clock and battery sat on the white headline once the page
+   scrolled. 0 tall in a browser tab. */
+.auth-page::before { background: var(--deep); content: ''; height: env(safe-area-inset-top); left: 0; pointer-events: none; position: fixed; right: 0; top: 0; z-index: 30; }
 .auth-story { background: var(--navy); color: white; padding: 18vh 11vw; }
 .auth-fishing-scene { height: 130px; margin-bottom: 30px; position: relative; width: 280px; }
 .auth-shark { left: 40px; position: absolute; top: 24px; transform: rotate(-5deg) scale(.95); transition: transform .18s ease-out; }
@@ -539,12 +553,16 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .confirmation-panel p strong { color: var(--ink); overflow-wrap: anywhere; }
 .confirmation-panel .button { margin-top: 20px; }
 .button:disabled { cursor: not-allowed; opacity: .48; }
-.catch-modal-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .7); display: flex; inset: 0; justify-content: center; padding: 20px; position: fixed; z-index: 80; }
-.catch-modal { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); box-shadow: 0 24px 70px rgba(16, 47, 50, .3); max-width: 500px; padding: 28px; width: 100%; }
+/* A modal taller than the screen scrolls inside the backdrop (its auto margins centre one that
+   fits and start one that doesn't at the top) and stays inside the safe area: centred in a
+   fixed box with nothing to scroll, the trip form's title and close sat under the island and
+   its Save under the home indicator, out of reach. */
+.catch-modal-backdrop { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .7); display: flex; inset: 0; justify-content: center; overflow-y: auto; overscroll-behavior: contain; padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left); position: fixed; z-index: 80; }
+.catch-modal { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; background: var(--cream); box-shadow: 0 24px 70px rgba(16, 47, 50, .3); margin: auto; max-width: 500px; padding: 28px; width: 100%; }
 .catch-modal .section-heading { margin-bottom: 8px; }
 .catch-modal .section-heading h2 { font-size: 28px; }
 .catch-modal label { color: var(--muted); display: block; font-size: 11px; font-weight: 800; margin-top: 20px; }
-.catch-modal input, .catch-modal select { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; outline: none; padding: 11px 0; width: 100%; }
+.catch-modal input, .catch-modal select, .catch-modal textarea { background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); display: block; font: inherit; outline: none; padding: 11px 0; width: 100%; }
 .catch-modal input:focus, .catch-modal select:focus { border-color: var(--coral); }
 .field-hint { color: var(--mint); display: block; font-size: 10px; font-weight: 700; margin-top: 6px; text-transform: none; }
 .modal-close { background: transparent; border: 0; color: var(--muted); font-size: 27px; line-height: 1; padding: 0; }
@@ -581,9 +599,9 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .like-button span.is-popping { animation: heart-pop .4s cubic-bezier(.34,1.56,.64,1); }
 .like-button small { color: var(--muted); font-size: 10px; font-weight: 700; }
 .like-button.is-liked { color: var(--coral); }
-.image-lightbox { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .88); display: flex; inset: 0; justify-content: center; padding: 35px; position: fixed; z-index: 100; }
-.image-lightbox img { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); max-height: 88vh; max-width: min(900px, 92vw); object-fit: contain; }
-.lightbox-close { background: var(--cream); border: 0; border-radius: 50%; color: var(--ink); font-size: 25px; height: 38px; line-height: 1; position: absolute; right: 25px; top: 25px; width: 38px; }
+.image-lightbox { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .88); display: flex; inset: 0; justify-content: center; padding: max(35px, calc(env(safe-area-inset-top) + 58px)) max(35px, var(--safe-right)) max(35px, var(--safe-bottom)) max(35px, var(--safe-left)); position: fixed; z-index: 100; }
+.image-lightbox img { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); max-height: 100%; max-width: min(900px, 100%); object-fit: contain; }
+.lightbox-close { background: var(--cream); border: 0; border-radius: 50%; color: var(--ink); font-size: 25px; height: 38px; line-height: 1; position: absolute; right: max(25px, calc(env(safe-area-inset-right) + 12px)); top: max(25px, calc(env(safe-area-inset-top) + 12px)); width: 38px; }
 .participant-summary { border-bottom: 1px solid var(--line); display: flex; margin-bottom: 24px; padding-bottom: 23px; }
 .participant-summary div { border-left: 1px solid var(--line); display: flex; flex-direction: column; min-width: 145px; padding: 0 22px; }
 .participant-summary div:first-child { border-left: 0; padding-left: 0; }
@@ -635,6 +653,9 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .my-bests .section-heading { align-items: flex-start; flex-direction: column; gap: 14px; }
   .my-bests .section-heading .button { justify-content: space-between; width: 100%; }
   body { padding-bottom: env(safe-area-inset-bottom); }
+  /* The game is fixed edge to edge; the padding only gave the root an inset's worth of scroll to
+     rubber-band under a drag on the deck. */
+  body:has(.game-page) { padding-bottom: 0; }
   .page-wrapper { padding: 28px 16px 92px; }
   /* On a phone the header is a slim top bar (brand, bell, you) and the five section tabs are
      a bar along the bottom, each a full-width icon-and-label target under the thumb. */
@@ -644,7 +665,7 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .brand-mark > span { height: 30px; width: 30px; }
   .nav-links { background: rgba(6,14,18,.98); border-top: 1px solid var(--line); bottom: 0; box-shadow: 0 -12px 30px rgba(0,0,0,.25); display: grid; gap: 0; grid-template-columns: repeat(5, 1fr); height: calc(64px + env(safe-area-inset-bottom)); left: 0; margin: 0; padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left)); position: fixed; right: 0; }
   .nav-links:before { background: repeating-linear-gradient(-45deg, var(--mint) 0 8px, var(--rust) 8px 16px); content: ''; height: 3px; left: 0; opacity: .8; position: absolute; right: 0; top: -3px; }
-  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 5px; justify-content: center; letter-spacing: .04em; min-height: 64px; min-width: 0; padding: 8px 2px 6px; }
+  .nav-link { align-items: center; display: flex; flex-direction: column; font-size: 10px; gap: 5px; justify-content: center; letter-spacing: .04em; min-height: 63px; min-width: 0; padding: 8px 2px 6px; }
   .nav-link.active { background: rgba(227,251,20,.08); border-bottom: 0; }
   .nav-icon { display: block; height: 22px; width: 22px; }
   .nav-link .nav-index { display: none; }
@@ -665,7 +686,7 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .profile-layout { grid-template-columns: 1fr; }
   .notes-board { grid-template-columns: 1fr; }
   .auth-page { display: block; margin: -28px -16px -92px; }
-  .auth-story { min-height: auto; padding: 58px 24px 36px; }
+  .auth-story { min-height: auto; padding: max(58px, calc(24px + env(safe-area-inset-top))) 24px 36px; }
   .auth-fishing-scene { height: 90px; margin-bottom: 6px; transform: scale(.72); transform-origin: left top; }
   .auth-story h1 { font-size: clamp(46px, 14vw, 64px); margin: 20px 0; }
   .auth-story p { font-size: 14px; }
@@ -712,8 +733,17 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
   .month-card-detail { padding: 12px; }
 }
 
+html { scroll-padding-top: calc(96px + env(safe-area-inset-top)); }
+@media (max-width: 800px) {
+  /* A section reached by its anchor (#personal-bests, #fish-bingo…) lands below the slim top bar
+     and above the tab bar, not behind them. */
+  html { scroll-padding-bottom: calc(67px + env(safe-area-inset-bottom) + 16px); scroll-padding-top: calc(56px + env(safe-area-inset-top) + 16px); }
+}
 @media (min-width: 801px) {
-  .navbar { top: 0; }
+  /* The desktop header in an installed iPad (or a phone on its side) sits under a status bar too. */
+  .navbar { height: calc(80px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); top: 0; }
+  .navbar ~ .page-wrapper { padding-top: calc(112px + env(safe-area-inset-top)); }
+  .brand-mark > span { flex: 0 0 auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -727,7 +757,7 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .tour-layer { inset: 0; position: fixed; z-index: 200; }
 .tour-scrim { background: rgba(3,8,11,.86); inset: 0; position: absolute; }
 .tour-spotlight { border: 2px solid var(--mint); border-radius: 3px; box-shadow: 0 0 0 9999px rgba(3,8,11,.86), 0 0 26px var(--glow); pointer-events: none; position: fixed; transition: all .22s ease-out; }
-.tour-card { background: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--mint); box-shadow: var(--sticker-shadow-lg); max-height: calc(100vh - 24px); max-width: 340px; overflow-y: auto; padding: 20px; position: fixed; transition: all .22s ease-out; width: min(340px, calc(100vw - 24px)); }
+.tour-card { background: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--mint); box-shadow: var(--sticker-shadow-lg); max-height: calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-width: 340px; overflow-y: auto; padding: 20px; position: fixed; transition: all .22s ease-out; width: min(340px, calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))); }
 .tour-card.is-centered { left: 50%; top: 50%; transform: translate(-50%, -50%); }
 .tour-card h2 { font-size: 26px; margin: 10px 0 8px; }
 .tour-card p { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; }
@@ -775,7 +805,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 .image-lightbox { background: rgba(3,8,11,.94); }
 .catch-modal-backdrop { background: rgba(3,8,11,.84); }
 .catch-modal { background: var(--cream); border: 1px solid var(--line); }
-.catch-modal input, .catch-modal select { background: rgba(3,8,11,.35); border-color: var(--line); color: var(--ink); padding-left: 10px; padding-right: 10px; }
+.catch-modal input, .catch-modal select, .catch-modal textarea { background: rgba(3,8,11,.35); border-color: var(--line); color: var(--ink); padding-left: 10px; padding-right: 10px; }
 .catch-modal input[type='file'] { color: var(--muted); }
 .modal-close { color: var(--muted); }
 .navbar .profile-pill { color: var(--ink); }
@@ -1327,7 +1357,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 
 /* A phone on its side is past the mobile breakpoint; keep the game clear of the notch. */
 @media (min-width: 801px) {
-  .game-page.content-shell { left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); }
+  .game-page.content-shell { bottom: max(14px, env(safe-area-inset-bottom)); left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right)); top: calc(94px + env(safe-area-inset-top)); }
 }
 
 /* ==========================================================================================
@@ -1797,4 +1827,30 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 /* The narrowest phones drop the wordmark so Log a catch, the bell and you still fit. */
 @media (max-width: 390px) {
   .nav-brand > div { display: none; }
+}
+
+/* A phone on its side is wider than the phone breakpoint but only ~390px tall: the desktop
+   header's 80px and the game frame's 2.6:1 cap left the game a 274px box with four HUD signs and
+   the deck out of reach. Give it a slimmer header, the whole width (inside the side insets, where
+   the Dynamic Island is in landscape) and the deck on one row; drop the long name from the pill. */
+@media (min-width: 801px) and (max-height: 500px) {
+  .navbar { height: calc(56px + env(safe-area-inset-top)); }
+  .nav-brand small { display: none; }
+  .navbar ~ .page-wrapper { padding-top: calc(80px + env(safe-area-inset-top)); }
+  .game-page.content-shell { bottom: max(8px, env(safe-area-inset-bottom)); top: calc(64px + env(safe-area-inset-top)); }
+  .game-page .game-frame { max-width: none; }
+  .game-dock .game-panel.is-ready > .npc-dialogue { display: none; }
+}
+@media (min-width: 801px) and (max-width: 960px) and (max-height: 500px) {
+  .profile-pill-name, .profile-pill > .profile-pill-arrow { display: none; }
+}
+/* An open overlay is the thing being read: the HUD's setup chips wrapped over its title on wider
+   frames. The signs stay, the chips step aside and never take a tap. */
+.hud-chips { pointer-events: none; }
+.game-frame.has-overlay .hud-chips { visibility: hidden; }
+/* 320px wide (Display Zoom on a mini or an SE): six signs and the plate did not fit, and Sound
+   was cut by the frame. */
+@media (max-width: 340px) {
+  .hud-brand { display: none; }
+  .hud-nav { gap: 1px; }
 }
