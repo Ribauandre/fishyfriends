@@ -1,6 +1,7 @@
 import * as React from 'react';
 import FishYearCatchComments from './FishYearCatchComments';
 import FishIllustration from './FishIllustration';
+import ImageLightbox from './ImageLightbox';
 import LikeButton from './LikeButton';
 import PostMenu from './PostMenu';
 import speciesIcon from '../utils/speciesOptions';
@@ -69,7 +70,7 @@ function MonthCatch({ entry, currentUserId, onDelete, highlighted, highlightComm
       <LikeButton targetType="fish_year_catch" targetId={entry.id} ownerId={entry.user_id} />
       <FishYearCatchComments catchId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} highlightCommentId={highlightCommentId} />
     </div>
-    {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}><button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button><img src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} /></div>}
+    {imageOpen && <ImageLightbox src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} label={`${entry.angler_name}'s catch photo`} onClose={() => setImageOpen(false)} />}
   </div>;
 }
 

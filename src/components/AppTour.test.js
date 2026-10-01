@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import AppTour from './AppTour';
+import AppTour, { placeCard } from './AppTour';
 import { useAuth } from '../context/AuthContext';
 
 jest.mock('../context/AuthContext', () => ({ useAuth: jest.fn() }));
@@ -126,4 +126,18 @@ test('Escape dismisses the tour', async () => {
   await userEvent.keyboard('{Escape}');
   expect(completeTour).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('dialog', { name: /feature tour/i })).not.toBeInTheDocument();
+});
+
+test('the card is placed inside the safe area: never under the home indicator, nor under the island in landscape', () => {
+  const card = { width: 340, height: 244 };
+  // Portrait iPhone 15 Pro, installed (insets 59 top, 34 bottom): a tall spotlight with no room
+  // below or above used to clamp the card 12px off the raw bottom, its button on the indicator.
+  const portrait = placeCard({ top: 120, left: 12, width: 369, height: 520 }, card, { width: 393, height: 852 }, { top: 59, right: 0, bottom: 34, left: 0 });
+  expect(portrait.top + card.height).toBeLessThanOrEqual(852 - 34 - 12);
+  expect(portrait.top).toBeGreaterThanOrEqual(59 + 12);
+  // Landscape with the island on the right (59 each side): the card stays left of it.
+  const landscape = placeCard({ top: 10, left: 700, width: 120, height: 40 }, card, { width: 852, height: 393 }, { top: 0, right: 59, bottom: 21, left: 59 });
+  expect(landscape.left + card.width).toBeLessThanOrEqual(852 - 59 - 12);
+  // A browser tab has no insets and keeps the old 12px margins.
+  expect(placeCard({ top: 10, left: 0, width: 50, height: 40 }, card, { width: 393, height: 852 }).left).toBe(12);
 });

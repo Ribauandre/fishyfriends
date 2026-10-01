@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './FishIllustration';
+import ImageLightbox from './ImageLightbox';
 import LikeButton from './LikeButton';
 import PersonalBestComments from './PersonalBestComments';
 import PostMenu from './PostMenu';
@@ -38,9 +39,6 @@ export default function AnglerBestItem({ best, profile, anglerName, isOwner, onD
       <LikeButton targetType="personal_best" targetId={best.id} ownerId={profile.id} />
       <PersonalBestComments personalBestId={best.id} ownerId={profile.id} defaultOpen={highlighted} highlightCommentId={highlightCommentId} />
     </div>
-    {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${anglerName}'s ${best.species} photo`} onClick={() => setImageOpen(false)}>
-      <button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button>
-      <img src={best.photo_url} alt={`${profile.display_name}'s expanded ${best.species}`} onClick={(event) => event.stopPropagation()} />
-    </div>}
+    {imageOpen && <ImageLightbox src={best.photo_url} alt={`${profile.display_name}'s expanded ${best.species}`} label={`${anglerName}'s ${best.species} photo`} onClose={() => setImageOpen(false)} />}
   </div>;
 }

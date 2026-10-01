@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './FishIllustration';
+import ImageLightbox from './ImageLightbox';
 import LikeButton from './LikeButton';
 import PostMenu from './PostMenu';
 import TournamentEntryComments from './TournamentEntryComments';
@@ -38,10 +39,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
         <TournamentEntryComments entryId={entry.id} ownerId={entry.user_id} defaultOpen={highlighted} highlightCommentId={highlighted ? highlightCommentId : null} />
       </div>
     </div>}
-    {imageOpen && <div className="image-lightbox" role="dialog" aria-modal="true" aria-label={`${entry.angler_name}'s catch photo`} onClick={() => setImageOpen(false)}>
-      <button className="lightbox-close" type="button" onClick={() => setImageOpen(false)} aria-label="Close expanded image">×</button>
-      <img src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} onClick={(event) => event.stopPropagation()} />
-    </div>}
+    {imageOpen && <ImageLightbox src={entry.photo_url} alt={`${entry.angler_name}'s expanded ${entry.species}`} label={`${entry.angler_name}'s catch photo`} onClose={() => setImageOpen(false)} />}
   </div>;
 }
 
