@@ -57,7 +57,10 @@ button { cursor: pointer; }
 .nav-log-catch > span { font-size: 15px; line-height: 1; }
 .nav-log-catch em { font-style: normal; }
 /* The one Log a catch form: the fish, then every place it counts. */
-.log-catch-modal { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom)); overflow-y: auto; }
+/* 100% of the backdrop's content box, which is the viewport less the --safe-* padding. (Not
+   calc(100dvh - var(--safe-top) …): the build inlines the tokens' max() into the calc and the
+   minifier can't parse it, which fails CI.) */
+.log-catch-modal { max-height: 100%; overflow-y: auto; }
 .log-catch-sizes { display: grid; gap: 0 14px; grid-template-columns: 1fr 1fr; }
 .log-catch-destinations { border: 1px solid var(--line); margin: 22px 0 0; min-width: 0; padding: 4px 14px 12px; }
 .log-catch-destinations legend { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; padding: 0 6px; text-transform: uppercase; }
@@ -533,7 +536,7 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .auth-stat-row strong { color: var(--mint); font-size: 21px; margin-left: 18px; }
 .auth-stat-row strong:first-child { margin-left: 0; }
 .auth-stat-row span { color: #a6bfba; font-size: 10px; }
-.auth-panel { background: var(--cream); padding: 13vh 58px; }
+.auth-panel { background: var(--cream); padding: 13vh max(58px, calc(env(safe-area-inset-right) + 24px)) 13vh 58px; }
 .auth-heading { margin-top: 90px; }
 .auth-heading h2 { font-size: 34px; letter-spacing: 0; line-height: 1.08; margin: 14px 0 0; }
 .auth-form { margin-top: 36px; }
@@ -599,7 +602,7 @@ ol.trip-recap-board li:first-child { border-color: var(--mint); }
 .like-button span.is-popping { animation: heart-pop .4s cubic-bezier(.34,1.56,.64,1); }
 .like-button small { color: var(--muted); font-size: 10px; font-weight: 700; }
 .like-button.is-liked { color: var(--coral); }
-.image-lightbox { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .88); display: flex; inset: 0; justify-content: center; padding: max(35px, calc(env(safe-area-inset-top) + 58px)) max(35px, var(--safe-right)) max(35px, var(--safe-bottom)) max(35px, var(--safe-left)); position: fixed; z-index: 100; }
+.image-lightbox { align-items: center; animation: backdrop-fade .18s ease-out both; background: rgba(16, 47, 50, .88); display: flex; inset: 0; justify-content: center; padding: max(35px, calc(env(safe-area-inset-top) + 58px)) max(4vw, calc(env(safe-area-inset-right) + 12px)) max(35px, var(--safe-bottom)) max(4vw, calc(env(safe-area-inset-left) + 12px)); position: fixed; z-index: 100; }
 .image-lightbox img { animation: modal-pop .3s cubic-bezier(.34,1.56,.64,1) both; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); max-height: 100%; max-width: min(900px, 100%); object-fit: contain; }
 .lightbox-close { background: var(--cream); border: 0; border-radius: 50%; color: var(--ink); font-size: 25px; height: 38px; line-height: 1; position: absolute; right: max(25px, calc(env(safe-area-inset-right) + 12px)); top: max(25px, calc(env(safe-area-inset-top) + 12px)); width: 38px; }
 .participant-summary { border-bottom: 1px solid var(--line); display: flex; margin-bottom: 24px; padding-bottom: 23px; }
@@ -744,6 +747,11 @@ html { scroll-padding-top: calc(96px + env(safe-area-inset-top)); }
   .navbar { height: calc(80px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top); top: 0; }
   .navbar ~ .page-wrapper { padding-top: calc(112px + env(safe-area-inset-top)); }
   .brand-mark > span { flex: 0 0 auto; }
+}
+/* Between the phone breakpoint and 1000px the header is crowded: the tagline wrapped to four
+   lines and pushed the brand out of the bar (under an iPad's status bar). */
+@media (min-width: 801px) and (max-width: 1000px) {
+  .nav-brand small { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1840,17 +1848,28 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .game-page.content-shell { bottom: max(8px, env(safe-area-inset-bottom)); top: calc(64px + env(safe-area-inset-top)); }
   .game-page .game-frame { max-width: none; }
   .game-dock .game-panel.is-ready > .npc-dialogue { display: none; }
+  /* …at the phone's chrome scale: at two CSS px an art pixel the HUD signs covered most of a
+     148px stage — the cast meter, the fight and the landed fish under them. */
+  .game-page { --ui-px: 1px; --frame-px: .5px; --t-s: calc(112px / 9); --t-m: calc(56px / 3); --t-l: calc(224px / 9); --t-card: var(--t-s); }
+  .game-hud { gap: 2px 4px; padding: 4px; }
+  .hud-brand, .hud-button span, .hud-chips { display: none; }
+  .hud-nav { gap: 2px; grid-row: 1; }
+  .game-overlay-panel { max-height: calc(100% - 50px); }
+  .game-loading { min-height: 0; }
+  .game-frame :is(.lure-chip, .dock-crew-chip, .rack-item, .button) { min-height: 44px; }
+  .game-frame .game-overlay-close { min-height: 44px; min-width: 44px; }
+  .notification-panel { max-height: calc(100dvh - 68px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
 }
 @media (min-width: 801px) and (max-width: 960px) and (max-height: 500px) {
   .profile-pill-name, .profile-pill > .profile-pill-arrow { display: none; }
 }
 /* An open overlay is the thing being read: the HUD's setup chips wrapped over its title on wider
-   frames. The signs stay, the chips step aside and never take a tap. */
-.hud-chips { pointer-events: none; }
+   frames. The signs stay and the chips step aside. */
 .game-frame.has-overlay .hud-chips { visibility: hidden; }
 /* 320px wide (Display Zoom on a mini or an SE): six signs and the plate did not fit, and Sound
    was cut by the frame. */
 @media (max-width: 340px) {
-  .hud-brand { display: none; }
-  .hud-nav { gap: 1px; }
+  .hud-brand, .hud-coin { display: none; }
+  .hud-nav { gap: 0; }
+  .game-hud { column-gap: 2px; padding-left: 3px; padding-right: 3px; }
 }

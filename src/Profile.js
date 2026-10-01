@@ -189,9 +189,16 @@ export default function Profile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Other pages link straight to a part of Profile (#licenses, #getting-paid, #fish-bingo).
+  // Other pages link straight to a part of Profile (#licenses, #getting-paid, #fish-bingo). On a
+  // cold launch the web fonts land after the first aim and push the section down, so aim again
+  // once they have (html's scroll-padding keeps it clear of the top bar).
   useEffect(() => {
-    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!hash) return undefined;
+    let live = true;
+    const aim = () => { if (live) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    aim();
+    document.fonts?.ready?.then(aim);
+    return () => { live = false; };
   }, [hash]);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
