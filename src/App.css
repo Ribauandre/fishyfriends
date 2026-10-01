@@ -1303,7 +1303,11 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
 }
 
 @media (max-width: 800px) {
-  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
+  /* The top bar steps aside on the game, so the frame starts at the top of the screen — below the
+     status bar, though: the installed app is viewport-fit=cover with a black-translucent status
+     bar, so without the inset the HUD's top row sat under the Dynamic Island (in a Safari tab the
+     inset is 0 and nothing moves). */
+  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: env(safe-area-inset-left); right: env(safe-area-inset-right); top: env(safe-area-inset-top); }
   /* Phones: the stage grows as tall as the painting's crop allows (the narrowest crop the scene
      layout supports is about 10:9) and the deck spreads across what's left. */
   .game-page .game-stage { flex: 0 1 auto; height: calc((100vw - 28px) / 1.12); min-height: 40%; }
@@ -1313,7 +1317,7 @@ h1, h2 { font-family: var(--font-display); text-transform: uppercase; }
   .game-dock .game-panel.is-ready { flex: 1 0 auto; gap: 12px; justify-content: space-evenly; }
 }
 @media (max-width: 500px) {
-  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: 0; right: 0; top: 0; }
+  .game-page.content-shell { bottom: calc(64px + env(safe-area-inset-bottom)); left: env(safe-area-inset-left); right: env(safe-area-inset-right); top: env(safe-area-inset-top); }
   .game-page .game-stage { height: calc((100vw - 14px) / 1.12); }
   .hud-chips { display: none; }
   .stage-callout { border-image-width: 6px; border-width: 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
