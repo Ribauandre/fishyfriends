@@ -37,6 +37,10 @@ async function main() {
 
   const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
   await client.connect();
+  // A migration's own RAISE NOTICE lines (counts, what it skipped) belong in the deploy log;
+  // Postgres's "already exists, skipping" notices from idempotent DDL don't (code 00000 is
+  // a plain RAISE NOTICE).
+  client.on('notice', (message) => { if (message.code === '00000') console.log(`  ${message.message}`); });
 
   try {
     await client.query(`
