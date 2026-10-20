@@ -1,3 +1,5 @@
+-- Early bootstrap reference: it covers only the first few tables. The migrations in
+-- supabase/migrations are the full, current schema; replay those to set up a new project.
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default 'New angler',
@@ -146,3 +148,8 @@ drop policy if exists "Members can view custom species" on public.custom_species
 create policy "Members can view custom species" on public.custom_species for select using (true);
 drop policy if exists "Members can add custom species" on public.custom_species;
 create policy "Members can add custom species" on public.custom_species for insert with check (auth.uid() is not null);
+
+-- Data API access. Supabase no longer grants this to new tables automatically (from
+-- 30 October 2026); row-level security above still decides which rows anyone can reach.
+grant select on table public.profiles, public.personal_bests, public.personal_best_comments, public.fish_year_catches, public.custom_species to anon;
+grant select, insert, update, delete on table public.profiles, public.personal_bests, public.personal_best_comments, public.fish_year_catches, public.custom_species to authenticated, service_role;
