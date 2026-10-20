@@ -44,6 +44,16 @@ async function main() {
         filename text primary key,
         applied_at timestamptz not null default now()
       );
+      -- Bookkeeping for this script only: keep it out of the Data API. RLS with no policies
+      -- shuts out anon and authenticated; this script connects as the table's owner, which
+      -- RLS doesn't apply to.
+      alter table public._migrations_applied enable row level security;
+      do $$
+      begin
+        if exists (select 1 from pg_roles where rolname = 'anon') then
+          revoke all on table public._migrations_applied from anon, authenticated;
+        end if;
+      end $$;
     `);
 
     const { rows } = await client.query('select filename from public._migrations_applied');

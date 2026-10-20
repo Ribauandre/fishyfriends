@@ -68,6 +68,16 @@ Everything is Supabase-backed now — profiles/avatars, personal bests + their l
 
 To ship a schema change: add the next-numbered file to `supabase/migrations/`, write it idempotently, push to `deploy`. No manual SQL-editor step needed.
 
+**Every migration that creates a table grants it in the same file.** Since 30 October 2026 Supabase no longer grants the Data API roles access to new tables in `public`, so a table without grants answers supabase-js with "permission denied" however its RLS policies read. Enable RLS and grant together:
+
+```sql
+alter table public.my_table enable row level security;
+grant select on table public.my_table to anon;
+grant select, insert, update, delete on table public.my_table to authenticated, service_role;
+```
+
+Tables made before that rule are covered by `0034_data_api_grants.sql` (a no-op on the live project, which already had the old automatic grants; it's there for a replay from scratch). The grant is only the door to the API — RLS still decides the rows, so never grant a table that doesn't have RLS on. `run-migrations.mjs`'s own `_migrations_applied` table is deliberately kept out of the API (RLS on, no policies, no grants).
+
 An `.insert(...).select()` from the client is an `INSERT ... RETURNING`, and Postgres makes the new row pass the table's **SELECT** policy too, not just its INSERT policy. A SELECT policy that decides visibility by querying the same table (e.g. through a `security definer` helper) can't see the row that statement is inserting, so the insert fails with "new row violates row-level security policy" even for the rightful owner. Waypoints shipped with exactly that (fixed in `0026`). Give such a policy a direct check on the row's own columns (`auth.uid() = owner_id or …`). The same rule is why a `notifications` insert must never be `.select()`ed: only the recipient can read a notification, so the sender reading back what they just inserted always fails. The only way to catch this before deploy is to run the migration against a real Postgres (Postgres 16 is installed in the dev container) with `set role authenticated` and `request.jwt.claims` set, stubbing `auth.uid()` the way Supabase defines it. The Jest mock can't catch it.
 
 ### Testing infrastructure
