@@ -80,6 +80,20 @@ async function main() {
     }
 
     console.log(ranCount === 0 ? 'Database already up to date.' : `Applied ${ranCount} migration(s).`);
+
+    // A table in public without row-level security can be read and written by anyone holding
+    // the site's public key, and Supabase's security advisor flags it (rls_disabled_in_public).
+    // Check the whole live schema on every deploy, not just what this run touched, and stop the
+    // deploy rather than ship next to an open table.
+    const { rows: openTables } = await client.query(`
+      select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r', 'p') and not c.relrowsecurity
+      order by c.relname
+    `);
+    if (openTables.length) {
+      throw new Error(`Row-level security is off on public.${openTables.map((row) => row.relname).join(', public.')}. Enable it in a migration (and add policies) before deploying.`);
+    }
+    console.log('Row-level security is on for every table in public.');
   } finally {
     await client.end();
   }
