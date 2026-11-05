@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
+import { canonicalSpecies } from '../utils/speciesNames';
 
 export default function SpeciesSelect({ value, onChange, required = true }) {
   const { customSpecies } = useAuth();
@@ -18,8 +19,12 @@ export default function SpeciesSelect({ value, onChange, required = true }) {
   const matches = useMemo(() => {
     const query = (value || '').trim().toLowerCase();
     if (!query) return allSpecies;
-    return allSpecies.filter((name) => name.toLowerCase().includes(query));
-  }, [allSpecies, value]);
+    const found = allSpecies.filter((name) => name.toLowerCase().includes(query));
+    // A common name or a typo ("striper", "Stripped Bass") offers the species it means first,
+    // since that is what it will be saved as.
+    const meant = canonicalSpecies(value, customSpecies);
+    return allSpecies.includes(meant) ? [meant, ...found.filter((name) => name !== meant)] : found;
+  }, [allSpecies, customSpecies, value]);
 
   useEffect(() => {
     function handleClickOutside(event) {

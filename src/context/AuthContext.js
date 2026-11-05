@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
+import { canonicalSpecies } from '../utils/speciesNames';
 import compressImage from '../utils/compressImage';
 import { normalizeUsPhone, normalizeZelle } from '../utils/payContacts';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, MAX_REBUILDS, rebuildCost, CHARTER_CLUB_COST } from '../utils/gameUpgrades';
@@ -53,7 +54,7 @@ export function AuthProvider({ children }) {
   // Adds a newly typed species to the shared list so it shows up as a suggestion for
   // everyone else too, instead of staying a one-off value only this catch/best used.
   async function registerSpecies(name) {
-    const trimmed = name?.trim();
+    const trimmed = canonicalSpecies(name, customSpecies);
     if (!trimmed || !isSupabaseConfigured) return;
     if (KNOWN_SPECIES.has(trimmed.toLowerCase())) return;
     if (customSpecies.some((existing) => existing.toLowerCase() === trimmed.toLowerCase())) return;
@@ -137,8 +138,9 @@ export function AuthProvider({ children }) {
 
   async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); }
 
-  async function updateProfile(nextProfile) {
+  async function updateProfile(rawProfile) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Authentication is not configured for this deployment.') };
+    const nextProfile = rawProfile.favorite_species ? { ...rawProfile, favorite_species: canonicalSpecies(rawProfile.favorite_species, customSpecies) } : rawProfile;
     setProfile(nextProfile);
     const { error } = await supabase.from('profiles').upsert({ id: user.id, ...nextProfile, updated_at: new Date().toISOString() });
     if (error) setNotice(error.message);
@@ -173,8 +175,9 @@ export function AuthProvider({ children }) {
     return { ...result, avatarUrl };
   }
 
-  async function uploadPersonalBest({ species, sizeLabel, caughtAt, file: rawFile }) {
-    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+  async function uploadPersonalBest({ species: typedSpecies, sizeLabel, caughtAt, file: rawFile }) {
+    const species = canonicalSpecies(typedSpecies, customSpecies);
+    if (!species) return { error: new Error('Name the species you caught.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
     const file = rawFile && await compressImage(rawFile);
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
@@ -191,7 +194,7 @@ export function AuthProvider({ children }) {
       photoUrl = `${data.publicUrl}?v=${Date.now()}`;
     }
 
-    const existing = personalBests.find((best) => best.species.toLowerCase() === species.trim().toLowerCase());
+    const existing = personalBests.find((best) => canonicalSpecies(best.species, customSpecies) === species);
     const row = { user_id: user.id, species: species.trim(), size_label: sizeLabel || '', caught_at: caughtAt || null, ...(photoUrl ? { photo_url: photoUrl } : {}) };
     const { data, error } = existing
       ? await supabase.from('personal_bests').update(row).eq('id', existing.id).select().maybeSingle()
@@ -340,7 +343,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logFishYearCatch({ year, month, species, caughtAt, file: rawFile }) {
-    const trimmedSpecies = species?.trim();
+    const trimmedSpecies = canonicalSpecies(species, customSpecies);
     if (!trimmedSpecies) return { error: new Error('Name the species you caught.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
     const file = rawFile && await compressImage(rawFile);
@@ -371,7 +374,7 @@ export function AuthProvider({ children }) {
     const row = { user_id: user.id, angler_name: authorName, angler_avatar_url: profile.avatar_url || '', year, month, species: trimmedSpecies, caught_at: caughtAt || null, photo_url: photoUrl };
     const { data, error } = await supabase.from('fish_year_catches').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
-    registerSpecies(species);
+    registerSpecies(trimmedSpecies);
     return { error: null, catchEntry: data };
   }
 
@@ -425,8 +428,9 @@ export function AuthProvider({ children }) {
     return data;
   }
 
-  async function submitTournamentEntry({ tournamentId, species, size, caughtAt, file: rawFile }) {
-    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+  async function submitTournamentEntry({ tournamentId, species: typedSpecies, size, caughtAt, file: rawFile }) {
+    const species = canonicalSpecies(typedSpecies, customSpecies);
+    if (!species) return { error: new Error('Name the species you caught.') };
     const numericSize = Number(size);
     if (!size || Number.isNaN(numericSize) || numericSize <= 0) return { error: new Error('Enter the size of your catch.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
@@ -1061,7 +1065,7 @@ export function AuthProvider({ children }) {
         state: fields.state || '',
         starts_on: fields.startsOn,
         ends_on: fields.endsOn,
-        target_species: (fields.targetSpecies || []).map((species) => species.trim()).filter(Boolean),
+        target_species: [...new Set((fields.targetSpecies || []).map((species) => canonicalSpecies(species, customSpecies)).filter(Boolean))],
         accommodation: fields.accommodation?.trim() || '',
         accommodation_url: accommodationUrl,
         notes: fields.notes?.trim() || '',
@@ -1273,8 +1277,9 @@ export function AuthProvider({ children }) {
     return data || [];
   }
 
-  async function logTripCatch({ tripId, species, lengthIn, caughtAt, file: rawFile }) {
-    if (!species?.trim()) return { error: new Error('Name the species you caught.') };
+  async function logTripCatch({ tripId, species: typedSpecies, lengthIn, caughtAt, file: rawFile }) {
+    const species = canonicalSpecies(typedSpecies, customSpecies);
+    if (!species) return { error: new Error('Name the species you caught.') };
     const length = String(lengthIn ?? '').trim();
     if (length && !(Number(length) > 0)) return { error: new Error('Length has to be a number of inches, or blank.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
