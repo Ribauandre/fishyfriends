@@ -228,6 +228,19 @@ describe('logFishYearCatch / deleteFishYearCatch', () => {
     expect(response.catchEntry).toEqual({ id: 'fy-1' });
   });
 
+  test('saves a common name or a typo under the species it means, and never adds it to the custom list', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', [{ data: null, error: null }, { data: { id: 'fy-3' }, error: null }]);
+    __mock.setResponse('custom_species', { data: null, error: null });
+    const customSpeciesCallsBefore = __mock.current.fromCalls.filter((table) => table === 'custom_species').length;
+
+    await result.current.logFishYearCatch({ year: 2026, month: 'June', species: 'stripers', caughtAt: '2026-06-12' });
+
+    const insertCall = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('fish_year_catches')];
+    expect(insertCall.value.insert).toHaveBeenCalledWith(expect.objectContaining({ species: 'Striped Bass' }));
+    expect(__mock.current.fromCalls.filter((table) => table === 'custom_species')).toHaveLength(customSpeciesCallsBefore);
+  });
+
   test('blocks logging the same species on the same day twice', async () => {
     const result = await setupSignedIn();
     __mock.setResponse('fish_year_catches', { data: { id: 'fy-existing' }, error: null });
