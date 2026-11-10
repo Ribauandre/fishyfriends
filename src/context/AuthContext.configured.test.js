@@ -50,6 +50,28 @@ test('creates a profiles row automatically for a signed-in user who never saved 
   await waitFor(() => expect(__mock.current.fromCalls.filter((table) => table === 'profiles').length).toBeGreaterThanOrEqual(2));
 });
 
+describe('getClubStats', () => {
+  async function signedOut() {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    return result;
+  }
+
+  test('reads the totals from club_stats() while signed out, without touching profiles', async () => {
+    __mock.setResponse('rpc:club_stats', { data: { anglers: 14, fish: 37, year: 2026 }, error: null });
+    const result = await signedOut();
+    await expect(result.current.getClubStats()).resolves.toEqual({ anglers: 14, fish: 37, year: 2026 });
+    expect(__mock.current.rpc).toHaveBeenCalledWith('club_stats');
+    expect(__mock.current.fromCalls).not.toContain('profiles');
+  });
+
+  test('gives null rather than a number when the call fails', async () => {
+    __mock.setResponse('rpc:club_stats', { data: null, error: { message: 'permission denied' } });
+    const result = await signedOut();
+    await expect(result.current.getClubStats()).resolves.toBeNull();
+  });
+});
+
 describe('signIn / signUp / signOut', () => {
   test('signIn calls Supabase with the given credentials', async () => {
     __mock.setResponse('profiles', { data: null, error: null });

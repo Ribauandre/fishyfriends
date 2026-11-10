@@ -49,3 +49,22 @@ test('with no link, it goes Home; and never off the site', async () => {
   await signIn();
   expect(await screen.findByTestId('where')).toHaveTextContent('/home');
 });
+
+test('shows the club\'s live totals, not a fixed figure', async () => {
+  useAuth.mockReturnValue({ signIn: jest.fn(), signUp: jest.fn(), isSupabaseConfigured: true, notice: '', getClubStats: jest.fn().mockResolvedValue({ anglers: 14, fish: 37, year: 2026 }) });
+  renderAt('/account');
+  const row = await screen.findByTestId('club-stats');
+  expect(row).toHaveTextContent('14anglers currently bragging');
+  expect(row).toHaveTextContent('37fish logged in 2026');
+  expect(row).not.toHaveTextContent('08');
+});
+
+test('leaves the totals out when they can\'t be loaded', async () => {
+  const getClubStats = jest.fn().mockResolvedValue(null);
+  useAuth.mockReturnValue({ signIn: jest.fn(), signUp: jest.fn(), isSupabaseConfigured: true, notice: '', getClubStats });
+  renderAt('/account');
+  await screen.findByRole('button', { name: /enter the club/i });
+  expect(getClubStats).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('club-stats')).not.toBeInTheDocument();
+  expect(screen.queryByText(/currently bragging/)).not.toBeInTheDocument();
+});

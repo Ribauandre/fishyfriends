@@ -74,6 +74,8 @@ export function createSupabaseMock() {
 
   return {
     from: jest.fn((table) => { fromCalls.push(table); return makeBuilder(table); }),
+    // A database function: scripted like a table, under its name with an `rpc:` prefix.
+    rpc: jest.fn((name) => Promise.resolve(resolveFor(`rpc:${name}`))),
     auth,
     storage,
     channel,

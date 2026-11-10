@@ -12,7 +12,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 drop policy if exists "Members can view profiles" on public.profiles;
-create policy "Members can view profiles" on public.profiles for select using (true);
+create policy "Members can view profiles" on public.profiles for select to authenticated using (true);
 drop policy if exists "Members can insert their profile" on public.profiles;
 create policy "Members can insert their profile" on public.profiles for insert with check (auth.uid() = id);
 drop policy if exists "Members can update their profile" on public.profiles;
@@ -151,5 +151,23 @@ create policy "Members can add custom species" on public.custom_species for inse
 
 -- Data API access. Supabase no longer grants this to new tables automatically (from
 -- 30 October 2026); row-level security above still decides which rows anyone can reach.
-grant select on table public.profiles, public.personal_bests, public.personal_best_comments, public.fish_year_catches, public.custom_species to anon;
+grant select on table public.personal_bests, public.personal_best_comments, public.fish_year_catches, public.custom_species to anon;
 grant select, insert, update, delete on table public.profiles, public.personal_bests, public.personal_best_comments, public.fish_year_catches, public.custom_species to authenticated, service_role;
+
+-- Profiles are for signed-in members (no anon grant above). The sign-in page shows the
+-- club's totals through this instead, which returns counts and no rows.
+create or replace function public.club_stats()
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'anglers', (select count(*) from public.profiles),
+    'fish', (select count(*) from public.fish_year_catches where year = extract(year from now())::int),
+    'year', extract(year from now())::int
+  );
+$$;
+revoke all on function public.club_stats() from public;
+grant execute on function public.club_stats() to anon, authenticated, service_role;
