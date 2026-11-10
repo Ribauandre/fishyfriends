@@ -106,6 +106,16 @@ export function AuthProvider({ children }) {
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
 
+  // The club's totals for the sign-in page (anglers, Fish Year fish this year, which year),
+  // through club_stats() — profiles themselves are members-only. Null when it can't be had,
+  // so the page shows nothing rather than a made-up figure.
+  async function getClubStats() {
+    if (!isSupabaseConfigured) return null;
+    const { data, error } = await supabase.rpc('club_stats');
+    if (error || !data || !Number.isFinite(Number(data.anglers))) return null;
+    return { anglers: Number(data.anglers), fish: Number(data.fish) || 0, year: Number(data.year) || new Date().getFullYear() };
+  }
+
   async function signIn(email, password) {
     if (!isSupabaseConfigured) {
       const error = new Error('Authentication is not configured for this deployment.');
@@ -1459,7 +1469,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={{
     user, profile, personalBests, customSpecies, loading, notice, setNotice,
     shouldShowTour, completeTour,
-    signIn, signUp, signOut, updateProfile, uploadAvatar,
+    signIn, signUp, signOut, updateProfile, uploadAvatar, getClubStats,
     uploadPersonalBest, deletePersonalBest, listAnglers,
     listComments, addComment, deleteComment,
     listFishYearCatches, logFishYearCatch, deleteFishYearCatch,
