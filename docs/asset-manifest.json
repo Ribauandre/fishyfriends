@@ -1,8 +1,8 @@
 {
   "files": {
-    "main.css": "/static/css/main.1aa3ad53.css",
-    "main.js": "/static/js/main.5eee5edd.js",
-    "static/js/710.d6cddafa.chunk.js": "/static/js/710.d6cddafa.chunk.js",
+    "main.css": "/static/css/main.5e0b13c3.css",
+    "main.js": "/static/js/main.8d4d19dd.js",
+    "static/js/710.34126471.chunk.js": "/static/js/710.34126471.chunk.js",
     "static/js/804.564aa72c.chunk.js": "/static/js/804.564aa72c.chunk.js",
     "static/js/453.e519305b.chunk.js": "/static/js/453.e519305b.chunk.js",
     "static/media/plate.png": "/static/media/plate.95b539ab9ba5236d5349.png",
@@ -109,6 +109,7 @@
     "service-worker.js": "/service-worker.js",
     "static/media/shoreline.webp": "/static/media/shoreline.d3325e019cbb7017929e.webp",
     "static/media/creek.webp": "/static/media/creek.3ad1175025117810a03b.webp",
+    "static/media/anton-latin-ext-400-normal.woff2": "/static/media/anton-latin-ext-400-normal.6e1938b75b8a63a00ed5.woff2",
     "static/media/flats.webp": "/static/media/flats.a3c9674b1b8ab889b243.webp",
     "static/media/pier.webp": "/static/media/pier.4cebca33a9e3cd5c0e46.webp",
     "static/media/baja.webp": "/static/media/baja.757366434ceab310cf9f.webp",
@@ -125,19 +126,26 @@
     "static/media/pier_night.webp": "/static/media/pier_night.65373ca6e3dd86295f5e.webp",
     "static/media/shop.webp": "/static/media/shop.28e10507085d341978b8.webp",
     "static/media/baja_night.webp": "/static/media/baja_night.52ff54a67d07b8b3481f.webp",
+    "static/media/anton-latin-400-normal.woff2": "/static/media/anton-latin-400-normal.3d62441680a12bbe4cde.woff2",
     "static/media/creek_night.webp": "/static/media/creek_night.f36983024bc34e531fe5.webp",
+    "static/media/jersey-10-latin-400-normal.woff2": "/static/media/jersey-10-latin-400-normal.ccafec196490680ebc65.woff2",
+    "static/media/oswald-latin-500-normal.woff2": "/static/media/oswald-latin-500-normal.71ff72eb63703e9db92b.woff2",
+    "static/media/oswald-latin-700-normal.woff2": "/static/media/oswald-latin-700-normal.ee6b0133e544205bb678.woff2",
+    "static/media/oswald-latin-ext-500-normal.woff2": "/static/media/oswald-latin-ext-500-normal.d08d5151435885602af9.woff2",
+    "static/media/oswald-latin-ext-700-normal.woff2": "/static/media/oswald-latin-ext-700-normal.0dcc63c20cea40c54b61.woff2",
     "static/media/outfitter.webp": "/static/media/outfitter.ac98796e0f19cb4f2e09.webp",
+    "static/media/jersey-10-latin-ext-400-normal.woff2": "/static/media/jersey-10-latin-ext-400-normal.a1f95a63d1f38fcf4c8d.woff2",
     "static/media/trophywall.webp": "/static/media/trophywall.f5e701f2f2302f53be96.webp",
     "index.html": "/index.html",
     "static/media/deck.webp": "/static/media/deck.c28c690361b06e3d27f2.webp",
-    "main.1aa3ad53.css.map": "/static/css/main.1aa3ad53.css.map",
-    "main.5eee5edd.js.map": "/static/js/main.5eee5edd.js.map",
-    "710.d6cddafa.chunk.js.map": "/static/js/710.d6cddafa.chunk.js.map",
+    "main.5e0b13c3.css.map": "/static/css/main.5e0b13c3.css.map",
+    "main.8d4d19dd.js.map": "/static/js/main.8d4d19dd.js.map",
+    "710.34126471.chunk.js.map": "/static/js/710.34126471.chunk.js.map",
     "804.564aa72c.chunk.js.map": "/static/js/804.564aa72c.chunk.js.map",
     "453.e519305b.chunk.js.map": "/static/js/453.e519305b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.1aa3ad53.css",
-    "static/js/main.5eee5edd.js"
+    "static/css/main.5e0b13c3.css",
+    "static/js/main.8d4d19dd.js"
   ]
 }
