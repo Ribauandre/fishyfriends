@@ -317,13 +317,13 @@ describe('Zelle & Apple Cash', () => {
   });
 });
 
-test('the bug-report inbox link is on Profile, for the admin only', () => {
+test('the club admin link is on Profile, for the admin only', () => {
   const { unmount } = renderProfile();
-  expect(screen.queryByRole('link', { name: /bug reports/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /club admin/i })).not.toBeInTheDocument();
   unmount();
-  useAuth.mockReturnValue(makeBaseAuth({ user: { id: 'user-1', email: 'ribauandre@yahoo.com' } }));
+  useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true }));
   renderProfile();
-  expect(screen.getByRole('link', { name: /bug reports/i })).toHaveAttribute('href', '/admin/bugs');
+  expect(screen.getByRole('link', { name: /club admin/i })).toHaveAttribute('href', '/admin');
 });
 
 describe('your personal bests and species checklist', () => {

@@ -5,6 +5,9 @@
 // builder, and awaiting it resolves to whatever was configured for that table.
 export function createSupabaseMock() {
   const responses = new Map();
+  // Signed-in test users are club members unless a test says otherwise (a database function
+  // is scripted like a table, under its name with an `rpc:` prefix).
+  responses.set('rpc:my_membership', { data: { status: 'approved', is_admin: false }, error: null });
   const fromCalls = [];
 
   function resolveFor(table) {
@@ -36,7 +39,15 @@ export function createSupabaseMock() {
   const storageGetPublicUrl = jest.fn(() => ({ data: { publicUrl: 'https://example.com/photo.jpg' } }));
   const storageCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://example.com/signed-photo.jpg' }, error: null });
   const storageRemove = jest.fn().mockResolvedValue({ error: null });
-  const storage = { from: jest.fn(() => ({ upload: storageUpload, getPublicUrl: storageGetPublicUrl, createSignedUrl: storageCreateSignedUrl, remove: storageRemove })) };
+  // list / download / update are scripted per test (the admin's photo clean-up is their only
+  // caller): mockResolvedValue / mockImplementation them on the object this hands back.
+  const storageList = jest.fn().mockResolvedValue({ data: [], error: null });
+  const storageDownload = jest.fn().mockResolvedValue({ data: null, error: { message: 'not found' } });
+  const storageUpdate = jest.fn().mockResolvedValue({ error: null });
+  const storage = { from: jest.fn((bucket) => ({
+    upload: storageUpload, getPublicUrl: storageGetPublicUrl, createSignedUrl: storageCreateSignedUrl, remove: storageRemove,
+    list: (...args) => storageList(bucket, ...args), download: (...args) => storageDownload(bucket, ...args), update: (...args) => storageUpdate(bucket, ...args),
+  })) };
 
   // Fake Realtime channel: records the callback registered for each table's postgres_changes
   // subscription (keyed by table, since that's all AuthContext's subscribeToActivity needs)
@@ -87,6 +98,9 @@ export function createSupabaseMock() {
     storageGetPublicUrl,
     storageCreateSignedUrl,
     storageRemove,
+    storageList,
+    storageDownload,
+    storageUpdate,
     async emitPostgresChange(table, newRow) {
       const callback = channelHandlersByTable.get(table);
       if (callback) await callback({ new: newRow });

@@ -7,6 +7,11 @@ import { AuthProvider, useAuth } from './AuthContext';
 // isSupabaseConfigured is false — exactly like a deployment missing its Supabase config.
 // This covers every "fails closed" guard clause across the context.
 
+// The real compressImage refuses a file that isn't a photo it can read; the stand-ins here
+// ("ok", a run of zeros) aren't, and these tests are about what is checked in which order.
+// A plain function, not jest.fn: CRA resets mocks between tests.
+jest.mock('../utils/compressImage', () => ({ __esModule: true, default: async (file) => file, readBytes: async () => new Uint8Array(0) }));
+
 function wrapper({ children }) { return <AuthProvider>{children}</AuthProvider>; }
 
 async function setup() {

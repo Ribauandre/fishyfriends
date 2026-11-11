@@ -11,7 +11,8 @@ import Home from './Home';
 import AuthPage from './AuthPage';
 import Profile from './Profile';
 import Anglers from './Anglers';
-import AdminBugReports from './AdminBugReports';
+import Admin from './Admin';
+import WaitingRoom from './components/WaitingRoom';
 import Waypoints from './Waypoints';
 import WaypointDetail from './WaypointDetail';
 import Trips from './Trips';
@@ -36,10 +37,13 @@ const FishingGame = React.lazy(() => import('./FishingGame').then((module) => {
 }));
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isMember, membershipStatus } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="loading-screen">Loading your dock...</div>;
-  if (user) return children;
+  // Just signed in: the account is known a moment before its membership has been asked.
+  if (loading || (user && !membershipStatus)) return <div className="loading-screen">Loading your dock...</div>;
+  // An account the admin hasn't approved (or has removed) gets the waiting room on every
+  // route: the database would hand any page nothing to show.
+  if (user) return isMember ? children : <WaitingRoom />;
   // Signed out on a link someone shared: sign in, then land on it rather than on Home.
   const from = `${location.pathname}${location.search}${location.hash}`;
   rememberReturnTo(from);
@@ -70,7 +74,8 @@ function App() {
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
       <Route path="/fishing-game" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Loading your dock...</div>}><FishingGame /></React.Suspense></ProtectedRoute>} />
-      <Route path="/admin/bugs" element={<ProtectedRoute><AdminBugReports /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+      <Route path="/admin/bugs" element={<Navigate to="/admin" replace />} />
     </Routes></div></div></Router></AuthProvider>
   );
 }

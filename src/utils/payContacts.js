@@ -31,7 +31,10 @@ export function displayZelle(zelle) {
 
 // Opens a Messages thread with them (iMessage on an iPhone), with a line saying what the
 // money is for; the payer then sends it with Apple Cash from that thread.
+// The number comes from another member's row, so it is only trusted in the shape this app
+// saves (+1 and ten digits); anything else makes no link at all.
 export function appleCashMessageUrl(phone, cents, tripName) {
+  if (!/^\+1\d{10}$/.test(String(phone || ''))) return null;
   const body = `Sending $${(cents / 100).toFixed(2)} by Apple Cash for ${tripName}`;
   return `sms:${phone}&body=${encodeURIComponent(body)}`;
 }

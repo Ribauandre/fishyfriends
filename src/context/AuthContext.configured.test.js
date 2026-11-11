@@ -7,6 +7,12 @@ jest.mock('../lib/supabase');
 // eslint-disable-next-line import/first
 import { __mock } from '../lib/supabase';
 
+// The real thing redraws a photo on a canvas or cuts its metadata out, and refuses a file
+// that is neither; the stand-in files here ("bytes") aren't photos, so it is passed through.
+// A plain function, not jest.fn: CRA resets mocks between tests. compressImage.test.js
+// covers the real one.
+jest.mock('../utils/compressImage', () => ({ __esModule: true, default: async (file) => file, readBytes: jest.requireActual('../utils/compressImage').readBytes }));
+
 const fakeUser = { id: 'user-1', email: 'andre@example.com' };
 const fakeProfileRow = { id: 'user-1', display_name: 'Andre', home_water: 'Raritan Bay', favorite_species: 'Striped Bass', bio: '', avatar_url: '' };
 
@@ -48,6 +54,141 @@ test('creates a profiles row automatically for a signed-in user who never saved 
   // ever living in memory, so a fresh session later (or the Anglers directory, which
   // reads straight from public.profiles) will actually find this angler.
   await waitFor(() => expect(__mock.current.fromCalls.filter((table) => table === 'profiles').length).toBeGreaterThanOrEqual(2));
+});
+
+describe('membership (an account is not a member until the admin approves it)', () => {
+  async function signedInAs(membershipResponse) {
+    __mock.setResponse('profiles', { data: fakeProfileRow, error: null });
+    __mock.setResponse('personal_bests', { data: [{ id: 'pb-1' }], error: null });
+    __mock.setResponse('custom_species', { data: [{ name: 'Sea Robin' }], error: null });
+    __mock.setResponse('rpc:my_membership', membershipResponse);
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    return result;
+  }
+
+  test('an approved member is in, and their data loads', async () => {
+    const result = await signedInAs({ data: { status: 'approved', is_admin: false }, error: null });
+    expect(result.current.membershipStatus).toBe('approved');
+    expect(result.current.isMember).toBe(true);
+    expect(result.current.isAdmin).toBe(false);
+    await waitFor(() => expect(result.current.personalBests).toEqual([{ id: 'pb-1' }]));
+    await waitFor(() => expect(result.current.customSpecies).toEqual(['Sea Robin']));
+  });
+
+  test('someone waiting has a profile (the name the admin sees) and nothing else is asked for', async () => {
+    const result = await signedInAs({ data: { status: 'pending', is_admin: false }, error: null });
+    expect(result.current.membershipStatus).toBe('pending');
+    expect(result.current.isMember).toBe(false);
+    expect(result.current.shouldShowTour).toBe(false);
+    expect(result.current.profile.display_name).toBe('Andre');
+    expect(result.current.personalBests).toEqual([]);
+    expect(__mock.current.fromCalls).not.toContain('personal_bests');
+    expect(__mock.current.fromCalls).not.toContain('custom_species');
+  });
+
+  test('someone turned down is told so, and is never an admin whatever the answer claims', async () => {
+    const result = await signedInAs({ data: { status: 'declined', is_admin: true }, error: null });
+    expect(result.current.membershipStatus).toBe('declined');
+    expect(result.current.isMember).toBe(false);
+    expect(result.current.isAdmin).toBe(false);
+  });
+
+  test('if membership can\'t be asked, nobody is treated as a member', async () => {
+    const result = await signedInAs({ data: null, error: { message: 'network' } });
+    expect(result.current.membershipStatus).toBe('unknown');
+    expect(result.current.isMember).toBe(false);
+    const odd = await signedInAs({ data: { status: 'superuser', is_admin: true }, error: null });
+    expect(odd.current.membershipStatus).toBe('unknown');
+    expect(odd.current.isAdmin).toBe(false);
+  });
+
+  test('the admin is known from the database, not from an email address', async () => {
+    const result = await signedInAs({ data: { status: 'approved', is_admin: true }, error: null });
+    expect(result.current.isAdmin).toBe(true);
+  });
+
+  test('being approved while waiting lets them in without a reload', async () => {
+    const result = await signedInAs({ data: { status: 'pending', is_admin: false }, error: null });
+    __mock.setResponse('rpc:my_membership', { data: { status: 'approved', is_admin: false }, error: null });
+    await act(async () => { await result.current.refreshMembership(); });
+    expect(result.current.isMember).toBe(true);
+    await waitFor(() => expect(result.current.personalBests).toEqual([{ id: 'pb-1' }]));
+    await waitFor(() => expect(result.current.customSpecies).toEqual(['Sea Robin']));
+  });
+
+  test('the admin lists accounts and approves or removes through the database functions', async () => {
+    const result = await signedInAs({ data: { status: 'approved', is_admin: true }, error: null });
+    const accounts = [{ account_id: 'user-9', display_name: 'New', email: 'new@example.com', status: 'pending', is_admin: false }];
+    __mock.setResponse('rpc:list_club_accounts', { data: accounts, error: null });
+    await expect(result.current.listClubAccounts()).resolves.toEqual(accounts);
+    __mock.setResponse('rpc:set_club_membership', { data: 'approved', error: null });
+    await expect(result.current.setClubMembership('user-9', 'approved')).resolves.toEqual({ error: null });
+    expect(__mock.current.rpc).toHaveBeenLastCalledWith('set_club_membership', { target: 'user-9', new_status: 'approved' });
+  });
+
+  test('a refusal from the database comes back as an error, not as success', async () => {
+    const result = await signedInAs({ data: { status: 'approved', is_admin: false }, error: null });
+    __mock.setResponse('rpc:list_club_accounts', { data: null, error: { message: 'Only the club admin can see the member list.' } });
+    await act(async () => { await expect(result.current.listClubAccounts()).resolves.toEqual([]); });
+    __mock.setResponse('rpc:set_club_membership', { data: null, error: { message: 'Only the club admin can change who is a member.' } });
+    let outcome;
+    await act(async () => { outcome = await result.current.setClubMembership('user-9', 'approved'); });
+    expect(outcome.error.message).toMatch(/only the club admin/i);
+  });
+});
+
+describe('the admin\'s photo clean-up', () => {
+  const ascii = (text) => Array.from(text, (character) => character.charCodeAt(0));
+  const segment = (marker, payload) => [0xff, marker, ((payload.length + 2) >> 8) & 0xff, (payload.length + 2) & 0xff, ...payload];
+  const picture = [...segment(0xdb, Array(65).fill(1)), ...segment(0xda, [1, 1, 0, 0, 63, 0]), 0x11, 0x22, 0xff, 0xd9];
+  const withGps = new Uint8Array([0xff, 0xd8, ...segment(0xe1, ascii('http://ns.adobe.com/xap/1.0/\0GPSLatitude 40.4461 N')), ...picture]);
+  const clean = new Uint8Array([0xff, 0xd8, ...picture]);
+  const readBack = (blob) => new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(new Uint8Array(reader.result)); reader.readAsArrayBuffer(blob); });
+
+  test('lists every photo in the photo buckets, folders walked, and never asks for the license bucket', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageList.mockImplementation(async (bucket, prefix) => {
+      if (bucket === 'fish-year-catches' && prefix === '') return { data: [{ name: 'user-2', id: null }], error: null };
+      if (bucket === 'fish-year-catches' && prefix === 'user-2') return { data: [{ name: 'bass.jpg', id: 'f1', metadata: { size: 2048 } }], error: null };
+      if (bucket === 'photos' && prefix === '') return { data: [{ name: 'old.jpg', id: 'f2', metadata: { size: 100 } }], error: null };
+      return { data: [], error: null };
+    });
+    await expect(result.current.listStoredPhotos()).resolves.toEqual([
+      { bucket: 'photos', path: 'old.jpg', size: 100 },
+      { bucket: 'fish-year-catches', path: 'user-2/bass.jpg', size: 2048 },
+    ]);
+    expect(__mock.current.storageList.mock.calls.map(([bucket]) => bucket)).not.toContain('fishing-licenses');
+  });
+
+  test('a photo with location data is written back to the same path without it', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageDownload.mockResolvedValue({ data: new Blob([withGps], { type: 'image/jpeg' }), error: null });
+    await expect(result.current.cleanStoredPhoto({ bucket: 'fish-year-catches', path: 'user-2/bass.jpg' })).resolves.toBe('cleaned');
+    const [bucket, path, body, options] = __mock.current.storageUpdate.mock.calls[0];
+    expect([bucket, path]).toEqual(['fish-year-catches', 'user-2/bass.jpg']);
+    expect(options).toEqual({ contentType: 'image/jpeg', cacheControl: '3600' });
+    expect(Array.from(await readBack(body))).toEqual(Array.from(clean));
+  });
+
+  test('a photo that is already clean is left alone', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageDownload.mockResolvedValue({ data: new Blob([clean], { type: 'image/jpeg' }), error: null });
+    await expect(result.current.cleanStoredPhoto({ bucket: 'avatars', path: 'user-2/avatar.jpg' })).resolves.toBe('clean');
+    expect(__mock.current.storageUpdate).not.toHaveBeenCalled();
+  });
+
+  test('something that isn\'t a photo it knows is skipped, and a failed read or write is reported as failed', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageDownload.mockResolvedValue({ data: new Blob(['%PDF-1.4 not a photo']), error: null });
+    await expect(result.current.cleanStoredPhoto({ bucket: 'photos', path: 'x.pdf' })).resolves.toBe('unreadable');
+    __mock.current.storageDownload.mockResolvedValue({ data: null, error: { message: 'denied' } });
+    await expect(result.current.cleanStoredPhoto({ bucket: 'photos', path: 'a.jpg' })).resolves.toBe('failed');
+    __mock.current.storageDownload.mockResolvedValue({ data: new Blob([withGps]), error: null });
+    __mock.current.storageUpdate.mockResolvedValue({ error: { message: 'new row violates row-level security policy' } });
+    await expect(result.current.cleanStoredPhoto({ bucket: 'photos', path: 'a.jpg' })).resolves.toBe('failed');
+  });
 });
 
 describe('getClubStats', () => {
@@ -784,27 +925,47 @@ describe('Cast & Catch world', () => {
 });
 
 describe('the dock (presence)', () => {
-  test('joinDock tracks who you are once subscribed, reports everyone but you on sync, and leaves cleanly', async () => {
+  test('joinDock announces what you are doing but never who you are, names the others from the roster, and leaves cleanly', async () => {
     const result = await setupSignedIn();
+    __mock.setResponse('profiles', { data: [
+      { id: 'user-1', display_name: 'Andre', avatar_url: '' },
+      { id: 'user-2', display_name: 'Kevin', avatar_url: 'https://example.com/kevin.jpg' },
+    ], error: null });
     const onSync = jest.fn();
-    const dock = result.current.joinDock({ name: 'Andre', biome: 'river', phase: 'ready' }, onSync);
+    const dock = result.current.joinDock({ name: 'Andre', avatarUrl: 'https://example.com/andre.jpg', biome: 'river', phase: 'ready' }, onSync);
     const chan = __mock.current.channels[__mock.current.channels.length - 1];
     expect(chan.name).toBe('cast-and-catch-dock');
     expect(chan.options).toEqual({ config: { presence: { key: 'user-1' } } });
     await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    expect(chan.track).toHaveBeenCalledWith(expect.objectContaining({ name: 'Andre', biome: 'river', phase: 'ready', at: expect.any(Number) }));
+    // The channel is open to anyone with the public key, so no name or photo goes out on it.
+    expect(chan.track).toHaveBeenCalledWith({ biome: 'river', phase: 'ready', at: expect.any(Number) });
 
     await act(async () => { await __mock.current.emitPresenceSync({
-      'user-1': [{ name: 'Andre', biome: 'river', phase: 'ready' }],
-      'user-2': [{ name: 'Kevin', biome: 'bay', phase: 'waiting' }, { name: 'Kevin', biome: 'bay', phase: 'reeling' }],
-      'user-3': [{}],
+      'user-1': [{ biome: 'river', phase: 'ready' }],
+      // A name sent on the channel is ignored: it could be anyone's claim.
+      'user-2': [{ biome: 'bay', phase: 'waiting' }, { name: 'Somebody Else', avatarUrl: 'https://evil.example/x.png', biome: 'bay', phase: 'reeling' }],
+      // Not a member of the club (no profile this account can read): never shown.
+      'stranger': [{ name: 'Admin', biome: 'bay', phase: 'ready' }],
     }); });
-    expect(onSync).toHaveBeenCalledWith([{ userId: 'user-2', name: 'Kevin', biome: 'bay', phase: 'reeling' }]);
+    expect(onSync).toHaveBeenLastCalledWith([{ userId: 'user-2', name: 'Kevin', avatarUrl: 'https://example.com/kevin.jpg', biome: 'bay', phase: 'reeling' }]);
 
     dock.update({ name: 'Andre', biome: 'bay', phase: 'casting' });
-    expect(chan.track).toHaveBeenLastCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
+    expect(chan.track).toHaveBeenLastCalledWith({ biome: 'bay', phase: 'casting', at: expect.any(Number) });
     dock.leave();
     expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
+  });
+
+  test('an id nobody owns cannot make the dock re-read the roster forever', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { data: [{ id: 'user-1', display_name: 'Andre', avatar_url: '' }], error: null });
+    result.current.joinDock({ biome: 'river', phase: 'ready' }, jest.fn());
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const before = __mock.current.fromCalls.filter((table) => table === 'profiles').length;
+    for (let round = 0; round < 10; round += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await act(async () => { await __mock.current.emitPresenceSync({ ghost: [{ biome: 'bay', phase: 'ready' }] }); await Promise.resolve(); });
+    }
+    expect(__mock.current.fromCalls.filter((table) => table === 'profiles').length - before).toBeLessThanOrEqual(3);
   });
 
   test('rejoining straight after leaving waits for the old channel to go and subscribes a fresh one', async () => {

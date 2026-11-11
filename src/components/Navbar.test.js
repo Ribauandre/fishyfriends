@@ -21,7 +21,7 @@ function renderAt(path) {
 
 beforeEach(() => {
   resetNavMemory();
-  useAuth.mockReturnValue({ user: { id: 'u1', email: 'someone@example.com' }, profile: { display_name: 'Andre', avatar_url: '' } });
+  useAuth.mockReturnValue({ user: { id: 'u1', email: 'someone@example.com' }, profile: { display_name: 'Andre', avatar_url: '' }, isMember: true });
 });
 
 const mainNav = () => within(screen.getByRole('navigation', { name: 'Main' }));
@@ -71,4 +71,11 @@ test('nothing renders signed out', () => {
   useAuth.mockReturnValue({ user: null, profile: {} });
   renderAt('/fish-year');
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+});
+
+test('nothing renders for an account the admin hasn\'t let in', () => {
+  useAuth.mockReturnValue({ user: { id: 'u9', email: 'new@example.com' }, profile: { display_name: 'New' }, isMember: false });
+  renderAt('/fish-year');
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 });

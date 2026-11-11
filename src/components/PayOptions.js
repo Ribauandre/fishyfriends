@@ -27,7 +27,7 @@ export default function PayOptions({ transfer, tripName, venmoHandle, contacts }
   return <>
     {venmoHandle && <a className="button button-primary" href={venmoPayUrl(venmoHandle, transfer.cents, `${tripName}: trip share`)} target="_blank" rel="noopener noreferrer">Pay on Venmo</a>}
     {contacts?.zelle && <button className="button button-quiet" type="button" aria-expanded={showZelle} onClick={() => setShowZelle((open) => !open)}>Zelle</button>}
-    {contacts?.appleCashPhone && <a className="button button-quiet" href={appleCashMessageUrl(contacts.appleCashPhone, transfer.cents, tripName)}>Apple Cash</a>}
+    {appleCashMessageUrl(contacts?.appleCashPhone, transfer.cents, tripName) && <a className="button button-quiet" href={appleCashMessageUrl(contacts.appleCashPhone, transfer.cents, tripName)}>Apple Cash</a>}
     {showZelle && <span className="trip-zelle">
       <span>Zelle {transfer.to.name} at <strong>{displayZelle(contacts.zelle)}</strong> <CopyButton text={displayZelle(contacts.zelle)} label={`${transfer.to.name}'s Zelle`} /></span>
       <span>Amount <strong>{formatCents(transfer.cents)}</strong> <CopyButton text={amount} label="amount" /></span>

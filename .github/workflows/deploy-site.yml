@@ -28,15 +28,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.REACT_APP_SUPABASE_URL || vars.REACT_APP_SUPABASE_URL }}
           SUPABASE_KEY: ${{ vars.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY || vars.REACT_APP_SUPABASE_ANON_KEY || secrets.REACT_APP_SUPABASE_ANON_KEY || vars.REACT_APP_SUPABASE_PUBLISHABLE_KEY || secrets.REACT_APP_SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          test -n "$SUPABASE_URL" || (echo "Missing REACT_APP_SUPABASE_URL" && exit 1)
-          test -n "$SUPABASE_KEY" || (echo "Missing REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY" && exit 1)
-          case "$SUPABASE_KEY" in
-            sb_publishable_*) ;;
-            eyJ*) ;;
-            sb_secret_*) echo "The selected value is a Supabase secret key. Check that the publishable key is saved in the GitHub Variable REACT_APP_SUPABASE_PUBLISHABLE_DEFAULT_KEY."; exit 1 ;;
-            *) echo "The selected Supabase key is not a recognized publishable/anon key format."; exit 1 ;;
-          esac
+        # Refuses a secret key in either format (sb_secret_…, or the legacy service_role JWT,
+        # which looks just like the anon one) before it can be compiled into the bundle.
+        run: node scripts/checkSupabaseKey.mjs
 
       - name: Run pending DB migrations
         env:

@@ -81,9 +81,10 @@ src/
     supabaseMock.js              Chainable fake Supabase query builder
 
 supabase/
-  schema.sql                Full bootstrap schema for a brand-new Supabase project
+  schema.sql                A note only: how to set up a new project (replay the migrations) and name its admin
   migrations/                Ordered, idempotent SQL files applied automatically on deploy
-  run-migrations.mjs         Applies pending files in migrations/ to DATABASE_URL
+  run-migrations.mjs         Applies pending files in migrations/ to DATABASE_URL, then checks the live database isn't more open than the app expects
+  security/                  stub.sql + attack-tests.mjs: the policies played against on a scratch Postgres
   reset-crew-data.sql        Manual, one-off dev script: wipes profile/personal-best content (not auth.users)
   reset-storage.mjs          Manual, one-off dev script: empties the avatars/personal-bests Storage buckets
   confirmation-email.html    Branded Supabase signup confirmation template
@@ -187,24 +188,28 @@ Never use any of these in the browser:
 - a Supabase service-role key
 - any server-only private key
 
-The workflow rejects `sb_secret_` values before building the site. A browser bundle is public by definition.
+The workflow (`scripts/checkSupabaseKey.mjs`) rejects a secret key in either format before building the site: `sb_secret_…`, and the legacy `service_role` JWT, which looks just like the anon one and differs only in a claim inside it. A browser bundle is public by definition.
+
+### Who can see what
+
+Fishy Friends is a private club, and the database is what makes it one (migrations `0041` and `0042`, after the security audit of November 2026):
+
+- **Signed out, nothing.** The public key that ships in the bundle can read no table, list no bucket and call one function: `club_stats()`, the three counts on the sign-in page.
+- **An account is not a membership.** Anyone can sign up, but a new account sees only its own profile and a waiting screen until the admin approves it on the admin page (`/admin`, linked from the admin's Profile). `public.club_members` holds who is in; every policy asks `public.is_member()`.
+- **Members** see the crew's catches, bests, tournaments, trips and roster. Money and packing lists are for people on that trip; Zelle / Apple Cash details for people you share a trip with; waypoint maps for their owner and anglers who accepted an invitation; licenses and their files for their owner alone.
+- **Photos** are uploaded into the member's own folder and can only be replaced or deleted by them. The photo buckets are public in Supabase's sense — a photo loads for anyone holding its exact address — but nothing lists them, and the addresses are only handed out by tables members can read. The license bucket is private and served through short-lived signed links.
+- **Photo metadata** (where a photo was taken, on what, when) is removed in the browser before upload. The admin page can strip it from photos stored before that.
+
+`supabase/security/attack-tests.mjs` plays each of those people against the real policies on a scratch Postgres; run it after touching a policy or a grant (see its header). The deploy itself re-checks the live database after every migration run and stops if it is more open than this.
 
 ### Profiles and Storage
 
-For a brand-new Supabase project, run `supabase/schema.sql` once in the Supabase SQL editor. It creates:
-
-- `public.profiles`
-- `avatar_url` on each profile
-- Row Level Security on profiles
-- The public `avatars` Storage bucket
-- Storage policies allowing public reads and user-owned writes
-
-(This is the same schema the automated migrations below apply piece by piece to an existing project — see that section for how schema changes reach a project that's already deployed.)
+To set up a brand-new Supabase project, run the migrations against it (`DATABASE_URL=… node supabase/run-migrations.mjs`); `supabase/schema.sql` used to be a hand-run bootstrap and now only explains that, and how to make the first account the admin.
 
 Avatar upload behavior:
 
-- Accepts image files only.
-- Maximum size is 5 MB.
+- Accepts image files only; the bucket itself takes JPEG, PNG and WebP up to 5 MB.
+- The photo is redrawn smaller (or has its metadata cut out) before it leaves the device.
 - Upload path is `{auth user id}/avatar.{extension}`.
 - Upload uses `upsert: true`, so each user has one current avatar path per extension.
 - The public URL is saved to `profiles.avatar_url` with a cache-busting query string.
@@ -225,7 +230,7 @@ To make a future schema change:
 2. Write it idempotently, following the existing files' style (`create table if not exists`, `drop policy if exists` before `create policy`, `alter table ... add column if not exists`, `on conflict do update/nothing`) — the migration should be safe to re-run even though the tracking table normally prevents that.
 3. Push to `deploy`. The next build applies it automatically; no manual SQL editor step is needed.
 
-`supabase/schema.sql` is not part of this automated path — it stays as the full bootstrap reference for setting up a brand-new project from scratch, and is not re-run against already-deployed projects.
+`supabase/schema.sql` is not part of this automated path. It used to be a hand-run bootstrap; it now holds no SQL to run, only a note on replaying the migrations and making the first account the admin.
 
 `supabase/reset-crew-data.sql` and `supabase/reset-storage.mjs` are separate, manual one-off scripts (not run by CI) for wiping crew content — accounts/passwords are left intact. See the comments at the top of each file before running either; `reset-storage.mjs` requires the Supabase service-role key and should only ever be exported in a shell for the one command, never committed.
 
