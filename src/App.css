@@ -372,7 +372,19 @@ button { cursor: pointer; }
 @media (max-width: 800px) {
   .update-banner { bottom: calc(76px + env(safe-area-inset-bottom)); width: calc(100% - 24px); }
 }
-.fishing-licenses-panel, .payment-contacts-panel { margin-top: 22px; }
+.fishing-licenses-panel, .payment-contacts-panel, .password-panel { margin-top: 22px; }
+/* A field a password manager reads and nobody sees (the account's email beside a password
+   form): the display rules for form fields would otherwise put it on the page. */
+.settings-card input[hidden], .auth-form input[hidden] { display: none; }
+.password-panel > p:not(.form-error) { color: var(--muted); font-size: 12px; margin: 14px 0 0; }
+.password-panel .text-button { background: none; border: 0; color: var(--teal); font: inherit; padding: 0; text-decoration: underline; }
+.password-panel form > .password-reset-sent { display: block; margin: 12px 0 0; }
+.password-devices { flex-wrap: wrap; gap: 10px 12px; justify-content: flex-start; margin-top: 28px; }
+.password-devices > span { color: var(--coral); flex-basis: 100%; font-size: 13px; }
+.password-devices .button, .password-devices .button-quiet { margin-top: 0; width: auto; }
+@media (max-width: 800px) {
+  .password-devices .button, .password-devices .button-quiet { flex: 1 1 100%; justify-content: center; min-height: 48px; }
+}
 .payment-contacts-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 .fishing-licenses-panel > p { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 .license-heading-actions { align-items: center; display: flex; gap: 12px; }

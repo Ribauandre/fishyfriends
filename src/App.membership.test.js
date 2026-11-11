@@ -68,3 +68,31 @@ test('the old bug-report address lands on the admin page', async () => {
   expect(await screen.findByRole('heading', { name: 'Club admin' })).toBeInTheDocument();
   expect(window.location.pathname).toBe('/admin');
 });
+
+describe('arriving by a password-reset link', () => {
+  // eslint-disable-next-line global-require
+  const { arrivedBy } = require('./lib/supabase');
+  afterEach(() => { arrivedBy.recovery = false; window.sessionStorage.clear(); });
+
+  test.each(['/home', '/profile', '/admin'])('a member on %s gets the new-password form and nothing else', async (path) => {
+    signIn({ status: 'approved', is_admin: true });
+    arrivedBy.recovery = true;
+    window.history.pushState({}, '', path);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Set a new password' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+    for (const table of ['fish_year_catches', 'trips', 'waypoint_maps', 'notifications', 'bug_reports']) {
+      expect(__mock.current.fromCalls).not.toContain(table);
+    }
+  });
+
+  test('so does an account still waiting to be let in', async () => {
+    signIn({ status: 'pending', is_admin: false });
+    arrivedBy.recovery = true;
+    window.history.pushState({}, '', '/home');
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: 'Set a new password' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /you're on the list/i })).not.toBeInTheDocument();
+  });
+});

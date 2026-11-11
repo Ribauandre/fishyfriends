@@ -2,6 +2,7 @@ import * as React from 'react';
 import FishYearCatchComments from './FishYearCatchComments';
 import FishIllustration from './FishIllustration';
 import ImageLightbox from './ImageLightbox';
+import Photo from './Photo';
 import LikeButton from './LikeButton';
 import PostMenu from './PostMenu';
 import speciesIcon from '../utils/speciesOptions';
@@ -37,7 +38,7 @@ function MonthCatchGroup({ entries, currentUserId, onDelete, highlightId, highli
   const [first] = entries;
   return <div className="catch-card catch-card-group">
     <button type="button" className="catch-card-group-header" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-      <span className="mini-avatar">{first.angler_avatar_url ? <img src={first.angler_avatar_url} alt="" /> : first.angler_name.slice(0, 1)}</span>
+      <span className="mini-avatar">{first.angler_avatar_url ? <Photo src={first.angler_avatar_url} alt="" fallback={first.angler_name.slice(0, 1)} /> : first.angler_name.slice(0, 1)}</span>
       <div><strong>{first.angler_name}</strong><span className="catch-card-group-meta">{entries.length} fish logged this month</span></div>
       <span className="expand-icon">{open ? '−' : '+'}</span>
     </button>
@@ -59,11 +60,11 @@ function MonthCatch({ entry, currentUserId, onDelete, highlighted, highlightComm
       onDelete={currentUserId && entry.user_id === currentUserId ? () => onDelete(entry.id) : undefined}
     />
     <button className="catch-card-media" type="button" onClick={() => entry.photo_url && setImageOpen(true)} aria-label={entry.photo_url ? `Expand ${entry.angler_name}'s catch photo` : `${entry.angler_name} caught a ${entry.species}, no photo yet`}>
-      {entry.photo_url ? <img src={entry.photo_url} alt={`${entry.angler_name}'s ${entry.species}`} /> : <span className="catch-card-placeholder"><FishIllustration species={speciesIcon(entry.species)} /></span>}
+      {entry.photo_url ? <Photo src={entry.photo_url} alt={`${entry.angler_name}'s ${entry.species}`} fallback={<span className="catch-card-placeholder"><FishIllustration species={speciesIcon(entry.species)} /></span>} /> : <span className="catch-card-placeholder"><FishIllustration species={speciesIcon(entry.species)} /></span>}
       <span className="catch-card-species">{entry.species}</span>
     </button>
     <div className="catch-card-caption">
-      <span className="mini-avatar">{entry.angler_avatar_url ? <img src={entry.angler_avatar_url} alt="" /> : entry.angler_name.slice(0, 1)}</span>
+      <span className="mini-avatar">{entry.angler_avatar_url ? <Photo src={entry.angler_avatar_url} alt="" fallback={entry.angler_name.slice(0, 1)} /> : entry.angler_name.slice(0, 1)}</span>
       <div><strong>{entry.angler_name}</strong><span>{entry.caught_at || ''}</span></div>
     </div>
     <div className="catch-card-actions">

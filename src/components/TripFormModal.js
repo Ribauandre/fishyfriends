@@ -45,8 +45,8 @@ export default function TripFormModal({ trip, onSave, onClose }) {
         <div><span className="eyebrow">{trip ? 'EDIT TRIP' : 'NEW TRIP'}</span><h2>{trip ? 'Update the trip' : 'Plan a trip'}</h2></div>
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close trip form">×</button>
       </div>
-      <label>Trip name<input required value={form.name} onChange={set('name')} placeholder="Montauk fall run" /></label>
-      <label>Where<input value={form.location} onChange={set('location')} placeholder="Montauk Point" /></label>
+      <label>Trip name<input required value={form.name} maxLength={120} onChange={set('name')} placeholder="Montauk fall run" /></label>
+      <label>Where<input value={form.location} maxLength={200} onChange={set('location')} placeholder="Montauk Point" /></label>
       <label>State (optional)
         <select value={form.state} onChange={set('state')}>
           <option value="">—</option>
@@ -67,13 +67,13 @@ export default function TripFormModal({ trip, onSave, onClose }) {
           <button className="button button-quiet" type="button" onClick={addSpecies} disabled={!speciesDraft.trim()}>Add</button>
         </div>
       </div>
-      <label>Where we're staying<input value={form.accommodation} onChange={set('accommodation')} placeholder="Beach house on Old Montauk Hwy" /></label>
-      <label>Booking link (optional)<input type="url" inputMode="url" value={form.accommodationUrl} onChange={set('accommodationUrl')} placeholder="https://www.airbnb.com/rooms/..." /></label>
+      <label>Where we're staying<input value={form.accommodation} maxLength={300} onChange={set('accommodation')} placeholder="Beach house on Old Montauk Hwy" /></label>
+      <label>Booking link (optional)<input type="url" inputMode="url" value={form.accommodationUrl} maxLength={600} onChange={set('accommodationUrl')} placeholder="https://www.airbnb.com/rooms/..." /></label>
       <div className="trip-form-dates">
-        <label>Spots (blank for no limit)<input inputMode="numeric" value={form.maxSpots} onChange={set('maxSpots')} placeholder="6" /></label>
+        <label>Spots (blank for no limit)<input inputMode="numeric" value={form.maxSpots} maxLength={4} onChange={set('maxSpots')} placeholder="6" /></label>
         <label>RSVP by (optional)<input type="date" value={form.rsvpBy} onChange={set('rsvpBy')} /></label>
       </div>
-      <label>Notes<textarea rows="3" value={form.notes} onChange={set('notes')} placeholder="Meet at the dock at 5am. Bring your own rods." /></label>
+      <label>Notes<textarea rows="3" value={form.notes} maxLength={8000} onChange={set('notes')} placeholder="Meet at the dock at 5am. Bring your own rods." /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : trip ? 'Save changes' : 'Create trip'} <span>→</span></button></div>
     </form>

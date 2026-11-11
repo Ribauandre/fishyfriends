@@ -313,7 +313,7 @@ describe('Zelle & Apple Cash', () => {
     await userEvent.click(within(panel).getByRole('button', { name: /save payment details/i }));
     await waitFor(() => expect(saveMyPaymentContacts).toHaveBeenLastCalledWith({ zelle: 'Andre@Example.com', appleCashPhone: '5555550101' }));
     expect(await screen.findByDisplayValue('(555) 555-0101')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('andre@example.com')).toBeInTheDocument();
+    expect(within(panel).getByDisplayValue('andre@example.com')).toBeInTheDocument();
   });
 });
 

@@ -65,3 +65,15 @@ test('for the admin, sign-ups waiting to be let in come first and point at the a
   expect(homeAgenda({ ...base, waitingToJoin: 1 })[0].title).toBe('1 person is waiting to join');
   expect(keys(homeAgenda({ ...base, waitingToJoin: 0 }))).not.toContain('members-waiting');
 });
+
+test('a password that is in breach dumps goes to the top of the list, linking to where it is changed', () => {
+  const items = homeAgenda({ ...base, waitingToJoin: 2, passwordWarning: true });
+  expect(items[0]).toEqual(expect.objectContaining({ key: 'password', title: 'Change your password', to: '/profile#password' }));
+  expect(keys(homeAgenda({ ...base, passwordWarning: false }))).not.toContain('password');
+});
+
+test('the admin is reminded while photos still open by address, and not once they are private', () => {
+  const items = homeAgenda({ ...base, photosOpen: true });
+  expect(items.find((item) => item.key === 'photos-open')).toEqual(expect.objectContaining({ title: 'Photos still open by address', to: '/admin' }));
+  expect(keys(homeAgenda({ ...base, photosOpen: false }))).not.toContain('photos-open');
+});

@@ -13,6 +13,7 @@ import Profile from './Profile';
 import Anglers from './Anglers';
 import Admin from './Admin';
 import WaitingRoom from './components/WaitingRoom';
+import SetPassword from './components/SetPassword';
 import Waypoints from './Waypoints';
 import WaypointDetail from './WaypointDetail';
 import Trips from './Trips';
@@ -37,8 +38,10 @@ const FishingGame = React.lazy(() => import('./FishingGame').then((module) => {
 }));
 
 function ProtectedRoute({ children }) {
-  const { user, loading, isMember, membershipStatus } = useAuth();
+  const { user, loading, isMember, membershipStatus, passwordRecovery } = useAuth();
   const location = useLocation();
+  // Arrived by a password-reset link: a new password first, whoever they are.
+  if (!loading && user && passwordRecovery) return <SetPassword />;
   // Just signed in: the account is known a moment before its membership has been asked.
   if (loading || (user && !membershipStatus)) return <div className="loading-screen">Loading your dock...</div>;
   // An account the admin hasn't approved (or has removed) gets the waiting room on every

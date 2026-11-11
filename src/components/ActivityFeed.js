@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import FishIllustration from './FishIllustration';
+import Photo from './Photo';
 import speciesIcon from '../utils/speciesOptions';
 import timeAgo from '../utils/timeAgo';
 
@@ -27,13 +28,13 @@ function groupActivity(activity) {
 
 function ActivityRow({ item }) {
   return <Link className="activity-row" to={item.href}>
-    <span className="mini-avatar activity-avatar">{item.avatarUrl ? <img src={item.avatarUrl} alt="" /> : item.anglerName.slice(0, 1).toUpperCase()}</span>
+    <span className="mini-avatar activity-avatar">{item.avatarUrl ? <Photo src={item.avatarUrl} alt="" fallback={item.anglerName.slice(0, 1).toUpperCase()} /> : item.anglerName.slice(0, 1).toUpperCase()}</span>
     <span className="activity-body">
       <span className="activity-text"><strong>{item.anglerName}</strong> {actionText(item)}</span>
       <span className="activity-time">{timeAgo(item.createdAt)}</span>
     </span>
     <span className="activity-thumb">
-      {item.photoUrl ? <img src={item.photoUrl} alt="" /> : <FishIllustration species={speciesIcon(item.species)} />}
+      {item.photoUrl ? <Photo src={item.photoUrl} alt="" fallback={<FishIllustration species={speciesIcon(item.species)} />} /> : <FishIllustration species={speciesIcon(item.species)} />}
     </span>
   </Link>;
 }
@@ -46,7 +47,7 @@ function ActivityGroup({ group }) {
   const extraCount = group.items.length - 1;
   return <div className={`activity-group ${open ? 'is-open' : ''}`}>
     <button type="button" className="activity-row activity-row-squashed" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-      <span className="mini-avatar activity-avatar">{first.avatarUrl ? <img src={first.avatarUrl} alt="" /> : first.anglerName.slice(0, 1).toUpperCase()}</span>
+      <span className="mini-avatar activity-avatar">{first.avatarUrl ? <Photo src={first.avatarUrl} alt="" fallback={first.anglerName.slice(0, 1).toUpperCase()} /> : first.anglerName.slice(0, 1).toUpperCase()}</span>
       <span className="activity-body">
         <span className="activity-text"><strong>{first.anglerName}</strong> {actionText(first)} <span className="activity-more">and {extraCount} more</span></span>
         <span className="activity-time">{timeAgo(first.createdAt)}</span>

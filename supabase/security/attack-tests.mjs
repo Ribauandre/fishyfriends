@@ -91,6 +91,7 @@ const SEED = `
   insert into public.bug_reports (user_id, body) select '${KEV}', 'it broke' where not exists (select 1 from public.bug_reports);
   insert into public.notifications (id, recipient_id, actor_id, actor_name, type, target_type, target_id) values
     ('${NOTE_KEV}', '${KEV}', '${MIA}', 'Mia', 'like', 'personal_best', '${PB1}') on conflict (id) do nothing;
+  delete from public.notifications where actor_id = '${KEV}';
 
   insert into public.waypoint_maps (id, owner_id, name) values ('${MAP_KEV}', '${KEV}', 'Kev''s map'), ('${MAP_MIA}', '${MIA}', 'Mia''s secret spots') on conflict (id) do nothing;
   insert into public.waypoints (map_id, created_by, name, lat, lng)
@@ -118,7 +119,8 @@ const SEED = `
   delete from storage.objects;
   insert into storage.objects (bucket_id, name) values
     ('avatars', '${KEV}/avatar.jpg'), ('avatars', '${MIA}/avatar.jpg'), ('fishing-licenses', '${KEV}/license.pdf'),
-    ('fish-year-catches', '${MIA}/bluefish.jpg'), ('photos', 'old/legacy.jpg');
+    ('fishing-licenses', '${MIA}/license.pdf'), ('fish-year-catches', '${MIA}/bluefish.jpg'), ('photos', 'old/legacy.jpg');
+  update storage.buckets set public = true where id in ('photos', 'avatars', 'personal-bests', 'fish-year-catches', 'tournament-entries', 'trip-catches');
 `;
 
 const DENIED = { error: '42501' };
@@ -137,6 +139,8 @@ for (const call of [
   `public.is_waypoint_map_collaborator('${MAP_MIA}', '${MIA}')`, `public.is_trip_member('${TRIP_CREW}', '${KEV}')`,
   `public.shares_trip_with('${KEV}', '${ADMIN}')`,
 ]) add('anon', `calls ${call.replace(/\(.*/, '')}`, `select * from ${call}`, DENIED);
+add('anon', 'asks how photos are served', 'select public.photo_privacy()', DENIED);
+add('anon', 'flips the photo switch', 'select public.set_photo_privacy(false)', DENIED);
 add('anon', 'logs a catch', `insert into public.fish_year_catches (user_id, year, month, species) values ('${KEV}', 2026, 'June', 'Cod')`, DENIED);
 add('anon', 'deletes catches', 'delete from public.fish_year_catches', DENIED);
 add('anon', 'lists stored files', 'select * from storage.objects', rows(0));
@@ -163,6 +167,7 @@ add(NEWBIE, 'cannot notify a member', `insert into public.notifications (recipie
 add(NEWBIE, 'cannot add a species', `insert into public.custom_species (name) values ('Spam')`, DENIED);
 add(NEWBIE, 'cannot upload', `insert into storage.objects (bucket_id, name) values ('avatars', '${NEWBIE}/avatar.jpg')`, DENIED);
 add(NEWBIE, 'sees no stored files', 'select * from storage.objects', rows(0));
+add(NEWBIE, 'cannot flip the photo switch', 'select public.set_photo_privacy(false)', DENIED);
 
 // --- Removed from the club -------------------------------------------------------------------
 add(GONE, 'is told they were turned down', `select public.my_membership() ->> 'status' as status`, { value: 'declined' });
@@ -193,7 +198,50 @@ add(KEV, 'reports a bug', `insert into public.bug_reports (user_id, body) values
 add(KEV, 'notifies Mia', `insert into public.notifications (recipient_id, actor_id, type, target_type, target_id) values ('${MIA}', '${KEV}', 'like', 'fish_year_catch', '${FY_MIA}')`, rows(1));
 add(KEV, 'marks their notification read', `update public.notifications set read = true where id = '${NOTE_KEV}'`, rows(1));
 add(KEV, 'uploads into their own folder', `insert into storage.objects (bucket_id, name) values ('fish-year-catches', '${KEV}/cod.jpg') returning id`, rows(1));
-add(KEV, 'sees only their own stored files', 'select * from storage.objects', rows(2));
+// Signing a link to a photo is a read of its object, so members read the photo buckets
+// (0043) — the crew's photos and their own license, never anyone else's license.
+add(KEV, 'sees the crew\'s photos and their own license', 'select * from storage.objects', rows(5));
+add(KEV, 'cannot see Mia\'s license file', `select * from storage.objects where bucket_id = 'fishing-licenses' and name like '${MIA}/%'`, rows(0));
+add(KEV, 'cannot delete Mia\'s photo', `delete from storage.objects where name like '${MIA}/%'`, rows(0));
+add(KEV, 'is told photos are still open by address', 'select public.photo_privacy() as private', { value: 'false' });
+add(KEV, 'cannot flip the photo switch', 'select public.set_photo_privacy(true)', DENIED);
+
+// The name on a row is the name on the account (0043): whatever the client sends is replaced.
+add(KEV, 'cannot put Mia\'s name on their catch', `insert into public.fish_year_catches (user_id, angler_name, year, month, species) values ('${KEV}', 'Mia', 2026, 'July', 'Cod') returning angler_name`, { value: 'Kev' });
+add(KEV, 'cannot put a photo of their choosing beside their catch', `insert into public.fish_year_catches (user_id, angler_name, angler_avatar_url, year, month, species) values ('${KEV}', 'Kev', 'https://elsewhere.example/track.gif', 2026, 'July', 'Cod') returning angler_avatar_url`, { value: '' });
+add(KEV, 'cannot comment as the admin', `insert into public.personal_best_comments (personal_best_id, user_id, author_name, body) values ('${PB1}', '${KEV}', 'Owner', 'send me money') returning author_name`, { value: 'Kev' });
+add(KEV, 'sends Mia a notification signed as the admin', `insert into public.notifications (recipient_id, actor_id, actor_name, type, target_type, target_id) values ('${MIA}', '${KEV}', 'Owner', 'comment', 'fish_year_catch', '${FY_MIA}')`, rows(1), { keep: true });
+add('postgres', 'and it arrives under their own name', `select 1 from public.notifications where recipient_id = '${MIA}' and actor_id = '${KEV}' and actor_name = 'Kev'`, rows(1));
+add('postgres', 'and not under the admin\'s', `select 1 from public.notifications where actor_id = '${KEV}' and actor_name = 'Owner'`, rows(0));
+add(KEV, 'cannot enter a tournament under another name', `insert into public.tournament_entries (tournament_id, user_id, angler_name, species, size) values ('${TOURNAMENT}', '${KEV}', 'Mia', 'Cod', 10) returning angler_name`, { value: 'Kev' });
+add(KEV, 'cannot start a tournament in the admin\'s name', `insert into public.tournaments (name, starts_on, ends_on, created_by, created_by_name) values ('Mine', '2026-07-01', '2026-07-02', '${KEV}', 'Owner') returning created_by_name`, { value: 'Kev' });
+add(KEV, 'cannot put the admin\'s name on an expense', `insert into public.trip_expenses (trip_id, paid_by, paid_by_name, description, amount_cents) values ('${TRIP_CREW}', '${KEV}', 'Owner', 'bait', 1200) returning paid_by_name`, { value: 'Kev' });
+add(KEV, 'cannot misname either side of a payment', `insert into public.trip_settlements (trip_id, from_user, from_name, to_user, to_name, amount_cents, created_by) values ('${TRIP_CREW}', '${KEV}', 'Mia', '${ADMIN}', 'Mia', 2000, '${KEV}') returning from_name || '>' || to_name as names`, { value: 'Kev>Owner' });
+add(KEV, 'cannot claim an item under another name', `update public.trip_items set claimed_by = '${KEV}', claimed_by_name = 'Owner' where id = '${ITEM_FREE}' returning claimed_by_name`, { value: 'Kev' });
+add(ADMIN, 'lets an item go and its name goes with it', `update public.trip_items set claimed_by = null, claimed_by_name = 'Ghost' where id = '${ITEM_ADMINS}' returning claimed_by_name`, { value: '' });
+add(ADMIN, 'cannot rename who made their trip', `update public.trips set created_by_name = 'Kev' where id = '${TRIP_CREW}' returning created_by_name`, { value: 'Owner' });
+add(KEV, 'cannot dress an invitation up as another map', `insert into public.waypoint_map_members (map_id, map_name, user_id, invited_by) values ('${MAP_KEV}', 'Free tackle', '${ADMIN}', '${KEV}') returning map_name`, { value: 'Kev\'s map' });
+add(KEV, 'cannot comment on a catch as Mia', `insert into public.fish_year_catch_comments (catch_id, user_id, author_name, body) values ('${FY_MIA}', '${KEV}', 'Mia', 'I admit Kev is better') returning author_name`, { value: 'Kev' });
+add(KEV, 'cannot comment on a tournament entry as the admin', `insert into public.tournament_entry_comments (tournament_entry_id, user_id, author_name, body) values ('${ENTRY}', '${KEV}', 'Owner', 'disqualified') returning author_name`, { value: 'Kev' });
+add(KEV, 'cannot land a game fish under another name', `insert into public.game_catches (user_id, angler_name, species, rarity) values ('${KEV}', 'Mia', 'marlin', 'legendary') returning angler_name`, { value: 'Kev' });
+add(KEV, 'cannot report a bug as someone else', `insert into public.bug_reports (user_id, angler_name, body) values ('${KEV}', 'Mia', 'it broke') returning angler_name`, { value: 'Kev' });
+add(KEV, 'cannot sign a pin with another name', `insert into public.waypoints (map_id, created_by, created_by_name, lat, lng) values ('${MAP_KEV}', '${KEV}', 'Owner', 40, -74) returning created_by_name`, { value: 'Kev' });
+add(KEV, 'cannot log a trip catch under another name', `insert into public.trip_catches (trip_id, user_id, angler_name, species) values ('${TRIP_CREW}', '${KEV}', 'Owner', 'Cod') returning angler_name`, { value: 'Kev' });
+add(MIA, 'cannot join a trip under another name', `insert into public.trip_attendees (trip_id, user_id, angler_name) values ('${TRIP_CREW}', '${MIA}', 'Owner') returning angler_name`, { value: 'Mia' });
+add(KEV, 'starts a trip under their own name whatever they send', `insert into public.trips (created_by, created_by_name, name, starts_on, ends_on) values ('${KEV}', 'Owner', 'Mine', current_date, current_date) returning created_by_name`, { value: 'Kev' });
+add(KEV, 'deletes their own catch and is told which photo went with it', `delete from public.fish_year_catches where id = '${FY_KEV}' returning user_id, photo_url`, rows(1));
+add(KEV, 'blanks their name', `update public.profiles set display_name = ' ' where id = '${KEV}'`, rows(1), { keep: true });
+add(KEV, 'and still cannot borrow one', `insert into public.fish_year_catches (user_id, angler_name, year, month, species) values ('${KEV}', 'Mia', 2026, 'July', 'Cod') returning angler_name`, { value: 'Angler' });
+add(KEV, 'puts their name back', `update public.profiles set display_name = 'Kev' where id = '${KEV}'`, rows(1), { keep: true });
+add(KEV, 'cannot call the stamping function by name', 'select public.stamp_names()', DENIED);
+
+// How much a row can hold (0043)
+add(KEV, 'cannot store a megabyte in their bio', `update public.profiles set bio = repeat('x', 1000000) where id = '${KEV}'`, { error: '23514' });
+add(KEV, 'cannot post a megabyte comment', `insert into public.personal_best_comments (personal_best_id, user_id, author_name, body) values ('${PB1}', '${KEV}', 'Kev', repeat('x', 1000000))`, { error: '23514' });
+add(KEV, 'cannot store a megabyte in their game save', `update public.game_profiles set records = jsonb_build_object('x', repeat('x', 1000000)) where user_id = '${KEV}'`, { error: '23514' });
+add(KEV, 'cannot name a waypoint with a novel', `insert into public.waypoints (map_id, created_by, name, lat, lng) values ('${MAP_KEV}', '${KEV}', repeat('x', 5000), 40, -74)`, { error: '23514' });
+add(KEV, 'cannot claim a two-million-dollar expense', `insert into public.trip_expenses (trip_id, paid_by, description, amount_cents) values ('${TRIP_CREW}', '${KEV}', 'yacht', 200000000)`, { error: '23514' });
+add(KEV, 'still saves an ordinary bio', `update public.profiles set bio = repeat('x', 1500) where id = '${KEV}'`, rows(1));
 
 // A member against other members
 add(KEV, 'cannot post as Mia', `insert into public.fish_year_catches (user_id, year, month, species) values ('${MIA}', 2026, 'June', 'Cod')`, DENIED);
@@ -264,6 +312,14 @@ add(ADMIN, 'lists stored photos but not licenses', 'select * from storage.object
 add(ADMIN, 'cannot touch a license file', `update storage.objects set metadata = '{}' where bucket_id = 'fishing-licenses'`, rows(0));
 add(ADMIN, 'rewrites a stored photo in place (metadata clean-up)', `update storage.objects set metadata = '{"clean":true}' where bucket_id = 'photos' returning id`, rows(1));
 add(ADMIN, 'cannot move a photo into the license bucket', `update storage.objects set bucket_id = 'fishing-licenses' where bucket_id = 'photos'`, DENIED);
+// The photo switch: the admin closes the photo buckets, and can open them again
+add(ADMIN, 'makes photos private', 'select public.set_photo_privacy(true)', rows(1), { keep: true });
+add('postgres', 'no photo bucket is open by address any more', `select 1 from storage.buckets where public`, rows(0));
+add(MIA, 'is told photos are private', 'select public.photo_privacy() as private', { value: 'true' });
+add(MIA, 'can still be handed links to the crew\'s photos', `select * from storage.objects where bucket_id <> 'fishing-licenses'`, rows(4));
+add(ADMIN, 'opens photos again', 'select public.set_photo_privacy(false)', rows(1), { keep: true });
+add('postgres', 'the six photo buckets are open again and the license bucket is not', `select 1 from storage.buckets where public and id <> 'fishing-licenses'`, rows(6));
+add('postgres', 'the license bucket never opened', `select 1 from storage.buckets where id = 'fishing-licenses' and not public`, rows(1));
 add(ADMIN, 'approves the newcomer', `select public.set_club_membership('${NEWBIE}', 'approved')`, rows(1), { keep: true });
 add(NEWBIE, 'is in: sees the board', select('fish_year_catches'), rows(2));
 add(NEWBIE, 'is in: logs a catch', `insert into public.fish_year_catches (user_id, year, month, species) values ('${NEWBIE}', 2026, 'June', 'Cod') returning id`, rows(1));
@@ -279,7 +335,9 @@ add('postgres', 'anon holds no privilege on any table in public', `select table_
 add('postgres', 'no policy in public is for anon or for everyone', `select 1 from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and (pol.polroles = '{0}' or exists (select 1 from pg_roles r where r.oid = any (pol.polroles) and r.rolname = 'anon'))`, rows(0));
 add('postgres', 'anon can call club_stats and no other owner-rights function', `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef and has_function_privilege('anon', p.oid, 'execute') and p.proname <> 'club_stats'`, rows(0));
 add('postgres', 'every owner-rights function pins its search_path', `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) setting where setting like 'search_path=%')`, rows(0));
-add('postgres', 'storage has exactly the six policies the migrations made', `select 1 from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'storage'`, rows(6));
+add('postgres', 'storage has exactly the seven policies the migrations made', `select 1 from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'storage'`, rows(7));
+add('postgres', 'only the four own-folder policies name the license bucket', `select 1 from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'storage' and coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') like '%fishing-licenses%'`, rows(4));
+add('postgres', 'signed-in accounts cannot call the trigger functions', `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('stamp_names', 'stamp_map_name') and has_function_privilege('authenticated', p.oid, 'execute')`, rows(0));
 add('postgres', 'the license bucket is private and takes images and PDFs up to 5 MB', `select 1 from storage.buckets where id = 'fishing-licenses' and not public and file_size_limit = 5242880 and allowed_mime_types @> array['application/pdf']`, rows(1));
 
 async function run() {

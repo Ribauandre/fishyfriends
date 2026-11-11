@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Photo from './Photo';
 import NotificationBell from './NotificationBell';
 import LogCatchModal from './LogCatchModal';
 import { SECTIONS, destinationFor, pageFor, rememberPage } from '../utils/navSections';
@@ -18,11 +19,11 @@ function NavIcon({ name }) {
 }
 
 export default function Navbar() {
-  const { user, profile, isMember } = useAuth();
+  const { user, profile, isMember, passwordRecovery } = useAuth();
   const { pathname } = useLocation();
   const [logging, setLogging] = useState(false);
   useEffect(() => { rememberPage(pathname); }, [pathname]);
-  if (!user || !isMember) return null;
+  if (!user || !isMember || passwordRecovery) return null;
   const current = pageFor(pathname)?.section.key;
   // The game owns the whole phone screen, so there the top bar steps aside and only the tabs stay.
   const onGame = pathname === '/fishing-game';
@@ -40,7 +41,7 @@ export default function Navbar() {
       <div className="navbar-right">
         <button className="button button-primary nav-log-catch" type="button" data-tour="log-catch-button" onClick={() => setLogging(true)} aria-label="Log a catch"><span aria-hidden="true">＋</span><em>Log a catch</em></button>
         <NotificationBell />
-        <NavLink to="/profile" className="profile-pill" aria-label="Your profile"><span className="avatar">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span className="profile-pill-arrow">↗</span></NavLink>
+        <NavLink to="/profile" className="profile-pill" aria-label="Your profile"><span className="avatar">{profile.avatar_url ? <Photo src={profile.avatar_url} alt="" fallback={(profile.display_name || 'N').slice(0, 1).toUpperCase()} /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span><span className="profile-pill-name">{profile.display_name || 'Profile'}</span><span className="profile-pill-arrow">↗</span></NavLink>
       </div>
       {logging && <LogCatchModal onClose={() => setLogging(false)} />}
     </header>

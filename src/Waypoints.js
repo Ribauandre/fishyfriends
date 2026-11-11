@@ -33,8 +33,8 @@ function CreateMapModal({ onClose, onCreated }) {
         <div><span className="eyebrow">NEW MAP</span><h2>Create a waypoint map</h2></div>
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close create map form">×</button>
       </div>
-      <label>Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Backwater Striper Spots" /></label>
-      <label>Description (optional)<textarea rows="3" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What's this map for, and who should be on it?" /></label>
+      <label>Name<input required value={form.name} maxLength={120} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Backwater Striper Spots" /></label>
+      <label>Description (optional)<textarea rows="3" value={form.description} maxLength={4000} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What's this map for, and who should be on it?" /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create map'} <span>→</span></button></div>
     </form>

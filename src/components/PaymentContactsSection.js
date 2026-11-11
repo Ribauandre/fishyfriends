@@ -54,9 +54,9 @@ export default function PaymentContactsSection() {
     <div className="section-heading"><div><span className="eyebrow">GETTING PAID BACK</span><h2>Venmo, Zelle &amp; Apple Cash</h2></div></div>
     <p>How the crew pays you back when you front money on a trip. Fill in any you use.</p>
     <form onSubmit={handleSubmit}>
-      <label>Venmo username<input value={form.venmo} onChange={(event) => setForm({ ...form, venmo: event.target.value })} placeholder="@your-venmo" autoCapitalize="none" autoCorrect="off" /><span className="field-hint">The crew can see this. Trip-mates get a Pay on Venmo button with the amount filled in.</span></label>
-      <label>Zelle email or phone<input value={form.zelle} onChange={(event) => setForm({ ...form, zelle: event.target.value })} placeholder="you@example.com" autoCapitalize="none" autoCorrect="off" /></label>
-      <label>Apple Cash phone (iPhone)<input type="tel" value={form.appleCashPhone} onChange={(event) => setForm({ ...form, appleCashPhone: event.target.value })} placeholder="(555) 555-0101" /><span className="field-hint">Zelle and Apple Cash: only people on a trip with you can see these, not the whole crew.</span></label>
+      <label>Venmo username<input value={form.venmo} maxLength={64} onChange={(event) => setForm({ ...form, venmo: event.target.value })} placeholder="@your-venmo" autoCapitalize="none" autoCorrect="off" /><span className="field-hint">The crew can see this. Trip-mates get a Pay on Venmo button with the amount filled in.</span></label>
+      <label>Zelle email or phone<input value={form.zelle} maxLength={200} onChange={(event) => setForm({ ...form, zelle: event.target.value })} placeholder="you@example.com" autoCapitalize="none" autoCorrect="off" /></label>
+      <label>Apple Cash phone (iPhone)<input type="tel" value={form.appleCashPhone} maxLength={30} onChange={(event) => setForm({ ...form, appleCashPhone: event.target.value })} placeholder="(555) 555-0101" /><span className="field-hint">Zelle and Apple Cash: only people on a trip with you can see these, not the whole crew.</span></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save payment details'} <span>→</span></button>{saved && <span className="saved-message">Saved</span>}</div>
     </form>

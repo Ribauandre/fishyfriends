@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './FishIllustration';
 import ImageLightbox from './ImageLightbox';
+import Photo from './Photo';
 import LikeButton from './LikeButton';
 import PostMenu from './PostMenu';
 import TournamentEntryComments from './TournamentEntryComments';
@@ -29,7 +30,7 @@ function TournamentEntryRow({ entry, place, unit, tournamentId, currentUserId, o
         onDelete={currentUserId && entry.user_id === currentUserId ? () => onDelete(entry.id) : undefined}
       />
       <button className="catch-image-button" type="button" onClick={() => entry.photo_url && setImageOpen(true)} aria-label={entry.photo_url ? `Expand ${entry.angler_name}'s catch photo` : `${entry.angler_name}'s ${entry.species}, no photo yet`}>
-        {entry.photo_url ? <img src={entry.photo_url} alt={`${entry.angler_name}'s ${entry.species}`} /> : <FishIllustration species={speciesIcon(entry.species)} />}
+        {entry.photo_url ? <Photo src={entry.photo_url} alt={`${entry.angler_name}'s ${entry.species}`} fallback={<FishIllustration species={speciesIcon(entry.species)} />} /> : <FishIllustration species={speciesIcon(entry.species)} />}
       </button>
       <div>
         <span className="eyebrow">CATCH PROOF</span>

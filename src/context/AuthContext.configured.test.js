@@ -232,10 +232,10 @@ describe('signIn / signUp / signOut', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     __mock.current.auth.signUp.mockResolvedValue({ error: null, data: { session: null } });
-    await result.current.signUp('new@example.com', 'hunter2', 'New Angler');
+    await result.current.signUp('new@example.com', 'tight-lines-42', 'New Angler');
     expect(__mock.current.auth.signUp).toHaveBeenCalledWith(expect.objectContaining({
       email: 'new@example.com',
-      password: 'hunter2',
+      password: 'tight-lines-42',
       options: expect.objectContaining({ data: { display_name: 'New Angler' } }),
     }));
     await waitFor(() => expect(result.current.notice).toMatch(/confirmation email sent/i));
@@ -1593,5 +1593,444 @@ describe('trips', () => {
     const result = await setupSignedIn();
     __mock.setResponse('payment_contacts', { data: [{ user_id: 'user-2', zelle: 'kev@example.com', apple_cash_phone: '' }], error: null });
     await expect(result.current.listPaymentContacts(['user-2', 'user-3'])).resolves.toEqual({ 'user-2': { zelle: 'kev@example.com', appleCashPhone: '' } });
+  });
+});
+
+describe('stored photos (signed links, and deleting what a deleted catch leaves behind)', () => {
+  const stored = (bucket, path, version = '1') => `https://project.example.test/storage/v1/object/public/${bucket}/${path}?v=${version}`;
+  const removedFrom = () => __mock.current.storage.from.mock.calls.map(([bucket]) => bucket);
+
+  test('a photo link is asked of storage for a week, as one request for the page', async () => {
+    const result = await setupSignedIn();
+    const [first, second] = await Promise.all([
+      result.current.photoLinks.resolve(stored('avatars', 'user-2/avatar.jpg')),
+      result.current.photoLinks.resolve(stored('avatars', 'user-3/avatar.jpg')),
+    ]);
+    expect(first).toBe('https://project.example.test/storage/v1/object/sign/avatars/user-2/avatar.jpg?token=signed&v=1');
+    expect(second).toContain('/object/sign/avatars/user-3/avatar.jpg');
+    expect(__mock.current.storageCreateSignedUrls).toHaveBeenCalledTimes(1);
+    expect(__mock.current.storageCreateSignedUrls).toHaveBeenCalledWith('avatars', ['user-2/avatar.jpg', 'user-3/avatar.jpg'], 7 * 24 * 60 * 60);
+  });
+
+  test('a refusal from storage is no link, not an exception', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageCreateSignedUrls.mockResolvedValue({ data: null, error: { message: 'not a member' } });
+    await expect(result.current.photoLinks.resolve(stored('avatars', 'user-4/avatar.jpg'))).resolves.toBeNull();
+  });
+
+  test('signing out forgets the links: the next person at this browser starts with none', async () => {
+    const result = await setupSignedIn();
+    const address = stored('avatars', 'user-5/avatar.jpg');
+    await result.current.photoLinks.resolve(address);
+    expect(result.current.photoLinks.peek(address)).not.toBeNull();
+    await act(async () => { await result.current.signOut(); });
+    expect(result.current.photoLinks.peek(address)).toBeNull();
+  });
+
+  test('deleting your catch deletes its photo from storage', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', { data: [{ user_id: 'user-1', photo_url: stored('fish-year-catches', 'user-1/bass-17.jpg') }], error: null });
+    const response = await result.current.deleteFishYearCatch('fy-1');
+    expect(response.error).toBeNull();
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('fish_year_catches')];
+    expect(call.value.select).toHaveBeenCalledWith('user_id, photo_url');
+    await waitFor(() => expect(__mock.current.storageRemove).toHaveBeenCalledWith(['user-1/bass-17.jpg']));
+    expect(removedFrom()).toContain('fish-year-catches');
+  });
+
+  test('a personal best, a tournament entry and a trip catch take their photos with them too', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('personal_bests', { data: [{ user_id: 'user-1', photo_url: stored('personal-bests', 'user-1/pb.jpg') }], error: null });
+    __mock.setResponse('tournament_entries', { data: [{ user_id: 'user-1', photo_url: stored('tournament-entries', 'user-1/entry.jpg') }], error: null });
+    __mock.setResponse('trip_catches', { data: [{ user_id: 'user-1', photo_url: stored('trip-catches', 'user-1/trip.jpg') }], error: null });
+    await act(async () => { await result.current.deletePersonalBest('pb-1'); });
+    await result.current.deleteTournamentEntry('entry-1');
+    await result.current.deleteTripCatch('catch-1');
+    await waitFor(() => expect(__mock.current.storageRemove).toHaveBeenCalledTimes(3));
+    expect(__mock.current.storageRemove.mock.calls.map(([paths]) => paths[0])).toEqual(['user-1/pb.jpg', 'user-1/entry.jpg', 'user-1/trip.jpg']);
+  });
+
+  test('nothing is removed for somebody else\'s catch, a legacy photo, an address elsewhere, or a catch with no photo', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('trip_catches', { data: [
+      { user_id: 'user-2', photo_url: stored('trip-catches', 'user-2/theirs.jpg') },
+      { user_id: 'user-1', photo_url: stored('photos', 'old/legacy.jpg') },
+      { user_id: 'user-1', photo_url: 'https://elsewhere.example/user-1/x.jpg' },
+      { user_id: 'user-1', photo_url: stored('trip-catches', 'user-2/not-my-folder.jpg') },
+      { user_id: 'user-1', photo_url: '' },
+    ], error: null });
+    await result.current.deleteTripCatch('catch-1');
+    await new Promise((resolve) => { setTimeout(resolve, 20); });
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+
+  test('a failed delete removes no photo', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('fish_year_catches', { data: null, error: new Error('nope') });
+    await act(async () => { await result.current.deleteFishYearCatch('fy-1'); });
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+
+  test('replacing a personal best\'s photo removes the one it replaced', async () => {
+    __mock.setResponse('profiles', { data: fakeProfileRow, error: null });
+    __mock.setResponse('personal_bests', { data: [{ id: 'pb-1', user_id: 'user-1', species: 'Striped Bass', photo_url: stored('personal-bests', 'user-1/old.jpg') }], error: null });
+    __mock.setResponse('custom_species', { data: [], error: null });
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.personalBests).toHaveLength(1));
+
+    __mock.current.storageGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://project.example.test/storage/v1/object/public/personal-bests/user-1/new.jpg' } });
+    __mock.setResponse('personal_bests', { data: { id: 'pb-1', user_id: 'user-1', species: 'Striped Bass', photo_url: stored('personal-bests', 'user-1/new.jpg', '2') }, error: null });
+    const file = new File(['bytes'], 'bass.jpg', { type: 'image/jpeg' });
+    await act(async () => { await result.current.uploadPersonalBest({ species: 'Striped Bass', sizeLabel: '40 in', file }); });
+
+    await waitFor(() => expect(__mock.current.storageRemove).toHaveBeenCalledWith(['user-1/old.jpg']));
+    expect(__mock.current.storageRemove).toHaveBeenCalledTimes(1);
+  });
+
+  test('editing a personal best without a new photo leaves its photo alone', async () => {
+    __mock.setResponse('profiles', { data: fakeProfileRow, error: null });
+    __mock.setResponse('personal_bests', { data: [{ id: 'pb-1', user_id: 'user-1', species: 'Striped Bass', photo_url: stored('personal-bests', 'user-1/old.jpg') }], error: null });
+    __mock.setResponse('custom_species', { data: [], error: null });
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.personalBests).toHaveLength(1));
+
+    __mock.setResponse('personal_bests', { data: { id: 'pb-1', user_id: 'user-1', species: 'Striped Bass', size_label: '41 in', photo_url: stored('personal-bests', 'user-1/old.jpg') }, error: null });
+    await act(async () => { await result.current.uploadPersonalBest({ species: 'Striped Bass', sizeLabel: '41 in' }); });
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+
+  test('a new avatar in another format removes the old file; the same file name is simply overwritten', async () => {
+    __mock.setResponse('profiles', { data: { ...fakeProfileRow, avatar_url: stored('avatars', 'user-1/avatar.png') }, error: null });
+    __mock.setResponse('personal_bests', { data: [], error: null });
+    __mock.setResponse('custom_species', { data: [], error: null });
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: { user: fakeUser } } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.profile.avatar_url).toContain('avatar.png'));
+
+    __mock.current.storageGetPublicUrl.mockReturnValue({ data: { publicUrl: 'https://project.example.test/storage/v1/object/public/avatars/user-1/avatar.jpg' } });
+    await act(async () => { await result.current.uploadAvatar(new File(['bytes'], 'me.jpg', { type: 'image/jpeg' })); });
+    await waitFor(() => expect(__mock.current.storageRemove).toHaveBeenCalledWith(['user-1/avatar.png']));
+
+    __mock.current.storageRemove.mockClear();
+    await act(async () => { await result.current.uploadAvatar(new File(['bytes'], 'me-again.jpg', { type: 'image/jpeg' })); });
+    expect(__mock.current.storageRemove).not.toHaveBeenCalled();
+  });
+
+  test('the admin\'s switch: asks how photos are served, and flips it through the database', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('rpc:photo_privacy', { data: false, error: null });
+    await expect(result.current.getPhotoPrivacy()).resolves.toBe(false);
+    __mock.setResponse('rpc:photo_privacy', { data: null, error: { message: 'no' } });
+    await expect(result.current.getPhotoPrivacy()).resolves.toBeNull();
+
+    __mock.setResponse('rpc:set_photo_privacy', { data: true, error: null });
+    await expect(result.current.setPhotoPrivacy(true)).resolves.toEqual({ error: null, isPrivate: true });
+    expect(__mock.current.rpc).toHaveBeenCalledWith('set_photo_privacy', { make_private: true });
+
+    __mock.setResponse('rpc:set_photo_privacy', { data: null, error: new Error('Only the club admin can change how photos are served.') });
+    const refused = await act(async () => result.current.setPhotoPrivacy(false));
+    expect(refused.error.message).toMatch(/only the club admin/i);
+  });
+
+  describe('testing a private link before the switch', () => {
+    const RealImage = global.Image;
+    afterEach(() => { global.Image = RealImage; });
+    function fakeImages(outcome) {
+      const loaded = [];
+      global.Image = class {
+        set src(value) { loaded.push(value); setTimeout(() => (outcome === 'load' ? this.onload?.() : this.onerror?.()), 0); }
+      };
+      return loaded;
+    }
+
+    test('signs the smallest stored photo and loads it', async () => {
+      const result = await setupSignedIn();
+      const loaded = fakeImages('load');
+      __mock.current.storageList.mockImplementation(async (bucket, prefix) => {
+        if (bucket !== 'avatars') return { data: [], error: null };
+        if (!prefix) return { data: [{ name: 'user-2' }], error: null };
+        return { data: [{ id: 'f1', name: 'big.jpg', metadata: { size: 900000 } }, { id: 'f2', name: 'small.jpg', metadata: { size: 1200 } }], error: null };
+      });
+      await expect(result.current.testPhotoLink()).resolves.toBe('works');
+      expect(__mock.current.storageCreateSignedUrl).toHaveBeenCalledWith('user-2/small.jpg', 60);
+      expect(loaded).toEqual(['https://example.com/signed-photo.jpg']);
+    });
+
+    test('reports a link that does not open, a refusal to sign, and an empty store', async () => {
+      const result = await setupSignedIn();
+      await expect(result.current.testPhotoLink()).resolves.toBe('none');
+
+      __mock.current.storageList.mockImplementation(async (bucket, prefix) => (bucket === 'avatars' && !prefix
+        ? { data: [{ id: 'f1', name: 'a.jpg', metadata: { size: 10 } }], error: null } : { data: [], error: null }));
+      fakeImages('error');
+      await expect(result.current.testPhotoLink()).resolves.toBe('failed');
+
+      __mock.current.storageCreateSignedUrl.mockResolvedValue({ data: null, error: { message: 'no' } });
+      await expect(result.current.testPhotoLink()).resolves.toBe('failed');
+    });
+  });
+});
+
+describe('what the database will hold (limits from migration 0043)', () => {
+  test('an imported pin with a paragraph for a name or a novel for notes is cut to fit, not refused', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('waypoints', { data: [{ id: 'wp-1' }], error: null });
+    await result.current.importWaypoints({ mapId: 'map-1', points: [{ name: 'N'.repeat(500), lat: 40, lng: -74, notes: 'x'.repeat(9000) }, { lat: 41, lng: -75 }] });
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('waypoints')];
+    const [rows] = call.value.insert.mock.calls[0];
+    expect(rows[0].name).toHaveLength(200);
+    expect(rows[0].notes).toHaveLength(4000);
+    expect(rows[1]).toEqual(expect.objectContaining({ name: 'Waypoint', notes: '' }));
+  });
+
+  test('a long comment still notifies: the notification carries a preview, not the whole comment', async () => {
+    const result = await setupSignedIn();
+    const long = 'word '.repeat(300).trim();
+    __mock.setResponse('personal_best_comments', { data: { id: 'c-1', author_name: 'Andre', body: long }, error: null });
+    __mock.setResponse('notifications', { error: null });
+    await result.current.addComment('pb-1', long, 'user-2');
+    const builder = __mock.current.from.mock.results[__mock.current.fromCalls.indexOf('notifications')].value;
+    const [row] = builder.insert.mock.calls[0];
+    expect(row.preview).toHaveLength(280);
+    expect(long.startsWith(row.preview)).toBe(true);
+  });
+
+  test('a bug report is cut to what a report can hold', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('bug_reports', { data: { id: 'bug-1' }, error: null });
+    await result.current.submitBugReport({ body: 'b'.repeat(12000) });
+    const call = __mock.current.from.mock.results[__mock.current.fromCalls.lastIndexOf('bug_reports')];
+    expect(call.value.insert.mock.calls[0][0].body).toHaveLength(10000);
+  });
+});
+
+describe('passwords: reset links, changes, breach checks, signing out everywhere', () => {
+  const { webcrypto } = require('crypto');
+  const { TextEncoder: NodeTextEncoder } = require('util');
+  const { arrivedBy } = require('../lib/supabase');
+  const RealCrypto = Object.getOwnPropertyDescriptor(window, 'crypto');
+  const RealEncoder = global.TextEncoder;
+  const RealFetch = window.fetch;
+  // SHA-1('password1234') = E6B6AFBD6D76BB5D2041542D7D2E3FAC5BB05593
+  const BREACHED = 'password1234';
+  const BREACHED_SUFFIX = 'FBD6D76BB5D2041542D7D2E3FAC5BB05593';
+
+  function breachService() {
+    Object.defineProperty(window, 'crypto', { value: webcrypto, configurable: true });
+    global.TextEncoder = NodeTextEncoder;
+    window.fetch = jest.fn(async (url) => ({ ok: true, text: async () => (String(url).endsWith('/E6B6A') ? `${BREACHED_SUFFIX}:321\r\n0018A45C4D1DEF81644B54AB7F969B88D65:0` : '0018A45C4D1DEF81644B54AB7F969B88D65:0') }));
+    return window.fetch;
+  }
+  afterEach(() => {
+    if (RealCrypto) Object.defineProperty(window, 'crypto', RealCrypto); else delete window.crypto;
+    global.TextEncoder = RealEncoder;
+    window.fetch = RealFetch;
+    arrivedBy.recovery = false;
+    arrivedBy.problem = '';
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+
+  async function signedOut() {
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: null } });
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    return result;
+  }
+
+  test('the breach service hashes this test\'s password the way the test expects', async () => {
+    const digest = await webcrypto.subtle.digest('SHA-1', new NodeTextEncoder().encode(BREACHED));
+    const hex = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
+    expect(hex).toBe(`E6B6A${BREACHED_SUFFIX}`);
+  });
+
+  test('a reset link is asked for with the site\'s own address to come back to', async () => {
+    const result = await signedOut();
+    const response = await result.current.requestPasswordReset('  andre@example.com ');
+    expect(response.error).toBeNull();
+    expect(__mock.current.auth.resetPasswordForEmail).toHaveBeenCalledWith('andre@example.com', { redirectTo: `${window.location.origin}/` });
+    expect((await result.current.requestPasswordReset(' ')).error.message).toMatch(/type the email/i);
+    expect(__mock.current.auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('arriving by a reset link puts the account in recovery until a new password is set', async () => {
+    arrivedBy.recovery = true;
+    const result = await setupSignedIn();
+    expect(result.current.passwordRecovery).toBe(true);
+    expect(result.current.shouldShowTour).toBe(false);
+
+    const response = await act(async () => result.current.setRecoveredPassword('tight-lines-42'));
+    expect(response.error).toBeNull();
+    expect(__mock.current.auth.updateUser).toHaveBeenCalledWith({ password: 'tight-lines-42' });
+    // Everyone else signed in to the account is signed out; this device stays in.
+    expect(__mock.current.auth.signOut).toHaveBeenCalledWith({ scope: 'others' });
+    expect(result.current.passwordRecovery).toBe(false);
+    expect(result.current.user).toEqual(fakeUser);
+  });
+
+  test('a reload in the middle of a reset still asks for the new password, and it is over once one is set', async () => {
+    arrivedBy.recovery = true;
+    const first = await setupSignedIn();
+    expect(first.current.passwordRecovery).toBe(true);
+    // The reload: the link's tokens are gone from the address, the session is still there.
+    arrivedBy.recovery = false;
+    const second = await setupSignedIn();
+    expect(second.current.passwordRecovery).toBe(true);
+    await act(async () => { await second.current.setRecoveredPassword('tight-lines-42'); });
+    expect(second.current.passwordRecovery).toBe(false);
+    expect(window.sessionStorage.getItem('fishyfriends:password-recovery')).toBeNull();
+    const third = await setupSignedIn();
+    expect(third.current.passwordRecovery).toBe(false);
+  });
+
+  test('signing out in the middle of a reset ends it', async () => {
+    arrivedBy.recovery = true;
+    const result = await setupSignedIn();
+    await act(async () => { await result.current.signOut(); });
+    expect(result.current.passwordRecovery).toBe(false);
+    expect(window.sessionStorage.getItem('fishyfriends:password-recovery')).toBeNull();
+  });
+
+  test('the recovery event from the client does the same, whenever it fires', async () => {
+    const result = await setupSignedIn();
+    expect(result.current.passwordRecovery).toBe(false);
+    const listener = __mock.current.auth.onAuthStateChange.mock.calls[0][0];
+    await act(async () => { await listener('PASSWORD_RECOVERY', { user: fakeUser }); });
+    expect(result.current.passwordRecovery).toBe(true);
+  });
+
+  test('a reset link that was dead on arrival leaves nobody in recovery, and says why', async () => {
+    arrivedBy.recovery = true;
+    arrivedBy.problem = 'otp_expired';
+    const result = await signedOut();
+    expect(result.current.passwordRecovery).toBe(false);
+    expect(result.current.notice).toMatch(/expired or was already used/i);
+  });
+
+  test('a new password that is too short, built from the name, or in breach dumps is refused before it is sent', async () => {
+    arrivedBy.recovery = true;
+    breachService();
+    const result = await setupSignedIn();
+    expect((await result.current.setRecoveredPassword('short')).error.message).toMatch(/at least 10 characters/i);
+    expect((await result.current.setRecoveredPassword('andre-the-angler')).error.message).toMatch(/name or email/i);
+    expect((await result.current.setRecoveredPassword(BREACHED)).error.message).toMatch(/data breaches \(321 times\)/i);
+    expect(__mock.current.auth.updateUser).not.toHaveBeenCalled();
+    expect(result.current.passwordRecovery).toBe(true);
+  });
+
+  test('only five characters of the hash go to the breach service, never the password', async () => {
+    arrivedBy.recovery = true;
+    const fetchSpy = breachService();
+    const result = await setupSignedIn();
+    await act(async () => { await result.current.setRecoveredPassword('tight-lines-42'); });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchSpy.mock.calls[0];
+    expect(url).toMatch(/^https:\/\/api\.pwnedpasswords\.com\/range\/[0-9A-F]{5}$/);
+    expect(JSON.stringify(options)).not.toContain('tight-lines-42');
+  });
+
+  test('changing the password checks the current one first', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: { user: fakeUser }, error: null });
+    const response = await act(async () => result.current.changePassword('old-password-1', 'tight-lines-42'));
+    expect(response.error).toBeNull();
+    expect(__mock.current.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'andre@example.com', password: 'old-password-1' });
+    expect(__mock.current.auth.updateUser).toHaveBeenCalledWith({ password: 'tight-lines-42' });
+    expect(__mock.current.auth.signOut).toHaveBeenCalledWith({ scope: 'others' });
+  });
+
+  test('a wrong current password changes nothing', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: {}, error: { message: 'Invalid login credentials' } });
+    const response = await result.current.changePassword('not-it', 'tight-lines-42');
+    expect(response.error.message).toMatch(/isn't your current password/i);
+    expect(__mock.current.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  test('a new password is judged before the current one is even checked', async () => {
+    const result = await setupSignedIn();
+    expect((await result.current.changePassword('', 'tight-lines-42')).error.message).toMatch(/current password/i);
+    expect((await result.current.changePassword('same-password-1', 'same-password-1')).error.message).toMatch(/already have/i);
+    expect((await result.current.changePassword('old-password-1', 'short')).error.message).toMatch(/at least 10 characters/i);
+    expect(__mock.current.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  test('a failure from the server on the change is passed on, and nobody is signed out', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: { user: fakeUser }, error: null });
+    __mock.current.auth.updateUser.mockResolvedValue({ data: null, error: new Error('New password should be different from the old password.') });
+    const response = await result.current.changePassword('old-password-1', 'tight-lines-42');
+    expect(response.error.message).toMatch(/should be different/i);
+    expect(__mock.current.auth.signOut).not.toHaveBeenCalled();
+  });
+
+  test('signing up with a weak or breached password is refused before an account is asked for', async () => {
+    breachService();
+    const result = await signedOut();
+    expect((await result.current.signUp('new@example.com', 'hunter2', 'Newcomer')).error.message).toMatch(/at least 10 characters/i);
+    expect((await result.current.signUp('new@example.com', 'newcomer-fishing', 'Newcomer')).error.message).toMatch(/name or email/i);
+    expect((await result.current.signUp('new@example.com', BREACHED, 'Newcomer')).error.message).toMatch(/data breaches/i);
+    expect(__mock.current.auth.signUp).not.toHaveBeenCalled();
+  });
+
+  test('signing in with a breached password still signs in, and raises the nudge to change it', async () => {
+    breachService();
+    const result = await signedOut();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: { user: fakeUser, session: { user: fakeUser } }, error: null });
+    const response = await act(async () => result.current.signIn('andre@example.com', BREACHED));
+    expect(response.error).toBeNull();
+    await waitFor(() => expect(result.current.passwordWarning).toBe(true));
+    // It names the account, never the password.
+    expect(window.localStorage.getItem('fishyfriends:password-warning')).toBe('user-1');
+    expect(JSON.stringify({ ...window.localStorage })).not.toContain(BREACHED);
+  });
+
+  test('a sound password raises nothing, and a check that can\'t be made is no objection', async () => {
+    breachService();
+    const result = await signedOut();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: { user: fakeUser, session: { user: fakeUser } }, error: null });
+    await act(async () => { await result.current.signIn('andre@example.com', 'tight-lines-42'); });
+    await waitFor(() => expect(window.fetch).toHaveBeenCalled());
+    expect(result.current.passwordWarning).toBe(false);
+
+    window.fetch = jest.fn().mockRejectedValue(new Error('offline'));
+    await act(async () => { await result.current.signIn('andre@example.com', BREACHED); });
+    await waitFor(() => expect(window.fetch).toHaveBeenCalled());
+    expect(result.current.passwordWarning).toBe(false);
+  });
+
+  test('the nudge survives a reload for that account and is gone once the password is changed', async () => {
+    window.localStorage.setItem('fishyfriends:password-warning', 'user-1');
+    const result = await setupSignedIn();
+    await waitFor(() => expect(result.current.passwordWarning).toBe(true));
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ data: { user: fakeUser }, error: null });
+    await act(async () => { await result.current.changePassword('old-password-1', 'tight-lines-42'); });
+    expect(result.current.passwordWarning).toBe(false);
+    expect(window.localStorage.getItem('fishyfriends:password-warning')).toBeNull();
+  });
+
+  test('somebody else\'s nudge is not shown to this account', async () => {
+    window.localStorage.setItem('fishyfriends:password-warning', 'user-9');
+    const result = await setupSignedIn();
+    expect(result.current.passwordWarning).toBe(false);
+  });
+
+  test('signing out everywhere ends every session and forgets the account here', async () => {
+    const result = await setupSignedIn();
+    const response = await act(async () => result.current.signOutEverywhere());
+    expect(response.error).toBeNull();
+    expect(__mock.current.auth.signOut).toHaveBeenCalledWith({ scope: 'global' });
+    expect(result.current.user).toBeNull();
+    expect(result.current.membershipStatus).toBeNull();
+  });
+
+  test('if every session can\'t be ended, it says so and this one stays signed in', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.signOut.mockResolvedValue({ error: new Error('Network down') });
+    const response = await act(async () => result.current.signOutEverywhere());
+    expect(response.error.message).toBe('Network down');
+    expect(result.current.user).toEqual(fakeUser);
   });
 });
