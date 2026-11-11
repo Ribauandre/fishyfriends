@@ -246,6 +246,27 @@ button { cursor: pointer; }
 .bug-report-row-meta strong { color: var(--ink); font-size: 13px; }
 .bug-report-page { color: var(--coral); }
 .bug-report-body { margin: 0; white-space: pre-wrap; }
+.admin-page .table-card + .table-card { margin-top: 22px; }
+.admin-account-row .bug-report-row-meta { margin-bottom: 10px; }
+.admin-account-row .bug-report-row-meta span { overflow-wrap: anywhere; }
+.admin-account-tag { background: #203b32; color: var(--mint); font-size: 10px; font-weight: 800; padding: 3px 7px; }
+.admin-page .bug-report-list { list-style: none; margin: 0; padding: 0; }
+.admin-account-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-account-actions:empty { display: none; }
+.admin-account-actions .button, .admin-account-actions .button-quiet { margin-top: 0; width: auto; }
+.admin-account-confirm { color: var(--coral); flex-basis: 100%; font-size: 12px; }
+.admin-account-hint { margin-top: 16px; }
+.photo-privacy .form-actions { margin-top: 16px; }
+.photo-privacy .form-actions .button-quiet { margin-top: 0; width: auto; }
+.photo-privacy .month-empty + .month-empty { margin-top: 10px; }
+.waiting-room-note { color: var(--coral); }
+.waiting-room .confirmation-panel .button-quiet { margin-top: 6px; width: auto; }
+@media (max-width: 800px) {
+  /* On a phone the message comes first: the headline panel would push it below the fold. */
+  .waiting-room .auth-story { display: none; }
+  .waiting-room .auth-panel { min-height: 100vh; }
+  .admin-account-actions .button, .admin-account-actions .button-quiet { flex: 1 1 100%; justify-content: center; min-height: 48px; }
+}
 .activity-section { margin-top: 34px; }
 .activity-feed { display: flex; flex-direction: column; max-height: 480px; overflow-y: auto; }
 .activity-row { align-items: center; border-bottom: 1px solid var(--line); color: inherit; display: flex; gap: 14px; padding: 14px 4px; text-decoration: none; transition: background .15s ease-out; }

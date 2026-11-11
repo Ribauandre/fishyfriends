@@ -7,9 +7,9 @@ import { SECTIONS } from '../utils/navSections';
 // Tournaments; Plan: Trips and Waypoints). Shown on those pages themselves, not on a single
 // tournament or trip, which have their own way back.
 export default function SectionTabs() {
-  const { user } = useAuth();
+  const { user, isMember } = useAuth();
   const { pathname } = useLocation();
-  if (!user) return null;
+  if (!user || !isMember) return null;
   const section = SECTIONS.find((candidate) => candidate.pages.length > 1 && candidate.pages.some((page) => page.to === pathname));
   if (!section) return null;
   return <nav className="section-tabs content-shell" aria-label={section.label}>

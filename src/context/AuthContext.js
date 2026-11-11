@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import { canonicalSpecies } from '../utils/speciesNames';
-import compressImage from '../utils/compressImage';
+import compressImage, { readBytes } from '../utils/compressImage';
+import { stripImageMetadata, MIME_FOR_KIND } from '../utils/stripImageMetadata';
 import { normalizeUsPhone, normalizeZelle } from '../utils/payContacts';
 import { upgradeCost, UPGRADE_TRACKS, MAX_UPGRADE_LEVEL, MAX_REBUILDS, rebuildCost, CHARTER_CLUB_COST } from '../utils/gameUpgrades';
 import { charterFare } from '../utils/gameBiomes';
@@ -36,20 +37,43 @@ export function AuthProvider({ children }) {
   const [customSpecies, setCustomSpecies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  // Having an account isn't being in the club: the admin approves each sign-up (migration
+  // 0042). 'approved' | 'pending' | 'declined', or 'unknown' when it couldn't be asked. The
+  // database enforces it on every table; this only decides what the app shows.
+  const [membership, setMembership] = useState({ status: null, isAdmin: false });
+  const isMember = membership.status === 'approved';
 
   async function loadPersonalBests(userId) {
     const { data } = await supabase.from('personal_bests').select('*').eq('user_id', userId).order('created_at', { ascending: true });
     setPersonalBests(data || []);
   }
 
+  // The shared species list is members-only like everything else, so it loads once someone
+  // is in — on mount it would be asked for signed out, refused, and never asked for again.
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !isMember) { setCustomSpecies([]); return undefined; }
     let active = true;
     supabase.from('custom_species').select('name').order('name').then(({ data }) => {
       if (active) setCustomSpecies((data || []).map((row) => row.name));
     });
     return () => { active = false; };
-  }, []);
+  }, [isMember, user?.id]);
+
+  async function fetchMembership() {
+    const { data, error } = await supabase.rpc('my_membership');
+    if (error || !data) return { status: 'unknown', isAdmin: false };
+    const status = ['approved', 'pending', 'declined'].includes(data.status) ? data.status : 'unknown';
+    return { status, isAdmin: status === 'approved' && data.is_admin === true };
+  }
+
+  // Asked again by the waiting screen, so being approved lets someone in without a reload.
+  async function refreshMembership() {
+    if (!isSupabaseConfigured || !user) return membership;
+    const next = await fetchMembership();
+    setMembership(next);
+    if (next.status === 'approved' && membership.status !== 'approved') await loadPersonalBests(user.id);
+    return next;
+  }
 
   // Adds a newly typed species to the shared list so it shows up as a suggestion for
   // everyone else too, instead of staying a one-off value only this catch/best used.
@@ -81,7 +105,12 @@ export function AuthProvider({ children }) {
         if (mounted) setProfile(fallback);
         await supabase.from('profiles').upsert({ id: currentUser.id, ...fallback, updated_at: new Date().toISOString() });
       }
-      if (mounted) await loadPersonalBests(currentUser.id);
+      // The profile row comes first even for someone waiting: it is the name the admin sees.
+      const next = await fetchMembership();
+      if (!mounted) return;
+      setMembership(next);
+      if (next.status === 'approved') await loadPersonalBests(currentUser.id);
+      else setPersonalBests([]);
     }
     async function loadSession() {
       if (!isSupabaseConfigured) {
@@ -90,18 +119,26 @@ export function AuthProvider({ children }) {
       }
       const { data } = await supabase.auth.getSession();
       if (mounted) {
+        lastUserId = data.session?.user?.id || null;
         setUser(data.session?.user || null);
         if (data.session?.user) await loadProfile(data.session.user);
         setLoading(false);
       }
     }
+    // Membership belongs to an account: when a different one signs in on this tab, the last
+    // one's answer is dropped at once rather than standing in until the new one arrives. (The
+    // same account refreshing its token keeps what it had, so nothing flickers.)
+    let lastUserId = null;
     loadSession();
     if (!isSupabaseConfigured) return () => { mounted = false; };
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
+      const nextUserId = session?.user?.id || null;
+      if (nextUserId !== lastUserId) setMembership({ status: null, isAdmin: false });
+      lastUserId = nextUserId;
       setUser(session?.user || null);
       if (session?.user) await loadProfile(session.user);
-      else { setProfile(defaultProfile); setPersonalBests([]); }
+      else { setProfile(defaultProfile); setPersonalBests([]); setMembership({ status: null, isAdmin: false }); }
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -146,7 +183,7 @@ export function AuthProvider({ children }) {
     return result;
   }
 
-  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); }
+  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); setMembership({ status: null, isAdmin: false }); }
 
   async function updateProfile(rawProfile) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Authentication is not configured for this deployment.') };
@@ -169,9 +206,17 @@ export function AuthProvider({ children }) {
     return { error: error || null };
   }
 
+  // A photo goes up redrawn or with its metadata removed, never as the camera wrote it (see
+  // compressImage); one that can't be read is turned away here rather than uploaded raw.
+  async function preparePhoto(rawFile) {
+    if (!rawFile) return { file: null };
+    try { return { file: await compressImage(rawFile) }; } catch (error) { return { error }; }
+  }
+
   async function uploadAvatar(rawFile) {
     if (!rawFile?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = await compressImage(rawFile);
+    const { file, error: photoError } = await preparePhoto(rawFile);
+    if (photoError) return { error: photoError };
     if (file.size > 5 * 1024 * 1024) return { error: new Error('Profile photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before uploading a profile photo.') };
     const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -189,7 +234,8 @@ export function AuthProvider({ children }) {
     const species = canonicalSpecies(typedSpecies, customSpecies);
     if (!species) return { error: new Error('Name the species you caught.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = rawFile && await compressImage(rawFile);
+    const { file, error: photoError } = await preparePhoto(rawFile);
+    if (photoError) return { error: photoError };
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a personal best.') };
 
@@ -356,7 +402,8 @@ export function AuthProvider({ children }) {
     const trimmedSpecies = canonicalSpecies(species, customSpecies);
     if (!trimmedSpecies) return { error: new Error('Name the species you caught.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = rawFile && await compressImage(rawFile);
+    const { file, error: photoError } = await preparePhoto(rawFile);
+    if (photoError) return { error: photoError };
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
 
@@ -444,7 +491,8 @@ export function AuthProvider({ children }) {
     const numericSize = Number(size);
     if (!size || Number.isNaN(numericSize) || numericSize <= 0) return { error: new Error('Enter the size of your catch.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = rawFile && await compressImage(rawFile);
+    const { file, error: photoError } = await preparePhoto(rawFile);
+    if (photoError) return { error: photoError };
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a tournament entry.') };
 
@@ -823,8 +871,63 @@ export function AuthProvider({ children }) {
     return { error: null, report: data };
   }
 
-  // Only migration 0022's admin-scoped RLS policy makes this return more than the caller's own
-  // reports — everyone else still only ever sees their own rows via the reporter-only policy.
+  // The admin's side of membership (migration 0042). Both go through functions that check
+  // is_admin() in the database; for anyone else they are refused there, not here.
+  async function listClubAccounts() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.rpc('list_club_accounts');
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  // status: 'approved' lets them in; 'declined' turns a sign-up down or removes a member.
+  async function setClubMembership(accountId, status) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.rpc('set_club_membership', { target: accountId, new_status: status });
+    if (error) setNotice(error.message);
+    return { error: error || null };
+  }
+
+  // Photos stored before uploads stripped their metadata still carry it (where they were
+  // taken, among other things). The admin can list the photo buckets and write a photo back
+  // over itself (storage policies in 0042), so the clean-up runs here in the admin's
+  // browser: read each file, cut the metadata out without touching the picture, put it
+  // back at the same path so every link to it keeps working. The license bucket is not
+  // among them and the admin can't read it.
+  const PHOTO_BUCKETS = ['photos', 'avatars', 'personal-bests', 'fish-year-catches', 'tournament-entries', 'trip-catches'];
+
+  async function listStoredPhotos() {
+    if (!isSupabaseConfigured || !user) return [];
+    const found = [];
+    async function walk(bucket, prefix, depth) {
+      const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 });
+      if (error || !data) return;
+      for (const entry of data) {
+        const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+        // A folder comes back with no id; files carry their size.
+        if (!entry.id) { if (depth < 3) await walk(bucket, path, depth + 1); } else found.push({ bucket, path, size: entry.metadata?.size || 0 });
+      }
+    }
+    for (const bucket of PHOTO_BUCKETS) await walk(bucket, '', 0);
+    return found;
+  }
+
+  // 'cleaned' | 'clean' (nothing to remove) | 'unreadable' (not a photo it knows) | 'failed'
+  async function cleanStoredPhoto({ bucket, path }) {
+    if (!isSupabaseConfigured || !user) return 'failed';
+    const { data: blob, error } = await supabase.storage.from(bucket).download(path);
+    if (error || !blob) return 'failed';
+    let result;
+    try { result = stripImageMetadata(await readBytes(blob)); } catch (readError) { return 'failed'; }
+    if (!result) return 'unreadable';
+    if (!result.changed) return 'clean';
+    const type = MIME_FOR_KIND[result.kind];
+    const { error: writeError } = await supabase.storage.from(bucket).update(path, new Blob([result.bytes], { type }), { contentType: type, cacheControl: '3600' });
+    return writeError ? 'failed' : 'cleaned';
+  }
+
+  // Only the admin's policy makes this return more than the caller's own reports — everyone
+  // else still only ever sees their own rows via the reporter-only policy.
   async function listBugReports() {
     if (!isSupabaseConfigured) return [];
     const { data, error } = await supabase.from('bug_reports').select('*').order('created_at', { ascending: false });
@@ -857,7 +960,8 @@ export function AuthProvider({ children }) {
     const isImage = rawFile.type.startsWith('image/');
     const isPdf = rawFile.type === 'application/pdf';
     if (!isImage && !isPdf) return { error: new Error('Choose an image or PDF file.') };
-    const file = isImage ? await compressImage(rawFile) : rawFile;
+    const { file, error: photoError } = isImage ? await preparePhoto(rawFile) : { file: rawFile };
+    if (photoError) return { error: photoError };
     if (file.size > 5 * 1024 * 1024) return { error: new Error('License files must be smaller than 5 MB.') };
     return { file };
   }
@@ -1293,7 +1397,8 @@ export function AuthProvider({ children }) {
     const length = String(lengthIn ?? '').trim();
     if (length && !(Number(length) > 0)) return { error: new Error('Length has to be a number of inches, or blank.') };
     if (rawFile && !rawFile.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
-    const file = rawFile && await compressImage(rawFile);
+    const { file, error: photoError } = await preparePhoto(rawFile);
+    if (photoError) return { error: photoError };
     if (file && file.size > 5 * 1024 * 1024) return { error: new Error('Catch photos must be smaller than 5 MB.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before logging a catch.') };
 
@@ -1427,6 +1532,12 @@ export function AuthProvider({ children }) {
   // Presence is in-memory on the Realtime server and vanishes when the tab closes — so this is
   // the one piece of the game that is deliberately not a table. onSync gets everyone but you.
   //
+  // The channel is a public one: anybody holding the site's public key can join it and watch,
+  // or announce themselves under any key. So nothing personal travels on it — no name, no
+  // photo — only an account id and what that angler is doing. Names and photos are looked up
+  // in profiles, which only members can read, and an id that isn't a member's is not shown:
+  // a stranger listening learns nothing, and can't put a made-up name on anyone's dock.
+  //
   // The Realtime client hands back the *existing* channel for a topic, and subscribing to one
   // that is still leaving is a silent no-op (no status callback, no track — presence just goes
   // dark). A rejoin straight after a leave (StrictMode, a remount, a provider re-render) hits
@@ -1436,19 +1547,39 @@ export function AuthProvider({ children }) {
   function joinDock(initial, onSync) {
     if (!isSupabaseConfigured || !user) return { update: () => {}, leave: () => {} };
     let channel = null;
-    let latest = initial;
+    const impersonal = ({ name, avatarUrl, ...rest } = {}) => rest;
+    let latest = impersonal(initial);
     let left = false;
-    const sync = () => {
+    let roster = null;
+    let rosterAsked = 0;
+    const loadRoster = () => {
+      rosterAsked += 1;
+      return supabase.from('profiles').select('id, display_name, avatar_url').then(({ data }) => {
+        if (left || !Array.isArray(data)) return;
+        roster = new Map(data.map((row) => [row.id, row]));
+        sync();
+      });
+    };
+    function sync() {
       if (!channel) return;
       const state = channel.presenceState() || {};
-      const others = Object.entries(state)
-        .filter(([key]) => key !== user.id)
-        .map(([key, metas]) => ({ userId: key, ...(metas[metas.length - 1] || {}) }))
-        .filter((entry) => entry.name);
+      const present = Object.entries(state).filter(([key]) => key !== user.id);
+      // Someone the roster doesn't know yet (they joined the club after it was read): ask
+      // again, but only a few times, so an id that is nobody's can't keep it re-reading.
+      if (roster && rosterAsked < 4 && present.some(([key]) => !roster.has(key))) loadRoster();
+      const others = present
+        .filter(([key]) => roster?.has(key))
+        .map(([key, metas]) => ({
+          ...impersonal(metas[metas.length - 1]),
+          userId: key,
+          name: roster.get(key).display_name || 'Angler',
+          avatarUrl: roster.get(key).avatar_url || '',
+        }));
       onSync(others);
-    };
+    }
     const open = () => {
       if (left) return;
+      loadRoster();
       channel = supabase.channel(DOCK_TOPIC, { config: { presence: { key: user.id } } });
       channel.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
         // Fires again after a reconnect, so what we're doing is re-announced then too.
@@ -1459,15 +1590,17 @@ export function AuthProvider({ children }) {
     if (stale.length === 0) open();
     else Promise.all(stale.map((existing) => supabase.removeChannel(existing))).then(open, open);
     return {
-      update: (payload) => { latest = payload; if (channel) channel.track({ ...payload, at: Date.now() }); },
+      update: (payload) => { latest = impersonal(payload); if (channel) channel.track({ ...latest, at: Date.now() }); },
       leave: () => { left = true; if (channel) supabase.removeChannel(channel); channel = null; },
     };
   }
 
-  const shouldShowTour = Boolean(user) && !loading && !profile.tour_completed_at && !tourSeenLocally();
+  const shouldShowTour = Boolean(user) && isMember && !loading && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
     user, profile, personalBests, customSpecies, loading, notice, setNotice,
+    membershipStatus: membership.status, isMember, isAdmin: membership.isAdmin, refreshMembership,
+    listClubAccounts, setClubMembership, listStoredPhotos, cleanStoredPhoto,
     shouldShowTour, completeTour,
     signIn, signUp, signOut, updateProfile, uploadAvatar, getClubStats,
     uploadPersonalBest, deletePersonalBest, listAnglers,

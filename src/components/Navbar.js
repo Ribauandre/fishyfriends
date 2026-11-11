@@ -18,11 +18,11 @@ function NavIcon({ name }) {
 }
 
 export default function Navbar() {
-  const { user, profile } = useAuth();
+  const { user, profile, isMember } = useAuth();
   const { pathname } = useLocation();
   const [logging, setLogging] = useState(false);
   useEffect(() => { rememberPage(pathname); }, [pathname]);
-  if (!user) return null;
+  if (!user || !isMember) return null;
   const current = pageFor(pathname)?.section.key;
   // The game owns the whole phone screen, so there the top bar steps aside and only the tabs stay.
   const onGame = pathname === '/fishing-game';

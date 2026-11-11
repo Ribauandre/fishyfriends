@@ -1,7 +1,7 @@
 import { MONTHS } from './catchDestinations';
 
 // Home's "On your plate": what needs you right now, worked out from what the page already
-// loads. Each item is { key, title, detail, to } — or `action: 'log'` for the one that opens
+// loads (for the admin, that includes sign-ups waiting to be let in). Each item is { key, title, detail, to } — or `action: 'log'` for the one that opens
 // the Log a catch form instead of going somewhere. Pure, so the rules are tested without the
 // page; `today` is a local YYYY-MM-DD.
 const DAY_MS = 86400000;
@@ -22,8 +22,13 @@ function daysLeftInMonth(today) {
   return last - Number(today.slice(8, 10));
 }
 
-export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [] }) {
+export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [], waitingToJoin = 0 }) {
   const items = [];
+
+  // Admin only (the count is 0 for everyone else): a sign-up sees nothing until it's approved.
+  if (waitingToJoin > 0) {
+    items.push({ key: 'members-waiting', title: waitingToJoin === 1 ? '1 person is waiting to join' : `${waitingToJoin} people are waiting to join`, detail: 'They can\'t see anything until you let them in.', to: '/admin' });
+  }
 
   const month = MONTHS[Number(today.slice(5, 7)) - 1];
   if (today.startsWith(`${fishYear}-`) && !myFishYearCatches.some((row) => row.month === month)) {

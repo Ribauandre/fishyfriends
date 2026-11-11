@@ -58,3 +58,10 @@ test('a trip that is on says so, and an entered tournament says you are on the b
 test('an unfinished profile gets a nudge', () => {
   expect(keys(homeAgenda({ ...base, myFishYearCatches: [{ month: 'July' }], profile: { home_water: '' } }))).toEqual(['profile']);
 });
+
+test('for the admin, sign-ups waiting to be let in come first and point at the admin page', () => {
+  const items = homeAgenda({ ...base, waitingToJoin: 2 });
+  expect(items[0]).toMatchObject({ key: 'members-waiting', title: '2 people are waiting to join', to: '/admin' });
+  expect(homeAgenda({ ...base, waitingToJoin: 1 })[0].title).toBe('1 person is waiting to join');
+  expect(keys(homeAgenda({ ...base, waitingToJoin: 0 }))).not.toContain('members-waiting');
+});

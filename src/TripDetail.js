@@ -10,6 +10,13 @@ import PayOptions from './components/PayOptions';
 import speciesIcon from './utils/speciesOptions';
 import { balances, breakdown, formatCents, parseDollars, perPersonCents, rsvpClosed, settleUp, splitRoster, totalCents } from './utils/tripMath';
 
+// The listing link is whatever the trip's row holds, and the row is written through the
+// API, not only through the form that checks it. So it is only ever a link when it is a
+// plain web address; anything else (a javascript: or data: URL, say) shows no link.
+export function webAddress(value) {
+  return /^https?:\/\/[^\s]+$/i.test(String(value || '')) ? value : null;
+}
+
 function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
   const { addTripExpense } = useAuth();
   const [description, setDescription] = useState('');
@@ -204,7 +211,7 @@ export default function TripDetail() {
         {trip.accommodation || trip.accommodation_url
           ? <p className="trip-accommodation">
             {trip.accommodation || 'Booking'}
-            {trip.accommodation_url && <> · <a className="text-link" href={trip.accommodation_url} target="_blank" rel="noopener noreferrer">View listing ↗</a></>}
+            {webAddress(trip.accommodation_url) && <> · <a className="text-link" href={webAddress(trip.accommodation_url)} target="_blank" rel="noopener noreferrer">View listing ↗</a></>}
           </p>
           : <p className="muted-label">Not booked yet.</p>}
         {trip.notes && <><h3 className="trip-subheading">Notes</h3><p className="trip-notes">{trip.notes}</p></>}

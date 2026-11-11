@@ -6,8 +6,11 @@
 const KEY = 'fishy:returnTo';
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+// A backslash is refused along with a leading "//": browsers read a path that starts with a
+// slash and a backslash as another site's address. The router has had fixes for exactly
+// that; this doesn't lean on them.
 export function safePath(path) {
-  if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) return null;
+  if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return null;
   if (path === '/' || path.startsWith('/account')) return null;
   return path;
 }

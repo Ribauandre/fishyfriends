@@ -211,3 +211,25 @@ test('merges a live-pushed activity item into the feed without waiting for a ref
   // The original fetched item is still there — the live item was merged in, not swapped in.
   expect(screen.getByText(/logged a bass for fish year/i)).toBeInTheDocument();
 });
+
+describe('sign-ups waiting to join', () => {
+  const accounts = [
+    { account_id: 'u-1', status: 'pending' }, { account_id: 'u-2', status: 'pending' }, { account_id: 'u-3', status: 'approved' },
+  ];
+
+  test('the admin is told how many are waiting, with a link to let them in', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue(accounts) }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    const link = await screen.findByRole('link', { name: /2 people are waiting to join/i });
+    expect(link).toHaveAttribute('href', '/admin');
+  });
+
+  test('nobody else asks for the account list', async () => {
+    const listClubAccounts = jest.fn().mockResolvedValue(accounts);
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: false, listClubAccounts }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    await screen.findByText(/on your plate/i);
+    expect(listClubAccounts).not.toHaveBeenCalled();
+    expect(screen.queryByText(/waiting to join/i)).not.toBeInTheDocument();
+  });
+});
