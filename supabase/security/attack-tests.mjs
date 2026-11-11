@@ -169,7 +169,16 @@ add(NEWBIE, 'cannot upload', `insert into storage.objects (bucket_id, name) valu
 add(NEWBIE, 'sees no stored files', 'select * from storage.objects', rows(0));
 add(NEWBIE, 'cannot flip the photo switch', 'select public.set_photo_privacy(false)', DENIED);
 
+// The helper functions answer yes/no about OTHER accounts; a waiting account gets "no" (0044).
+add(NEWBIE, 'is not told who is a member', `select public.is_club_member('${KEV}') as answer`, { value: 'false' });
+add(NEWBIE, 'is not told who shares a trip', `select public.shares_trip_with('${KEV}', '${ADMIN}') as answer`, { value: 'false' });
+add(NEWBIE, 'is not told who is on a trip', `select public.is_trip_member('${TRIP_CREW}', '${KEV}') as answer`, { value: 'false' });
+add(NEWBIE, 'is not told who is on a map', `select public.is_waypoint_map_collaborator('${MAP_KEV}', '${KEV}') as answer`, { value: 'false' });
+add(NEWBIE, 'is not even told a person shares a trip with themself', `select public.shares_trip_with('${KEV}', '${KEV}') as answer`, { value: 'false' });
+
 // --- Removed from the club -------------------------------------------------------------------
+add(GONE, 'is not told who is a member', `select public.is_club_member('${KEV}') as answer`, { value: 'false' });
+add(GONE, 'is not told who shares a trip', `select public.shares_trip_with('${KEV}', '${ADMIN}') as answer`, { value: 'false' });
 add(GONE, 'is told they were turned down', `select public.my_membership() ->> 'status' as status`, { value: 'declined' });
 for (const table of APP_TABLES.filter((name) => name !== 'profiles')) add(GONE, `sees nothing in ${table}`, select(table), rows(0));
 add(GONE, 'sees only their own profile', select('profiles'), rows(1));
@@ -242,6 +251,10 @@ add(KEV, 'cannot store a megabyte in their game save', `update public.game_profi
 add(KEV, 'cannot name a waypoint with a novel', `insert into public.waypoints (map_id, created_by, name, lat, lng) values ('${MAP_KEV}', '${KEV}', repeat('x', 5000), 40, -74)`, { error: '23514' });
 add(KEV, 'cannot claim a two-million-dollar expense', `insert into public.trip_expenses (trip_id, paid_by, description, amount_cents) values ('${TRIP_CREW}', '${KEV}', 'yacht', 200000000)`, { error: '23514' });
 add(KEV, 'still saves an ordinary bio', `update public.profiles set bio = repeat('x', 1500) where id = '${KEV}'`, rows(1));
+
+// The same helpers still answer a member (the policies lean on them)
+add(KEV, 'the helpers still answer a member', `select (public.is_club_member('${MIA}') and public.shares_trip_with('${KEV}', '${ADMIN}') and public.is_trip_member('${TRIP_CREW}', '${KEV}') and public.is_waypoint_map_collaborator('${MAP_KEV}', '${KEV}') and not public.is_trip_member('${TRIP_MIA}', '${KEV}') and not public.is_club_member('${GONE}'))::text as answer`, { value: 'true' });
+add('postgres', 'and a migration or the dashboard, which has no account behind it', `select (public.is_club_member('${MIA}') and public.shares_trip_with('${MIA}', '${MIA}'))::text as answer`, { value: 'true' });
 
 // A member against other members
 add(KEV, 'cannot post as Mia', `insert into public.fish_year_catches (user_id, year, month, species) values ('${MIA}', 2026, 'June', 'Cod')`, DENIED);

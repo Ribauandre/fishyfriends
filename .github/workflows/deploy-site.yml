@@ -35,7 +35,11 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # Exactly what the lockfile pins, and nothing a package asks to run while it is being
+        # installed: an install script is how a compromised package most often gets to run
+        # in a build, and the next step but one holds the database password. (Of the 1,369
+        # packages only core-js's donation banner and a macOS-only helper have one.)
+        run: npm ci --ignore-scripts
 
       - name: Verify Supabase configuration
         env:
