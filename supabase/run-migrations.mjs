@@ -29,9 +29,10 @@ const migrationsDir = path.join(__dirname, 'migrations');
 // database password. Supabase's database certificates are signed by its own authority
 // (supabase/security/supabase-ca-2021.crt, a public file from the dashboard's Database
 // settings), which is trusted here next to the usual ones. Each run says whether the
-// certificate verified; set this to true once a deploy log has said it does, and from then
-// on a server that can't prove itself is refused. A local replay is never held to it.
-const REQUIRE_VERIFIED_TLS = false;
+// certificate verified. Deploy #194 (11 November 2026) said it does, so from here on a
+// server that can't prove itself is refused before anything is sent to it. A local replay is
+// never held to it. If Supabase ever changes its authority, the failure says what to do.
+const REQUIRE_VERIFIED_TLS = true;
 
 // Two runs at once (two deploys close together, or a deploy and someone's laptop) would
 // both read "not applied yet" and both run the same file. One holds this lock at a time.
@@ -56,7 +57,16 @@ async function main() {
     connectionString,
     ssl: { rejectUnauthorized: REQUIRE_VERIFIED_TLS && !local, ...(supabaseCa ? { ca: [...tls.rootCertificates, supabaseCa] } : {}) },
   });
-  await client.connect();
+  try {
+    await client.connect();
+  } catch (error) {
+    if (REQUIRE_VERIFIED_TLS && !local && /CERT|SELF_SIGNED|ALTNAME|ISSUER|LEAF_SIGNATURE|HOSTNAME/.test(String(error.code || ''))) {
+      // The handshake comes before the password, so nothing has been sent. Only the standard
+      // reason code is printed: the error's own text can name the host.
+      throw new Error(`The database's certificate did not verify (${error.code}), so nothing was sent to it: not the password, not a migration. If Supabase has changed its certificate authority, replace supabase/security/supabase-ca-2021.crt with the certificate from the dashboard (Project Settings > Database > SSL Configuration). To deploy without this check, set REQUIRE_VERIFIED_TLS to false in supabase/run-migrations.mjs.`);
+    }
+    throw error;
+  }
   if (!local) console.log(describeTls(client));
   // A migration's own RAISE NOTICE lines (counts, what it skipped) belong in the deploy log;
   // Postgres's "already exists, skipping" notices from idempotent DDL don't (code 00000 is
@@ -138,6 +148,7 @@ function describeTls(client) {
   if (!stream || typeof stream.getPeerCertificate !== 'function') return 'Database connection: NOT encrypted.';
   if (stream.authorized) return 'Database connection: encrypted, and the server\'s certificate verified.';
   return `Database connection: encrypted, but the server's certificate did not verify (${stream.authorizationError || 'no reason given'}). Nothing was refused: REQUIRE_VERIFIED_TLS is off.`;
+  // (With REQUIRE_VERIFIED_TLS on, a certificate that doesn't verify never gets this far.)
 }
 
 // A session lock, so it is let go when this script disconnects, however it ends.
