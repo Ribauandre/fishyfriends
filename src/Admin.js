@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import BugReportsSection from './AdminBugReports';
 import PhotoPrivacySection from './components/PhotoPrivacySection';
+import PhotoLinksSection from './components/PhotoLinksSection';
 
 function signedUp(account) {
   return account.signed_up_at ? new Date(account.signed_up_at).toLocaleDateString() : '';
@@ -99,6 +100,7 @@ export default function Admin() {
       <FishIllustration species="catfish" className="intro-sticker" />
     </div>
     <MembersSection />
+    <PhotoLinksSection />
     <PhotoPrivacySection />
     <BugReportsSection />
   </main>;

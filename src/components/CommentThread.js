@@ -34,7 +34,7 @@ export default function CommentThread({ comments, loading, onAdd, onDelete, curr
         })}
       </div>
       <form className="comment-form" onSubmit={submit}>
-        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a comment..." />
+        <input value={draft} maxLength={2000} onChange={(event) => setDraft(event.target.value)} placeholder="Add a comment..." />
         <button className="button button-quiet" type="submit" disabled={posting || !draft.trim()}>Post</button>
       </form>
     </div>}

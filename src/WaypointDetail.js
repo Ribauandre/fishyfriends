@@ -29,8 +29,8 @@ function NamePinModal({ lat, lng, onClose, onSaved }) {
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close name waypoint form">×</button>
       </div>
       <p>{lat.toFixed(5)}, {lng.toFixed(5)}</p>
-      <label>Name<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Reef Spot" /></label>
-      <label>Notes (optional)<textarea rows="3" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Good bite at dusk on the outgoing tide" /></label>
+      <label>Name<input required value={form.name} maxLength={200} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Reef Spot" /></label>
+      <label>Notes (optional)<textarea rows="3" value={form.notes} maxLength={4000} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Good bite at dusk on the outgoing tide" /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Drop the pin'} <span>→</span></button></div>
     </form>
@@ -95,7 +95,7 @@ function MyMapsLinkModal({ onClose, onFound }) {
         <button className="modal-close" type="button" onClick={onClose} aria-label="Close Google My Maps import">×</button>
       </div>
       <p>Paste the map's link. It has to be shared as "Anyone with this link can view". Or export it from My Maps as KML and use Import file instead.</p>
-      <label>Map link<input required type="url" inputMode="url" value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://www.google.com/maps/d/edit?mid=..." /></label>
+      <label>Map link<input required type="url" inputMode="url" value={link} maxLength={2000} onChange={(event) => setLink(event.target.value)} placeholder="https://www.google.com/maps/d/edit?mid=..." /></label>
       {error && <p className="form-error">{error}</p>}
       <div className="form-actions"><button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Reading the map...' : 'Find pins'} <span>→</span></button></div>
     </form>

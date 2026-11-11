@@ -16,11 +16,26 @@
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import tls from 'node:tls';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, 'migrations');
+
+// The connection is always encrypted. Whether the server at the other end is really
+// Supabase is a second question: until November 2026 nothing asked it, so anything sitting
+// between the build machine and the database could have answered and been handed the
+// database password. Supabase's database certificates are signed by its own authority
+// (supabase/security/supabase-ca-2021.crt, a public file from the dashboard's Database
+// settings), which is trusted here next to the usual ones. Each run says whether the
+// certificate verified; set this to true once a deploy log has said it does, and from then
+// on a server that can't prove itself is refused. A local replay is never held to it.
+const REQUIRE_VERIFIED_TLS = false;
+
+// Two runs at once (two deploys close together, or a deploy and someone's laptop) would
+// both read "not applied yet" and both run the same file. One holds this lock at a time.
+const MIGRATION_LOCK = 4827431905;
 
 async function main() {
   const connectionString = process.env.DATABASE_URL;
@@ -35,8 +50,14 @@ async function main() {
     return;
   }
 
-  const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  const supabaseCa = await readFile(path.join(__dirname, 'security', 'supabase-ca-2021.crt'), 'utf8').catch(() => null);
+  const local = isLocal(connectionString);
+  const client = new pg.Client({
+    connectionString,
+    ssl: { rejectUnauthorized: REQUIRE_VERIFIED_TLS && !local, ...(supabaseCa ? { ca: [...tls.rootCertificates, supabaseCa] } : {}) },
+  });
   await client.connect();
+  if (!local) console.log(describeTls(client));
   // A migration's own RAISE NOTICE lines (counts, what it skipped) belong in the deploy log;
   // Postgres's "already exists, skipping" notices from idempotent DDL don't (code 00000 is
   // a plain RAISE NOTICE).
@@ -60,6 +81,7 @@ async function main() {
       end $$;
     `);
 
+    await takeMigrationLock(client);
     const { rows } = await client.query('select filename from public._migrations_applied');
     const alreadyApplied = new Set(rows.map((row) => row.filename));
 
@@ -105,6 +127,30 @@ async function main() {
   }
 }
 
+function isLocal(connectionString) {
+  try { return ['localhost', '127.0.0.1', '::1', '[::1]', ''].includes(new URL(connectionString).hostname); } catch { return false; }
+}
+
+// Says only whether the certificate verified and, if not, the standard reason code: never
+// the host, the project or anything else from the connection string (this log is public).
+function describeTls(client) {
+  const stream = client.connection && client.connection.stream;
+  if (!stream || typeof stream.getPeerCertificate !== 'function') return 'Database connection: NOT encrypted.';
+  if (stream.authorized) return 'Database connection: encrypted, and the server\'s certificate verified.';
+  return `Database connection: encrypted, but the server's certificate did not verify (${stream.authorizationError || 'no reason given'}). Nothing was refused: REQUIRE_VERIFIED_TLS is off.`;
+}
+
+// A session lock, so it is let go when this script disconnects, however it ends.
+async function takeMigrationLock(client) {
+  for (let waited = 0; ; waited += 5) {
+    const { rows: [{ locked }] } = await client.query('select pg_try_advisory_lock($1::bigint) as locked', [MIGRATION_LOCK]);
+    if (locked) return;
+    if (waited === 0) console.log('Another migration run is in progress; waiting for it to finish.');
+    if (waited >= 600) throw new Error('Another migration run has held the lock for ten minutes. Nothing was applied by this one.');
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+  }
+}
+
 // What the audit of November 2026 found was almost all drift: a storage policy made by hand
 // in the dashboard that let anyone read and overwrite every file, select policies with no
 // role on them, grants Supabase used to hand out by default. None of it was visible from
@@ -128,10 +174,17 @@ const STORAGE_POLICIES = [
   'Admin reads stored photos', 'Admin replaces stored photos',
   'Members delete their own files', 'Members read their own files',
   'Members replace their own files', 'Members upload into their own folder',
+  "Members view the crew's photos",
+];
+// The only policies that may name the license bucket: each is tied to the owner's own folder.
+const LICENSE_POLICIES = [
+  'Members delete their own files', 'Members read their own files',
+  'Members replace their own files', 'Members upload into their own folder',
 ];
 
 async function checkSecurityPosture(client) {
   const problems = [];
+  let photoState = '';
   const names = (rows, key = 'name') => rows.map((row) => row[key]).join(', ');
 
   const { rows: anonTables } = await client.query(`
@@ -205,12 +258,34 @@ async function checkSecurityPosture(client) {
 
     const { rows: publicLicenses } = await client.query("select id from storage.buckets where id = 'fishing-licenses' and public");
     if (publicLicenses.length) problems.push('The fishing-licenses bucket is public. It holds people\'s license documents: set it private.');
+
+    // A policy that reaches the license bucket without being one of the own-folder four, or
+    // one with no bucket named at all (it then covers every bucket, licenses included).
+    const { rows: licenseReach } = await client.query(`
+      select pol.polname as name from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'storage' and c.relname = 'objects'
+        and (
+          coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || ' ' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') like '%fishing-licenses%'
+          or coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || ' ' || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') not like '%bucket_id%'
+        )
+    `);
+    const reaching = licenseReach.filter((policy) => !LICENSE_POLICIES.includes(policy.name));
+    if (reaching.length) problems.push(`${reaching.length} storage policy/policies reach the license bucket beyond a member's own folder.`);
+
+    const { rows: [photoBuckets] } = await client.query(`
+      select count(*)::int as total, count(*) filter (where not public)::int as private
+      from storage.buckets where id in ('photos', 'avatars', 'personal-bests', 'fish-year-catches', 'tournament-entries', 'trip-catches')
+    `);
+    photoState = photoBuckets.total === 0 ? '' : photoBuckets.private === photoBuckets.total
+      ? 'Photos: private. They load only through signed links a member is handed.'
+      : `Photos: ${photoBuckets.total - photoBuckets.private} of ${photoBuckets.total} photo buckets still open to anyone holding a photo's address (the admin page has the switch).`;
   }
 
   if (problems.length) {
     throw new Error(`Security check failed — the live database is more open than the app expects:\n  - ${problems.join('\n  - ')}`);
   }
   console.log('Security checks passed: nothing in public is reachable signed out, every policy is for signed-in accounts, owner-rights functions are closed, and storage has only the policies the migrations made.');
+  if (photoState) console.log(photoState);
 
   // Not a failure, but nobody could approve a sign-up: say so.
   const { rows: [{ has_members: hasMembers }] } = await client.query("select to_regclass('public.club_members') is not null as has_members");

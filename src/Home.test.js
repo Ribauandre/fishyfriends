@@ -233,3 +233,37 @@ describe('sign-ups waiting to join', () => {
     expect(screen.queryByText(/waiting to join/i)).not.toBeInTheDocument();
   });
 });
+
+describe('photos still open by address', () => {
+  test('the admin is reminded, with a link to the switch', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), getPhotoPrivacy: jest.fn().mockResolvedValue(false) }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /photos still open by address/i })).toHaveAttribute('href', '/admin');
+  });
+
+  test('not once they are private, and not when it couldn\'t be checked', async () => {
+    for (const answer of [true, null]) {
+      useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), getPhotoPrivacy: jest.fn().mockResolvedValue(answer) }));
+      const { unmount } = render(<MemoryRouter><Home /></MemoryRouter>);
+      // eslint-disable-next-line no-await-in-loop
+      await screen.findByText(/on your plate/i);
+      expect(screen.queryByText(/photos still open by address/i)).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  test('members are neither asked nor told', async () => {
+    const getPhotoPrivacy = jest.fn().mockResolvedValue(false);
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: false, getPhotoPrivacy }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    await screen.findByText(/on your plate/i);
+    expect(getPhotoPrivacy).not.toHaveBeenCalled();
+    expect(screen.queryByText(/photos still open by address/i)).not.toBeInTheDocument();
+  });
+
+  test('a password found in breach dumps is the first thing on the list', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({ passwordWarning: true }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /change your password/i })).toHaveAttribute('href', '/profile#password');
+  });
+});

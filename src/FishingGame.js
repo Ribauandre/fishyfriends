@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration, { preloadPixelFish, pixelFishSize } from './components/FishIllustration';
 import GameScene from './components/game/GameScene';
+import Photo from './components/Photo';
 import GameOverlay from './components/game/GameOverlay';
 import PointsCounter from './components/game/PointsCounter';
 import NpcDialogue from './components/game/NpcDialogue';
@@ -938,7 +939,7 @@ export default function FishingGame({ clock = () => new Date() }) {
       {overlay === 'crew' && <GameOverlay eyebrow="Who's out" title="On the water" onClose={() => setOverlay(null)}>
         <div className="dock-crew" role="group" aria-label="On the water now">
           <span className="dock-crew-chip is-here is-you" aria-label={`You · ${biomeConfig.label}${crew.length === 0 ? ' · nobody else out right now' : ''}`}>
-            <span className="mini-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt="" /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
+            <span className="mini-avatar">{profile?.avatar_url ? <Photo src={profile.avatar_url} alt="" fallback={String(profile?.display_name || 'A').slice(0, 1).toUpperCase()} /> : String(profile?.display_name || 'A').slice(0, 1).toUpperCase()}</span>
             <span className="dock-crew-text"><strong>You</strong><small>{crew.length === 0 ? 'nobody else out right now' : biomeConfig.label}</small></span>
           </span>
           {crew.map((other) => {
@@ -954,7 +955,7 @@ export default function FishingGame({ clock = () => new Date() }) {
               aria-label={`${other.name} · ${doing} · ${ground}${canGo ? ' · travel there' : ''}`}
               onClick={() => selectBiome(other.biome)}
             >
-              <span className="mini-avatar">{other.avatarUrl ? <img src={other.avatarUrl} alt="" /> : String(other.name || 'A').slice(0, 1).toUpperCase()}</span>
+              <span className="mini-avatar">{other.avatarUrl ? <Photo src={other.avatarUrl} alt="" fallback={String(other.name || 'A').slice(0, 1).toUpperCase()} /> : String(other.name || 'A').slice(0, 1).toUpperCase()}</span>
               <span className="dock-crew-text"><strong>{other.name}</strong><small>{doing} · {ground}</small></span>
             </button>;
           })}
@@ -1148,7 +1149,7 @@ export default function FishingGame({ clock = () => new Date() }) {
           {derbyLeaders?.length > 0 && <ol className="derby-list">
             {derbyLeaders.slice(0, 10).map((row, index) => <li key={row.userId} className={row.userId === profile?.id ? 'is-me' : ''}>
               <span className="derby-rank">{index + 1}</span>
-              <span className="mini-avatar">{row.avatarUrl ? <img src={row.avatarUrl} alt="" /> : row.anglerName.slice(0, 1).toUpperCase()}</span>
+              <span className="mini-avatar">{row.avatarUrl ? <Photo src={row.avatarUrl} alt="" fallback={row.anglerName.slice(0, 1).toUpperCase()} /> : row.anglerName.slice(0, 1).toUpperCase()}</span>
               <span className="derby-name">{row.anglerName}</span>
               <strong>{sizeLabel(row.sizeIn)}</strong>
             </li>)}
@@ -1197,7 +1198,7 @@ export default function FishingGame({ clock = () => new Date() }) {
         </section>}
         {trophies.length === 0 && realTrophies.length === 0 ? <p className="month-empty">Nothing on the wall yet — cast a line, or log a real personal best on your profile.</p> : <div className="trophy-grid">
           {realTrophies.map((entry) => <div className="trophy-card is-real" key={entry.id}>
-            {entry.photoUrl ? <img className="trophy-photo" src={entry.photoUrl} alt={entry.species} /> : <PixelFish species={entry.icon} />}
+            {entry.photoUrl ? <Photo className="trophy-photo" src={entry.photoUrl} alt={entry.species} fallback={<PixelFish species={entry.icon} />} /> : <PixelFish species={entry.icon} />}
             <span className="rarity-tag is-real">Real PB</span>
             <strong className="trophy-name">{entry.species}</strong>
             <span className="trophy-size">{entry.sizeLabel || 'Logged for real'}</span>

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FishIllustration from './FishIllustration';
 import ImageLightbox from './ImageLightbox';
+import Photo from './Photo';
 import LikeButton from './LikeButton';
 import PersonalBestComments from './PersonalBestComments';
 import PostMenu from './PostMenu';
@@ -29,7 +30,7 @@ export default function AnglerBestItem({ best, profile, anglerName, isOwner, onD
     />
     <button className="angler-best-media" type="button" onClick={() => best.photo_url && setImageOpen(true)} aria-label={best.photo_url ? `Expand ${anglerName}'s ${best.species} photo` : `${anglerName}'s ${best.species}, no photo yet`}>
       {best.photo_url
-        ? <img className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} onLoad={() => { if (highlighted) scrollToSelf(); }} />
+        ? <Photo className="angler-best-photo" src={best.photo_url} alt={`${profile.display_name}'s ${best.species}`} onLoad={() => { if (highlighted) scrollToSelf(); }} fallback={<FishIllustration species={iconFor(best.species)} className="angler-best-fish" />} />
         : <FishIllustration species={iconFor(best.species)} className="angler-best-fish" />}
     </button>
     <div>

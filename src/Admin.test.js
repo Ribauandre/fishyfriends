@@ -24,6 +24,9 @@ function makeAuth(overrides = {}) {
     listBugReports: jest.fn().mockResolvedValue([]),
     listStoredPhotos: jest.fn().mockResolvedValue([]),
     cleanStoredPhoto: jest.fn().mockResolvedValue('clean'),
+    getPhotoPrivacy: jest.fn().mockResolvedValue(false),
+    setPhotoPrivacy: jest.fn().mockResolvedValue({ error: null }),
+    testPhotoLink: jest.fn().mockResolvedValue('works'),
     ...overrides,
   };
 }
@@ -127,5 +130,55 @@ describe('photo privacy', () => {
     renderAdmin();
     await userEvent.click(await section('Photo privacy').findByRole('button', { name: /check stored photos/i }));
     expect(await section('Photo privacy').findByText(/no stored photos found/i)).toBeInTheDocument();
+  });
+});
+
+describe('who can open a photo', () => {
+  const links = () => section('Who can open a photo');
+
+  test('says photos open by address, and makes them private only after a private link is seen to work', async () => {
+    renderAdmin();
+    expect(await links().findByText(/opens for anyone who has its address/i)).toBeInTheDocument();
+    await userEvent.click(links().getByRole('button', { name: /make photos private/i }));
+    expect(await links().findByRole('heading', { name: 'Photos are private' })).toBeInTheDocument();
+    expect(auth.testPhotoLink).toHaveBeenCalledTimes(1);
+    expect(auth.setPhotoPrivacy).toHaveBeenCalledWith(true);
+    expect(auth.testPhotoLink.mock.invocationCallOrder[0]).toBeLessThan(auth.setPhotoPrivacy.mock.invocationCallOrder[0]);
+    expect(links().getByText(/the old addresses open nothing/i)).toBeInTheDocument();
+  });
+
+  test('changes nothing when a private link does not open a photo', async () => {
+    renderAdmin({ testPhotoLink: jest.fn().mockResolvedValue('failed') });
+    await userEvent.click(await links().findByRole('button', { name: /make photos private/i }));
+    expect(await links().findByRole('alert')).toHaveTextContent(/nothing was changed/i);
+    expect(auth.setPhotoPrivacy).not.toHaveBeenCalled();
+    expect(links().getByRole('button', { name: /make photos private/i })).toBeEnabled();
+  });
+
+  test('with no photos stored there is nothing to test, and the switch still works', async () => {
+    renderAdmin({ testPhotoLink: jest.fn().mockResolvedValue('none') });
+    await userEvent.click(await links().findByRole('button', { name: /make photos private/i }));
+    await waitFor(() => expect(auth.setPhotoPrivacy).toHaveBeenCalledWith(true));
+  });
+
+  test('private photos can be opened by address again, without a second test', async () => {
+    renderAdmin({ getPhotoPrivacy: jest.fn().mockResolvedValue(true) });
+    await userEvent.click(await links().findByRole('button', { name: /open them by address again/i }));
+    expect(await links().findByText(/opens for anyone who has its address/i)).toBeInTheDocument();
+    expect(auth.setPhotoPrivacy).toHaveBeenCalledWith(false);
+    expect(auth.testPhotoLink).not.toHaveBeenCalled();
+  });
+
+  test('a refusal from the database is shown and the page stays as it was', async () => {
+    renderAdmin({ setPhotoPrivacy: jest.fn().mockResolvedValue({ error: new Error('Only the club admin can change how photos are served.') }) });
+    await userEvent.click(await links().findByRole('button', { name: /make photos private/i }));
+    expect(await links().findByRole('alert')).toHaveTextContent(/only the club admin/i);
+    expect(links().queryByRole('heading', { name: 'Photos are private' })).not.toBeInTheDocument();
+  });
+
+  test('says so when it can\'t tell how photos are served, and offers no switch', async () => {
+    renderAdmin({ getPhotoPrivacy: jest.fn().mockResolvedValue(null) });
+    expect(await links().findByText(/couldn't check how photos are served/i)).toBeInTheDocument();
+    expect(links().queryByRole('button')).not.toBeInTheDocument();
   });
 });

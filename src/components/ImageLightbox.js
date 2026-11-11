@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import Photo from './Photo';
 
 // A photo opened full screen. It renders into <body>, not where it was opened: inside a card it
 // was trapped in the card's own stacking context (z-index: 1), so the top bar painted over its
@@ -8,6 +9,6 @@ import { createPortal } from 'react-dom';
 export default function ImageLightbox({ src, alt, label, onClose }) {
   return createPortal(<div className="image-lightbox" role="dialog" aria-modal="true" aria-label={label} onClick={onClose}>
     <button className="lightbox-close" type="button" onClick={(event) => { event.stopPropagation(); onClose(); }} aria-label="Close expanded image">×</button>
-    <img src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
+    <Photo src={src} alt={alt} onClick={(event) => event.stopPropagation()} />
   </div>, document.body);
 }

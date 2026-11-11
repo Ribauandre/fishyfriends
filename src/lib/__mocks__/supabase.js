@@ -7,6 +7,12 @@ import { createSupabaseMock } from '../../test-utils/supabaseMock';
 let instance = createSupabaseMock();
 
 export const isSupabaseConfigured = true;
+// How the visit arrived (a password-reset link, a dead link). A test sets a field before it
+// renders the provider and puts it back after.
+export const arrivedBy = { recovery: false, problem: '' };
+// A stored photo under the mock looks like
+// https://project.example.test/storage/v1/object/public/<bucket>/<owner id>/<file>.
+export const supabaseProjectUrl = 'https://project.example.test';
 export const supabase = new Proxy({}, {
   get(_target, prop) { return instance[prop]; },
 });

@@ -58,6 +58,7 @@ export default function SpeciesSelect({ value, onChange, required = true }) {
       aria-controls={listboxId}
       aria-autocomplete="list"
       required={required}
+      maxLength={80}
       value={value}
       onChange={(event) => { onChange(event.target.value); setOpen(true); setHighlighted(-1); }}
       onFocus={() => setOpen(true)}

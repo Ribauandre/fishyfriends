@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { isSupabaseConfigured, supabase, supabaseProjectUrl, arrivedBy } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import { canonicalSpecies } from '../utils/speciesNames';
 import compressImage, { readBytes } from '../utils/compressImage';
@@ -13,6 +13,8 @@ import { advanceQuests, QUEST_BY_KEY, questState } from '../utils/gameQuests';
 import { rankDerby, previousDerby } from '../utils/gameDerby';
 import { LURES, FLY_ROD } from '../utils/gameLures';
 import { WARDROBE, normalizeLook } from '../utils/anglerLook';
+import { createPhotoLinker, parseStoredPhoto, PHOTO_BUCKETS, PHOTO_LINK_SECONDS } from '../utils/photoLinks';
+import { passwordProblem, breachCount, breachMessage } from '../utils/passwordCheck';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', venmo_handle: '', tour_completed_at: null };
@@ -21,10 +23,42 @@ const TOUR_STORAGE_KEY = 'fishyfriends:tour-done';
 function tourSeenLocally() {
   try { return window.localStorage.getItem(TOUR_STORAGE_KEY) === '1'; } catch (storageError) { return false; }
 }
+// Set when a sign-in used a password that is in breach dumps, so the nudge to change it
+// survives a reload; it names the account, never the password.
+const PASSWORD_WARNING_KEY = 'fishyfriends:password-warning';
+function warnedLocally(userId) {
+  try { return Boolean(userId) && window.localStorage.getItem(PASSWORD_WARNING_KEY) === userId; } catch (storageError) { return false; }
+}
+function rememberWarning(userId) {
+  try { if (userId) window.localStorage.setItem(PASSWORD_WARNING_KEY, userId); else window.localStorage.removeItem(PASSWORD_WARNING_KEY); } catch (storageError) { /* nothing to keep */ }
+}
 const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
 
 const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes', tournament_entry: 'tournament_entry_likes' };
 const LIKE_COLUMNS = { personal_best: 'personal_best_id', fish_year_catch: 'catch_id', tournament_entry: 'tournament_entry_id' };
+
+// A reset link in progress, kept for the tab: a reload after the link has signed the account
+// in (its tokens are gone from the address by then) must still ask for the new password,
+// or its owner is in the app with a password they don't know and no way to set one.
+const RECOVERY_KEY = 'fishyfriends:password-recovery';
+function recoveryPending() {
+  try { return window.sessionStorage.getItem(RECOVERY_KEY) === '1'; } catch (storageError) { return false; }
+}
+function rememberRecovery(pending) {
+  try { if (pending) window.sessionStorage.setItem(RECOVERY_KEY, '1'); else window.sessionStorage.removeItem(RECOVERY_KEY); } catch (storageError) { /* this tab only, then */ }
+}
+
+// Signed links to stored photos (utils/photoLinks.js). One for the whole app, outside the
+// provider, so every <Photo> shares its cache and a page of photos goes out as one request a
+// bucket. Signing is a read of the object, which the database allows members only.
+const photoLinks = createPhotoLinker({
+  projectUrl: supabaseProjectUrl,
+  sign: async (bucket, paths) => {
+    if (!isSupabaseConfigured) return [];
+    const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, PHOTO_LINK_SECONDS);
+    return error || !Array.isArray(data) ? [] : data;
+  },
+});
 
 function profileFromUser(user) {
   return { ...defaultProfile, display_name: user?.user_metadata?.display_name || user?.email?.split('@')[0] || defaultProfile.display_name };
@@ -36,7 +70,15 @@ export function AuthProvider({ children }) {
   const [personalBests, setPersonalBests] = useState([]);
   const [customSpecies, setCustomSpecies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => (arrivedBy.problem ? 'That email link has expired or was already used. Ask for a new one.' : ''));
+  // A password-reset link signs the account in and nothing more: until a new password is
+  // set, the app shows only the form for one (App's ProtectedRoute).
+  const [passwordRecovery, setRecoveryState] = useState(() => {
+    if (arrivedBy.recovery) rememberRecovery(true);
+    return Boolean(arrivedBy.recovery) || recoveryPending();
+  });
+  function setPasswordRecovery(pending) { rememberRecovery(pending); setRecoveryState(pending); }
+  const [passwordWarning, setPasswordWarning] = useState(false);
   // Having an account isn't being in the club: the admin approves each sign-up (migration
   // 0042). 'approved' | 'pending' | 'declined', or 'unknown' when it couldn't be asked. The
   // database enforces it on every table; this only decides what the app shows.
@@ -120,6 +162,11 @@ export function AuthProvider({ children }) {
       const { data } = await supabase.auth.getSession();
       if (mounted) {
         lastUserId = data.session?.user?.id || null;
+        photoLinks.belongTo(lastUserId);
+        // A reset link that was dead on arrival signs nobody in: drop the flag, or the next
+        // ordinary sign-in on this tab would be asked for a new password.
+        if (!data.session) setPasswordRecovery(false);
+        setPasswordWarning(warnedLocally(lastUserId));
         setUser(data.session?.user || null);
         if (data.session?.user) await loadProfile(data.session.user);
         setLoading(false);
@@ -136,6 +183,10 @@ export function AuthProvider({ children }) {
       const nextUserId = session?.user?.id || null;
       if (nextUserId !== lastUserId) setMembership({ status: null, isAdmin: false });
       lastUserId = nextUserId;
+      photoLinks.belongTo(nextUserId);
+      if (_event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      if (!nextUserId) setPasswordRecovery(false);
+      setPasswordWarning(warnedLocally(nextUserId));
       setUser(session?.user || null);
       if (session?.user) await loadProfile(session.user);
       else { setProfile(defaultProfile); setPersonalBests([]); setMembership({ status: null, isAdmin: false }); }
@@ -161,6 +212,14 @@ export function AuthProvider({ children }) {
     }
     const result = await supabase.auth.signInWithPassword({ email, password });
     if (result.error) setNotice(result.error.message);
+    else {
+      // The password just worked, so it is this account's: if it is in breach dumps, say so
+      // (Home and Profile carry the nudge). Never in the way of signing in.
+      const accountId = result.data?.user?.id;
+      breachCount(password).then((count) => {
+        if (count > 0 && accountId) { rememberWarning(accountId); setPasswordWarning(true); }
+      });
+    }
     return result;
   }
 
@@ -170,6 +229,10 @@ export function AuthProvider({ children }) {
       setNotice(error.message);
       return { error };
     }
+    const problem = passwordProblem(password, { email, displayName });
+    if (problem) return { error: new Error(problem) };
+    const breaches = await breachCount(password);
+    if (breaches > 0) return { error: new Error(breachMessage(breaches)) };
     const result = await supabase.auth.signUp({
       email,
       password,
@@ -183,7 +246,76 @@ export function AuthProvider({ children }) {
     return result;
   }
 
-  async function signOut() { if (isSupabaseConfigured) await supabase.auth.signOut(); setUser(null); setProfile(defaultProfile); setMembership({ status: null, isAdmin: false }); }
+  function forgetAccount() {
+    photoLinks.belongTo(null);
+    setUser(null);
+    setProfile(defaultProfile);
+    setMembership({ status: null, isAdmin: false });
+    setPasswordRecovery(false);
+  }
+
+  async function signOut() {
+    if (isSupabaseConfigured) await supabase.auth.signOut();
+    forgetAccount();
+  }
+
+  // Every device, not just this one: a lost phone, a shared computer. The other devices are
+  // out as soon as their current pass runs out, which is within the hour.
+  async function signOutEverywhere() {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) { setNotice(error.message); return { error }; }
+    }
+    forgetAccount();
+    return { error: null };
+  }
+
+  // A reset link by email. It answers the same way whether or not the address has an account,
+  // so the form can't be used to find out who is a member; what it does report (too many
+  // tries, the mail service down) says nothing about anyone.
+  async function requestPasswordReset(email) {
+    if (!isSupabaseConfigured) return { error: new Error('Authentication is not configured for this deployment.') };
+    const address = String(email || '').trim();
+    if (!address) return { error: new Error('Type the email you signed up with.') };
+    const { error } = await supabase.auth.resetPasswordForEmail(address, { redirectTo: `${window.location.origin}/` });
+    return { error: error || null };
+  }
+
+  async function applyNewPassword(password) {
+    const breaches = await breachCount(password);
+    if (breaches > 0) return { error: new Error(breachMessage(breaches)) };
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) return { error };
+    // Whoever else is signed in to this account — another phone, or somebody who shouldn't
+    // be — is signed out. This device stays in.
+    try { await supabase.auth.signOut({ scope: 'others' }); } catch (signOutError) { /* the password is changed either way */ }
+    rememberWarning(null);
+    setPasswordWarning(false);
+    return { error: null };
+  }
+
+  // After a reset link: the link itself was the proof, so no old password is asked for.
+  async function setRecoveredPassword(password) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Open the reset link from your email again.') };
+    const problem = passwordProblem(password, { email: user.email, displayName: profile.display_name });
+    if (problem) return { error: new Error(problem) };
+    const result = await applyNewPassword(password);
+    if (!result.error) setPasswordRecovery(false);
+    return result;
+  }
+
+  // From the profile page. The current password is asked for and checked, so a phone left
+  // unlocked isn't enough to lock its owner out.
+  async function changePassword(currentPassword, nextPassword) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    if (!currentPassword) return { error: new Error('Type your current password.') };
+    if (currentPassword === nextPassword) return { error: new Error('That\'s the password you already have.') };
+    const problem = passwordProblem(nextPassword, { email: user.email, displayName: profile.display_name });
+    if (problem) return { error: new Error(problem) };
+    const check = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+    if (check.error) return { error: new Error('That isn\'t your current password.') };
+    return applyNewPassword(nextPassword);
+  }
 
   async function updateProfile(rawProfile) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Authentication is not configured for this deployment.') };
@@ -213,6 +345,20 @@ export function AuthProvider({ children }) {
     try { return { file: await compressImage(rawFile) }; } catch (error) { return { error }; }
   }
 
+  // Deleting a catch deletes its photo. The row used to go and the file stay, at an address
+  // that kept working for anyone who had it. Only files in your own folder can be removed
+  // (the database says so too), so a catch somebody else removes for you — a trip's creator
+  // can — leaves its file to its owner; and a failure here never fails the delete itself.
+  async function removeStoredPhoto(photoUrl) {
+    const stored = parseStoredPhoto(photoUrl, supabaseProjectUrl);
+    if (!stored || !user || stored.bucket === 'photos' || !stored.path.startsWith(`${user.id}/`)) return;
+    try { await supabase.storage.from(stored.bucket).remove([stored.path]); } catch (storageError) { /* the row is gone either way */ }
+    photoLinks.forget(photoUrl);
+  }
+  function removePhotosOf(rows) {
+    (Array.isArray(rows) ? rows : []).forEach((row) => { if (row?.user_id === user?.id && row.photo_url) removeStoredPhoto(row.photo_url); });
+  }
+
   async function uploadAvatar(rawFile) {
     if (!rawFile?.type.startsWith('image/')) return { error: new Error('Choose an image file.') };
     const { file, error: photoError } = await preparePhoto(rawFile);
@@ -225,8 +371,14 @@ export function AuthProvider({ children }) {
     if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+    const previousUrl = profile.avatar_url;
     const result = await updateProfile({ ...profile, avatar_url: avatarUrl });
-    if (!result.error) setNotice('Profile photo updated.');
+    if (!result.error) {
+      setNotice('Profile photo updated.');
+      // A photo in another format lands beside the old one rather than over it.
+      const before = parseStoredPhoto(previousUrl, supabaseProjectUrl);
+      if (before && before.path !== path) removeStoredPhoto(previousUrl);
+    }
     return { ...result, avatarUrl };
   }
 
@@ -256,6 +408,7 @@ export function AuthProvider({ children }) {
       ? await supabase.from('personal_bests').update(row).eq('id', existing.id).select().maybeSingle()
       : await supabase.from('personal_bests').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
+    if (existing && photoUrl && existing.photo_url && existing.photo_url !== photoUrl) removeStoredPhoto(existing.photo_url);
     setPersonalBests((previous) => existing ? previous.map((best) => (best.id === existing.id ? data : best)) : [...previous, data]);
     setNotice('Personal best saved.');
     registerSpecies(species);
@@ -264,8 +417,9 @@ export function AuthProvider({ children }) {
 
   async function deletePersonalBest(id) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a personal best.') };
-    const { error } = await supabase.from('personal_bests').delete().eq('id', id);
+    const { data: removed, error } = await supabase.from('personal_bests').delete().eq('id', id).select('user_id, photo_url');
     if (error) { setNotice(error.message); return { error }; }
+    removePhotosOf(removed);
     setPersonalBests((previous) => previous.filter((best) => best.id !== id));
     return { error: null };
   }
@@ -370,7 +524,9 @@ export function AuthProvider({ children }) {
       target_type: targetType,
       target_id: targetId,
       comment_id: commentId || null,
-      preview: preview || '',
+      // A preview, not the comment: the database holds 600 characters here, and a long
+      // comment would otherwise lose its notification altogether.
+      preview: (preview || '').slice(0, 280),
     });
   }
 
@@ -437,8 +593,9 @@ export function AuthProvider({ children }) {
 
   async function deleteFishYearCatch(id) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a catch.') };
-    const { error } = await supabase.from('fish_year_catches').delete().eq('id', id);
+    const { data: removed, error } = await supabase.from('fish_year_catches').delete().eq('id', id).select('user_id, photo_url');
     if (error) { setNotice(error.message); return { error }; }
+    removePhotosOf(removed);
     return { error: null };
   }
 
@@ -517,8 +674,9 @@ export function AuthProvider({ children }) {
 
   async function deleteTournamentEntry(id) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before removing a tournament entry.') };
-    const { error } = await supabase.from('tournament_entries').delete().eq('id', id);
+    const { data: removed, error } = await supabase.from('tournament_entries').delete().eq('id', id).select('user_id, photo_url');
     if (error) { setNotice(error.message); return { error }; }
+    removePhotosOf(removed);
     return { error: null };
   }
 
@@ -865,10 +1023,44 @@ export function AuthProvider({ children }) {
     if (!body?.trim()) return { error: new Error('Describe what went wrong first.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before reporting a bug.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const row = { user_id: user.id, angler_name: authorName, body: body.trim(), page_url: window.location.pathname };
+    const row = { user_id: user.id, angler_name: authorName, body: body.trim().slice(0, 10000), page_url: window.location.pathname.slice(0, 600) };
     const { data, error } = await supabase.from('bug_reports').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     return { error: null, report: data };
+  }
+
+  // How stored photos are served (migration 0043): true when the photo buckets are private and
+  // a photo only loads through a signed link, false while its address alone opens it, null
+  // when it couldn't be asked. The switch is the admin's; the database refuses anyone else.
+  async function getPhotoPrivacy() {
+    if (!isSupabaseConfigured || !user) return null;
+    const { data, error } = await supabase.rpc('photo_privacy');
+    return error || typeof data !== 'boolean' ? null : data;
+  }
+  async function setPhotoPrivacy(makePrivate) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { error } = await supabase.rpc('set_photo_privacy', { make_private: Boolean(makePrivate) });
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, isPrivate: Boolean(makePrivate) };
+  }
+
+  // Before the photo buckets are closed: prove on this device that a signed link really opens
+  // a stored photo, so the switch can't leave the crew looking at broken images. The smallest
+  // stored photo is signed for a minute and loaded. 'works', 'failed', or 'none' when there is
+  // nothing stored to try it on.
+  async function testPhotoLink() {
+    if (!isSupabaseConfigured || !user) return 'failed';
+    const photos = (await listStoredPhotos()).filter((photo) => photo.size > 0).sort((a, b) => a.size - b.size);
+    if (photos.length === 0) return 'none';
+    const { data, error } = await supabase.storage.from(photos[0].bucket).createSignedUrl(photos[0].path, 60);
+    if (error || !data?.signedUrl) return 'failed';
+    return new Promise((resolve) => {
+      const image = new Image();
+      const timer = setTimeout(() => resolve('failed'), 20000);
+      image.onload = () => { clearTimeout(timer); resolve('works'); };
+      image.onerror = () => { clearTimeout(timer); resolve('failed'); };
+      image.src = data.signedUrl;
+    });
   }
 
   // The admin's side of membership (migration 0042). Both go through functions that check
@@ -894,7 +1086,6 @@ export function AuthProvider({ children }) {
   // browser: read each file, cut the metadata out without touching the picture, put it
   // back at the same path so every link to it keeps working. The license bucket is not
   // among them and the admin can't read it.
-  const PHOTO_BUCKETS = ['photos', 'avatars', 'personal-bests', 'fish-year-catches', 'tournament-entries', 'trip-catches'];
 
   async function listStoredPhotos() {
     if (!isSupabaseConfigured || !user) return [];
@@ -1081,7 +1272,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.from('waypoint_map_members').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     // Never .select()ed: only the recipient can read a notification.
-    supabase.from('notifications').insert({ recipient_id: userId, actor_id: user.id, actor_name: myName(), type: 'map_invite', target_type: 'waypoint_map', target_id: mapId, preview: mapName || '' }).then(() => {});
+    supabase.from('notifications').insert({ recipient_id: userId, actor_id: user.id, actor_name: myName(), type: 'map_invite', target_type: 'waypoint_map', target_id: mapId, preview: (mapName || '').slice(0, 280) }).then(() => {});
     return { error: null, member: data };
   }
 
@@ -1125,7 +1316,7 @@ export function AuthProvider({ children }) {
   async function addWaypoint({ mapId, name, lat, lng, notes }) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a waypoint.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const row = { map_id: mapId, created_by: user.id, created_by_name: authorName, name: name?.trim() || 'Waypoint', lat, lng, notes: notes?.trim() || '', source: 'manual' };
+    const row = { map_id: mapId, created_by: user.id, created_by_name: authorName, name: (name?.trim() || 'Waypoint').slice(0, 200), lat, lng, notes: (notes?.trim() || '').slice(0, 4000), source: 'manual' };
     const { data, error } = await supabase.from('waypoints').insert(row).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
     return { error: null, waypoint: data };
@@ -1139,7 +1330,9 @@ export function AuthProvider({ children }) {
     if (source !== 'gpx' && source !== 'kml') return { error: new Error('Unknown import source.') };
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before importing waypoints.') };
     const authorName = profile.display_name || user.email?.split('@')[0] || 'Angler';
-    const rows = points.map((point) => ({ map_id: mapId, created_by: user.id, created_by_name: authorName, name: point.name, lat: point.lat, lng: point.lng, notes: point.notes || '', source }));
+    // A chartplotter's export can carry a paragraph per pin; the database holds a name to 200
+    // characters and notes to 4,000, and one over-long pin would refuse the whole file.
+    const rows = points.map((point) => ({ map_id: mapId, created_by: user.id, created_by_name: authorName, name: String(point.name || 'Waypoint').slice(0, 200), lat: point.lat, lng: point.lng, notes: String(point.notes || '').slice(0, 4000), source }));
     const { data, error } = await supabase.from('waypoints').insert(rows).select();
     if (error) { setNotice(error.message); return { error }; }
     return { error: null, waypoints: data || [] };
@@ -1244,7 +1437,7 @@ export function AuthProvider({ children }) {
   // Fire-and-forget, like notifyIfNeeded: a missed notification never undoes the action.
   async function notifyTrip({ recipientIds, type, tripId, preview }) {
     const rows = [...new Set(recipientIds || [])].filter((id) => id && id !== user.id).map((recipientId) => ({
-      recipient_id: recipientId, actor_id: user.id, actor_name: myName(), type, target_type: 'trip', target_id: tripId, preview: preview || '',
+      recipient_id: recipientId, actor_id: user.id, actor_name: myName(), type, target_type: 'trip', target_id: tripId, preview: (preview || '').slice(0, 280),
     }));
     if (rows.length) await supabase.from('notifications').insert(rows);
   }
@@ -1422,8 +1615,9 @@ export function AuthProvider({ children }) {
 
   async function deleteTripCatch(id) {
     if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
-    const { error } = await supabase.from('trip_catches').delete().eq('id', id);
+    const { data: removed, error } = await supabase.from('trip_catches').delete().eq('id', id).select('user_id, photo_url');
     if (error) setNotice(error.message);
+    else removePhotosOf(removed);
     return { error: error || null };
   }
 
@@ -1595,14 +1789,16 @@ export function AuthProvider({ children }) {
     };
   }
 
-  const shouldShowTour = Boolean(user) && isMember && !loading && !profile.tour_completed_at && !tourSeenLocally();
+  const shouldShowTour = Boolean(user) && isMember && !loading && !passwordRecovery && !profile.tour_completed_at && !tourSeenLocally();
 
   return <AuthContext.Provider value={{
     user, profile, personalBests, customSpecies, loading, notice, setNotice,
     membershipStatus: membership.status, isMember, isAdmin: membership.isAdmin, refreshMembership,
     listClubAccounts, setClubMembership, listStoredPhotos, cleanStoredPhoto,
+    photoLinks, getPhotoPrivacy, setPhotoPrivacy, testPhotoLink,
     shouldShowTour, completeTour,
     signIn, signUp, signOut, updateProfile, uploadAvatar, getClubStats,
+    passwordRecovery, passwordWarning, requestPasswordReset, setRecoveredPassword, changePassword, signOutEverywhere,
     uploadPersonalBest, deletePersonalBest, listAnglers,
     listComments, addComment, deleteComment,
     listFishYearCatches, logFishYearCatch, deleteFishYearCatch,

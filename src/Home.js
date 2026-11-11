@@ -43,7 +43,7 @@ function ShakyHeadline({ text }) {
 }
 
 export default function Home() {
-  const { user, profile, listRecentActivity, subscribeToActivity, listFishYearCatches, listFishingLicenses, listMyWaypointInvites, listTrips, listTournaments, listTournamentEntries, isAdmin, listClubAccounts } = useAuth();
+  const { user, profile, listRecentActivity, subscribeToActivity, listFishYearCatches, listFishingLicenses, listMyWaypointInvites, listTrips, listTournaments, listTournamentEntries, isAdmin, listClubAccounts, getPhotoPrivacy, passwordWarning } = useAuth();
   const name = profile.display_name?.split(' ')[0] || 'angler';
   const [activity, setActivity] = useState([]);
   const [activityLoading, setActivityLoading] = useState(true);
@@ -54,6 +54,7 @@ export default function Home() {
   const [tournaments, setTournaments] = useState([]);
   const [myTournamentIds, setMyTournamentIds] = useState([]);
   const [waitingToJoin, setWaitingToJoin] = useState(0);
+  const [photosOpen, setPhotosOpen] = useState(false);
   const [logging, setLogging] = useState(false);
   const today = localToday();
   // Picked once per visit (not per render) so it doesn't reshuffle on every state update —
@@ -74,6 +75,8 @@ export default function Home() {
     listTrips().then((data) => { if (active) setTrips(data || []); });
     // The admin lets each new sign-up in, so someone waiting is on the admin's plate.
     if (isAdmin && listClubAccounts) listClubAccounts().then((accounts) => { if (active) setWaitingToJoin((accounts || []).filter((account) => account.status === 'pending').length); });
+    // Only a definite "still open" is worth a line on the admin's list; "couldn't tell" is not.
+    if (isAdmin && getPhotoPrivacy) getPhotoPrivacy().then((isPrivate) => { if (active) setPhotosOpen(isPrivate === false); });
     listTournaments().then(async (data) => {
       if (!active) return;
       setTournaments(data || []);
@@ -86,7 +89,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const agenda = homeAgenda({ today, userId: user?.id, profile, fishYear: FISH_YEAR, myFishYearCatches: fishYearCatches.filter((row) => row.user_id === user?.id), invites, trips, tournaments, myTournamentIds, waitingToJoin });
+  const agenda = homeAgenda({ today, userId: user?.id, profile, fishYear: FISH_YEAR, myFishYearCatches: fishYearCatches.filter((row) => row.user_id === user?.id), invites, trips, tournaments, myTournamentIds, waitingToJoin, passwordWarning, photosOpen });
   const dateLabel = new Date(`${today}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
 
   // Live-updates the feed the moment someone posts, via the same merge the initial fetch

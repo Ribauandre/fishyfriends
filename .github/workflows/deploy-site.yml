@@ -8,12 +8,25 @@ on:
 permissions:
   contents: write
 
+# One deploy at a time, in order. Two pushes close together used to mean two runs applying
+# migrations and pushing the built site at once; a queued run now waits for the one ahead.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
 jobs:
   build-site:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - name: Check out deploy branch
         uses: actions/checkout@v4
+        with:
+          # The token that can push to this repository is not left in the checkout's git
+          # config, where every script the install and build steps run could have used it
+          # (one compromised dependency would have been able to publish to the site). It is
+          # handed to the one step that pushes, at the bottom.
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -49,9 +62,11 @@ jobs:
         run: npm run build:github
 
       - name: Commit generated docs
+        env:
+          PUSH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs
           git diff --cached --quiet || git commit -m "Build deploy site"
-          git push
+          git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_REF_NAME}"

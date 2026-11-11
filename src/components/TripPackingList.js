@@ -57,7 +57,7 @@ export default function TripPackingList({ tripId, isCreator }) {
       </li>)}
     </ul>}
     <form className="trip-item-form" onSubmit={handleAdd}>
-      <input aria-label="Item to add" required value={name} onChange={(event) => setName(event.target.value)} placeholder="Cooler, bucket of bunker, the boat..." />
+      <input aria-label="Item to add" required value={name} maxLength={200} onChange={(event) => setName(event.target.value)} placeholder="Cooler, bucket of bunker, the boat..." />
       <button className="button button-quiet" type="submit">Add</button>
     </form>
     {error && <p className="form-error">{error}</p>}

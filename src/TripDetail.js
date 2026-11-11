@@ -37,7 +37,7 @@ function AddExpenseForm({ tripId, notifyUserIds, onAdded }) {
   }
 
   return <form className="trip-expense-form" onSubmit={handleSubmit}>
-    <input aria-label="What it was for" required value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Charter deposit" />
+    <input aria-label="What it was for" required value={description} maxLength={300} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Charter deposit" />
     <input aria-label="Amount you paid" required inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="$600" />
     <button className="button button-quiet" type="submit" disabled={saving}>{saving ? 'Adding...' : 'I paid this'}</button>
     {error && <p className="form-error">{error}</p>}

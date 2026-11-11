@@ -20,7 +20,9 @@ clientsClaim();
 // Force-downloading all of that on first visit would make "install" itself a multi-minute
 // download on mobile data; those assets get cached opportunistically instead, by the
 // StaleWhileRevalidate route below, as a player actually encounters them in the game.
-const appShellManifest = self.__WB_MANIFEST.filter((entry) => !entry.url.includes('/static/media/'));
+// The eight font files (src/fonts.css) are the exception: 120 KB in all, and without them the
+// installed app would open offline in fallback type.
+const appShellManifest = self.__WB_MANIFEST.filter((entry) => !entry.url.includes('/static/media/') || entry.url.endsWith('.woff2'));
 precacheAndRoute(appShellManifest);
 
 // App Shell-style routing: every same-origin navigation request that isn't for a specific

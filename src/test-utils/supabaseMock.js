@@ -32,6 +32,8 @@ export function createSupabaseMock() {
     signInWithPassword: jest.fn().mockResolvedValue({ error: null }),
     signUp: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
     signOut: jest.fn().mockResolvedValue({ error: null }),
+    resetPasswordForEmail: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    updateUser: jest.fn().mockResolvedValue({ data: { user: {} }, error: null }),
     onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
   };
 
@@ -39,6 +41,12 @@ export function createSupabaseMock() {
   const storageGetPublicUrl = jest.fn(() => ({ data: { publicUrl: 'https://example.com/photo.jpg' } }));
   const storageCreateSignedUrl = jest.fn().mockResolvedValue({ data: { signedUrl: 'https://example.com/signed-photo.jpg' }, error: null });
   const storageRemove = jest.fn().mockResolvedValue({ error: null });
+  // Signed links for stored photos (utils/photoLinks.js): every path asked for comes back
+  // signed, at an address a test can recognise. Called with (bucket, paths, seconds).
+  const storageCreateSignedUrls = jest.fn(async (bucket, paths) => ({
+    data: paths.map((path) => ({ path, signedUrl: `https://project.example.test/storage/v1/object/sign/${bucket}/${path}?token=signed`, error: null })),
+    error: null,
+  }));
   // list / download / update are scripted per test (the admin's photo clean-up is their only
   // caller): mockResolvedValue / mockImplementation them on the object this hands back.
   const storageList = jest.fn().mockResolvedValue({ data: [], error: null });
@@ -46,6 +54,7 @@ export function createSupabaseMock() {
   const storageUpdate = jest.fn().mockResolvedValue({ error: null });
   const storage = { from: jest.fn((bucket) => ({
     upload: storageUpload, getPublicUrl: storageGetPublicUrl, createSignedUrl: storageCreateSignedUrl, remove: storageRemove,
+    createSignedUrls: (...args) => storageCreateSignedUrls(bucket, ...args),
     list: (...args) => storageList(bucket, ...args), download: (...args) => storageDownload(bucket, ...args), update: (...args) => storageUpdate(bucket, ...args),
   })) };
 
@@ -97,6 +106,7 @@ export function createSupabaseMock() {
     storageUpload,
     storageGetPublicUrl,
     storageCreateSignedUrl,
+    storageCreateSignedUrls,
     storageRemove,
     storageList,
     storageDownload,

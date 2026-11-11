@@ -22,12 +22,23 @@ function daysLeftInMonth(today) {
   return last - Number(today.slice(8, 10));
 }
 
-export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [], waitingToJoin = 0 }) {
+export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [], waitingToJoin = 0, passwordWarning = false, photosOpen = false }) {
   const items = [];
+
+  // The password that just signed them in is in breach dumps: ahead of everything else.
+  if (passwordWarning) {
+    items.push({ key: 'password', title: 'Change your password', detail: 'The one you signed in with has turned up in data breaches, so it\'s on the lists people try first.', to: '/profile#password' });
+  }
 
   // Admin only (the count is 0 for everyone else): a sign-up sees nothing until it's approved.
   if (waitingToJoin > 0) {
     items.push({ key: 'members-waiting', title: waitingToJoin === 1 ? '1 person is waiting to join' : `${waitingToJoin} people are waiting to join`, detail: 'They can\'t see anything until you let them in.', to: '/admin' });
+  }
+
+  // Admin only: until the switch on the admin page is flipped, a stored photo opens for
+  // anyone holding its address, and the addresses from before the storage fix are out there.
+  if (photosOpen) {
+    items.push({ key: 'photos-open', title: 'Photos still open by address', detail: 'Make them private on the admin page once the crew has had a day or two on this version.', to: '/admin' });
   }
 
   const month = MONTHS[Number(today.slice(5, 7)) - 1];

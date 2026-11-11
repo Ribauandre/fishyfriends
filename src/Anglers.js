@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import AnglerBestItem from './components/AnglerBestItem';
+import Photo from './components/Photo';
 
 function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, highlightCommentId }) {
   const containsHighlight = personalBests.some((best) => best.id === highlightBestId);
@@ -14,7 +15,7 @@ function AnglerCard({ profile, personalBests, isYou, onDelete, highlightBestId, 
 
   return <article className={`angler-card ${isYou ? 'is-you' : ''} ${open ? 'is-open' : ''}`}>
     <button className="angler-card-head" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-      <span className="avatar avatar-large">{profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span>
+      <span className="avatar avatar-large">{profile.avatar_url ? <Photo src={profile.avatar_url} alt="" fallback={(profile.display_name || 'N').slice(0, 1).toUpperCase()} /> : (profile.display_name || 'N').slice(0, 1).toUpperCase()}</span>
       <div>
         <strong>{profile.display_name || 'New angler'}</strong>
         <span className="muted-label">{profile.home_water || 'Home water unknown'}</span>

@@ -79,3 +79,10 @@ test('nothing renders for an account the admin hasn\'t let in', () => {
   expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
   expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 });
+
+test('nothing renders while a member is setting a new password from a reset link', () => {
+  useAuth.mockReturnValue({ user: { id: 'u1', email: 'andre@example.com' }, profile: { display_name: 'Andre' }, isMember: true, passwordRecovery: true });
+  renderAt('/home');
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  expect(screen.queryByRole('banner')).not.toBeInTheDocument();
+});

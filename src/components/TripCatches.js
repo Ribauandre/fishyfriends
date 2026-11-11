@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import FishIllustration from './FishIllustration';
+import Photo from './Photo';
 import LogCatchModal from './LogCatchModal';
 import speciesIcon from '../utils/speciesOptions';
 import { catchRecap } from '../utils/tripMath';
@@ -50,7 +51,7 @@ export default function TripCatches({ trip, canLog, isCreator }) {
     </div>}
     {catches?.length > 0 && <ul className="trip-catch-grid">
       {[...catches].reverse().map((c) => <li key={c.id}>
-        {c.photo_url ? <img src={c.photo_url} alt={`${c.angler_name}'s ${c.species}`} /> : <FishIllustration species={speciesIcon(c.species)} />}
+        {c.photo_url ? <Photo src={c.photo_url} alt={`${c.angler_name}'s ${c.species}`} fallback={<FishIllustration species={speciesIcon(c.species)} />} /> : <FishIllustration species={speciesIcon(c.species)} />}
         <strong>{c.species}{c.length_in ? ` · ${Number(c.length_in)}"` : ''}</strong>
         <span className="muted-label">{c.angler_name}{c.caught_at ? ` · ${c.caught_at}` : ''}</span>
         {(c.user_id === user?.id || isCreator) && <button className="license-remove" type="button" onClick={() => handleDelete(c.id)} aria-label={`Delete ${c.angler_name}'s ${c.species}`}>×</button>}
