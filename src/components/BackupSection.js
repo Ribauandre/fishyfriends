@@ -83,6 +83,7 @@ export default function BackupSection() {
     {status && !draft && !status.key && <>
       <p className="month-empty">Nothing is keeping a copy of the club's records. If a bad update or a mistaken delete took them, or the database itself went away, they would be gone.</p>
       <p className="month-empty">Make a backup key and a copy of the database is taken every night, locked so that only your key opens it, and kept for 90 days. It takes a minute, and you need somewhere safe to keep the key: a password manager is best.</p>
+      <p className="month-empty">Know where the copies go before you start: they are kept on GitHub with the site's code, and because that code is public, anyone with a GitHub account can download one. What they get is locked; your key is the only thing that opens it, and it never leaves your hands. Photos and license documents are files, not records, and are not copied.</p>
     </>}
 
     {status?.key && !draft && <>

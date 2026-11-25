@@ -267,6 +267,8 @@ describe('backups', () => {
     renderAdmin();
     expect(await backups().findByRole('heading', { name: 'No backups yet' })).toBeInTheDocument();
     expect(backups().getByText(/nothing is keeping a copy/i)).toBeInTheDocument();
+    // Said before the key is made, not after: where the copies are kept, and who can fetch one.
+    expect(backups().getByText(/anyone with a github account can download one\. what they get is locked/i)).toBeInTheDocument();
     await userEvent.click(backups().getByRole('button', { name: /make the backup key/i }));
 
     expect(await backups().findByRole('heading', { name: /save this key before anything else/i })).toBeInTheDocument();
