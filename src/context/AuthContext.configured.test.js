@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from './AuthContext';
 jest.mock('../lib/supabase');
 // eslint-disable-next-line import/first
 import { __mock } from '../lib/supabase';
+// eslint-disable-next-line import/first
+import { joinRefusal } from '../test-utils/supabaseMock';
 
 // The real thing redraws a photo on a canvas or cuts its metadata out, and refuses a file
 // that is neither; the stand-in files here ("bytes") aren't photos, so it is passed through.
@@ -294,6 +296,50 @@ describe('uploadAvatar', () => {
     expect(__mock.current.storage.from).toHaveBeenCalledWith('avatars');
     expect(__mock.current.storageUpload).toHaveBeenCalledWith('user-1/avatar.png', file, expect.objectContaining({ upsert: true }));
     expect(response.avatarUrl).toMatch(/^https:\/\/example\.com\/photo\.jpg/);
+  });
+
+  // One account may keep only so many files and add only so many a day (migration 0047).
+  // Storage says "no" to an upload over that as a bare policy error.
+  const refusal = { message: 'new row violates row-level security policy' };
+  const room = (extra) => ({ data: { files: 12, bytes: 4000000, today: 3, file_limit: 3000, byte_limit: 524288000, day_limit: 60, room: true, why: null, ...extra }, error: null });
+
+  test('an upload that fails for an ordinary reason says what storage said', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageUpload.mockResolvedValue({ error: { message: 'The object exceeded the maximum allowed size' } });
+    __mock.setResponse('rpc:storage_room', room());
+    const response = await act(async () => result.current.uploadAvatar(new File(['bytes'], 'me.png', { type: 'image/png' })));
+    expect(response.error.message).toBe('The object exceeded the maximum allowed size');
+    expect(result.current.notice).toBe('The object exceeded the maximum allowed size');
+    // And when the database can't be asked about room either, the same.
+    __mock.setResponse('rpc:storage_room', { data: null, error: { message: 'offline' } });
+    const again = await act(async () => result.current.uploadAvatar(new File(['bytes'], 'me.png', { type: 'image/png' })));
+    expect(again.error.message).toBe('The object exceeded the maximum allowed size');
+  });
+
+  test('an upload refused because the account is full says so, and what to do', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageUpload.mockResolvedValue({ error: refusal });
+    __mock.setResponse('rpc:storage_room', room({ files: 3000, room: false, why: 'full' }));
+    const response = await act(async () => result.current.uploadAvatar(new File(['bytes'], 'me.png', { type: 'image/png' })));
+    expect(response.error.message).toBe('Your file space is full (3,000 files or 500 MB). Delete catches or photos you no longer need, then try again.');
+    expect(result.current.notice).toBe(response.error.message);
+    expect(__mock.current.rpc).toHaveBeenCalledWith('storage_room');
+  });
+
+  test('an upload refused because of today\'s limit says to try tomorrow, wherever the file was going', async () => {
+    const result = await setupSignedIn();
+    __mock.current.storageUpload.mockResolvedValue({ error: refusal });
+    __mock.setResponse('rpc:storage_room', room({ today: 60, room: false, why: 'today' }));
+    const wanted = 'That\'s 60 files added today, the most one account can add in a day. Try again tomorrow.';
+    const photo = () => new File(['bytes'], 'fish.jpg', { type: 'image/jpeg' });
+    const avatar = await act(async () => result.current.uploadAvatar(photo()));
+    expect(avatar.error.message).toBe(wanted);
+    const best = await act(async () => result.current.uploadPersonalBest({ species: 'Striped Bass', sizeLabel: '38 in', caughtAt: '2026-06-12', file: photo() }));
+    expect(best.error.message).toBe(wanted);
+    const license = await act(async () => result.current.uploadFishingLicense({ state: 'New Jersey', licenseNumber: 'NJ-1', expiresAt: '2027-01-01', file: photo() }));
+    expect(license.error.message).toBe(wanted);
+    // Nothing was written for a catch whose photo didn't go up.
+    expect(__mock.current.fromCalls).not.toContain('fishing_licenses');
   });
 });
 
@@ -935,9 +981,12 @@ describe('the dock (presence)', () => {
     const dock = result.current.joinDock({ name: 'Andre', avatarUrl: 'https://example.com/andre.jpg', biome: 'river', phase: 'ready' }, onSync);
     const chan = __mock.current.channels[__mock.current.channels.length - 1];
     expect(chan.name).toBe('cast-and-catch-dock');
-    expect(chan.options).toEqual({ config: { presence: { key: 'user-1' } } });
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
-    // The channel is open to anyone with the public key, so no name or photo goes out on it.
+    // A members-only channel: who may join is the database's call (migration 0045).
+    expect(chan.options).toEqual({ config: { presence: { key: 'user-1' }, private: true } });
+    await waitFor(() => expect(chan.track).toHaveBeenCalled());
+    // The join is judged on the account's token, which the socket is handed first.
+    expect(__mock.current.realtime.setAuth.mock.invocationCallOrder[0]).toBeLessThan(chan.subscribe.mock.invocationCallOrder[0]);
+    // Open channels may still be accepted by the project, so no name or photo goes out anyway.
     expect(chan.track).toHaveBeenCalledWith({ biome: 'river', phase: 'ready', at: expect.any(Number) });
 
     await act(async () => { await __mock.current.emitPresenceSync({
@@ -953,6 +1002,42 @@ describe('the dock (presence)', () => {
     expect(chan.track).toHaveBeenLastCalledWith({ biome: 'bay', phase: 'casting', at: expect.any(Number) });
     dock.leave();
     expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
+  });
+
+  test('what the angler does before the dock has been joined is held, not sent early, and announced once it has', async () => {
+    const result = await setupSignedIn();
+    // The token takes a moment; the join waits for it, and the game is already casting.
+    let handToken;
+    __mock.current.realtime.setAuth.mockImplementation(() => new Promise((resolve) => { handToken = resolve; }));
+    const dock = result.current.joinDock({ biome: 'river', phase: 'ready' }, jest.fn());
+    const chan = __mock.current.channels[__mock.current.channels.length - 1];
+    // The real client throws on a push before the join has gone out (the mock does too).
+    expect(() => dock.update({ biome: 'river', phase: 'casting' })).not.toThrow();
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    dock.update({ biome: 'river', phase: 'waiting' });
+    expect(chan.subscribe).not.toHaveBeenCalled();
+    expect(chan.track).not.toHaveBeenCalled();
+
+    await act(async () => { handToken(); });
+    await waitFor(() => expect(chan.track).toHaveBeenCalledTimes(1));
+    expect(chan.track).toHaveBeenCalledWith({ biome: 'river', phase: 'waiting', at: expect.any(Number) });
+    // From here on updates go straight out.
+    dock.update({ biome: 'river', phase: 'reeling' });
+    expect(chan.track).toHaveBeenLastCalledWith({ biome: 'river', phase: 'reeling', at: expect.any(Number) });
+    dock.leave();
+  });
+
+  test('an announcement the socket can\'t carry is not an unhandled error', async () => {
+    const result = await setupSignedIn();
+    const dock = result.current.joinDock({ biome: 'river', phase: 'ready' }, jest.fn());
+    const chan = __mock.current.channels[__mock.current.channels.length - 1];
+    await waitFor(() => expect(chan.track).toHaveBeenCalledTimes(1));
+    chan.track.mockImplementation(() => Promise.reject(new Error('timed out')));
+    expect(() => dock.update({ biome: 'bay', phase: 'casting' })).not.toThrow();
+    chan.track.mockImplementation(() => { throw new Error('socket gone'); });
+    expect(() => dock.update({ biome: 'bay', phase: 'waiting' })).not.toThrow();
+    await act(async () => { await Promise.resolve(); });
+    dock.leave();
   });
 
   test('an id nobody owns cannot make the dock re-read the roster forever', async () => {
@@ -980,13 +1065,130 @@ describe('the dock (presence)', () => {
     const second = result.current.joinDock({ name: 'Andre', biome: 'bay', phase: 'ready' }, onSync);
     second.update({ name: 'Andre', biome: 'bay', phase: 'casting' });
     expect(__mock.current.removeChannel).toHaveBeenLastCalledWith(oldChan);
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    await waitFor(() => expect(__mock.current.channels[__mock.current.channels.length - 1]).not.toBe(oldChan));
     const newChan = __mock.current.channels[__mock.current.channels.length - 1];
-    expect(newChan).not.toBe(oldChan);
+    await waitFor(() => expect(newChan.track).toHaveBeenCalled());
     expect(newChan.subscribe).toHaveBeenCalledTimes(1);
     // The payload queued before the channel existed is what gets announced.
     expect(newChan.track).toHaveBeenCalledWith(expect.objectContaining({ biome: 'bay', phase: 'casting' }));
     expect(oldChan.subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  test('where the members-only rules are missing, the dock falls back to an open channel and still says nothing personal', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('profiles', { data: [{ id: 'user-1', display_name: 'Andre', avatar_url: '' }, { id: 'user-2', display_name: 'Kevin', avatar_url: '' }], error: null });
+    __mock.current.setJoinAnswer(({ isPrivate }) => (isPrivate
+      ? ['CHANNEL_ERROR', joinRefusal('Unauthorized: You do not have permissions to read from this Channel topic: cast-and-catch-dock')]
+      : 'SUBSCRIBED'));
+    const onSync = jest.fn();
+    const dock = result.current.joinDock({ name: 'Andre', avatarUrl: 'https://example.com/andre.jpg', biome: 'river', phase: 'ready' }, onSync);
+    const refused = __mock.current.channels[__mock.current.channels.length - 1];
+    await waitFor(() => expect(__mock.current.channels[__mock.current.channels.length - 1]).not.toBe(refused));
+    const open = __mock.current.channels[__mock.current.channels.length - 1];
+    expect(__mock.current.removeChannel).toHaveBeenCalledWith(refused);
+    expect(refused.track).not.toHaveBeenCalled();
+    expect(open.name).toBe('cast-and-catch-dock');
+    expect(open.options).toEqual({ config: { presence: { key: 'user-1' } } });
+    await waitFor(() => expect(open.track).toHaveBeenCalledWith({ biome: 'river', phase: 'ready', at: expect.any(Number) }));
+
+    // The roster and the updates follow the channel that is actually open.
+    await act(async () => { await __mock.current.emitPresenceSync({ 'user-2': [{ name: 'Somebody Else', biome: 'bay', phase: 'reeling' }] }); });
+    expect(onSync).toHaveBeenLastCalledWith([{ userId: 'user-2', name: 'Kevin', avatarUrl: '', biome: 'bay', phase: 'reeling' }]);
+    dock.update({ name: 'Andre', biome: 'bay', phase: 'casting' });
+    expect(open.track).toHaveBeenLastCalledWith({ biome: 'bay', phase: 'casting', at: expect.any(Number) });
+    dock.leave();
+    expect(__mock.current.removeChannel).toHaveBeenLastCalledWith(open);
+  });
+});
+
+describe('backups', () => {
+  test('getBackupStatus tidies what the database answers, and is null when it can\'t be asked', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('rpc:backup_status', { data: { key: { fingerprint: 'ab'.repeat(32), created_at: '2026-11-25T10:00:00Z' }, last_run: { finished_at: '2026-11-26T08:23:40Z', fingerprint: 'ab'.repeat(32), bytes: 7054, rows: 112, tables: 35 }, runs_30d: 2 }, error: null });
+    await expect(result.current.getBackupStatus()).resolves.toEqual({
+      key: { fingerprint: 'ab'.repeat(32), createdAt: '2026-11-25T10:00:00Z' },
+      lastRun: { finishedAt: '2026-11-26T08:23:40Z', fingerprint: 'ab'.repeat(32), bytes: 7054, rows: 112, tables: 35 },
+      runs30d: 2,
+    });
+    __mock.setResponse('rpc:backup_status', { data: { key: null, last_run: null, runs_30d: 0 }, error: null });
+    await expect(result.current.getBackupStatus()).resolves.toEqual({ key: null, lastRun: null, runs30d: 0 });
+    // Anyone but the admin is refused by the database; the page is told "couldn't check".
+    __mock.setResponse('rpc:backup_status', { data: null, error: { message: 'Only the club admin can see the backups.' } });
+    await expect(result.current.getBackupStatus()).resolves.toBeNull();
+  });
+
+  test('saveBackupKey sends the public half and hands back the fingerprint the database worked out', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('rpc:set_backup_key', { data: 'cd'.repeat(32), error: null });
+    const pem = '-----BEGIN PUBLIC KEY-----\nAAAA\n-----END PUBLIC KEY-----\n';
+    await expect(result.current.saveBackupKey(pem)).resolves.toEqual({ error: null, fingerprint: 'cd'.repeat(32) });
+    expect(__mock.current.rpc).toHaveBeenCalledWith('set_backup_key', { new_public_key: pem });
+
+    __mock.setResponse('rpc:set_backup_key', { data: null, error: { message: 'That is not a public key.' } });
+    const refused = await act(async () => result.current.saveBackupKey('nonsense'));
+    expect(refused.error.message).toBe('That is not a public key.');
+    expect(result.current.notice).toBe('That is not a public key.');
+  });
+});
+
+describe('live channels', () => {
+  const NOT_ALLOWED = 'Unauthorized: You do not have permissions to read from this Channel topic: club-channel-check';
+  const PRIVATE_ONLY = 'PrivateOnly: This project only allows private channels';
+  afterEach(() => { window.localStorage.removeItem('fishyfriends:live-channels'); });
+
+  test('the activity feed joins members-only too, and signed out it isn\'t opened at all', async () => {
+    const result = await setupSignedIn();
+    const before = __mock.current.channels.length;
+    const unsubscribe = result.current.subscribeToActivity(jest.fn());
+    const chan = __mock.current.channels[__mock.current.channels.length - 1];
+    expect(__mock.current.channels.length).toBe(before + 1);
+    expect(chan.name).toBe('home-activity-feed');
+    expect(chan.options).toEqual({ config: { private: true } });
+    await waitFor(() => expect(chan.subscribe).toHaveBeenCalledTimes(1));
+    unsubscribe();
+    expect(__mock.current.removeChannel).toHaveBeenCalledWith(chan);
+
+    // Signed out there is no feed, no dock and nothing to check.
+    __mock.reset();
+    __mock.current.auth.getSession.mockResolvedValue({ data: { session: null } });
+    const { result: signedOut } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(signedOut.current.loading).toBe(false));
+    signedOut.current.subscribeToActivity(jest.fn())();
+    signedOut.current.joinDock({ biome: 'river' }, jest.fn()).leave();
+    await expect(signedOut.current.checkLiveChannels()).resolves.toEqual({ verdict: 'unknown', membersOnly: null, open: null });
+    expect(__mock.current.channels).toHaveLength(0);
+  });
+
+  test('checkLiveChannels reports where the project stands and remembers it for Home', async () => {
+    const result = await setupSignedIn();
+    // Members-only works; open channels are still accepted.
+    const first = await result.current.checkLiveChannels();
+    expect(first.verdict).toBe('open');
+    expect(first.membersOnly).toEqual({ outcome: 'joined', reason: '' });
+    expect(first.open).toEqual({ outcome: 'joined', reason: '' });
+    const asked = __mock.current.channels.slice(-2);
+    expect(asked.map((chan) => [chan.name, Boolean(chan.options.config.private)])).toEqual([['club-channel-check', true], ['club-open-channel-check', false]]);
+    expect(asked.every((chan) => chan.removed)).toBe(true);
+
+    // Home asks without insisting on a fresh answer: nothing is joined for it.
+    const made = __mock.current.channels.length;
+    await expect(result.current.checkLiveChannels({ fresh: false })).resolves.toEqual({ verdict: 'open', membersOnly: null, open: null });
+    expect(__mock.current.channels.length).toBe(made);
+
+    // The owner turns open channels off: the admin page asks again and is told so.
+    __mock.current.setJoinAnswer(({ isPrivate }) => (isPrivate ? 'SUBSCRIBED' : ['CHANNEL_ERROR', joinRefusal(PRIVATE_ONLY)]));
+    const second = await result.current.checkLiveChannels();
+    expect(second.verdict).toBe('closed');
+    expect(second.open).toEqual({ outcome: 'refused', reason: PRIVATE_ONLY });
+    await expect(result.current.checkLiveChannels({ fresh: false })).resolves.toEqual(expect.objectContaining({ verdict: 'closed' }));
+  });
+
+  test('checkLiveChannels says when members-only channels are refused, in the server\'s words', async () => {
+    const result = await setupSignedIn();
+    __mock.current.setJoinAnswer(({ isPrivate }) => (isPrivate ? ['CHANNEL_ERROR', joinRefusal(NOT_ALLOWED)] : 'SUBSCRIBED'));
+    const answer = await result.current.checkLiveChannels();
+    expect(answer.verdict).toBe('not-ready');
+    expect(answer.membersOnly).toEqual({ outcome: 'refused', reason: NOT_ALLOWED });
   });
 });
 

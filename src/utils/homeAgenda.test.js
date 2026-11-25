@@ -77,3 +77,19 @@ test('the admin is reminded while photos still open by address, and not once the
   expect(items.find((item) => item.key === 'photos-open')).toEqual(expect.objectContaining({ title: 'Photos still open by address', to: '/admin' }));
   expect(keys(homeAgenda({ ...base, photosOpen: false }))).not.toContain('photos-open');
 });
+
+test('the admin is told when nothing is backing up the records, or the nightly backup has stopped', () => {
+  expect(homeAgenda({ ...base, backups: 'no-key' }).find((item) => item.key === 'backups-off')).toEqual(expect.objectContaining({ to: '/admin#backups' }));
+  expect(homeAgenda({ ...base, backups: 'stale', backupsSince: 'Nov 16, 2026' }).find((item) => item.key === 'backups-stopped')).toEqual(expect.objectContaining({ title: 'No backup since Nov 16, 2026', to: '/admin#backups' }));
+  expect(homeAgenda({ ...base, backups: 'never' }).find((item) => item.key === 'backups-stopped').title).toBe('The nightly backup isn\'t running');
+  for (const quiet of ['fine', 'waiting', 'unknown', '']) {
+    expect(keys(homeAgenda({ ...base, backups: quiet })).filter((key) => key.startsWith('backups'))).toEqual([]);
+  }
+});
+
+test('the admin is reminded while the project still accepts open live channels, with a link to the steps', () => {
+  const items = homeAgenda({ ...base, liveChannelsOpen: true });
+  expect(items.find((item) => item.key === 'live-channels-open')).toEqual(expect.objectContaining({ title: 'Live channels still open to outsiders', to: '/admin#live-channels' }));
+  expect(keys(homeAgenda({ ...base, liveChannelsOpen: false }))).not.toContain('live-channels-open');
+  expect(keys(homeAgenda(base))).not.toContain('live-channels-open');
+});

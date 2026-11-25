@@ -261,6 +261,61 @@ describe('photos still open by address', () => {
     expect(screen.queryByText(/photos still open by address/i)).not.toBeInTheDocument();
   });
 
+  test('the admin is reminded while open live channels are still accepted, settling for a recent answer', async () => {
+    const checkLiveChannels = jest.fn().mockResolvedValue({ verdict: 'open', membersOnly: null, open: null });
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), checkLiveChannels }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /live channels still open to outsiders/i })).toHaveAttribute('href', '/admin#live-channels');
+    expect(checkLiveChannels).toHaveBeenCalledWith({ fresh: false });
+  });
+
+  test('not once they are closed, and not when turning them off would break the app or it couldn\'t be told', async () => {
+    for (const verdict of ['closed', 'not-ready', 'broken', 'unknown']) {
+      useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), checkLiveChannels: jest.fn().mockResolvedValue({ verdict, membersOnly: null, open: null }) }));
+      const { unmount } = render(<MemoryRouter><Home /></MemoryRouter>);
+      // eslint-disable-next-line no-await-in-loop
+      await screen.findByText(/on your plate/i);
+      expect(screen.queryByText(/live channels still open/i)).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  test('the admin is told when there are no backups, and when they have stopped; members are never asked', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const key = { fingerprint: 'ab'.repeat(32), createdAt: new Date(Date.now() - 40 * day).toISOString() };
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), getBackupStatus: jest.fn().mockResolvedValue({ key: null, lastRun: null, runs30d: 0 }) }));
+    const first = render(<MemoryRouter><Home /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /nothing is backing up the club's records/i })).toHaveAttribute('href', '/admin#backups');
+    first.unmount();
+
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), getBackupStatus: jest.fn().mockResolvedValue({ key, lastRun: { finishedAt: new Date(Date.now() - 9 * day).toISOString(), rows: 1, bytes: 1, tables: 1 }, runs30d: 20 }) }));
+    const second = render(<MemoryRouter><Home /></MemoryRouter>);
+    expect(await screen.findByRole('link', { name: /no backup since/i })).toHaveAttribute('href', '/admin#backups');
+    second.unmount();
+
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: true, listClubAccounts: jest.fn().mockResolvedValue([]), getBackupStatus: jest.fn().mockResolvedValue({ key, lastRun: { finishedAt: new Date(Date.now() - day / 2).toISOString(), rows: 1, bytes: 1, tables: 1 }, runs30d: 28 }) }));
+    const third = render(<MemoryRouter><Home /></MemoryRouter>);
+    await screen.findByText(/on your plate/i);
+    expect(screen.queryByText(/backup/i)).not.toBeInTheDocument();
+    third.unmount();
+
+    const getBackupStatus = jest.fn().mockResolvedValue({ key: null, lastRun: null, runs30d: 0 });
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: false, getBackupStatus }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    await screen.findByText(/on your plate/i);
+    expect(getBackupStatus).not.toHaveBeenCalled();
+    expect(screen.queryByText(/backing up/i)).not.toBeInTheDocument();
+  });
+
+  test('members never try the live channels for the admin\'s reminder', async () => {
+    const checkLiveChannels = jest.fn().mockResolvedValue({ verdict: 'open', membersOnly: null, open: null });
+    useAuth.mockReturnValue(makeBaseAuth({ isAdmin: false, checkLiveChannels }));
+    render(<MemoryRouter><Home /></MemoryRouter>);
+    await screen.findByText(/on your plate/i);
+    expect(checkLiveChannels).not.toHaveBeenCalled();
+    expect(screen.queryByText(/live channels still open/i)).not.toBeInTheDocument();
+  });
+
   test('a password found in breach dumps is the first thing on the list', async () => {
     useAuth.mockReturnValue(makeBaseAuth({ passwordWarning: true }));
     render(<MemoryRouter><Home /></MemoryRouter>);

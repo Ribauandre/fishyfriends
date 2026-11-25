@@ -22,7 +22,7 @@ function daysLeftInMonth(today) {
   return last - Number(today.slice(8, 10));
 }
 
-export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [], waitingToJoin = 0, passwordWarning = false, photosOpen = false }) {
+export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCatches = [], invites = [], trips = [], tournaments = [], myTournamentIds = [], waitingToJoin = 0, passwordWarning = false, photosOpen = false, liveChannelsOpen = false, backups = '', backupsSince = '' }) {
   const items = [];
 
   // The password that just signed them in is in breach dumps: ahead of everything else.
@@ -39,6 +39,21 @@ export function homeAgenda({ today, userId, profile = {}, fishYear, myFishYearCa
   // anyone holding its address, and the addresses from before the storage fix are out there.
   if (photosOpen) {
     items.push({ key: 'photos-open', title: 'Photos still open by address', detail: 'Make them private on the admin page once the crew has had a day or two on this version.', to: '/admin' });
+  }
+
+  // Admin only: the app joins its live channels members-only, but the project accepts open
+  // ones (which anyone with the site's public key can join) until that is turned off in
+  // Supabase. Shown only when a check on this device found exactly that.
+  // Admin only: nothing keeps a copy of the club's records until a backup key is made, and
+  // a nightly job that stops says nothing by itself. `backups` is backupConcern()'s word.
+  if (backups === 'no-key') {
+    items.push({ key: 'backups-off', title: 'Nothing is backing up the club\'s records', detail: 'One key, made on the admin page, starts a nightly backup. It takes a minute.', to: '/admin#backups' });
+  } else if (backups === 'stale' || backups === 'never') {
+    items.push({ key: 'backups-stopped', title: backupsSince ? `No backup since ${backupsSince}` : 'The nightly backup isn\'t running', detail: 'The admin page says where to look.', to: '/admin#backups' });
+  }
+
+  if (liveChannelsOpen) {
+    items.push({ key: 'live-channels-open', title: 'Live channels still open to outsiders', detail: 'One setting in Supabase closes them. The admin page has the steps, once the crew has had a day or two on this version.', to: '/admin#live-channels' });
   }
 
   const month = MONTHS[Number(today.slice(5, 7)) - 1];

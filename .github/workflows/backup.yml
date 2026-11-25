@@ -1,0 +1,73 @@
+name: Nightly backup
+
+on:
+  schedule:
+    # 08:23 UTC: the small hours on the US east coast, and off the top of the hour, when
+    # GitHub's scheduled runs queue up.
+    - cron: '23 8 * * *'
+  workflow_dispatch: # "Run workflow" on the Actions tab makes one now
+
+# Reads the repository and nothing else. The copy is kept as a build artifact of this run.
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the backup scripts
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        # As the deploy does: exactly what the lockfile pins, and no package's install script,
+        # because the next step holds the database password.
+        run: npm ci --ignore-scripts
+
+      - name: Copy the database and seal the copy
+        id: copy
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        # The copy is encrypted to the club admin's backup key before it is written anywhere.
+        # This job holds only the public half (it reads it from the database): it can seal a
+        # backup and cannot open one. Until the admin has made a key on the admin page this
+        # step says so and makes nothing. The log gets counts and sizes, never rows.
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::SUPABASE_DB_URL secret not set — no backup was made. It is the same secret the deploy's migrations use."
+            echo "made=false" >> "$GITHUB_OUTPUT"
+          else
+            node supabase/backup/export.mjs --out backup
+          fi
+
+      - name: Keep the sealed copy for 90 days
+        if: steps.copy.outputs.made == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          # This repository is public, so anyone signed in to GitHub can download this file.
+          # It is ciphertext: the key that opens it has never been on GitHub.
+          name: fishyfriends-backup-${{ steps.copy.outputs.stamp }}
+          path: backup/*.ffbk
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Note in the database that it was kept
+        if: steps.copy.outputs.made == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        # So the admin page can say when the last backup was, and Home can say when the
+        # backups have stopped. Written only after the copy is safely kept.
+        run: node supabase/backup/export.mjs --record backup/run.json
