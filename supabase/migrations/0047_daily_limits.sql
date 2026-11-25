@@ -135,7 +135,13 @@ begin
       raise notice 'limits: public.% is not in this database, no limit set on it', rule.tbl;
       continue;
     end if;
-    execute format('drop trigger if exists count_writes on public.%I', rule.tbl);
+    -- (Looked for first: "drop ... if exists" would put a line in the deploy log per table.)
+    if exists (
+      select 1 from pg_trigger t
+      where t.tgrelid = ('public.' || quote_ident(rule.tbl))::regclass and t.tgname = 'count_writes' and not t.tgisinternal
+    ) then
+      execute format('drop trigger count_writes on public.%I', rule.tbl);
+    end if;
     if rule.owner_col is null then
       execute format('create trigger count_writes after insert on public.%I referencing new table as added for each statement execute function public.count_writes(%L, %L)',
         rule.tbl, rule.a_day, rule.noun);
