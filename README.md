@@ -84,7 +84,9 @@ supabase/
   schema.sql                A note only: how to set up a new project (replay the migrations) and name its admin
   migrations/                Ordered, idempotent SQL files applied automatically on deploy
   run-migrations.mjs         Applies pending files in migrations/ to DATABASE_URL, then checks the live database isn't more open than the app expects
+  db.mjs                     The one verified, encrypted way to the database (the migration runner and the backup both use it)
   security/                  stub.sql + attack-tests.mjs: the policies played against on a scratch Postgres
+  backup/                    export.mjs (the nightly copy), format.mjs (the encryption), restore.mjs (the way back), drill.mjs (proof)
   reset-crew-data.sql        Manual, one-off dev script: wipes profile/personal-best content (not auth.users)
   reset-storage.mjs          Manual, one-off dev script: empties the avatars/personal-bests Storage buckets
   confirmation-email.html    Branded Supabase signup confirmation template
@@ -95,6 +97,7 @@ scripts/
 .github/workflows/
   deploy-site.yml            Builds docs with Supabase config on deploy pushes
   keep-db-active.yml         Scheduled Supabase REST request
+  backup.yml                 Nightly encrypted backup of the database, kept 90 days as an artifact
 ```
 
 ## Application Architecture
@@ -142,7 +145,7 @@ The provider deliberately fails closed when Supabase is not configured. It does 
 
 ### Realtime activity feed
 
-`Home.js` gets its "someone just posted" feel from `subscribeToActivity` in `AuthContext.js`, the app's one use of Supabase Realtime. It opens a single channel subscribed to `postgres_changes` INSERT events on `fish_year_catches`, `personal_bests`, and `tournament_entries`, and normalizes each incoming row into the exact same item shape `listRecentActivity` returns — `fish_year_catches` and `tournament_entries` snapshot the poster's name/avatar on the row itself so those two go straight through, but `personal_bests` doesn't, so that path does a follow-up `profiles` lookup, and a tournament entry needs a `tournaments` lookup for its parent's name/unit, mirroring the joins `listRecentActivity` already does.
+`Home.js` gets its "someone just posted" feel from `subscribeToActivity` in `AuthContext.js` (the game's "who's on the dock" presence is the app's other use of Supabase Realtime). It opens a single members-only channel (`utils/liveChannels.js`; see "Who can see what") subscribed to `postgres_changes` INSERT events on `fish_year_catches`, `personal_bests`, and `tournament_entries`, and normalizes each incoming row into the exact same item shape `listRecentActivity` returns — `fish_year_catches` and `tournament_entries` snapshot the poster's name/avatar on the row itself so those two go straight through, but `personal_bests` doesn't, so that path does a follow-up `profiles` lookup, and a tournament entry needs a `tournaments` lookup for its parent's name/unit, mirroring the joins `listRecentActivity` already does.
 
 `Home.js` merges live-pushed items with the initial `listRecentActivity()` fetch by deduping on `kind`+`id` and re-sorting/re-trimming to the newest 6 after every merge, so it doesn't matter which of the two resolves first — a catch that streams in before the initial fetch finishes isn't lost when that fetch's result lands.
 
@@ -192,7 +195,7 @@ The workflow (`scripts/checkSupabaseKey.mjs`) rejects a secret key in either for
 
 ### Who can see what
 
-Fishy Friends is a private club, and the database is what makes it one (migrations `0041` to `0043`, after the security audit of November 2026):
+Fishy Friends is a private club, and the database is what makes it one (migrations `0041` to `0047`, after the security audit of November 2026):
 
 - **Signed out, nothing.** The public key that ships in the bundle can read no table, list no bucket and call one function: `club_stats()`, the three counts on the sign-in page.
 - **An account is not a membership.** Anyone can sign up, but a new account sees only its own profile and a waiting screen until the admin approves it on the admin page (`/admin`, linked from the admin's Profile). `public.club_members` holds who is in; every policy asks `public.is_member()`.
@@ -201,9 +204,36 @@ Fishy Friends is a private club, and the database is what makes it one (migratio
 - **Photo metadata** (where a photo was taken, on what, when) is removed in the browser before upload. The admin page can strip it from photos stored before that.
 - **Names can't be borrowed.** The name and photo shown beside a catch, a comment, an expense or a notification are written by the database from the poster's own profile, whatever the request claimed.
 - **Passwords** have to be ten characters, not built from your name or email, and not one that appears in known data breaches (checked without the password leaving the browser: five characters of its hash go to Have I Been Pwned's range lookup). A forgotten one is reset by an emailed link; changing one signs the account out everywhere else, and Profile has a "sign out everywhere".
+- **Live updates are for members.** The two live channels (who is on the dock in the game, and "just posted" on Home) are joined as members-only channels, and the database decides who may join. One step is the owner's and can't be done from code: until **"Allow public access to channels"** is turned off in the Supabase dashboard (Realtime, then Settings), the project also accepts open channels, which anyone holding the public key can join. The admin page ("Who can listen in live") tries both kinds from your device and says when it is safe to turn that off.
+- **One account can only add so much in a day.** The database counts what each account adds to each table and how many files it stores, and refuses past limits set far above normal use, so a runaway script or a stolen session can't fill the free plan.
 - **Nothing on a page calls a third party** to draw it: fonts are served from the site. The outside hosts the app can reach at all are listed in the Content-Security-Policy in `public/index.html`.
 
 `supabase/security/attack-tests.mjs` plays each of those people against the real policies on a scratch Postgres; run it after touching a policy or a grant (see its header). The deploy itself re-checks the live database after every migration run and stops if it is more open than this.
+
+### Backups
+
+Supabase's free plan keeps no backups, so the repository makes its own. Every night `.github/workflows/backup.yml` copies every row out of the database (`supabase/backup/export.mjs`), encrypts the copy, and keeps it for 90 days as an artifact of that workflow run (GitHub: Actions, then Nightly backup, then a run, then Artifacts).
+
+**The key.** This repository is public, so anyone with a GitHub account can download those files. They are encrypted to a key pair the club admin makes on the admin page ("Backups"): the public half is saved to the database for the job to encrypt with; the private half is shown once, to be saved in a password manager, and is stored nowhere else. Nothing on GitHub or in the database can open a backup. If the key file is lost, the backups made with it cannot be opened by anyone; make a new key and the next night's backup uses it.
+
+**What is in one.** Every table in `public` and `archive`, and the accounts (`auth.users`, `auth.identities`) with their password hashes. **Not** photos or license documents: those are files in storage, not rows.
+
+**Checking on them.** The admin page shows the key's fingerprint and the last backup that was kept; Home tells the admin when there is no key, or when no backup has been kept for three days. GitHub turns scheduled workflows off after 60 days without a commit to the repository; the Actions tab has the button to turn them back on.
+
+**Restoring.** With the key file and a downloaded `.ffbk` file:
+
+```bash
+# What is in it (changes nothing anywhere):
+node supabase/backup/restore.mjs open --key fishyfriends-backup-key-xxxxxxxx.txt --in fishyfriends-backup-2026-11-26.ffbk
+
+# Into a new, empty project: replay the structure, then load the rows.
+DATABASE_URL=postgresql://... node supabase/run-migrations.mjs
+DATABASE_URL=postgresql://... node supabase/backup/restore.mjs load --key <key file> --in <backup.ffbk>
+```
+
+`load` replaces every account and every row with the backup's, and refuses a database that already has accounts unless `--overwrite` is given. To get back a few rows that were deleted, do not load over the live project (that discards everything since the backup): load into a scratch Postgres set up like the attack tests' and copy the rows across. Accounts come back with their passwords; photos do not come back.
+
+`supabase/backup/drill.mjs` runs the whole path on two scratch databases (a key from the admin page's own code, a backup, a wrong key, a damaged file, a restore, every table compared) and should be run after changing anything under `supabase/backup/`.
 
 ### Profiles and Storage
 
@@ -219,7 +249,7 @@ Avatar upload behavior:
 
 ### Automated database migrations
 
-Schema changes are tracked as ordered SQL files in `supabase/migrations/` (currently `0001` through `0015`, covering profiles/avatars, personal bests and comments, Fish Year catches, custom species, likes on personal bests and Fish Year catches, Fish Year catch comments, notifications, the onboarding-tour completion flag, tournaments, bug reports, and enabling Realtime on the activity-feed tables). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
+Schema changes are tracked as ordered SQL files in `supabase/migrations/` (`0001` onward: the app's tables, then from `0041` the security work — membership and closed tables, storage, names the database writes, members-only live channels, backups, daily limits). On every push to `deploy`, the GitHub Actions workflow (`.github/workflows/deploy-site.yml`) runs `supabase/run-migrations.mjs` before building the site. That script connects directly to Postgres, creates a `public._migrations_applied` tracking table if needed, and applies (in one transaction each) any migration file that isn't already recorded as applied — so a normal deploy with no new schema changes is a no-op, and a deploy that adds a new migration file applies just that file automatically.
 
 This requires a repository secret named `SUPABASE_DB_URL`: a Postgres connection string (not the publishable/anon key the app uses in the browser). Get it from the Supabase dashboard: Project Settings -> Database -> Connection string -> URI, with the **Session pooler** mode selected, and the database password filled in. Add it in the GitHub repo under Settings -> Secrets and variables -> Actions -> New repository secret.
 

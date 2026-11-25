@@ -16,6 +16,7 @@
 // on each other except where a comment says so. NEVER point this at the live database: it
 // seeds people and data.
 
+import crypto from 'node:crypto';
 import pg from 'pg';
 
 const connectionString = process.env.DATABASE_URL;
@@ -121,6 +122,15 @@ const SEED = `
     ('avatars', '${KEV}/avatar.jpg'), ('avatars', '${MIA}/avatar.jpg'), ('fishing-licenses', '${KEV}/license.pdf'),
     ('fishing-licenses', '${MIA}/license.pdf'), ('fish-year-catches', '${MIA}/bluefish.jpg'), ('photos', 'old/legacy.jpg');
   update storage.buckets set public = true where id in ('photos', 'avatars', 'personal-bests', 'fish-year-catches', 'tournament-entries', 'trip-catches');
+
+  delete from public.backup_keys;
+  delete from public.backup_runs;
+  delete from public.write_counts;
+  delete from public.bug_reports where body like 'limit %';
+  delete from realtime.messages;
+  insert into realtime.messages (topic, extension) values
+    ('cast-and-catch-dock', 'presence'), ('cast-and-catch-dock', 'broadcast'), ('home-activity-feed', 'broadcast'),
+    ('club-channel-check', 'broadcast'), ('somewhere-else', 'presence');
 `;
 
 const DENIED = { error: '42501' };
@@ -183,6 +193,65 @@ add(GONE, 'is told they were turned down', `select public.my_membership() ->> 's
 for (const table of APP_TABLES.filter((name) => name !== 'profiles')) add(GONE, `sees nothing in ${table}`, select(table), rows(0));
 add(GONE, 'sees only their own profile', select('profiles'), rows(1));
 add(GONE, 'cannot log a catch', `insert into public.fish_year_catches (user_id, year, month, species) values ('${GONE}', 2026, 'June', 'Cod')`, DENIED);
+
+// --- Live channels (0045): Realtime decides who may join a private channel by running these
+// very statements as the caller, with the topic being joined in realtime.topic() ---------------
+const DOCK = 'cast-and-catch-dock';
+const listen = 'select 1 from realtime.messages limit 1';
+const announce = (extension) => `insert into realtime.messages (topic, extension) values ('x', '${extension}')`;
+add('anon', 'cannot listen on the dock', listen, rows(0), { topic: DOCK });
+add('anon', 'cannot announce themselves on the dock', announce('presence'), DENIED, { topic: DOCK });
+add(NEWBIE, 'cannot listen on the dock while waiting', listen, rows(0), { topic: DOCK });
+add(NEWBIE, 'cannot listen to the activity feed while waiting', listen, rows(0), { topic: 'home-activity-feed' });
+add(NEWBIE, 'cannot announce themselves on the dock while waiting', announce('presence'), DENIED, { topic: DOCK });
+add(GONE, 'cannot listen on the dock once removed', listen, rows(0), { topic: DOCK });
+add(GONE, 'cannot announce themselves once removed', announce('presence'), DENIED, { topic: DOCK });
+add(MIA, 'listens on the dock', listen, rows(1), { topic: DOCK });
+add(MIA, 'listens to the activity feed', listen, rows(1), { topic: 'home-activity-feed' });
+add(MIA, 'joins the channel the admin page checks with', listen, rows(1), { topic: 'club-channel-check' });
+add(MIA, 'announces herself on the dock', announce('presence'), rows(1), { topic: DOCK });
+// Realtime's own check reads the row back, and an INSERT ... RETURNING has to pass the SELECT
+// policy as well as the INSERT one (the trap 0026 fixed for waypoints).
+add(MIA, 'announces herself the way Realtime asks, reading the row back', `${announce('presence')} returning id`, rows(1), { topic: DOCK });
+add(MIA, 'cannot broadcast on the dock', announce('broadcast'), DENIED, { topic: DOCK });
+add(MIA, 'cannot announce herself on the activity feed', announce('presence'), DENIED, { topic: 'home-activity-feed' });
+add(MIA, 'cannot listen on a channel of her own invention', listen, rows(0), { topic: 'somewhere-else' });
+add(MIA, 'cannot announce herself on a channel of her own invention', announce('presence'), DENIED, { topic: 'somewhere-else' });
+add(MIA, 'hears nothing with no channel named', listen, rows(0));
+add('postgres', 'realtime has exactly the two policies the migrations made, both for signed-in accounts', `select 1 from pg_policy pol where pol.polrelid = 'realtime.messages'::regclass and pol.polname in ('Members listen on the club''s channels', 'Members announce themselves on the dock') and pol.polroles <> '{0}' and not exists (select 1 from pg_roles r where r.oid = any (pol.polroles) and r.rolname = 'anon')`, rows(2));
+add('postgres', 'and no other', `select 1 from pg_policy pol where pol.polrelid = 'realtime.messages'::regclass`, rows(2));
+
+// --- Backups (0046): the key the nightly copies are sealed to, and the note of each copy ------
+// Neither table is in the API; the admin goes through two functions, and nobody else gets in.
+const rsa = (bits) => crypto.generateKeyPairSync('rsa', { modulusLength: bits });
+const publicPem = (pair) => pair.publicKey.export({ type: 'spki', format: 'pem' });
+const printOf = (pair) => crypto.createHash('sha256').update(pair.publicKey.export({ type: 'spki', format: 'der' })).digest('hex');
+const [firstKey, secondKey, shortKey] = [rsa(3072), rsa(4096), rsa(2048)];
+const setKey = (pem) => `select public.set_backup_key('${pem}') as print`;
+for (const who of ['anon', NEWBIE, GONE, MIA]) {
+  add(who, 'cannot read the backup key table', 'select * from public.backup_keys', DENIED);
+  add(who, 'cannot read the list of backups', 'select * from public.backup_runs', DENIED);
+  add(who, 'cannot ask about the backups', 'select public.backup_status()', DENIED);
+  add(who, 'cannot set the key the backups are sealed to', setKey(publicPem(firstKey)), DENIED);
+}
+add(MIA, 'cannot pretend a backup was made', `insert into public.backup_runs (fingerprint, bytes, table_count, row_count) values ('${printOf(firstKey)}', 1, 1, 1)`, DENIED);
+add(ADMIN, 'reads neither backup table directly, only through the functions', 'select * from public.backup_keys', DENIED);
+add(ADMIN, 'cannot write a backup note either', `insert into public.backup_runs (fingerprint, bytes, table_count, row_count) values ('${printOf(firstKey)}', 1, 1, 1)`, DENIED);
+add(ADMIN, 'is told no key has been made yet', `select public.backup_status() ->> 'key' as key`, { value: 'null' });
+add(ADMIN, 'cannot set something that is not a key', setKey('hello'), { error: '22023' });
+add(ADMIN, 'cannot store the private half by mistake', setKey(firstKey.privateKey.export({ type: 'pkcs8', format: 'pem' })), { error: '22023' });
+add(ADMIN, 'cannot set a key too short to protect a backup', setKey(publicPem(shortKey)), { error: '22023' });
+add(ADMIN, 'sets the backup key and is given its fingerprint, worked out by the database', setKey(publicPem(firstKey)), { value: printOf(firstKey) }, { keep: true });
+add(ADMIN, 'is shown the key\'s fingerprint', `select public.backup_status() -> 'key' ->> 'fingerprint' as print`, { value: printOf(firstKey) });
+add(ADMIN, 'and never the key itself', `select (public.backup_status()::text like '%BEGIN%')::text as shown`, { value: 'false' });
+add(ADMIN, 'replaces the key', setKey(publicPem(secondKey)), { value: printOf(secondKey) }, { keep: true });
+add('postgres', 'one key is current', `select 1 from public.backup_keys where retired_at is null and fingerprint = '${printOf(secondKey)}'`, rows(1));
+add('postgres', 'the earlier one is retired, not deleted', `select 1 from public.backup_keys where retired_at is not null and fingerprint = '${printOf(firstKey)}'`, rows(1));
+add('postgres', 'the job\'s note of a backup shows up for the admin', `insert into public.backup_runs (fingerprint, bytes, table_count, row_count) values ('${printOf(secondKey)}', 2048, 31, 400)`, rows(1), { keep: true });
+add(ADMIN, 'sees the last backup: when, how big, how many rows', `select public.backup_status() -> 'last_run' ->> 'rows' as rows`, { value: '400' });
+add(ADMIN, 'and how many were kept this month', `select public.backup_status() ->> 'runs_30d' as kept`, { value: '1' });
+add('postgres', 'neither backup table is granted to an API role', `select 1 from information_schema.role_table_grants where table_schema = 'public' and table_name in ('backup_keys', 'backup_runs') and grantee in ('anon', 'authenticated', 'PUBLIC')`, rows(0));
+add('postgres', 'or has a policy', `select 1 from pg_policy where polrelid in ('public.backup_keys'::regclass, 'public.backup_runs'::regclass)`, rows(0));
 
 // --- A member: everything the app does ------------------------------------------------------
 add(KEV, 'is a member, not an admin', `select (public.my_membership() ->> 'status') || '/' || (public.my_membership() ->> 'is_admin') as status`, { value: 'approved/false' });
@@ -342,6 +411,67 @@ add(KEV, 'is out: sees nothing', select('fish_year_catches'), rows(0));
 add(KEV, 'is out: cannot post', `insert into public.fish_year_catches (user_id, year, month, species) values ('${KEV}', 2026, 'June', 'Cod')`, DENIED);
 add(KEV, 'is out: cannot read their old files', 'select * from storage.objects', rows(0));
 add(MIA, 'no longer sees Kev on the roster', `select * from public.profiles where id = '${KEV}'`, rows(0));
+add(NEWBIE, 'is in: listens on the dock', listen, rows(1), { topic: DOCK });
+add(NEWBIE, 'is in: announces themselves on the dock', announce('presence'), rows(1), { topic: DOCK });
+add(KEV, 'is out: cannot listen on the dock', listen, rows(0), { topic: DOCK });
+add(KEV, 'is out: cannot announce themselves on the dock', announce('presence'), DENIED, { topic: DOCK });
+
+// --- Limits (0047): how much one account can add in a day, and how many files it can keep -----
+// By now the newcomer is in and Kev is out; Mia and the admin are the two members used here.
+const TOO_MANY = (says) => ({ error: 'P0001', says });
+const reports = (who, count) => `insert into public.bug_reports (user_id, body) select '${who}', 'limit ' || g from generate_series(1, ${count}) g`;
+const comments = (who, count) => `insert into public.personal_best_comments (personal_best_id, user_id, author_name, body) select '${PB1}', '${who}', 'x', 'limit ' || g from generate_series(1, ${count}) g`;
+const pins = (who, count) => `insert into public.waypoints (map_id, created_by, name, lat, lng) select '${MAP_MIA}', '${who}', 'limit ' || g, 40, -74 from generate_series(1, ${count}) g`;
+// Inside one case: step out of the member's shoes, write as the database itself, step back in.
+const asNobody = (sql) => `reset role; select set_config('request.jwt.claims', '', true); ${sql};`;
+const backAs = (who) => `select set_config('request.jwt.claims', '{"sub":"${who}","role":"authenticated"}', true); set local role authenticated;`;
+for (const who of ['anon', GONE, MIA, ADMIN]) {
+  add(who, 'cannot read the daily counts', 'select * from public.write_counts', DENIED);
+  add(who, 'cannot wipe the daily counts', 'delete from public.write_counts', DENIED);
+  add(who, 'cannot write a daily count', `insert into public.write_counts (user_id, what, day, n) values ('${MIA}', 'bug_reports', current_date, -1000)`, DENIED);
+}
+add(MIA, 'files a day\'s worth of bug reports in one go', reports(MIA, 30), rows(30));
+add(MIA, 'cannot file one more than a day\'s worth', reports(MIA, 31), TOO_MANY(/more bug reports than one account can add in a day \(the limit is 30\)/));
+add(MIA, 'cannot get there in two steps either', `${reports(MIA, 30)}; ${reports(MIA, 1)}`, TOO_MANY(/bug reports/));
+add(MIA, 'gets nothing back by deleting: 300 comments, all deleted, and the next is still refused', `${comments(MIA, 300)}; delete from public.personal_best_comments where user_id = '${MIA}' and body like 'limit %'; ${comments(MIA, 1)}`, TOO_MANY(/more comments than one account can add in a day \(the limit is 300\)/));
+add(MIA, 'a refused statement adds nothing at all', `${reports(MIA, 31)}`, TOO_MANY(/bug reports/));
+add('postgres', 'and left no count behind', `select 1 from public.write_counts where user_id = '${MIA}' and what = 'bug_reports'`, rows(0));
+add(MIA, 'uses up her day of bug reports', reports(MIA, 30), rows(30), { keep: true });
+add(MIA, 'is told so on the next one', reports(MIA, 1), TOO_MANY(/starts again tomorrow/));
+add(ADMIN, 'has a count of their own: Mia\'s day does not use up the admin\'s', reports(ADMIN, 30), rows(30));
+add(MIA, 'is not held to it on another table', comments(MIA, 5), rows(5));
+add('postgres', 'a write with no account behind it is not counted', reports(MIA, 500), rows(500));
+add('postgres', 'tomorrow the count starts again', `update public.write_counts set day = day - 1 where user_id = '${MIA}'`, rows(1), { keep: true });
+add(MIA, 'files bug reports again the next day', reports(MIA, 30), rows(30));
+add(MIA, 'imports a big file of waypoints in one go', pins(MIA, 9000), rows(9000));
+add(MIA, 'cannot import more than a day\'s worth', pins(MIA, 10001), TOO_MANY(/more waypoints than one account can add in a day \(the limit is 10,000\)/));
+add(MIA, 'cannot keep more waypoints than one account may, however slowly they were added', `${asNobody(pins(MIA, 24999))} ${backAs(MIA)} ${pins(MIA, 1)}`, TOO_MANY(/keep up to 25,000 waypoints/));
+add(MIA, 'can add right up to that many', `${asNobody(pins(MIA, 24998))} ${backAs(MIA)} ${pins(MIA, 1)}`, rows(1));
+
+const upload = (who, name) => `insert into storage.objects (bucket_id, name) values ('fish-year-catches', '${who}/${name}')`;
+add('anon', 'cannot ask how much room an account has', 'select public.storage_room()', DENIED);
+add(MIA, 'has room for her files', `select public.storage_room() ->> 'room' as room`, { value: 'true' });
+add(MIA, 'is told only about her own folder', `select public.storage_room() ->> 'files' as files`, { value: '3' });
+add('postgres', 'the admin\'s folder fills up', `insert into storage.objects (bucket_id, name, metadata) values ('avatars', '${ADMIN}/quota-big.jpg', '{"size": 629145600}')`, rows(1), { keep: true });
+add(ADMIN, 'is told their space is full', `select public.storage_room() ->> 'why' as why`, { value: 'full' });
+add(ADMIN, 'cannot upload while full', upload(ADMIN, 'quota-one-more.jpg'), DENIED);
+add(MIA, 'is not affected by somebody else being full', upload(MIA, 'quota-mine.jpg'), rows(1));
+add(ADMIN, 'can always delete to make room', `delete from storage.objects where name = '${ADMIN}/quota-big.jpg'`, rows(1), { keep: true });
+add(ADMIN, 'uploads again once there is room', upload(ADMIN, 'quota-one-more.jpg'), rows(1));
+add('postgres', 'Mia adds sixty files in a day', `insert into storage.objects (bucket_id, name, metadata) select 'fish-year-catches', '${MIA}/quota-' || g || '.jpg', '{"size": 400000}' from generate_series(1, 60) g`, rows(60), { keep: true });
+add(MIA, 'is told that is today\'s lot', `select public.storage_room() ->> 'why' as why`, { value: 'today' });
+add(MIA, 'cannot upload a sixty-first today', upload(MIA, 'quota-61.jpg'), DENIED);
+add(MIA, 'cannot swap one of today\'s for a new one under the same name either', `insert into storage.objects (bucket_id, name) values ('fish-year-catches', '${MIA}/quota-1.jpg') on conflict do nothing`, DENIED);
+add('postgres', 'a day goes by', `update storage.objects set created_at = now() - interval '2 days' where name like '${MIA}/quota-%'`, rows(60), { keep: true });
+add(MIA, 'uploads again the next day', upload(MIA, 'quota-61.jpg'), rows(1));
+add('postgres', 'a file whose size is not a number', `insert into storage.objects (bucket_id, name, metadata) values ('avatars', '${MIA}/quota-odd.jpg', '{"size": "lots"}')`, rows(1), { keep: true });
+add(MIA, 'does not break the count', `select public.storage_room() ->> 'room' as room`, { value: 'true' });
+add('postgres', 'neither limit leaves a door for the API roles', `select 1 from information_schema.role_table_grants where table_schema = 'public' and table_name = 'write_counts' and grantee in ('anon', 'authenticated', 'PUBLIC')`, rows(0));
+add('postgres', 'every table a member can insert into is counted, bar the ones that hold one row an account', `
+  select g.table_name from information_schema.role_table_grants g
+  where g.grantee = 'authenticated' and g.table_schema = 'public' and g.privilege_type = 'INSERT'
+    and g.table_name not in ('profiles', 'game_profiles', 'payment_contacts')
+    and not exists (select 1 from pg_trigger t where t.tgrelid = ('public.' || quote_ident(g.table_name))::regclass and t.tgname = 'count_writes')`, rows(0));
 
 // --- The catalog: nothing left open by a grant ------------------------------------------------
 add('postgres', 'anon holds no privilege on any table in public', `select table_name, privilege_type from information_schema.role_table_grants where grantee = 'anon' and table_schema = 'public'`, rows(0));
@@ -368,15 +498,19 @@ async function run() {
           const role = test.who === 'anon' ? 'anon' : 'authenticated';
           const claims = test.who === 'anon' ? { role: 'anon' } : { sub: test.who, role: 'authenticated' };
           await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(claims)]);
+          // What Realtime sets before it asks whether this caller may join a private channel.
+          await client.query("select set_config('realtime.topic', $1, true)", [test.topic || '']);
           await client.query(`set local role ${role}`);
         }
-        const result = await client.query(test.sql);
+        // A case made of several statements is judged on its last one.
+        const results = await client.query(test.sql);
+        const result = Array.isArray(results) ? results[results.length - 1] : results;
         outcome = { rows: result.rowCount, value: result.rows?.[0] ? Object.values(result.rows[0])[0] : undefined };
       } catch (error) {
         outcome = { error: error.code, message: error.message };
       }
       await client.query(test.keep && !outcome.error ? 'commit' : 'rollback');
-      const passed = test.expect.error ? outcome.error === test.expect.error
+      const passed = test.expect.error ? outcome.error === test.expect.error && (!test.expect.says || test.expect.says.test(outcome.message || ''))
         : test.expect.value !== undefined ? !outcome.error && String(outcome.value) === test.expect.value
         : !outcome.error && outcome.rows === test.expect.rows;
       if (!passed) {

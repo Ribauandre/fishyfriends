@@ -15,6 +15,7 @@ import { LURES, FLY_ROD } from '../utils/gameLures';
 import { WARDROBE, normalizeLook } from '../utils/anglerLook';
 import { createPhotoLinker, parseStoredPhoto, PHOTO_BUCKETS, PHOTO_LINK_SECONDS } from '../utils/photoLinks';
 import { passwordProblem, breachCount, breachMessage } from '../utils/passwordCheck';
+import { openLiveChannel, testLiveChannels, liveChannelVerdict, recallLiveVerdict, rememberLiveVerdict, DOCK_TOPIC, ACTIVITY_TOPIC } from '../utils/liveChannels';
 
 const AuthContext = createContext(null);
 const defaultProfile = { display_name: 'New angler', home_water: '', favorite_species: '', bio: '', avatar_url: '', venmo_handle: '', tour_completed_at: null };
@@ -368,7 +369,7 @@ export function AuthProvider({ children }) {
     const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const path = `${user.id}/avatar.${extension}`;
     const { error: uploadError } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-    if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+    if (uploadError) return uploadRefused(uploadError);
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
     const previousUrl = profile.avatar_url;
@@ -397,7 +398,7 @@ export function AuthProvider({ children }) {
       const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('personal-bests').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
       const { data } = supabase.storage.from('personal-bests').getPublicUrl(path);
       photoUrl = `${data.publicUrl}?v=${Date.now()}`;
     }
@@ -578,7 +579,7 @@ export function AuthProvider({ children }) {
       const slug = trimmedSpecies.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('fish-year-catches').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
       const { data } = supabase.storage.from('fish-year-catches').getPublicUrl(path);
       photoUrl = `${data.publicUrl}?v=${Date.now()}`;
     }
@@ -659,7 +660,7 @@ export function AuthProvider({ children }) {
       const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('tournament-entries').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
       const { data } = supabase.storage.from('tournament-entries').getPublicUrl(path);
       photoUrl = `${data.publicUrl}?v=${Date.now()}`;
     }
@@ -1029,6 +1030,22 @@ export function AuthProvider({ children }) {
     return { error: null, report: data };
   }
 
+  // An upload that storage turned down. Usually that is the connection or the file. But one
+  // account may only keep so many files, and add so many in a day (migration 0047), and
+  // storage reports hitting that ceiling as a bare policy error — so the database is asked
+  // which it was, and the member is told in words what to do about it.
+  async function uploadRefused(uploadError) {
+    let error = uploadError;
+    const { data: room } = await supabase.rpc('storage_room');
+    if (room && room.room === false) {
+      error = new Error(room.why === 'today'
+        ? `That's ${room.day_limit} files added today, the most one account can add in a day. Try again tomorrow.`
+        : `Your file space is full (${Number(room.file_limit).toLocaleString('en-US')} files or ${Math.round(Number(room.byte_limit) / (1024 * 1024))} MB). Delete catches or photos you no longer need, then try again.`);
+    }
+    setNotice(error.message);
+    return { error };
+  }
+
   // How stored photos are served (migration 0043): true when the photo buckets are private and
   // a photo only loads through a signed link, false while its address alone opens it, null
   // when it couldn't be asked. The switch is the admin's; the database refuses anyone else.
@@ -1061,6 +1078,28 @@ export function AuthProvider({ children }) {
       image.onerror = () => { clearTimeout(timer); resolve('failed'); };
       image.src = data.signedUrl;
     });
+  }
+
+  // The nightly backups (migration 0046, supabase/backup/), as the admin sees them: which key
+  // they are sealed to and when the last one was kept. null when it couldn't be asked. The
+  // key itself is made in the browser (utils/backupKey.js); only its public half is saved,
+  // and the database answers with the fingerprint IT worked out, for the page to hold
+  // against the one the browser made.
+  async function getBackupStatus() {
+    if (!isSupabaseConfigured || !user) return null;
+    const { data, error } = await supabase.rpc('backup_status');
+    if (error || !data || typeof data !== 'object') return null;
+    return {
+      key: data.key ? { fingerprint: data.key.fingerprint, createdAt: data.key.created_at } : null,
+      lastRun: data.last_run ? { finishedAt: data.last_run.finished_at, fingerprint: data.last_run.fingerprint, bytes: Number(data.last_run.bytes) || 0, rows: Number(data.last_run.rows) || 0, tables: Number(data.last_run.tables) || 0 } : null,
+      runs30d: Number(data.runs_30d) || 0,
+    };
+  }
+  async function saveBackupKey(publicKey) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { data, error } = await supabase.rpc('set_backup_key', { new_public_key: publicKey });
+    if (error) { setNotice(error.message); return { error }; }
+    return { error: null, fingerprint: data };
   }
 
   // The admin's side of membership (migration 0042). Both go through functions that check
@@ -1168,7 +1207,7 @@ export function AuthProvider({ children }) {
     if (file) {
       photoPath = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('fishing-licenses').upload(photoPath, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
     }
     const row = { user_id: user.id, state: trimmedState, license_number: licenseNumber?.trim() || '', issued_at: issuedAt || null, expires_at: expiresAt, photo_path: photoPath };
     const { data, error } = await supabase.from('fishing_licenses').insert(row).select().maybeSingle();
@@ -1190,7 +1229,7 @@ export function AuthProvider({ children }) {
     if (file) {
       updates.photo_path = `${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('fishing-licenses').upload(updates.photo_path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
     }
     const { data, error } = await supabase.from('fishing_licenses').update(updates).eq('id', id).eq('user_id', user.id).select().maybeSingle();
     if (error) { setNotice(error.message); return { error }; }
@@ -1601,7 +1640,7 @@ export function AuthProvider({ children }) {
       const slug = species.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const path = `${user.id}/${slug}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('trip-catches').upload(path, file, { upsert: true, contentType: file.type, cacheControl: '3600' });
-      if (uploadError) { setNotice(uploadError.message); return { error: uploadError }; }
+      if (uploadError) return uploadRefused(uploadError);
       const { data } = supabase.storage.from('trip-catches').getPublicUrl(path);
       photoUrl = `${data.publicUrl}?v=${Date.now()}`;
     }
@@ -1685,9 +1724,12 @@ export function AuthProvider({ children }) {
   // itself, same as listRecentActivity relies on; personal_bests doesn't, so that one needs
   // a follow-up profile lookup, and tournament_entries needs its parent tournament's name/
   // unit the same way listRecentActivity's own query joins it in.
+  //
+  // The channel is a members-only one (utils/liveChannels.js, migration 0045); which rows it
+  // is sent is still each table's own row-level security, as before.
   function subscribeToActivity(onInsert) {
-    if (!isSupabaseConfigured) return () => {};
-    const channel = supabase.channel('home-activity-feed')
+    if (!isSupabaseConfigured || !user) return () => {};
+    const live = openLiveChannel(supabase, ACTIVITY_TOPIC, { bind: (channel) => channel
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fish_year_catches' }, ({ new: row }) => {
         onInsert({
           kind: 'fish_year_catch', id: row.id, userId: row.user_id, anglerName: row.angler_name, avatarUrl: row.angler_avatar_url,
@@ -1716,9 +1758,8 @@ export function AuthProvider({ children }) {
           size: row.size, unit: tournament?.unit || 'in', tournamentName: tournament?.name || 'a tournament',
           href: `/tournaments/${row.tournament_id}?entry=${row.id}`,
         });
-      })
-      .subscribe();
-    return () => supabase.removeChannel(channel);
+      }) });
+    return () => live.leave();
   }
 
   // Cast & Catch presence: everyone with the game open shares one Realtime presence channel,
@@ -1726,21 +1767,16 @@ export function AuthProvider({ children }) {
   // Presence is in-memory on the Realtime server and vanishes when the tab closes — so this is
   // the one piece of the game that is deliberately not a table. onSync gets everyone but you.
   //
-  // The channel is a public one: anybody holding the site's public key can join it and watch,
-  // or announce themselves under any key. So nothing personal travels on it — no name, no
-  // photo — only an account id and what that angler is doing. Names and photos are looked up
-  // in profiles, which only members can read, and an id that isn't a member's is not shown:
-  // a stranger listening learns nothing, and can't put a made-up name on anyone's dock.
-  //
-  // The Realtime client hands back the *existing* channel for a topic, and subscribing to one
-  // that is still leaving is a silent no-op (no status callback, no track — presence just goes
-  // dark). A rejoin straight after a leave (StrictMode, a remount, a provider re-render) hits
-  // exactly that, so a stale channel on this topic is removed and awaited before a fresh one
-  // is opened; the handle queues the latest payload until then.
-  const DOCK_TOPIC = 'cast-and-catch-dock';
+  // The channel is a members-only one (utils/liveChannels.js, migration 0045) — but a project
+  // goes on accepting open channels until its owner turns them off, and an open channel can
+  // be joined by anybody holding the site's public key, to watch or to announce themselves
+  // under any key. So nothing personal travels on it — no name, no photo — only an account id
+  // and what that angler is doing. Names and photos are looked up in profiles, which only
+  // members can read, and an id that isn't a member's is not shown: a stranger listening
+  // learns nothing, and can't put a made-up name on anyone's dock.
   function joinDock(initial, onSync) {
     if (!isSupabaseConfigured || !user) return { update: () => {}, leave: () => {} };
-    let channel = null;
+    let live = null;
     const impersonal = ({ name, avatarUrl, ...rest } = {}) => rest;
     let latest = impersonal(initial);
     let left = false;
@@ -1755,6 +1791,7 @@ export function AuthProvider({ children }) {
       });
     };
     function sync() {
+      const channel = live?.channel();
       if (!channel) return;
       const state = channel.presenceState() || {};
       const present = Object.entries(state).filter(([key]) => key !== user.id);
@@ -1771,22 +1808,40 @@ export function AuthProvider({ children }) {
         }));
       onSync(others);
     }
-    const open = () => {
-      if (left) return;
-      loadRoster();
-      channel = supabase.channel(DOCK_TOPIC, { config: { presence: { key: user.id } } });
-      channel.on('presence', { event: 'sync' }, sync).subscribe(async (status) => {
-        // Fires again after a reconnect, so what we're doing is re-announced then too.
-        if (status === 'SUBSCRIBED' && channel) await channel.track({ ...latest, at: Date.now() });
-      });
-    };
-    const stale = (typeof supabase.getChannels === 'function' ? supabase.getChannels() : []).filter((existing) => existing.topic === `realtime:${DOCK_TOPIC}`);
-    if (stale.length === 0) open();
-    else Promise.all(stale.map((existing) => supabase.removeChannel(existing))).then(open, open);
+    // An announcement that can't be made (the socket dropped a moment ago) is not an error
+    // anyone can act on: the next join announces again.
+    const announce = (channel) => { try { Promise.resolve(channel.track({ ...latest, at: Date.now() })).catch(() => {}); } catch (problem) { /* the same */ } };
+    loadRoster();
+    live = openLiveChannel(supabase, DOCK_TOPIC, {
+      config: { presence: { key: user.id } },
+      bind: (channel) => channel.on('presence', { event: 'sync' }, sync),
+      // Fires again after a reconnect, so what we're doing is re-announced then too.
+      onJoined: announce,
+    });
     return {
-      update: (payload) => { latest = impersonal(payload); if (channel) channel.track({ ...latest, at: Date.now() }); },
-      leave: () => { left = true; if (channel) supabase.removeChannel(channel); channel = null; },
+      // Until the channel has been joined the handle just holds the latest payload (the
+      // client throws on anything sent before the join has gone out); the join announces it.
+      update: (payload) => { latest = impersonal(payload); const channel = live.channel(); if (channel && live.joined()) announce(channel); },
+      leave: () => { left = true; live.leave(); },
     };
+  }
+
+  // Where the live channels stand, for the admin (utils/liveChannels.js): can a member join a
+  // members-only channel from this device, and does the project still take open ones. The
+  // verdict is 'closed', 'open', 'not-ready', 'broken' or 'unknown'; `fresh: false` settles
+  // for an answer this device got in the last day, which is what Home's reminder asks for.
+  async function checkLiveChannels({ fresh = true } = {}) {
+    if (!isSupabaseConfigured || !user) return { verdict: 'unknown', membersOnly: null, open: null };
+    // Reaching for storage can itself throw where it is switched off; then nothing is kept.
+    const storage = () => { try { return window.localStorage; } catch (problem) { return null; } };
+    if (!fresh) {
+      const recalled = recallLiveVerdict(storage());
+      if (recalled) return { verdict: recalled, membersOnly: null, open: null };
+    }
+    const result = await testLiveChannels(supabase);
+    const verdict = liveChannelVerdict(result);
+    rememberLiveVerdict(storage(), verdict);
+    return { verdict, ...result };
   }
 
   const shouldShowTour = Boolean(user) && isMember && !loading && !passwordRecovery && !profile.tour_completed_at && !tourSeenLocally();
@@ -1795,7 +1850,7 @@ export function AuthProvider({ children }) {
     user, profile, personalBests, customSpecies, loading, notice, setNotice,
     membershipStatus: membership.status, isMember, isAdmin: membership.isAdmin, refreshMembership,
     listClubAccounts, setClubMembership, listStoredPhotos, cleanStoredPhoto,
-    photoLinks, getPhotoPrivacy, setPhotoPrivacy, testPhotoLink,
+    photoLinks, getPhotoPrivacy, setPhotoPrivacy, testPhotoLink, checkLiveChannels, getBackupStatus, saveBackupKey,
     shouldShowTour, completeTour,
     signIn, signUp, signOut, updateProfile, uploadAvatar, getClubStats,
     passwordRecovery, passwordWarning, requestPasswordReset, setRecoveredPassword, changePassword, signOutEverywhere,

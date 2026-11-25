@@ -16,23 +16,11 @@
 
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import tls from 'node:tls';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { connectVerified } from './db.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, 'migrations');
-
-// The connection is always encrypted. Whether the server at the other end is really
-// Supabase is a second question: until November 2026 nothing asked it, so anything sitting
-// between the build machine and the database could have answered and been handed the
-// database password. Supabase's database certificates are signed by its own authority
-// (supabase/security/supabase-ca-2021.crt, a public file from the dashboard's Database
-// settings), which is trusted here next to the usual ones. Each run says whether the
-// certificate verified. Deploy #194 (11 November 2026) said it does, so from here on a
-// server that can't prove itself is refused before anything is sent to it. A local replay is
-// never held to it. If Supabase ever changes its authority, the failure says what to do.
-const REQUIRE_VERIFIED_TLS = true;
 
 // Two runs at once (two deploys close together, or a deploy and someone's laptop) would
 // both read "not applied yet" and both run the same file. One holds this lock at a time.
@@ -51,23 +39,9 @@ async function main() {
     return;
   }
 
-  const supabaseCa = await readFile(path.join(__dirname, 'security', 'supabase-ca-2021.crt'), 'utf8').catch(() => null);
-  const local = isLocal(connectionString);
-  const client = new pg.Client({
-    connectionString,
-    ssl: { rejectUnauthorized: REQUIRE_VERIFIED_TLS && !local, ...(supabaseCa ? { ca: [...tls.rootCertificates, supabaseCa] } : {}) },
-  });
-  try {
-    await client.connect();
-  } catch (error) {
-    if (REQUIRE_VERIFIED_TLS && !local && /CERT|SELF_SIGNED|ALTNAME|ISSUER|LEAF_SIGNATURE|HOSTNAME/.test(String(error.code || ''))) {
-      // The handshake comes before the password, so nothing has been sent. Only the standard
-      // reason code is printed: the error's own text can name the host.
-      throw new Error(`The database's certificate did not verify (${error.code}), so nothing was sent to it: not the password, not a migration. If Supabase has changed its certificate authority, replace supabase/security/supabase-ca-2021.crt with the certificate from the dashboard (Project Settings > Database > SSL Configuration). To deploy without this check, set REQUIRE_VERIFIED_TLS to false in supabase/run-migrations.mjs.`);
-    }
-    throw error;
-  }
-  if (!local) console.log(describeTls(client));
+  // Encrypted, and to a server that has proved it is Supabase's (db.mjs), before the password
+  // or a migration is sent anywhere.
+  const client = await connectVerified(connectionString, { carrying: 'a migration' });
   // A migration's own RAISE NOTICE lines (counts, what it skipped) belong in the deploy log;
   // Postgres's "already exists, skipping" notices from idempotent DDL don't (code 00000 is
   // a plain RAISE NOTICE).
@@ -137,20 +111,6 @@ async function main() {
   }
 }
 
-function isLocal(connectionString) {
-  try { return ['localhost', '127.0.0.1', '::1', '[::1]', ''].includes(new URL(connectionString).hostname); } catch { return false; }
-}
-
-// Says only whether the certificate verified and, if not, the standard reason code: never
-// the host, the project or anything else from the connection string (this log is public).
-function describeTls(client) {
-  const stream = client.connection && client.connection.stream;
-  if (!stream || typeof stream.getPeerCertificate !== 'function') return 'Database connection: NOT encrypted.';
-  if (stream.authorized) return 'Database connection: encrypted, and the server\'s certificate verified.';
-  return `Database connection: encrypted, but the server's certificate did not verify (${stream.authorizationError || 'no reason given'}). Nothing was refused: REQUIRE_VERIFIED_TLS is off.`;
-  // (With REQUIRE_VERIFIED_TLS on, a certificate that doesn't verify never gets this far.)
-}
-
 // A session lock, so it is let go when this script disconnects, however it ends.
 async function takeMigrationLock(client) {
   for (let waited = 0; ; waited += 5) {
@@ -187,6 +147,9 @@ const STORAGE_POLICIES = [
   'Members replace their own files', 'Members upload into their own folder',
   "Members view the crew's photos",
 ];
+// What may listen and announce on the app's private live channels (migration 0045): members,
+// on the topics the app uses. Anything else on realtime.messages is drift.
+const REALTIME_POLICIES = ["Members listen on the club's channels", 'Members announce themselves on the dock'];
 // The only policies that may name the license bucket: each is tied to the owner's own folder.
 const LICENSE_POLICIES = [
   'Members delete their own files', 'Members read their own files',
@@ -196,6 +159,7 @@ const LICENSE_POLICIES = [
 async function checkSecurityPosture(client) {
   const problems = [];
   let photoState = '';
+  let liveState = '';
   const names = (rows, key = 'name') => rows.map((row) => row[key]).join(', ');
 
   const { rows: anonTables } = await client.query(`
@@ -292,11 +256,34 @@ async function checkSecurityPosture(client) {
       : `Photos: ${photoBuckets.total - photoBuckets.private} of ${photoBuckets.total} photo buckets still open to anyone holding a photo's address (the admin page has the switch).`;
   }
 
+  // Private live channels are authorised by policies on Realtime's own table. One nobody wrote
+  // here, or one for signed-out visitors, would let strangers onto them; the two the app
+  // needs being absent only means the app is still using open channels (it falls back), which
+  // is said, not failed.
+  const { rows: [{ has_realtime: hasRealtime }] } = await client.query("select to_regclass('realtime.messages') is not null as has_realtime");
+  if (hasRealtime) {
+    const { rows: realtimePolicies } = await client.query(`
+      select pol.polname as name,
+        (pol.polroles = '{0}' or exists (select 1 from pg_roles r where r.oid = any (pol.polroles) and r.rolname = 'anon')) as open
+      from pg_policy pol where pol.polrelid = 'realtime.messages'::regclass
+    `);
+    const unexpectedLive = realtimePolicies.filter((policy) => !REALTIME_POLICIES.includes(policy.name));
+    const openLive = realtimePolicies.filter((policy) => policy.open);
+    const missingLive = REALTIME_POLICIES.filter((name) => !realtimePolicies.some((policy) => policy.name === name));
+    if (unexpectedLive.length) problems.push(`Realtime has ${unexpectedLive.length} policy/policies on realtime.messages the migrations didn't make: private channels may be open to accounts that aren't members. Remove them in the dashboard (Realtime > Policies) or in a migration.`);
+    if (openLive.length) problems.push(`${openLive.length} policy/policies on realtime.messages apply to signed-out visitors or to everyone.`);
+    liveState = missingLive.length
+      ? `Live channels: ${missingLive.length} of the ${REALTIME_POLICIES.length} members-only rules are missing, so the app is using open channels.`
+      : 'Live channels: members-only rules in place. (Whether open channels are still allowed is a Realtime setting the admin page reports.)';
+  }
+
   if (problems.length) {
     throw new Error(`Security check failed — the live database is more open than the app expects:\n  - ${problems.join('\n  - ')}`);
   }
   console.log('Security checks passed: nothing in public is reachable signed out, every policy is for signed-in accounts, owner-rights functions are closed, and storage has only the policies the migrations made.');
   if (photoState) console.log(photoState);
+  if (liveState) console.log(liveState);
+  await reportLimits(client);
 
   // Not a failure, but nobody could approve a sign-up: say so.
   const { rows: [{ has_members: hasMembers }] } = await client.query("select to_regclass('public.club_members') is not null as has_members");
@@ -305,6 +292,41 @@ async function checkSecurityPosture(client) {
     if (counts.members > 0 && counts.admins === 0) console.log('WARNING: the club has members but no admin, so nobody can approve a sign-up.');
     else console.log(`Club: ${counts.members} member(s), ${counts.admins} admin(s).`);
   }
+}
+
+// The limits of migration 0047 are written to let a write through if their own counting
+// ever fails, so that a surprise in this database can't stop the club posting or uploading.
+// That makes "are they actually working here?" a question to ask on every deploy rather than
+// assume. Neither answer fails the deploy; both are said.
+async function reportLimits(client) {
+  const { rows: [{ there }] } = await client.query("select to_regprocedure('public.storage_room()') is not null and to_regclass('public.write_counts') is not null as there");
+  if (!there) return;
+
+  // The upload ceiling says so itself when it couldn't work its answer out.
+  let ceiling = 'could not be asked';
+  try {
+    const { rows: [{ room }] } = await client.query('select public.storage_room() as room');
+    ceiling = room && room.unknown ? 'NOT working (it cannot read storage\'s tables here, so uploads are not held to it)' : 'working';
+  } catch (error) {
+    ceiling = `could not be asked (${error.code || 'error'})`;
+  }
+
+  // The daily count: add one row as a made-up account, look for its count, roll all of it
+  // back. Nothing is left behind, and nothing outside this transaction ever sees the row.
+  let counting = 'could not be tried';
+  await client.query('begin');
+  try {
+    const { rows: [{ who }] } = await client.query('select gen_random_uuid() as who');
+    await client.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: who, role: 'authenticated' })]);
+    await client.query('insert into public.custom_species (name) values ($1)', [`limit check ${who}`]);
+    const { rows } = await client.query("select n from public.write_counts where user_id = $1 and what = 'custom_species'", [who]);
+    counting = rows.length === 1 && rows[0].n === 1 ? 'working' : 'NOT working (a row was added and not counted, so nothing is held to the daily limits)';
+  } catch (error) {
+    counting = `could not be tried (${error.code || 'error'})`;
+  } finally {
+    await client.query('rollback').catch(() => {});
+  }
+  console.log(`Limits: daily counts ${counting}; upload ceiling ${ceiling}.`);
 }
 
 main().catch((error) => {

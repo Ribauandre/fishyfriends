@@ -3,6 +3,12 @@
 // delete/upsert/maybeSingle/single, all eventually awaited). Configure what a table resolves to
 // with setResponse(table, response); every method on the chain just returns the same
 // builder, and awaiting it resolves to whatever was configured for that table.
+// A join the server answered with "no", as the Realtime client hands it to the subscribe
+// callback: an Error whose cause is the server's reply.
+export function joinRefusal(reason) {
+  return Object.assign(new Error(reason), { cause: { reason } });
+}
+
 export function createSupabaseMock() {
   const responses = new Map();
   // Signed-in test users are club members unless a test says otherwise (a database function
@@ -71,6 +77,10 @@ export function createSupabaseMock() {
   // `channels` is the creation log (tests index into it); getChannels() is what the real client
   // reports — the ones not yet removed — and removeChannel resolves like the real one does.
   const channels = [];
+  // How the fake server answers a join. Everything is let in unless a test says otherwise with
+  // setJoinAnswer(({ name, isPrivate }) => ...): return 'SUBSCRIBED', another status, or
+  // [status, error] — joinRefusal(reason) makes the error a refused join arrives with.
+  let answerJoin = () => 'SUBSCRIBED';
   const removeChannel = jest.fn(async (chan) => { if (chan) chan.removed = true; return 'ok'; });
   const getChannels = jest.fn(() => channels.filter((chan) => !chan.removed));
   const channel = jest.fn((name, options) => {
@@ -83,8 +93,18 @@ export function createSupabaseMock() {
         else if (filter?.table) channelHandlersByTable.set(filter.table, callback);
         return chan;
       }),
-      subscribe: jest.fn((callback) => { if (callback) Promise.resolve().then(() => callback('SUBSCRIBED')); return chan; }),
-      track: jest.fn().mockResolvedValue('ok'),
+      subscribe: jest.fn((callback) => {
+        if (callback) Promise.resolve().then(() => {
+          const answer = answerJoin({ name, isPrivate: Boolean(options?.config?.private) });
+          if (Array.isArray(answer)) callback(...answer); else if (answer) callback(answer);
+        });
+        return chan;
+      }),
+      // Like the real client: nothing can be sent on a channel whose join hasn't gone out.
+      track: jest.fn(() => {
+        if (chan.subscribe.mock.calls.length === 0) throw new Error(`tried to push 'presence' to 'realtime:${name}' before joining. Use channel.subscribe() before pushing events`);
+        return Promise.resolve('ok');
+      }),
       untrack: jest.fn().mockResolvedValue('ok'),
       presenceState: jest.fn(() => presenceState),
     };
@@ -101,6 +121,9 @@ export function createSupabaseMock() {
     channel,
     removeChannel,
     getChannels,
+    // The Realtime client itself: the app hands it the account's token before a members-only join.
+    realtime: { setAuth: jest.fn().mockResolvedValue(undefined) },
+    setJoinAnswer(answer) { answerJoin = answer; },
     setResponse(table, response) { responses.set(table, response); },
     fromCalls,
     storageUpload,
