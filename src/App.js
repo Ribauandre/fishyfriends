@@ -26,6 +26,8 @@ import { rememberReturnTo, takeReturnTo } from './utils/returnTo';
 // about a third of what the site would otherwise send to every page. A chunk that fails to load
 // (an old tab after a deploy has replaced the files) reloads the page once to pick up the new ones.
 const GAME_RETRY_KEY = 'game-chunk-retry';
+// Its own chunk, like the game: a page of charts that most visits never open.
+const RiverGauges = React.lazy(() => import('./RiverGauges'));
 const FishingGame = React.lazy(() => import('./FishingGame').then((module) => {
   try { sessionStorage.removeItem(GAME_RETRY_KEY); } catch { /* storage blocked: nothing to clear */ }
   return module;
@@ -76,6 +78,7 @@ function App() {
       <Route path="/waypoints/:mapId" element={<ProtectedRoute><WaypointDetail /></ProtectedRoute>} />
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
+      <Route path="/gauges" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Reading the gauges...</div>}><RiverGauges /></React.Suspense></ProtectedRoute>} />
       <Route path="/fishing-game" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Loading your dock...</div>}><FishingGame /></React.Suspense></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/admin/bugs" element={<Navigate to="/admin" replace />} />

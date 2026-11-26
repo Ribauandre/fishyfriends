@@ -2236,3 +2236,94 @@ describe('passwords: reset links, changes, breach checks, signing out everywhere
     expect(result.current.user).toEqual(fakeUser);
   });
 });
+
+describe('the club\'s river gauges', () => {
+  const builderFor = (table) => {
+    const index = __mock.current.from.mock.calls.map(([name]) => name).lastIndexOf(table);
+    return __mock.current.from.mock.results[index].value;
+  };
+  const gauge = { id: 'g1', site_no: '01396500', river: 'South Branch Raritan', place: 'near High Bridge', state: 'NJ', position: 1, added_by: null, added_by_name: '' };
+
+  test('the list comes in the club\'s order: by position, then by when a gauge was added', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: [gauge], error: null });
+    await expect(result.current.listRiverGauges()).resolves.toEqual([gauge]);
+    expect(builderFor('river_gauges').order.mock.calls).toEqual([['position', { ascending: true }], ['created_at', { ascending: true }]]);
+  });
+
+  test('a list that can\'t be read is empty, and says why', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: null, error: { message: 'permission denied for table river_gauges' } });
+    let rows;
+    await act(async () => { rows = await result.current.listRiverGauges(); });
+    expect(rows).toEqual([]);
+    expect(result.current.notice).toBe('permission denied for table river_gauges');
+  });
+
+  test('adding a gauge writes it tidied, under this account, and hands back the row', async () => {
+    const result = await setupSignedIn();
+    const written = { ...gauge, id: 'g2', site_no: '01445500', river: 'Pequest River', place: 'at Pequest', position: 1000, added_by: 'user-1', added_by_name: 'Andre' };
+    __mock.setResponse('river_gauges', { data: written, error: null });
+    let response;
+    await act(async () => { response = await result.current.addRiverGauge({ siteNo: ' 01445500 ', river: '  Pequest River ', place: ' at Pequest ', state: 'nj' }); });
+    expect(response).toEqual({ error: null, gauge: written });
+    // Nothing the club's order or the database's own columns depend on is sent: no position, no id.
+    expect(builderFor('river_gauges').insert).toHaveBeenCalledWith({ site_no: '01445500', river: 'Pequest River', place: 'at Pequest', state: 'NJ', added_by: 'user-1', added_by_name: 'Andre' });
+  });
+
+  test('a station number that isn\'t one, a missing river or a missing state never reaches the database', async () => {
+    const result = await setupSignedIn();
+    const before = __mock.current.fromCalls.filter((table) => table === 'river_gauges').length;
+    expect((await result.current.addRiverGauge({ siteNo: '1234', river: 'Pequest River', place: '', state: 'NJ' })).error.message).toMatch(/8 to 15 digits/);
+    expect((await result.current.addRiverGauge({ siteNo: '01445500; drop table', river: 'Pequest River', place: '', state: 'NJ' })).error.message).toMatch(/8 to 15 digits/);
+    expect((await result.current.addRiverGauge({ siteNo: '01445500', river: '   ', place: '', state: 'NJ' })).error.message).toMatch(/river name/);
+    expect((await result.current.addRiverGauge({ siteNo: '01445500', river: 'Pequest River', place: '', state: 'New Jersey' })).error.message).toMatch(/state/);
+    expect(__mock.current.fromCalls.filter((table) => table === 'river_gauges').length).toBe(before);
+  });
+
+  test('names longer than the database takes are cut to fit rather than refused', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: gauge, error: null });
+    await act(async () => { await result.current.addRiverGauge({ siteNo: '01445500', river: 'R'.repeat(200), place: 'p'.repeat(300), state: 'NJ' }); });
+    const sent = builderFor('river_gauges').insert.mock.calls[0][0];
+    expect(sent.river).toHaveLength(80);
+    expect(sent.place).toHaveLength(120);
+  });
+
+  test('a gauge that is already on the list says so in plain words', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "river_gauges_site_no_key"' } });
+    let response;
+    await act(async () => { response = await result.current.addRiverGauge({ siteNo: '01396500', river: 'South Branch Raritan', place: '', state: 'NJ' }); });
+    expect(response.error.message).toBe('That gauge is already on the club\'s list.');
+    expect(response.gauge).toBeUndefined();
+  });
+
+  test('the day\'s limit, or any other refusal, comes back as the database worded it', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: null, error: { code: 'P0001', message: 'That is more gauges than one account can add in a day. Try again tomorrow.' } });
+    let response;
+    await act(async () => { response = await result.current.addRiverGauge({ siteNo: '01445500', river: 'Pequest River', place: '', state: 'NJ' }); });
+    expect(response.error.message).toMatch(/more gauges than one account can add in a day/);
+  });
+
+  test('removing a gauge asks for the removed row back, so a refusal can be told from a success', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: [{ id: 'g2' }], error: null });
+    let response;
+    await act(async () => { response = await result.current.removeRiverGauge('g2'); });
+    expect(response).toEqual({ error: null });
+    const builder = builderFor('river_gauges');
+    expect(builder.delete).toHaveBeenCalled();
+    expect(builder.eq).toHaveBeenCalledWith('id', 'g2');
+    expect(builder.select).toHaveBeenCalledWith('id');
+  });
+
+  test('a gauge the database would not remove (someone else\'s, or the club\'s own) is reported as refused', async () => {
+    const result = await setupSignedIn();
+    __mock.setResponse('river_gauges', { data: [], error: null });
+    let response;
+    await act(async () => { response = await result.current.removeRiverGauge('g1'); });
+    expect(response.error.message).toBe('Only whoever added a gauge, or the admin, can remove it.');
+  });
+});

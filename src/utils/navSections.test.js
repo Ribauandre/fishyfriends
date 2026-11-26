@@ -7,7 +7,14 @@ beforeEach(() => resetNavMemory());
 test('five tabs cover every page of the app', () => {
   expect(SECTIONS.map((candidate) => candidate.label)).toEqual(['Home', 'Compete', 'Crew', 'Plan', 'Game']);
   const pages = SECTIONS.flatMap((candidate) => candidate.pages.map((page) => page.to));
-  expect(pages.sort()).toEqual(['/anglers', '/fish-year', '/fishing-game', '/home', '/tournaments', '/trips', '/waypoints'].sort());
+  expect(pages.sort()).toEqual(['/anglers', '/fish-year', '/fishing-game', '/gauges', '/home', '/tournaments', '/trips', '/waypoints'].sort());
+});
+
+test('the river gauges are a page of Plan, and the tab comes back to them', () => {
+  expect(section('plan').pages.map((page) => page.label)).toEqual(['Trips', 'Waypoints', 'Gauges']);
+  expect(pageFor('/gauges')).toMatchObject({ section: { key: 'plan' }, page: { to: '/gauges' } });
+  rememberPage('/gauges');
+  expect(destinationFor(section('plan'), '/home')).toBe('/gauges');
 });
 
 test('a detail page belongs to the page above it', () => {

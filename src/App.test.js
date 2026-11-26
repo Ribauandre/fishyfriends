@@ -23,7 +23,7 @@ test('the root route redirects to /home, which redirects an unauthenticated visi
 });
 
 describe('protected routes redirect an unauthenticated visitor to /account', () => {
-  test.each(['/profile', '/fish-year', '/tournaments', '/anglers'])('%s', (path) => {
+  test.each(['/profile', '/fish-year', '/tournaments', '/anglers', '/gauges'])('%s', (path) => {
     goTo(path);
     render(<App />);
     expect(screen.getByRole('heading', { name: /sign in to your dock/i })).toBeInTheDocument();

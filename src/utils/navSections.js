@@ -6,7 +6,7 @@ export const SECTIONS = [
   { key: 'home', label: 'Home', icon: 'home', pages: [{ to: '/home', label: 'Home' }] },
   { key: 'compete', label: 'Compete', icon: 'trophy', pages: [{ to: '/fish-year', label: 'Fish Year' }, { to: '/tournaments', label: 'Tournaments' }] },
   { key: 'crew', label: 'Crew', icon: 'crew', pages: [{ to: '/anglers', label: 'Anglers' }] },
-  { key: 'plan', label: 'Plan', icon: 'map', pages: [{ to: '/trips', label: 'Trips' }, { to: '/waypoints', label: 'Waypoints' }] },
+  { key: 'plan', label: 'Plan', icon: 'map', pages: [{ to: '/trips', label: 'Trips' }, { to: '/waypoints', label: 'Waypoints' }, { to: '/gauges', label: 'Gauges' }] },
   { key: 'game', label: 'Game', icon: 'game', pages: [{ to: '/fishing-game', label: 'Cast & Catch' }] },
 ];
 
