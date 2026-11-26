@@ -142,6 +142,25 @@ test('the measured record is read to the hour, and its line breaks after six hou
   expect(readout(container)[0]).toMatch(/^Nov 2\d, \d+ (AM|PM)$/);
 });
 
+test('on the 7-day chart last year is the measured record too: read to the hour, and broken where it was silent', () => {
+  const start = END - 7 * DAY;
+  const hour = 60 * 60 * 1000;
+  const measured = Array.from({ length: 48 }, (_, index) => ({ t: END - (48 - index) * hour, v: 40 + index / 10 }));
+  // Last year's readings sit twenty past the hour, and the gauge was down for some hours of them.
+  const lastYear = Array.from({ length: 48 }, (_, index) => ({ t: END - (48 - index) * hour + hour / 3, v: 20 + index / 10 })).filter((_, index) => index < 20 || index > 28);
+  const { container } = render(<GaugeChart title="A gauge" unit="cfs" scale="linear" floor={0} startMs={start} endMs={END} now={measured} last={lastYear} normal={[daily(29, 83), daily(30, 83.5)]} hourly format={flow} />);
+  expect(container.querySelectorAll('.gauge-line-now')).toHaveLength(1);
+  expect(container.querySelectorAll('.gauge-line-last')).toHaveLength(2);
+  expect(readout(container).slice(1)).toEqual(['This period44.7 cfs', 'Last year24.7 cfs', 'Median83.5 cfs']);
+  // Walking back into the hours last year's gauge was silent: nothing is borrowed from hours away.
+  const slider = screen.getByRole('slider');
+  for (let step = 0; step < 23; step += 1) fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+  expect(readout(container).slice(1, 3)).toEqual(['This period42.4 cfs', 'Last year—']);
+  // With only last year's record to go by, the time read out is the reading's own.
+  const alone = render(<GaugeChart title="Another gauge" unit="cfs" scale="linear" floor={0} startMs={start} endMs={END} now={[]} last={lastYear} normal={[]} hourly format={flow} />);
+  expect(readout(alone.container)[0]).toMatch(/^Nov 2\d, \d+ (AM|PM)$/);
+});
+
 test('with nothing recorded it says so instead of drawing an empty axis, and is not a slider', () => {
   const { container } = draw({ now: [], last: [], normal: [] });
   expect(screen.getByRole('img', { name: 'South Branch Raritan near High Bridge, flow: nothing recorded for this stretch' })).toBeInTheDocument();

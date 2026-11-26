@@ -3,9 +3,9 @@ import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import GaugeChart from './components/GaugeChart';
 import {
-  METRICS, PERIODS, US_STATES, againstNormal, dayOfYear, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatReading, gaugeLink,
-  groupByRiver, localDay, normalSeries, overlayLastYear, periodRange, readingAge, riverGroupKey, riverKey, searchGauges, standingText,
-  stateName, summarize, summaryText, yearBefore,
+  FRESH_FOR_MINUTES, METRICS, PERIODS, REPORTING_WITHIN_HOURS, US_STATES, USGS_API, againstNormal, dayOfYear, fetchContinuous, fetchDaily,
+  fetchLatest, fetchNormals, formatReading, gaugeLink, groupByRiver, localDay, normalSeries, overlayLastYear, periodRange, readingAge,
+  riverGroupKey, riverKey, searchGauges, standingText, stateName, summarize, summaryText, yearBefore, yearBeforeMs,
 } from './utils/riverGauges';
 
 // River gauges (Plan > Gauges): what the club's rivers are doing right now, and how that
@@ -16,10 +16,13 @@ import {
 // each gauge's chart. The list of gauges is the club's (the river_gauges table: any member
 // adds one). Every reading comes from USGS when the page is opened — nothing is stored — a
 // whole state at a time: two requests for the closed list, three more the first time a
-// river is opened (utils/riverGauges.js says why the count matters). What a viewer picked
+// river is opened (utils/riverGauges.js says why the count matters), and again by itself
+// once what is on screen is fifteen minutes old. What a viewer picked
 // (state, flow or temperature, how far back, log or straight axis, which rivers are open) is
 // kept on the device and nowhere else: it is how they like to look at it, not club data.
 
+const DAY = 24 * 60 * 60 * 1000;
+const FRESH_FOR_MS = FRESH_FOR_MINUTES * 60 * 1000;
 const VIEW_KEY = 'fishyfriends:gauges-view';
 const DEFAULT_VIEW = { state: '', metric: 'flow', period: '30d', scale: 'log', open: [] };
 const MOST_OPEN_KEPT = 80;
@@ -232,7 +235,49 @@ function AddGauge({ defaultState, taken, rivers, onAdded }) {
 // What every river's closed line is made of: each gauge's flow right now and flow's normals
 // for today. `heard` and `rated` are the gauges each answer has come in for, so a gauge that
 // isn't reporting can be told from one that hasn't been asked about yet.
-const NO_HEAD = { latest: new Map(), normals: new Map(), heard: new Set(), rated: new Set(), lost: false, blind: false };
+// `at` is when the readings on screen were read, `turn` which reading of them that was.
+const NO_HEAD = { latest: new Map(), normals: new Map(), heard: new Set(), rated: new Set(), lost: false, blind: false, at: 0, turn: -1 };
+// Where the numbers come from, in the words the owner's own dashboard used for them. Closed,
+// it says who they are from, when they were read and when they will be read again.
+const SOURCES = [
+  { name: `Latest USGS readings (${REPORTING_WITHIN_HOURS} h)`, what: `Each gauge's newest flow and water temperature. A gauge with nothing from the last ${REPORTING_WITHIN_HOURS} hours counts as not reporting.`, service: 'Latest continuous', link: `${USGS_API}/ogcapi/v1/collections/latest-continuous?f=html` },
+  { name: 'Historic daily medians', what: 'For each day of the year, the median of that day\'s flow over every year a gauge has on record, and the range the middle half of those years fell in.', service: 'Statistics', link: `${USGS_API}/statistics/v0/docs` },
+  { name: 'Daily means, this period and last year', what: 'The 30-day, 1-year and custom charts.', service: 'Daily values', link: `${USGS_API}/ogcapi/v1/collections/daily?f=html` },
+  { name: '15-minute readings, this period and last year', what: 'The 7-day chart, drawn at one reading an hour.', service: 'Continuous values', link: `${USGS_API}/ogcapi/v1/collections/continuous?f=html` },
+];
+const WORKED_OUT = [
+  { name: 'Latest reading per gauge', what: 'The newest of a gauge\'s readings, and how long ago it was taken.' },
+  { name: 'Flow compared with normal', what: 'The newest flow less the median for today\'s date, in cfs.' },
+  { name: 'Gauges below, near and above normal', what: 'Below the range the middle half of years fell in, inside it, or above it.' },
+];
+
+const clockTime = (ms) => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+function Sources({ readAt }) {
+  const [open, setOpen] = useState(false);
+  const body = useId();
+  return <section className={open ? 'river-group gauge-sources is-open' : 'river-group gauge-sources'} aria-label="Sources">
+    <h2 className="river-heading">
+      <button type="button" className="river-head" aria-expanded={open} aria-controls={open ? body : undefined} onClick={() => setOpen((value) => !value)}>
+        <span className="river-name">Sources</span>
+        <span className="gauge-sources-line">U.S. Geological Survey · {readAt ? `read at ${clockTime(readAt)}` : 'not read yet'} · new readings after {FRESH_FOR_MINUTES} minutes</span>
+        <span className="expand-icon" aria-hidden="true">{open ? '−' : '+'}</span>
+      </button>
+    </h2>
+    {open && <div className="gauge-sources-body reveal-in" id={body}>
+      <div>
+        <h3>From USGS</h3>
+        <ul>{SOURCES.map((source) => <li key={source.name}><strong>{source.name}</strong><span>{source.what}</span><a href={source.link} target="_blank" rel="noopener noreferrer">USGS: {source.service}</a></li>)}</ul>
+      </div>
+      <div>
+        <h3>Worked out on this page</h3>
+        <ul>{WORKED_OUT.map((step) => <li key={step.name}><strong>{step.name}</strong><span>{step.what}</span></li>)}</ul>
+      </div>
+      <p className="month-empty">Load new data: after {FRESH_FOR_MINUTES} minutes. While this page is open it reads the gauges again by itself, and Refresh reads them now. Nothing USGS says is kept by the club; readings are provisional until the survey has reviewed them.</p>
+    </div>}
+  </section>;
+}
+
 
 export default function RiverGauges({ clock = Date.now }) {
   const { user, isAdmin, listRiverGauges, removeRiverGauge } = useAuth();
@@ -247,9 +292,15 @@ export default function RiverGauges({ clock = Date.now }) {
   const [chartsLost, setChartsLost] = useState(false);
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(true);
+  // A Refresh by hand dims the charts until the new ones are in; the page's own reading
+  // every fifteen minutes swaps them without a flicker.
+  const [refreshing, setRefreshing] = useState(false);
   const [turn, setTurn] = useState(0);
   const [loadedAt, setLoadedAt] = useState(() => clock());
-  // Answers already had this visit, so going back to a view doesn't ask USGS again.
+  // Answers already had this visit, so going back to a view doesn't ask USGS again. Their
+  // keys say which can change (`now:` — the newest reading, this period's record) and which
+  // can't (`kept:` — last year, the long-run normals): reading the gauges again forgets
+  // only the first kind.
   const memo = useRef(new Map());
   const fresh = useRef(false);
 
@@ -273,7 +324,7 @@ export default function RiverGauges({ clock = Date.now }) {
   const range = useMemo(() => periodRange(view.period, loadedAt, custom), [view.period, loadedAt, customKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const today = localDay(loadedAt);
   const sitesKey = sites.join(',');
-  const looking = `${metric.key}|${view.period}|${customKey}|${turn}`;
+  const looking = `${metric.key}|${view.period}|${customKey}`;
 
   function change(patch) {
     setView((previous) => { const next = { ...previous, state, ...patch }; keepView(next); return next; });
@@ -282,9 +333,10 @@ export default function RiverGauges({ clock = Date.now }) {
   useEffect(() => {
     if (!sitesKey) { setBusy(false); return undefined; }
     let active = true;
-    // The Refresh button wants the newest readings, not the copy a browser may keep for an
-    // hour. Only what can have changed is asked for that way: last year's record and the
-    // long-run normals are the same as they were a minute ago.
+    // The Refresh button wants the newest of everything, not the copy of this period's daily
+    // means a browser may keep for an hour (USGS lets it; the readings themselves it never
+    // lets a browser keep). Only what can have changed is asked for that way: last year's
+    // record and the long-run normals are the same as they were a minute ago.
     const newest = { fresh: fresh.current, now: loadedAt };
     const settled = { now: loadedAt };
     fresh.current = false;
@@ -314,30 +366,38 @@ export default function RiverGauges({ clock = Date.now }) {
     };
 
     const flow = METRICS.flow;
-    const latestFlow = ask('latest|flow', (list) => fetchLatest(list, flow, newest));
+    const latestFlow = ask('now:latest|flow', (list) => fetchLatest(list, flow, newest));
     // The charts are only asked for once a river is open: the closed list needs none of it.
     let chart = null;
     if (anyOpen && !range.error) {
       const span = `${range.startDay}/${range.endDay}`;
       const before = `${yearBefore(range.startDay)}/${yearBefore(range.endDay)}`;
+      // Seven days is the record as measured, this year's and last year's both; anything
+      // longer is daily means. Last year's week is asked for with a day to spare past "now",
+      // so it still reaches the edge of the chart after this one has been reloaded for hours.
+      const week = view.period === '7d';
       chart = {
-        latest: metric.key === 'flow' ? latestFlow : ask(`latest|${metric.key}`, (list) => fetchLatest(list, metric, newest)),
-        now: view.period === '7d'
-          ? ask(`measured|${metric.key}|${span}`, (list) => fetchContinuous(list, metric, range.startMs, range.endMs, newest))
-          : ask(`daily|${metric.key}|${span}`, (list) => fetchDaily(list, metric, range.startDay, range.endDay, newest)),
-        last: ask(`daily|${metric.key}|${before}`, (list) => fetchDaily(list, metric, yearBefore(range.startDay), yearBefore(range.endDay), settled)),
-        normals: ask(`normals|${metric.key}|${span}`, (list) => fetchNormals(list, metric, range.startDay, range.endDay, { ...settled, storage: normalsStorage() })),
+        latest: metric.key === 'flow' ? latestFlow : ask(`now:latest|${metric.key}`, (list) => fetchLatest(list, metric, newest)),
+        now: week
+          ? ask(`now:measured|${metric.key}|${span}`, (list) => fetchContinuous(list, metric, range.startMs, range.endMs, newest))
+          : ask(`now:daily|${metric.key}|${span}`, (list) => fetchDaily(list, metric, range.startDay, range.endDay, newest)),
+        last: week
+          ? ask(`kept:measured|${metric.key}|${before}`, (list) => fetchContinuous(list, metric, yearBeforeMs(range.startMs), yearBeforeMs(range.endMs) + DAY, settled))
+          : ask(`kept:daily|${metric.key}|${before}`, (list) => fetchDaily(list, metric, yearBefore(range.startDay), yearBefore(range.endDay), settled)),
+        normals: ask(`kept:normals|${metric.key}|${span}`, (list) => fetchNormals(list, metric, range.startDay, range.endDay, { ...settled, storage: normalsStorage() })),
       };
     }
     // Flow's normals for today feed the sentence at the top and every closed river, whatever
     // is being charted. They are asked for after the chart's, which for a stretch of flow
     // ending today already holds them.
-    const normalsFlow = ask(`normals|flow|${today}`, (list) => (chart ? chart.normals.got.catch(() => null) : Promise.resolve()).then(() => fetchNormals(list, flow, today, today, { ...settled, storage: normalsStorage() })));
+    const normalsFlow = ask(`kept:normals|flow|${today}`, (list) => (chart ? chart.normals.got.catch(() => null) : Promise.resolve()).then(() => fetchNormals(list, flow, today, today, { ...settled, storage: normalsStorage() })));
 
     const also = (known, more) => new Set([...known, ...more]);
     const headIn = Promise.all([
       latestFlow.got.then(
-        (latest) => { if (active) setHead((previous) => ({ ...previous, latest, heard: also(previous.heard, sites), lost: false })); },
+        // Which gauges have been heard from starts over with each reading of them: what
+        // another state's gauges said last time was forgotten along with everything else.
+        (latest) => { if (active) setHead((previous) => ({ ...previous, latest, heard: previous.turn === turn ? also(previous.heard, sites) : new Set(sites), lost: false, at: loadedAt, turn })); },
         (error) => { trouble(error); if (active) setHead((previous) => ({ ...previous, lost: true })); },
       ),
       normalsFlow.got.then(
@@ -360,20 +420,34 @@ export default function RiverGauges({ clock = Date.now }) {
       chartIn = Promise.all(['latest', 'now', 'last', 'normals'].map(take)).then(() => {
         if (!active) return;
         if (lost) { setChartsLost(true); return; }
-        setFrame((previous) => ({ key: looking, metricKey: metric.key, period: view.period, range, sites: also(previous && previous.key === looking ? previous.sites : [], sites), data }));
+        setFrame((previous) => ({ key: looking, turn, metricKey: metric.key, period: view.period, range, sites: also(previous && previous.key === looking && previous.turn === turn ? previous.sites : [], sites), data }));
       });
     }
-    Promise.all([headIn, chartIn]).then(() => { if (active) setBusy(false); });
+    Promise.all([headIn, chartIn]).then(() => { if (active) { setBusy(false); setRefreshing(false); } });
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sitesKey, metric.key, view.period, customKey, range.error, turn, anyOpen]);
 
-  function refresh() {
-    memo.current.clear();
-    fresh.current = true;
+  // Reads the gauges again: by hand (Refresh), or by itself once they are fifteen minutes old.
+  function reload(byHand) {
+    for (const key of [...memo.current.keys()]) if (key.startsWith('now:')) memo.current.delete(key);
+    fresh.current = byHand;
+    setRefreshing(byHand);
     setLoadedAt(clock());
     setTurn((count) => count + 1);
   }
+
+  // New readings after fifteen minutes, for as long as someone is looking: a tab in the
+  // background waits, and catches up the moment it is looked at again.
+  useEffect(() => {
+    if (!sitesKey || busy) return undefined;
+    const hidden = () => document.visibilityState === 'hidden';
+    const timer = window.setTimeout(() => { if (!hidden()) reload(false); }, Math.max(1000, loadedAt + FRESH_FOR_MS - clock()));
+    const seen = () => { if (!hidden() && clock() - loadedAt >= FRESH_FOR_MS) reload(false); };
+    document.addEventListener('visibilitychange', seen);
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', seen); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedAt, busy, sitesKey]);
 
   function toggle(group) {
     const key = keyOf(group);
@@ -412,7 +486,7 @@ export default function RiverGauges({ clock = Date.now }) {
     summary = head.blind && counts.reporting > 0 ? `${counts.reporting} of ${shown.length} gauges reporting. Today's normals couldn't be had to hold them against.` : summaryText(counts, stateName(state));
   } else if (head.lost) summary = 'USGS isn\'t answering right now.';
 
-  const stale = Boolean(frame) && frame.key !== looking;
+  const stale = Boolean(frame) && (frame.key !== looking || refreshing);
   const waiting = range.error ? 'Pick a start and an end date above.' : chartsLost ? 'Couldn\'t read this gauge. Try Refresh in a minute.' : 'Reading the gauge...';
   const allOpen = groups.length > 0 && groups.every((group) => openKeys.has(keyOf(group)));
 
@@ -431,7 +505,7 @@ export default function RiverGauges({ clock = Date.now }) {
       <Segmented label="Reading" name="reading" value={metric.key} onChange={(key) => change({ metric: key })} options={[{ key: 'flow', label: 'Flow' }, { key: 'temp', label: 'Water temp' }]} />
       <Segmented label="How far back" name="period" value={view.period} onChange={(key) => change({ period: key })} options={PERIODS.map((period) => ({ key: period.key, label: period.label }))} />
       <Segmented label="Axis" name="axis" value={metric.key === 'flow' ? view.scale : 'linear'} onChange={(key) => change({ scale: key })} options={[{ key: 'log', label: 'Log', disabled: metric.key !== 'flow', title: metric.key !== 'flow' ? 'A log axis is for flow' : undefined }, { key: 'linear', label: 'Linear' }]} />
-      <button className="button button-quiet gauge-refresh" type="button" disabled={busy} onClick={refresh}>{busy ? 'Reading...' : 'Refresh'}</button>
+      <button className="button button-quiet gauge-refresh" type="button" disabled={busy} onClick={() => reload(true)}>{busy ? 'Reading...' : 'Refresh'}</button>
       {view.period === 'custom' && <div className="gauge-custom">
         <label>From<input type="date" value={custom.start} max={custom.end || today} onChange={(event) => setCustom({ ...custom, start: event.target.value })} /></label>
         <label>To<input type="date" value={custom.end} min={custom.start || undefined} max={today} onChange={(event) => setCustom({ ...custom, end: event.target.value })} /></label>
@@ -459,6 +533,7 @@ export default function RiverGauges({ clock = Date.now }) {
         })}
       </div>
       <p className="month-empty gauge-footnote">Normal is the median flow for today's date over every year a gauge has on record, and that is what the cfs are counted from. A river is called near normal while it is inside the range USGS itself calls normal: the middle half of those years.</p>
+      <Sources readAt={head.at} />
     </>}
 
     {gauges !== null && <AddGauge defaultState={state} taken={taken} rivers={rivers} onAdded={added} />}

@@ -40,9 +40,14 @@ export const PERIODS = [
   { key: 'custom', label: 'Custom' },
 ];
 
-// A gauge whose last reading is older than this is not reporting: some of the club's gauges
-// stopped measuring temperature years ago, and USGS still hands back that last value.
-export const STALE_AFTER_DAYS = 3;
+// A gauge is reporting if its newest reading is from the last 24 hours. Older than that it
+// is not: a gauge that has gone quiet shouldn't be held against today's normal, and some of
+// the club's gauges stopped measuring temperature years ago while USGS still hands back
+// that last value.
+export const REPORTING_WITHIN_HOURS = 24;
+// How long a set of readings stands before the page loads new ones by itself. USGS gauges
+// send theirs every fifteen minutes to an hour.
+export const FRESH_FOR_MINUTES = 15;
 // The longest stretch a custom range may cover, in days: the daily record of every gauge in
 // a state is fetched for it at once.
 export const LONGEST_CUSTOM_DAYS = 3 * 366;
@@ -167,7 +172,7 @@ export async function fetchLatest(siteNos, metric, { now = Date.now(), ...option
   for (const row of rows) {
     const t = Date.parse(row.time);
     const raw = numberOf(row.value);
-    if (!Number.isFinite(t) || raw === null || now - t > STALE_AFTER_DAYS * DAY) continue;
+    if (!Number.isFinite(t) || raw === null || now - t > REPORTING_WITHIN_HOURS * HOUR) continue;
     const v = metric.convert ? metric.convert(raw) : raw;
     const known = latest.get(siteOf(row));
     if (!known || t > known.t) latest.set(siteOf(row), { t, v });
@@ -331,7 +336,20 @@ export function normalSeries(normals, startDay, endDay) {
 
 // Last year's record laid over this year's dates.
 export function overlayLastYear(points) {
-  return points.map((point) => { const day = shiftYear(point.day || dayOf(point.t), 1); return day ? { t: dayToMs(day), v: point.v, day } : null; }).filter(Boolean);
+  return points.map((point) => {
+    // A daily value moves to the same date; a measured reading to the same date and time.
+    if (point.day) { const day = shiftYear(point.day, 1); return day ? { t: dayToMs(day), v: point.v, day } : null; }
+    const t = shiftInstant(point.t, 1);
+    return t === null ? null : { t, v: point.v };
+  }).filter(Boolean);
+}
+
+// The same moment of the same date a year away (in UTC), or null where that year has no
+// such date: a reading taken on 29 February has no place in the year after.
+export function shiftInstant(ms, years) {
+  const from = new Date(ms);
+  const moved = Date.UTC(from.getUTCFullYear() + years, from.getUTCMonth(), from.getUTCDate(), from.getUTCHours(), from.getUTCMinutes(), from.getUTCSeconds(), from.getUTCMilliseconds());
+  return new Date(moved).getUTCDate() === from.getUTCDate() ? moved : null;
 }
 
 // Below, near or above normal, the way USGS draws its own maps: against the 25th and 75th
@@ -423,6 +441,9 @@ export const localDay = (ms = Date.now()) => { const date = new Date(ms); return
 
 // The same stretch a year earlier. (A 29 February has no year-earlier date: the 28th.)
 export const yearBefore = (day) => shiftYear(day, -1) || shiftYear(dayOf(dayToMs(day) - DAY), -1);
+// The same moment a year earlier, for asking after last year's measured record. (From a
+// 29 February, the same time on the 28th.)
+export const yearBeforeMs = (ms) => shiftInstant(ms, -1) ?? shiftInstant(ms - DAY, -1);
 
 // --- Finding a gauge ----------------------------------------------------------------------
 // "FLAT BROOK NEAR FLATBROOKVILLE" and "flat brook" both as USGS writes its newer names.

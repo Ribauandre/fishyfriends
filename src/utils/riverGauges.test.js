@@ -1,8 +1,8 @@
 import {
-  GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, PERIODS, STALE_AFTER_DAYS, USGS_API, againstNormal, compareToNormal, dayOf, dayOfYear, dayToMs,
-  daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatDifference, formatReading, gaugeLink, groupByRiver, hourly, localDay,
-  normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readingAge, riverGroupKey, riverKey, searchGauges, shiftYear,
-  siteId, standingText, stateCode, stateName, summarize, summaryText, yearBefore,
+  FRESH_FOR_MINUTES, GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, PERIODS, REPORTING_WITHIN_HOURS, USGS_API, againstNormal, compareToNormal, dayOf,
+  dayOfYear, dayToMs, daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatDifference, formatReading, gaugeLink, groupByRiver,
+  hourly, localDay, normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readingAge, riverGroupKey, riverKey, searchGauges,
+  shiftInstant, shiftYear, siteId, standingText, stateCode, stateName, summarize, summaryText, yearBefore, yearBeforeMs,
 } from './riverGauges';
 
 // The fetchers are handed answers shaped like the ones USGS really gives (copied from its
@@ -117,8 +117,17 @@ describe('fetchLatest', () => {
     expect(asked[0].url.searchParams.get('skipGeometry')).toBe('true');
   });
 
+  test('reporting means a reading from the last 24 hours, as on the dashboard this page was built from', async () => {
+    const hoursAgo = (hours) => new Date(NOW - hours * 60 * 60 * 1000).toISOString();
+    const { fetchImpl } = usgs(() => answer({ features: [reading('01396500', hoursAgo(23.9), '39.4'), reading('01457000', hoursAgo(24.1), '175'), reading('01380450', hoursAgo(72), '88.9')] }));
+    const latest = await fetchLatest(['01396500', '01457000', '01380450'], METRICS.flow, { now: NOW, fetchImpl });
+    expect([...latest.keys()]).toEqual(['01396500']);
+    expect(REPORTING_WITHIN_HOURS).toBe(24);
+    expect(FRESH_FOR_MINUTES).toBe(15);
+  });
+
   test('a gauge that stopped reporting, or reports nothing that is a number, is left out', async () => {
-    const stale = new Date(NOW - (STALE_AFTER_DAYS * DAY + 60000)).toISOString();
+    const stale = new Date(NOW - (REPORTING_WITHIN_HOURS * 60 * 60 * 1000 + 60000)).toISOString();
     const { fetchImpl } = usgs(() => answer({ features: [
       reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'), reading('01457000', stale, '175'), reading('01380450', '2026-11-26T15:00:00+00:00', null),
       reading('01443500', '2026-11-26T15:00:00+00:00', ''), reading('01379845', 'not a time', '12'), reading('01395000', '2026-11-26T15:00:00+00:00', 'Ice'),
@@ -388,9 +397,30 @@ describe('the lines on a chart', () => {
   });
 
   test('last year\'s record is laid over this year\'s dates, and a leap day has nowhere to go', () => {
-    const points = [{ t: dayToMs('2025-11-25'), v: 28, day: '2025-11-25' }, { t: dayToMs('2025-11-26'), v: 55 }];
+    const points = [{ t: dayToMs('2025-11-25'), v: 28, day: '2025-11-25' }, { t: dayToMs('2025-11-26'), v: 55, day: '2025-11-26' }];
     expect(overlayLastYear(points)).toEqual([{ t: dayToMs('2026-11-25'), v: 28, day: '2026-11-25' }, { t: dayToMs('2026-11-26'), v: 55, day: '2026-11-26' }]);
     expect(overlayLastYear([{ t: dayToMs('2024-02-28'), v: 1 }, { t: dayToMs('2024-02-29'), v: 2 }, { t: dayToMs('2024-03-01'), v: 3 }]).map((point) => dayOf(point.t))).toEqual(['2025-02-28', '2025-03-01']);
+  });
+
+  test('a measured reading from last year is laid over the same date and time of day this year', () => {
+    const at = (year, month, date, hour, minute) => Date.UTC(year, month, date, hour, minute);
+    const measured = [{ t: at(2025, 10, 26, 15, 15), v: 54.9 }, { t: at(2025, 10, 26, 15, 30), v: 55.2 }];
+    // No date of its own: a reading is an instant, and stays one.
+    expect(overlayLastYear(measured)).toEqual([{ t: at(2026, 10, 26, 15, 15), v: 54.9 }, { t: at(2026, 10, 26, 15, 30), v: 55.2 }]);
+    // A leap day's readings have no place in the year after; the days either side keep theirs.
+    const leap = [{ t: at(2024, 1, 28, 23, 45), v: 1 }, { t: at(2024, 1, 29, 0, 0), v: 2 }, { t: at(2024, 1, 29, 23, 45), v: 3 }, { t: at(2024, 2, 1, 0, 0), v: 4 }];
+    expect(overlayLastYear(leap).map((point) => [new Date(point.t).toISOString().slice(0, 16), point.v])).toEqual([['2025-02-28T23:45', 1], ['2025-03-01T00:00', 4]]);
+  });
+
+  test('the same moment a year away, for asking after last year\'s measured week', () => {
+    expect(shiftInstant(Date.UTC(2026, 10, 26, 15, 30, 12, 345), -1)).toBe(Date.UTC(2025, 10, 26, 15, 30, 12, 345));
+    expect(shiftInstant(Date.UTC(2024, 1, 29, 6), 1)).toBeNull();
+    expect(yearBeforeMs(NOW)).toBe(Date.UTC(2025, 10, 26, 15, 30));
+    // From a 29 February, the same time on the 28th of the year before.
+    expect(yearBeforeMs(Date.UTC(2028, 1, 29, 6))).toBe(Date.UTC(2027, 1, 28, 6));
+    // A year back is 365 days, or 366 across a leap day — never an average.
+    expect(NOW - yearBeforeMs(NOW)).toBe(365 * DAY);
+    expect(Date.UTC(2025, 1, 1) - yearBeforeMs(Date.UTC(2025, 1, 1))).toBe(366 * DAY);
   });
 });
 
