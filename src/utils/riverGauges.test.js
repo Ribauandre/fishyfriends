@@ -200,6 +200,8 @@ describe('fetchDaily', () => {
     expect(asked[0].path).toBe('/ogcapi/v1/collections/daily/items');
     expect(asked[0].url.searchParams.get('statistic_id')).toBe('00003');
     expect(asked[0].url.searchParams.get('time')).toBe('2026-10-27/2026-11-26');
+    // Room in one answer for a year of every gauge in a state, so it is one request, not several.
+    expect(asked[0].url.searchParams.get('limit')).toBe('50000');
     // Each value keeps its date as well as its place on the chart.
     expect(daily.get('01396500')).toEqual([{ t: dayToMs('2026-11-24'), v: 43, day: '2026-11-24' }, { t: dayToMs('2026-11-25'), v: 42.2, day: '2026-11-25' }]);
     expect(daily.get('01457000')).toEqual([{ t: dayToMs('2026-11-24'), v: 180, day: '2026-11-24' }]);
@@ -379,13 +381,14 @@ describe('fetchNormals', () => {
 
   test('only so many gauges are kept on a device: the ones asked about longest ago go first', async () => {
     const storage = fakeStorage();
-    const sites = Array.from({ length: 70 }, (_, index) => String(2000000 + index).padStart(8, '0'));
+    const sites = Array.from({ length: 200 }, (_, index) => String(2000000 + index).padStart(8, '0'));
     const reply = (url) => answer({ features: url.searchParams.getAll('monitoring_location_id').map((id) => week(id.replace('USGS-', ''))) });
-    await fetchNormals(sites.slice(0, 35), METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl: usgs(reply).fetchImpl, now: NOW, storage });
-    await fetchNormals(sites.slice(35), METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl: usgs(reply).fetchImpl, now: NOW + DAY, storage });
+    await fetchNormals(sites.slice(0, 100), METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl: usgs(reply).fetchImpl, now: NOW, storage });
+    await fetchNormals(sites.slice(100), METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl: usgs(reply).fetchImpl, now: NOW + DAY, storage });
     const kept = Object.keys(JSON.parse(storage.kept['fishyfriends:gauge-normals']).sites);
-    expect(kept).toHaveLength(60);
-    expect(kept).toEqual(expect.arrayContaining(sites.slice(35).map((site) => `${site}|00060`)));
+    // Room for a state's worth of gauges twice over, flow and temperature each.
+    expect(kept).toHaveLength(160);
+    expect(kept).toEqual(expect.arrayContaining(sites.slice(100).map((site) => `${site}|00060`)));
   });
 });
 

@@ -222,26 +222,27 @@ add(MIA, 'hears nothing with no channel named', listen, rows(0));
 add('postgres', 'realtime has exactly the two policies the migrations made, both for signed-in accounts', `select 1 from pg_policy pol where pol.polrelid = 'realtime.messages'::regclass and pol.polname in ('Members listen on the club''s channels', 'Members announce themselves on the dock') and pol.polroles <> '{0}' and not exists (select 1 from pg_roles r where r.oid = any (pol.polroles) and r.rolname = 'anon')`, rows(2));
 add('postgres', 'and no other', `select 1 from pg_policy pol where pol.polrelid = 'realtime.messages'::regclass`, rows(2));
 
-// --- River gauges (0048): the club's shared list of USGS gauges ---------------------------------
-const gauge = (who, siteNo, extra = '') => `insert into public.river_gauges (site_no, river, place, state, added_by, added_by_name${extra ? ', position' : ''}) values ('${siteNo}', 'Pequest River', 'at Pequest', 'NJ', '${who}', 'Somebody Else'${extra})`;
-add(KEV, 'sees the gauges the club starts with', select('river_gauges'), rows(13));
-add(NEWBIE, 'cannot add a gauge while waiting', gauge(NEWBIE, '01445500'), DENIED);
-add(GONE, 'cannot add a gauge once removed', gauge(GONE, '01445500'), DENIED);
-add(KEV, 'adds a gauge, and the name beside it is his own whatever he sent', `${gauge(KEV, '01445500')} returning added_by_name`, { value: 'Kev' }, { keep: true });
-add(MIA, 'sees the gauge Kev added', `select * from public.river_gauges where site_no = '01445500'`, rows(1));
-add(KEV, 'cannot add a gauge in somebody else\'s name', gauge(MIA, '01440000'), DENIED);
-add(KEV, 'cannot choose where a gauge sits in the list', gauge(KEV, '01440000', ', 0'), DENIED);
-add(KEV, 'cannot add the same gauge twice', gauge(KEV, '01445500'), { error: '23505' });
+// --- River gauges (0048, 0049): the club's shared list of USGS gauges ---------------------------------
+const gauge = (who, siteNo, extra = '') => `insert into public.river_gauges (site_no, river, place, state, added_by, added_by_name${extra ? ', position' : ''}) values ('${siteNo}', 'Flat Brook', 'near Flatbrookville', 'NJ', '${who}', 'Somebody Else'${extra})`;
+add(KEV, 'sees the gauges the club starts with: the first thirteen and the nineteen with water temperature', select('river_gauges'), rows(32));
+add(KEV, 'and those nineteen follow the first thirteen, ahead of anything a member adds', `select 1 from public.river_gauges where added_by is null and position between 20 and 38`, rows(19));
+add(NEWBIE, 'cannot add a gauge while waiting', gauge(NEWBIE, '01440000'), DENIED);
+add(GONE, 'cannot add a gauge once removed', gauge(GONE, '01440000'), DENIED);
+add(KEV, 'adds a gauge, and the name beside it is his own whatever he sent', `${gauge(KEV, '01440000')} returning added_by_name`, { value: 'Kev' }, { keep: true });
+add(MIA, 'sees the gauge Kev added', `select * from public.river_gauges where site_no = '01440000'`, rows(1));
+add(KEV, 'cannot add a gauge in somebody else\'s name', gauge(MIA, '01439500'), DENIED);
+add(KEV, 'cannot choose where a gauge sits in the list', gauge(KEV, '01439500', ', 0'), DENIED);
+add(KEV, 'cannot add the same gauge twice', gauge(KEV, '01440000'), { error: '23505' });
 add(KEV, 'cannot add something that is not a station number', gauge(KEV, 'not-a-gauge'), { error: '23514' });
-add(KEV, 'cannot add a gauge with a state that is not a state', `insert into public.river_gauges (site_no, river, place, state, added_by) values ('01440000', 'Flat Brook', '', 'New Jersey', '${KEV}')`, { error: '23514' });
-add(KEV, 'cannot rename a gauge', `update public.river_gauges set river = 'Mine' where site_no = '01445500'`, DENIED);
-add(KEV, 'cannot move a gauge to the top', `update public.river_gauges set position = 0 where site_no = '01445500'`, DENIED);
+add(KEV, 'cannot add a gauge with a state that is not a state', `insert into public.river_gauges (site_no, river, place, state, added_by) values ('01439500', 'Flat Brook', '', 'New Jersey', '${KEV}')`, { error: '23514' });
+add(KEV, 'cannot rename a gauge', `update public.river_gauges set river = 'Mine' where site_no = '01440000'`, DENIED);
+add(KEV, 'cannot move a gauge to the top', `update public.river_gauges set position = 0 where site_no = '01440000'`, DENIED);
 add(KEV, 'cannot remove a gauge the club started with', `delete from public.river_gauges where site_no = '01396500'`, rows(0));
-add(MIA, 'cannot remove the gauge Kev added', `delete from public.river_gauges where site_no = '01445500'`, rows(0));
-add(KEV, 'removes the gauge he added', `delete from public.river_gauges where site_no = '01445500'`, rows(1));
-add(ADMIN, 'removes any gauge', `delete from public.river_gauges where site_no in ('01396500', '01445500')`, rows(2));
+add(MIA, 'cannot remove the gauge Kev added', `delete from public.river_gauges where site_no = '01440000'`, rows(0));
+add(KEV, 'removes the gauge he added', `delete from public.river_gauges where site_no = '01440000'`, rows(1));
+add(ADMIN, 'removes any gauge', `delete from public.river_gauges where site_no in ('01396500', '01440000')`, rows(2));
 add(KEV, 'cannot add more gauges in a day than one account may', `insert into public.river_gauges (site_no, river, state, added_by) select lpad((20000000 + g)::text, 8, '0'), 'River ' || g, 'NJ', '${KEV}' from generate_series(1, 61) g`, { error: 'P0001', says: /more gauges than one account can add in a day \(the limit is 60\)/ });
-add('postgres', 'a member-added gauge follows the club\'s own in the list', `select 1 from public.river_gauges where site_no = '01445500' and position > (select max(position) from public.river_gauges where added_by is null)`, rows(1));
+add('postgres', 'a member-added gauge follows the club\'s own in the list', `select 1 from public.river_gauges where site_no = '01440000' and position > (select max(position) from public.river_gauges where added_by is null)`, rows(1));
 
 // --- Backups (0046): the key the nightly copies are sealed to, and the note of each copy ------
 // Neither table is in the API; the admin goes through two functions, and nobody else gets in.
