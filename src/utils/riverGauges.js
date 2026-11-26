@@ -199,7 +199,8 @@ function seriesBySite(rows, metric, timeOf, dated = false) {
 // Daily means from one date to another: Map of site number -> [{ t, v }], oldest first.
 export async function fetchDaily(siteNos, metric, startDay, endDay, options) {
   if (siteNos.length === 0) return new Map();
-  const rows = await items('daily', siteNos, { parameter_code: metric.parameter, statistic_id: '00003', time: `${startDay}/${endDay}`, properties: 'monitoring_location_id,time,value' }, options);
+  // (A year of daily values for a state's thirty-odd gauges is more rows than one page holds by default: asked for in one.)
+  const rows = await items('daily', siteNos, { parameter_code: metric.parameter, statistic_id: '00003', time: `${startDay}/${endDay}`, limit: 50000, properties: 'monitoring_location_id,time,value' }, options);
   return seriesBySite(rows, metric, (day) => (isDay(day) ? dayToMs(day) : NaN), true);
 }
 
@@ -231,7 +232,9 @@ export function hourly(points) {
 // daily means over every year on record.
 const NORMALS_KEY = 'fishyfriends:gauge-normals';
 const NORMALS_KEEP_MS = 30 * DAY;
-const NORMALS_KEEP_SITES = 60;
+// (One entry a gauge and measurement: the club's list in one state is thirty-odd gauges, and
+// each is kept for flow and for temperature.)
+const NORMALS_KEEP_SITES = 160;
 
 function readNormals(storage) {
   try {
