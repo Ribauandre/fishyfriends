@@ -19,6 +19,7 @@ const FLOW = real.METRICS.flow;
 const TEMP = real.METRICS.temp;
 // Half past ten in the morning wherever the tests run, so "today" is the 26th in any zone.
 const NOW = new Date(2026, 10, 26, 10, 30).getTime();
+const DAY = 24 * 60 * 60 * 1000;
 const MONTH = real.periodRange('30d', NOW);
 
 const gauge = (id, site, river, place, position, more = {}) => ({ id, site_no: site, river, place, state: 'NJ', position, added_by: null, added_by_name: '', created_at: '2026-11-26T00:00:00Z', ...more });
@@ -100,9 +101,9 @@ describe('the list of rivers', () => {
   });
 
   test('is a drop-down a river, in the club\'s order, gauges on the same river together', async () => {
-    await open();
+    const { container } = await open();
     await screen.findByText(/^Of 5 gauges reporting/);
-    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.querySelector('.river-name')?.textContent).filter(Boolean)).toEqual(['South Branch Raritan', 'Rockaway River', 'Raritan River', 'Paulins Kill']);
+    expect([...container.querySelectorAll('.river-list h2 .river-name')].map((name) => name.textContent)).toEqual(['South Branch Raritan', 'Rockaway River', 'Raritan River', 'Paulins Kill']);
     for (const name of ['South Branch Raritan', 'Rockaway River', 'Raritan River', 'Paulins Kill']) expect(river(name)).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('slider')).toBeNull();
     expect(screen.queryByRole('article')).toBeNull();
@@ -284,21 +285,30 @@ describe('what is charted', () => {
 
   test('seven days charts the record as measured, and keeps the old chart up, dimmed, until the new one is in', async () => {
     await withOneOpen();
+    const week = real.periodRange('7d', NOW);
+    const hours = (endMs, base) => Array.from({ length: 48 }, (_, index) => ({ t: endMs - (48 - index) * 60 * 60 * 1000, v: base + index / 10 }));
     let answer;
-    usgs.fetchContinuous.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+    // This week's record is held back; last year's same week comes straight away.
+    usgs.fetchContinuous.mockImplementation((sites, metric, startMs, endMs) => (startMs === week.startMs
+      ? new Promise((resolve) => { answer = resolve; })
+      : Promise.resolve(new Map([['01396500', hours(endMs - DAY, 20)]]))));
     userEvent.click(screen.getByRole('button', { name: '7 days' }));
     expect(screen.getByRole('button', { name: '7 days' })).toHaveAttribute('aria-pressed', 'true');
     const waiting = card('South Branch Raritan near High Bridge');
     expect(waiting).toHaveClass('is-stale');
     expect(waiting).toHaveAttribute('aria-busy', 'true');
     expect(within(waiting).getByRole('slider')).toHaveAttribute('aria-valuemax', '30');
-    const week = real.periodRange('7d', NOW);
     expect(usgs.fetchContinuous).toHaveBeenCalledWith(NJ, FLOW, week.startMs, week.endMs, expect.objectContaining({ now: NOW }));
-    await act(async () => { answer(new Map([['01396500', Array.from({ length: 48 }, (_, index) => ({ t: NOW - (48 - index) * 60 * 60 * 1000, v: 40 + index / 10 }))]])); });
+    // Last year is the measured record too — the same week a year back, with a day to spare
+    // at its end — and not the daily means the longer charts use.
+    expect(usgs.fetchContinuous).toHaveBeenCalledWith(NJ, FLOW, real.yearBeforeMs(week.startMs), real.yearBeforeMs(week.endMs) + DAY, expect.objectContaining({ now: NOW }));
+    expect(usgs.fetchContinuous).toHaveBeenCalledTimes(2);
+    expect(usgs.fetchDaily.mock.calls.every(([, , startDay]) => startDay !== real.yearBefore(week.startDay))).toBe(true);
+    await act(async () => { answer(new Map([['01396500', hours(NOW, 40)]])); });
     await waitFor(() => expect(card('South Branch Raritan near High Bridge')).not.toHaveClass('is-stale'));
     expect(screen.getByRole('slider')).toHaveAttribute('aria-valuemax', '48');
-    // Read to the hour.
-    expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toMatch(/^Nov 26, \d+ (AM|PM): this period 39\.4 cfs/);
+    // Read to the hour, last year's line included: 24.7 was read an hour before "now" a year ago.
+    expect(screen.getByRole('slider').getAttribute('aria-valuetext')).toMatch(/^Nov 26, \d+ (AM|PM): this period 39\.4 cfs, last year 24\.7 cfs, median 85\.0 cfs$/);
   });
 
   test('a view already looked at this visit is not asked for again', async () => {
@@ -398,11 +408,150 @@ describe('what is charted', () => {
     expect(within(card('South Branch Raritan near High Bridge')).getByText('5 min ago')).toBeInTheDocument();
     expect(within(card('South Branch Raritan near High Bridge')).getByText('33 cfs below normal')).toBeInTheDocument();
     expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, FLOW, expect.objectContaining({ fresh: true, now: time }));
-    const [thisPeriod, lastYear] = usgs.fetchDaily.mock.calls.slice(-2);
-    expect(thisPeriod[4]).toMatchObject({ fresh: true });
-    // Last year's record and the long-run normals are what they were a minute ago.
-    expect(lastYear[4].fresh).toBeUndefined();
-    expect(usgs.fetchNormals.mock.calls.every((call) => call[4].fresh === undefined)).toBe(true);
+    // This period's record is read again, past the browser's copy...
+    expect(usgs.fetchDaily).toHaveBeenCalledTimes(3);
+    expect(usgs.fetchDaily.mock.calls[2].slice(2)).toEqual([MONTH.startDay, MONTH.endDay, expect.objectContaining({ fresh: true })]);
+    // ...and last year's and the long-run normals, which are what they were a minute ago, are not asked for at all.
+    expect(usgs.fetchDaily.mock.calls.filter(([, , startDay]) => startDay === real.yearBefore(MONTH.startDay))).toHaveLength(1);
+    expect(usgs.fetchNormals).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('button', { name: /^Sources/ })).toHaveTextContent('read at 11:15 AM');
+  });
+
+  test('a Refresh by hand dims the charts until the new ones are in', async () => {
+    await withOneOpen();
+    let answer;
+    usgs.fetchLatest.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+    userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(card('South Branch Raritan near High Bridge')).toHaveClass('is-stale');
+    expect(screen.getByRole('slider')).toBeInTheDocument();
+    await act(async () => { answer(new Map(NJ.map((site) => [site, { t: NOW, v: RUNNING[site] }]))); });
+    await waitFor(() => expect(card('South Branch Raritan near High Bridge')).not.toHaveClass('is-stale'));
+  });
+});
+
+describe('new readings by themselves', () => {
+  const MINUTE = 60 * 1000;
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); delete document.visibilityState; });
+
+  test('once what is on screen is fifteen minutes old the gauges are read again, without a flicker', async () => {
+    await open();
+    userEvent.click(await screen.findByRole('button', { name: /^South Branch Raritan/ }));
+    await screen.findByRole('slider');
+    await settled();
+    expect(screen.getByRole('button', { name: /^Sources/ })).toHaveTextContent('U.S. Geological Survey · read at 10:30 AM · new readings after 15 minutes');
+    const before = asked();
+    time = NOW + 14 * MINUTE;
+    act(() => { jest.advanceTimersByTime(13 * MINUTE); });
+    expect(asked()).toEqual(before);
+
+    let answer;
+    usgs.fetchLatest.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+    time = NOW + 15 * MINUTE + 2000;
+    act(() => { jest.advanceTimersByTime(3 * MINUTE); });
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(2);
+    // Not a Refresh by hand: this period's daily means may come from the browser's own copy.
+    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, FLOW, expect.objectContaining({ fresh: false, now: time }));
+    // The chart that is up stays up, undimmed, while the new readings are on their way.
+    expect(card('South Branch Raritan near High Bridge')).not.toHaveClass('is-stale');
+    expect(screen.getByRole('slider')).toBeInTheDocument();
+    await act(async () => { answer(new Map(NJ.map((site) => [site, { t: time - 4 * MINUTE, v: site === '01396500' ? 61.5 : RUNNING[site] }]))); });
+    expect(await within(card('South Branch Raritan near High Bridge')).findByText('61.5')).toBeInTheDocument();
+    expect(linesOf('Rockaway River')[0]).toEqual(['at Boonton', '88.9 cfs', '▼89 cfs below normal']);
+    expect(screen.getByRole('button', { name: /^Sources/ })).toHaveTextContent('read at 10:45 AM');
+    // Only what can have changed was asked for: one reading of the gauges and this period's record.
+    expect(asked()).toEqual({ ...before, latest: before.latest + 1, daily: before.daily + 1 });
+  });
+
+  test('a page nobody is looking at waits, and catches up when it is looked at again', async () => {
+    let showing = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => showing });
+    await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    await settled();
+    showing = 'hidden';
+    time = NOW + 40 * MINUTE;
+    act(() => { jest.advanceTimersByTime(40 * MINUTE); });
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
+    // Looked at again before the fifteen minutes were up: nothing either.
+    showing = 'visible';
+    time = NOW + 5 * MINUTE;
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
+    time = NOW + 40 * MINUTE;
+    act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText(/read at 11:10 AM/)).toBeInTheDocument();
+  });
+
+  test('leaving the page stops it asking', async () => {
+    const { unmount } = await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    await settled();
+    unmount();
+    time = NOW + 60 * MINUTE;
+    act(() => { jest.advanceTimersByTime(60 * MINUTE); });
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('sources', () => {
+  test('the page says where its numbers come from, in a row that opens', async () => {
+    await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    const row = screen.getByRole('button', { name: /^Sources/ });
+    expect(row).toHaveAttribute('aria-expanded', 'false');
+    expect(row).toHaveTextContent('U.S. Geological Survey · read at 10:30 AM · new readings after 15 minutes');
+    userEvent.click(row);
+    const sources = within(screen.getByRole('region', { name: 'Sources' }));
+    expect(sources.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['From USGS', 'Worked out on this page']);
+    const [fromUsgs, workedOut] = sources.getAllByRole('list');
+    expect(within(fromUsgs).getAllByRole('listitem').map((item) => item.querySelector('strong').textContent)).toEqual([
+      'Latest USGS readings (24 h)', 'Historic daily medians', 'Daily means, this period and last year', '15-minute readings, this period and last year',
+    ]);
+    expect(within(workedOut).getAllByRole('listitem').map((item) => item.querySelector('strong').textContent)).toEqual([
+      'Latest reading per gauge', 'Flow compared with normal', 'Gauges below, near and above normal',
+    ]);
+    // Each source names the USGS service it is, and links to that service's own page.
+    const links = sources.getAllByRole('link');
+    expect(links.map((link) => [link.textContent, link.getAttribute('href')])).toEqual([
+      ['USGS: Latest continuous', 'https://api.waterdata.usgs.gov/ogcapi/v1/collections/latest-continuous?f=html'],
+      ['USGS: Statistics', 'https://api.waterdata.usgs.gov/statistics/v0/docs'],
+      ['USGS: Daily values', 'https://api.waterdata.usgs.gov/ogcapi/v1/collections/daily?f=html'],
+      ['USGS: Continuous values', 'https://api.waterdata.usgs.gov/ogcapi/v1/collections/continuous?f=html'],
+    ]);
+    for (const link of links) { expect(link).toHaveAttribute('target', '_blank'); expect(link).toHaveAttribute('rel', 'noopener noreferrer'); }
+    expect(sources.getByText(/Load new data: after 15 minutes\./)).toBeInTheDocument();
+    userEvent.click(row);
+    expect(screen.queryByText('Worked out on this page')).toBeNull();
+  });
+
+  test('before anything has been read it doesn\'t claim a time', async () => {
+    usgs.fetchLatest.mockRejectedValue(new real.GaugeDataError('Couldn\'t reach USGS. Check your connection and try again.', 0));
+    await open();
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: /^Sources/ })).toHaveTextContent('U.S. Geological Survey · not read yet · new readings after 15 minutes');
+  });
+});
+
+describe('the rest of what is charted', () => {
+  async function withOneOpen(overrides) {
+    const view = await open(overrides);
+    userEvent.click(await screen.findByRole('button', { name: /^South Branch Raritan/ }));
+    await screen.findByRole('slider');
+    await settled();
+    return view;
+  }
+
+  test('going from one state to another and back after a reading keeps nothing stale on screen', async () => {
+    await withOneOpen();
+    userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    await settled();
+    // Pennsylvania has not been asked about since the gauges were read again.
+    userEvent.selectOptions(screen.getByLabelText('State'), 'PA');
+    expect(linesOf('Lehigh River')).toEqual([['at Lehighton', '…', '']]);
+    expect(await screen.findByText(/^Of 1 gauge reporting/)).toBeInTheDocument();
+    expect(linesOf('Lehigh River')).toEqual([['at Lehighton', '310 cfs', '●Near normal · 10 cfs over']]);
   });
 });
 

@@ -324,6 +324,18 @@ button { cursor: pointer; }
 .gauge-standing i { color: var(--coral); display: inline-block; font-size: 10px; font-style: normal; margin-right: 7px; text-align: center; width: 11px; }
 .gauge-standing.is-normal { font-weight: 400; }
 .gauge-standing.is-normal i { color: var(--muted); }
+/* Sources: the same row as a river, saying where the numbers come from and when they were read. */
+.gauge-sources { margin-top: 22px; }
+.gauge-sources-line { color: var(--muted); font-size: 12px; line-height: 1.45; }
+.gauge-sources-body { border-top: 1px solid var(--line); display: grid; gap: 20px 36px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px 20px 20px; }
+.gauge-sources-body h3 { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; margin: 0 0 12px; text-transform: uppercase; }
+.gauge-sources-body ul { display: grid; gap: 14px; list-style: none; margin: 0; padding: 0; }
+.gauge-sources-body li { display: grid; font-size: 13px; gap: 3px; line-height: 1.45; }
+.gauge-sources-body li strong { color: var(--ink); }
+.gauge-sources-body li span { color: var(--muted); font-size: 12px; }
+.gauge-sources-body li a { color: var(--muted); font-size: 11px; justify-self: start; text-decoration: underline; text-underline-offset: 2px; }
+.gauge-sources-body li a:hover { color: var(--mint); }
+.gauge-sources-body > p { grid-column: 1 / -1; max-width: 78ch; }
 /* (.month-empty, declared further down, zeroes margins: these have to out-rank it.) */
 .gauges-page .gauge-footnote { margin: 22px 0 0; max-width: 78ch; }
 .river-body { border-top: 1px solid var(--line); display: grid; gap: 0 36px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); padding: 0 20px 4px; }
@@ -413,7 +425,8 @@ button { cursor: pointer; }
   .river-head { gap: 10px 14px; grid-template-columns: minmax(0, 1fr) 20px; padding: 14px 16px; }
   .river-name { font-size: 20px; }
   .river-head .expand-icon { grid-column: 2; grid-row: 1; }
-  .river-lines, .river-count { grid-column: 1 / -1; }
+  .river-lines, .river-count, .gauge-sources-line { grid-column: 1 / -1; }
+  .gauge-sources-body { grid-template-columns: minmax(0, 1fr); padding: 16px; }
   .river-line { gap: 1px 14px; grid-template-areas: "place standing" "now standing"; grid-template-columns: minmax(0, 1fr) auto; }
   .river-line-place { grid-area: place; }
   .river-line-now { font-size: 12px; grid-area: now; text-align: left; }

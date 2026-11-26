@@ -65,8 +65,9 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
   const bottom = HEIGHT - MARGIN.bottom;
   const x = linearScale(startMs, endMs, left, right);
   const y = axis ? (log ? logScale : linearScale)(axis.min, axis.max, bottom, MARGIN.top) : () => bottom;
-  // A day's worth of daily means is a point a day; the measured record is a point an hour.
-  const gap = { now: hourly ? 6 * HOUR : 3.5 * DAY, last: 3.5 * DAY, normal: 3.5 * DAY };
+  // A day's worth of daily means is a point a day; the measured record (`hourly`: this
+  // period and last year both, on the 7-day chart) is a point an hour. The median is daily.
+  const gap = { now: hourly ? 6 * HOUR : 3.5 * DAY, last: hourly ? 6 * HOUR : 3.5 * DAY, normal: 3.5 * DAY };
   const inWindow = (point) => point.t >= startMs && point.t <= endMs;
 
   // What the rule walks along: this period's readings, or failing those whichever line there is.
@@ -76,13 +77,13 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
   const reach = Math.max((endMs - startMs) / 40, hourly ? 2 * HOUR : 1.5 * DAY);
   const read = at === null ? {} : {
     now: nearest(drawn.now, at, hourly ? reach : Math.max(reach, DAY)),
-    last: nearest(drawn.last, at, Math.max(reach, DAY)),
+    last: nearest(drawn.last, at, hourly ? reach : Math.max(reach, DAY)),
     normal: nearest(drawn.normal, at, Math.max(reach, DAY)),
   };
   // The rule stands on the reading being read, not wherever the finger happens to be.
   const anchor = read.now || read.last || read.normal || null;
   const ruleAt = pointed === null ? null : Math.min(endMs, Math.max(startMs, anchor ? anchor.t : pointed));
-  const when = at === null ? '' : anchor ? stamp(anchor, hourly && anchor === read.now) : dateText(at, false);
+  const when = at === null ? '' : anchor ? stamp(anchor, hourly && anchor !== read.normal) : dateText(at, false);
   const said = READ_ORDER.filter((key) => read[key]).map((key) => `${LABEL[key].toLowerCase()} ${format(read[key].v)} ${unit}`);
   const spoken = at === null || said.length === 0 ? 'Nothing recorded for this stretch' : `${when}: ${said.join(', ')}`;
 
