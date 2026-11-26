@@ -21,7 +21,7 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-describe.each(['/home', '/anglers', '/trips', '/waypoints', '/profile', '/admin', '/fishing-game'])('%s', (path) => {
+describe.each(['/home', '/anglers', '/trips', '/waypoints', '/gauges', '/profile', '/admin', '/fishing-game'])('%s', (path) => {
   test('someone waiting sees the waiting room, with no nav and no page', async () => {
     signIn({ status: 'pending', is_admin: false });
     window.history.pushState({}, '', path);
@@ -30,7 +30,7 @@ describe.each(['/home', '/anglers', '/trips', '/waypoints', '/profile', '/admin'
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
     expect(screen.queryByRole('banner')).not.toBeInTheDocument();
     // Nothing behind the door was asked for.
-    for (const table of ['fish_year_catches', 'trips', 'waypoint_maps', 'notifications', 'bug_reports', 'custom_species']) {
+    for (const table of ['fish_year_catches', 'trips', 'waypoint_maps', 'river_gauges', 'notifications', 'bug_reports', 'custom_species']) {
       expect(__mock.current.fromCalls).not.toContain(table);
     }
   });

@@ -368,3 +368,10 @@ test('payment contacts fail closed', async () => {
   await expect(result.current.listPaymentContacts(['a'])).resolves.toEqual({});
   expect((await result.current.saveMyPaymentContacts({ zelle: 'a@b.co', appleCashPhone: '' })).error).toEqual(expect.any(Error));
 });
+
+test('the river gauge list fails closed', async () => {
+  const result = await setup();
+  await expect(result.current.listRiverGauges()).resolves.toEqual([]);
+  expect((await result.current.addRiverGauge({ siteNo: '01396500', river: 'South Branch Raritan', place: 'near High Bridge', state: 'NJ' })).error).toEqual(expect.any(Error));
+  expect((await result.current.removeRiverGauge('g1')).error).toEqual(expect.any(Error));
+});

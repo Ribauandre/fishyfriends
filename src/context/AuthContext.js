@@ -1384,6 +1384,48 @@ export function AuthProvider({ children }) {
     return { error: error || null };
   }
 
+  // River gauges (migration 0048): the club's shared list of USGS stream gauges. Only the
+  // list is kept here — which gauges, and what to call them. The readings are asked of USGS
+  // by the page each time (utils/riverGauges.js). Any member adds one; whoever added it, or
+  // the admin, removes it; nobody edits one (the database has no update to give).
+  async function listRiverGauges() {
+    if (!isSupabaseConfigured || !user) return [];
+    const { data, error } = await supabase.from('river_gauges').select('*').order('position', { ascending: true }).order('created_at', { ascending: true });
+    if (error) { setNotice(error.message); return []; }
+    return data || [];
+  }
+
+  async function addRiverGauge({ siteNo, river, place, state }) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in before adding a gauge.') };
+    const row = {
+      site_no: String(siteNo || '').trim(), river: String(river || '').trim().slice(0, 80), place: String(place || '').trim().slice(0, 120),
+      state: String(state || '').trim().toUpperCase(), added_by: user.id, added_by_name: profile.display_name || user.email?.split('@')[0] || 'Angler',
+    };
+    if (!/^\d{8,15}$/.test(row.site_no)) return { error: new Error('A USGS station number is 8 to 15 digits.') };
+    if (!row.river) return { error: new Error('Give the gauge a river name.') };
+    if (!/^[A-Z]{2}$/.test(row.state)) return { error: new Error('Pick the state the gauge is in.') };
+    const { data, error } = await supabase.from('river_gauges').insert(row).select().maybeSingle();
+    if (error) {
+      const said = error.code === '23505' ? new Error('That gauge is already on the club\'s list.') : error;
+      setNotice(said.message);
+      return { error: said };
+    }
+    return { error: null, gauge: data };
+  }
+
+  async function removeRiverGauge(id) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const { data, error } = await supabase.from('river_gauges').delete().eq('id', id).select('id');
+    if (error) { setNotice(error.message); return { error }; }
+    // The database quietly removes nothing for a gauge that is somebody else's.
+    if (!data || data.length === 0) {
+      const refused = new Error('Only whoever added a gauge, or the admin, can remove it.');
+      setNotice(refused.message);
+      return { error: refused };
+    }
+    return { error: null };
+  }
+
   // Trips (migration 0028): the crew sees every trip and anyone can opt in; the creator edits
   // it and can remove people; expenses and payments are visible to people on the trip only.
   function myName() {
@@ -1870,6 +1912,7 @@ export function AuthProvider({ children }) {
     listMyWaypointMaps, getWaypointMap, createWaypointMap, deleteWaypointMap,
     listMapMembers, inviteToWaypointMap, removeMapMember, respondToWaypointInvite, listMyWaypointInvites,
     listWaypoints, addWaypoint, importWaypoints, deleteWaypoint,
+    listRiverGauges, addRiverGauge, removeRiverGauge,
     listTrips, getTrip, createTrip, updateTrip, deleteTrip,
     listTripAttendees, joinTrip, leaveTrip, removeTripAttendee,
     listTripExpenses, addTripExpense, deleteTripExpense,

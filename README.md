@@ -17,6 +17,7 @@ The current product has six authenticated surfaces and one public entry surface:
 | `/anglers` | Authenticated | Angler directory: log a personal best, the species checklist, and search/browse the roster. |
 | `/tournaments` | Authenticated | Browse tournaments and start a new one. |
 | `/tournaments/:tournamentId` | Authenticated | One tournament's leaderboard, entry submission, and (creator only) delete. |
+| `/gauges` | Authenticated | River gauges: a drop-down per river saying how many cfs each of its USGS gauges is above or below normal for today, opening to charts of flow or water temperature against last year and the long-run median. |
 
 `/` redirects to `/home`. `/fluke-tournament` — the old route for a single hardcoded tournament, before Tournaments became a general, user-creatable feature — redirects to `/tournaments`. Unauthenticated visits to protected routes redirect to `/account`.
 
@@ -47,6 +48,10 @@ src/
   Profile.js                   Profile form and avatar upload UI
   Tournaments.js               Tournament list + create-tournament form
   TournamentDetail.js          One tournament's leaderboard, entry form, delete (creator only)
+  RiverGauges.js               River gauges: rivers as drop-downs, charts from USGS, add/remove a gauge
+  components/GaugeChart.js     One gauge's chart (plain SVG): this period, last year, the all-years median
+  utils/riverGauges.js         Everything asked of USGS (readings, daily record, normals, station search)
+  utils/gaugeChart.js          The chart's arithmetic: axes, date ticks, lines
   constants.js                 Shared constants (the active Fish Year season year)
   context/AuthContext.js       Single source of truth for Supabase reads/writes and session/profile state
   lib/supabase.js              Supabase client and environment-key resolution
@@ -293,6 +298,7 @@ Everything the app displays is persisted in Supabase — there is no local-only 
 - Tournaments, entries, their comments, and their likes (`tournaments`, `tournament_entries`, `tournament_entry_comments`, `tournament_entry_likes`)
 - Custom species suggestions (`custom_species`)
 - Notifications for likes/comments on your own posts (`notifications`)
+- The club's list of river gauges (`river_gauges`) — which USGS stations the Gauges page watches. The readings themselves are USGS's: fetched live in the browser, never stored
 - Bug reports (`bug_reports`) — private to the reporter; there's no in-app UI to view them, they're meant to be triaged directly in the Supabase dashboard
 
 Intentionally not persisted, because it's ephemeral UI state rather than data: which catch-photo lightbox is open, which month/tournament-entry row is expanded, search box text, in-progress form drafts.
@@ -455,6 +461,7 @@ Most page-level components mock `useAuth()` wholesale (`jest.mock('./context/Aut
 - **AuthContext**: every "fails closed when unconfigured" guard clause (`AuthContext.test.js`), plus, with the mock, the full happy paths — session/profile loading, sign in/up/out, profile updates, avatar upload, personal-best insert-vs-update-by-species matching, species registration and its dedupe logic, Fish Year catch logging, and every delete path (`AuthContext.configured.test.js`).
 - **Components**: `SpeciesSelect` (autocomplete filtering, keyboard nav, free text, merging in shared custom species, plus a dedicated custom-species suite), `SpeciesChecklist` (credits a species from either a personal best or a Fish Year catch, dedupes repeats), `PostMenu` (share via the native share sheet or clipboard fallback, delete only when an owner handler is passed, click-outside-to-close), `CommentThread` (delete only visible on the viewer's own comment), `LikeButton`, `NotificationBell`, `FishIllustration` (species fallback, unique SVG filter ids), `AppTour` (step targeting and progression).
 - **Pages**: `FishYear` (month derived from date, EXIF autofill, form validation/error display, the crew-wide season recap stats, `?catch=` deep-link highlighting), `Anglers` (search filtering by name/water/species, ownership-gated delete, the species checklist crediting Fish Year catches too, `?best=` deep-link highlighting), `Tournaments` and `TournamentDetail` (create/delete, entry submission, `?entry=` deep-link highlighting), `Home` (the activity feed's empty/loaded states), `App` (protected-route redirects for every authenticated route, root and legacy-route redirect chains).
+- **River gauges**: `riverGauges` (the fetchers against answers shaped like USGS's own, the normals kept on the device, grouping by river, the "cfs below normal" wording), `gaugeChart` and `GaugeChart` (axes, date ticks, clipping, the pointer and keyboard readout), `RiverGauges` (closed summaries that add up to the sentence at the top, what each view asks USGS for and what it never asks twice, the old chart held while a new one is read, add/remove, every way USGS can fail). The scratchpad harness `gauges/rivers-drive.mjs` runs the built page against the live USGS services.
 
 Expected test output includes React Router v7 future-flag warnings and React "not wrapped in act(...)" warnings from a few fire-and-forget state updates (e.g. `registerSpecies` isn't awaited by its caller). Both are pre-existing noise, not failures — the tests that matter assert on flushed state via `waitFor`, not on immediate synchronous reads.
 
@@ -488,6 +495,7 @@ When adding new behavior, add coverage for it using the existing mocks above rat
 | Dashboard / realtime activity feed | `src/Home.js`, `src/components/ActivityFeed.js`, `src/context/AuthContext.js` (`listRecentActivity`, `subscribeToActivity`), `supabase/migrations/0015_enable_activity_realtime.sql` |
 | Fish Year | `src/FishYear.js`, `src/components/Participants.tsx` |
 | Anglers / personal bests / species checklist | `src/Anglers.js`, `src/components/PersonalBestForm.js`, `src/components/SpeciesChecklist.js` |
+| River gauges | `src/RiverGauges.js`, `src/components/GaugeChart.js`, `src/utils/riverGauges.js`, `src/utils/gaugeChart.js`, `src/context/AuthContext.js` (`listRiverGauges`, `addRiverGauge`, `removeRiverGauge`), `supabase/migrations/0048_river_gauges.sql`, `public/index.html` (the CSP's `connect-src`) |
 | Tournaments | `src/Tournaments.js`, `src/TournamentDetail.js`, `src/components/TournamentEntries.js`, `supabase/migrations/0012_tournaments.sql` |
 | Onboarding tour | `src/components/AppTour.js` |
 | Navigation | `src/components/Navbar.js` |
