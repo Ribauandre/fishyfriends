@@ -281,7 +281,10 @@ button { cursor: pointer; }
    The chart's three lines are the page's whole vocabulary: this period in the site's mint,
    the same dates last year in rust, the all-years median as a dashed grey. Where a river
    stands against normal is said with a shape and in words, never in those line colours. */
-.gauges-page .page-intro .gauge-summary { color: var(--ink); font-size: 16px; line-height: 1.5; max-width: 52ch; }
+.gauges-page .page-intro .gauge-summary, .gauges-page .page-intro .gauge-water { color: var(--ink); font-size: 16px; line-height: 1.5; max-width: 52ch; }
+/* The average water temperature, under the sentence about flow: the same voice, its figure set apart. */
+.gauges-page .page-intro .gauge-water { margin-top: 10px; }
+.gauge-water strong { font-weight: 800; }
 .gauge-controls { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 12px 14px; margin: 0 0 20px; }
 .gauge-state, .gauge-custom label, .gauge-add-form label, .gauge-add-draft label { color: var(--muted); display: grid; font-size: 10px; font-weight: 800; gap: 6px; letter-spacing: .12em; text-transform: uppercase; }
 .gauge-state select, .gauge-custom input, .gauge-add-form select, .gauge-add-form input, .gauge-add-draft input { background: rgba(3,8,11,.5); border: 1px solid var(--line); border-radius: 0; color: var(--ink); min-height: 44px; outline: none; padding: 10px 12px; }

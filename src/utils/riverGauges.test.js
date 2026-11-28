@@ -1,18 +1,20 @@
 import {
-  FRESH_FOR_MINUTES, GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, PERIODS, REPORTING_WITHIN_HOURS, USGS_API, againstNormal, compareToNormal, dayOf,
-  dayOfYear, dayToMs, daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatDifference, formatReading, gaugeLink, groupByRiver,
-  hourly, localDay, normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readingAge, riverGroupKey, riverKey, searchGauges,
-  shiftInstant, shiftYear, siteId, standingText, stateCode, stateName, summarize, summaryText, yearBefore, yearBeforeMs,
+  FRESH_FOR_MINUTES, GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, PERIODS, REPORTING_WITHIN_HOURS, USGS_API, againstNormal, averageTemperature,
+  compareToNormal, dayOf, dayOfYear, dayToMs, daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatDifference, formatReading,
+  gaugeLink, groupByRiver, hourly, localDay, normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readingAge, readingsOf,
+  riverGroupKey, riverKey, searchGauges, shiftInstant, shiftYear, siteId, standingText, stateCode, stateName, summarize, summaryText, temperatureText,
+  yearBefore, yearBeforeMs,
 } from './riverGauges';
 
 // The fetchers are handed answers shaped like the ones USGS really gives (copied from its
 // live replies in November 2026: every value a string, ids prefixed USGS-, daily values dated
-// by day, the statistics service's percentiles as two parallel lists).
+// by day, the statistics service's percentiles as two parallel lists; a reading says which
+// measurement it is of by its parameter code — 00060 flow, 00010 water temperature).
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 10, 26, 15, 30);
 const answer = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const feature = (properties) => ({ type: 'Feature', properties, id: 'x', geometry: null });
-const reading = (site, time, value) => feature({ monitoring_location_id: `USGS-${site}`, time, value });
+const reading = (site, time, value, code = '00060') => feature({ monitoring_location_id: `USGS-${site}`, parameter_code: code, time, value });
 
 function usgs(reply) {
   const asked = [];
@@ -105,10 +107,13 @@ describe('periodRange', () => {
 });
 
 describe('fetchLatest', () => {
+  const FLOW = [METRICS.flow];
+  const BOTH = [METRICS.flow, METRICS.temp];
+
   test('asks for every gauge in one request and gives each one\'s newest reading', async () => {
     const { fetchImpl, asked } = usgs(() => answer({ features: [reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'), reading('01457000', '2026-11-26T14:45:00+00:00', '175')], links: [] }));
-    const latest = await fetchLatest(['01396500', '01457000'], METRICS.flow, { now: NOW, fetchImpl });
-    expect(latest).toEqual(new Map([['01396500', { t: Date.UTC(2026, 10, 26, 15, 15), v: 39.4 }], ['01457000', { t: Date.UTC(2026, 10, 26, 14, 45), v: 175 }]]));
+    const latest = await fetchLatest(['01396500', '01457000'], FLOW, { now: NOW, fetchImpl });
+    expect(latest).toEqual(new Map([['01396500', { flow: { t: Date.UTC(2026, 10, 26, 15, 15), v: 39.4 } }], ['01457000', { flow: { t: Date.UTC(2026, 10, 26, 14, 45), v: 175 } }]]));
     expect(asked).toHaveLength(1);
     expect(asked[0].url.origin).toBe(USGS_API);
     expect(asked[0].path).toBe('/ogcapi/v1/collections/latest-continuous/items');
@@ -117,10 +122,36 @@ describe('fetchLatest', () => {
     expect(asked[0].url.searchParams.get('skipGeometry')).toBe('true');
   });
 
+  test('flow and water temperature come in the one answer, each gauge holding what it measures', async () => {
+    const { fetchImpl, asked } = usgs(() => answer({ features: [
+      reading('01400500', '2026-11-26T15:15:00+00:00', '213'), reading('01400500', '2026-11-26T15:00:00+00:00', '7.0', '00010'),
+      reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'),
+      // Its thermometer went quiet years ago, and USGS still hands back the last thing it said.
+      reading('01396500', '2021-09-01T04:55:00+00:00', '21.0', '00010'),
+      // Nobody asked how high the water stands.
+      reading('01396500', '2026-11-26T15:15:00+00:00', '2.31', '00065'),
+      // A thermometer and nothing else that is reporting.
+      reading('01458500', '2026-11-26T15:10:00+00:00', '6.5', '00010'),
+    ] }));
+    const latest = await fetchLatest(['01400500', '01396500', '01458500', '01380450'], BOTH, { now: NOW, fetchImpl });
+    expect(asked).toHaveLength(1);
+    expect(asked[0].url.searchParams.get('parameter_code')).toBe('00060,00010');
+    // Each reading has to say what it is a reading of.
+    expect(asked[0].url.searchParams.get('properties').split(',')).toEqual(['monitoring_location_id', 'parameter_code', 'time', 'value']);
+    expect(latest.get('01400500')).toEqual({ flow: { t: Date.UTC(2026, 10, 26, 15, 15), v: 213 }, temp: { t: Date.UTC(2026, 10, 26, 15), v: expect.closeTo(44.6, 5) } });
+    expect(latest.get('01396500')).toEqual({ flow: { t: Date.UTC(2026, 10, 26, 15, 15), v: 39.4 } });
+    expect(latest.get('01458500')).toEqual({ temp: { t: Date.UTC(2026, 10, 26, 15, 10), v: expect.closeTo(43.7, 5) } });
+    // A gauge with nothing to say is not in the answer at all.
+    expect(latest.has('01380450')).toBe(false);
+    expect([...readingsOf(latest, 'flow')].map(([site, found]) => [site, found.v])).toEqual([['01400500', 213], ['01396500', 39.4]]);
+    expect([...readingsOf(latest, 'temp').keys()]).toEqual(['01400500', '01458500']);
+    expect(readingsOf(new Map(), 'flow')).toEqual(new Map());
+  });
+
   test('reporting means a reading from the last 24 hours, as on the dashboard this page was built from', async () => {
     const hoursAgo = (hours) => new Date(NOW - hours * 60 * 60 * 1000).toISOString();
     const { fetchImpl } = usgs(() => answer({ features: [reading('01396500', hoursAgo(23.9), '39.4'), reading('01457000', hoursAgo(24.1), '175'), reading('01380450', hoursAgo(72), '88.9')] }));
-    const latest = await fetchLatest(['01396500', '01457000', '01380450'], METRICS.flow, { now: NOW, fetchImpl });
+    const latest = await fetchLatest(['01396500', '01457000', '01380450'], FLOW, { now: NOW, fetchImpl });
     expect([...latest.keys()]).toEqual(['01396500']);
     expect(REPORTING_WITHIN_HOURS).toBe(24);
     expect(FRESH_FOR_MINUTES).toBe(15);
@@ -132,32 +163,39 @@ describe('fetchLatest', () => {
       reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'), reading('01457000', stale, '175'), reading('01380450', '2026-11-26T15:00:00+00:00', null),
       reading('01443500', '2026-11-26T15:00:00+00:00', ''), reading('01379845', 'not a time', '12'), reading('01395000', '2026-11-26T15:00:00+00:00', 'Ice'),
     ] }));
-    const latest = await fetchLatest(['01396500', '01457000', '01380450', '01443500', '01379845', '01395000'], METRICS.flow, { now: NOW, fetchImpl });
+    const latest = await fetchLatest(['01396500', '01457000', '01380450', '01443500', '01379845', '01395000'], FLOW, { now: NOW, fetchImpl });
     expect([...latest.keys()]).toEqual(['01396500']);
   });
 
-  test('two readings of one gauge: the newer is the one kept', async () => {
-    const { fetchImpl } = usgs(() => answer({ features: [reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'), reading('01396500', '2026-11-26T14:00:00+00:00', '41.0')] }));
-    expect((await fetchLatest(['01396500'], METRICS.flow, { now: NOW, fetchImpl })).get('01396500').v).toBe(39.4);
+  test('two readings of one gauge: the newer is the one kept, for each measurement on its own', async () => {
+    const { fetchImpl } = usgs(() => answer({ features: [
+      reading('01396500', '2026-11-26T15:15:00+00:00', '39.4'), reading('01396500', '2026-11-26T14:00:00+00:00', '41.0'),
+      reading('01396500', '2026-11-26T13:00:00+00:00', '6.0', '00010'), reading('01396500', '2026-11-26T15:00:00+00:00', '7.0', '00010'),
+    ] }));
+    const found = (await fetchLatest(['01396500'], BOTH, { now: NOW, fetchImpl })).get('01396500');
+    expect(found.flow.v).toBe(39.4);
+    expect(found.temp).toEqual({ t: Date.UTC(2026, 10, 26, 15), v: expect.closeTo(44.6, 5) });
   });
 
   test('water temperature is asked for by its own code and comes back in Fahrenheit', async () => {
-    const { fetchImpl, asked } = usgs(() => answer({ features: [reading('01400500', '2026-11-26T15:00:00+00:00', '7.0')] }));
-    const latest = await fetchLatest(['01400500'], METRICS.temp, { now: NOW, fetchImpl });
+    const { fetchImpl, asked } = usgs(() => answer({ features: [reading('01400500', '2026-11-26T15:00:00+00:00', '7.0', '00010')] }));
+    const latest = await fetchLatest(['01400500'], [METRICS.temp], { now: NOW, fetchImpl });
     expect(asked[0].url.searchParams.get('parameter_code')).toBe('00010');
-    expect(latest.get('01400500').v).toBeCloseTo(44.6, 5);
+    expect(latest.get('01400500').temp.v).toBeCloseTo(44.6, 5);
+    expect(latest.get('01400500').flow).toBeUndefined();
   });
 
   test('nothing to ask about asks nothing', async () => {
     const { fetchImpl } = usgs(() => answer({ features: [] }));
-    expect(await fetchLatest([], METRICS.flow, { now: NOW, fetchImpl })).toEqual(new Map());
+    expect(await fetchLatest([], FLOW, { now: NOW, fetchImpl })).toEqual(new Map());
+    expect(await fetchLatest(['01396500'], [], { now: NOW, fetchImpl })).toEqual(new Map());
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   test('a long list is split so no address gets too long', async () => {
     const sites = Array.from({ length: 45 }, (_, index) => String(1000000 + index).padStart(8, '0'));
     const { fetchImpl, asked } = usgs((url) => answer({ features: (url.searchParams.get('monitoring_location_id') || '').split(',').map((id) => reading(id.replace('USGS-', ''), '2026-11-26T15:00:00+00:00', '5')) }));
-    const latest = await fetchLatest(sites, METRICS.flow, { now: NOW, fetchImpl });
+    const latest = await fetchLatest(sites, FLOW, { now: NOW, fetchImpl });
     expect(asked.map((request) => request.sites.length)).toEqual([40, 5]);
     expect(latest.size).toBe(45);
   });
@@ -167,21 +205,21 @@ describe('fetchLatest', () => {
     const { fetchImpl, asked } = usgs((url, count) => (count === 1
       ? answer({ features: [reading('01396500', '2026-11-26T15:00:00+00:00', '39.4')], links: [{ rel: 'self', href: 'x' }, { rel: 'next', href: next }] })
       : answer({ features: [reading('01457000', '2026-11-26T15:00:00+00:00', '175')], links: [{ rel: 'next', href: 'https://elsewhere.example.test/more' }] })));
-    const latest = await fetchLatest(['01396500', '01457000'], METRICS.flow, { now: NOW, fetchImpl });
+    const latest = await fetchLatest(['01396500', '01457000'], FLOW, { now: NOW, fetchImpl });
     expect(asked.map((request) => request.url.href)).toEqual([expect.stringContaining('/latest-continuous/items?f=json'), next]);
     expect(latest.size).toBe(2);
   });
 
   test('Refresh asks past the browser\'s own copy; an ordinary look doesn\'t', async () => {
     const { fetchImpl, asked } = usgs(() => answer({ features: [] }));
-    await fetchLatest(['01396500'], METRICS.flow, { now: NOW, fetchImpl });
-    await fetchLatest(['01396500'], METRICS.flow, { now: NOW, fetchImpl, fresh: true });
+    await fetchLatest(['01396500'], FLOW, { now: NOW, fetchImpl });
+    await fetchLatest(['01396500'], FLOW, { now: NOW, fetchImpl, fresh: true });
     expect(asked[0].options.cache).toBeUndefined();
     expect(asked[1].options.cache).toBe('reload');
   });
 
   test('what goes wrong is said in words a member can act on', async () => {
-    const failing = (reply) => fetchLatest(['01396500'], METRICS.flow, { now: NOW, fetchImpl: jest.fn(reply) });
+    const failing = (reply) => fetchLatest(['01396500'], FLOW, { now: NOW, fetchImpl: jest.fn(reply) });
     await expect(failing(async () => answer({}, 429))).rejects.toMatchObject({ name: 'GaugeDataError', status: 429, message: expect.stringMatching(/limiting how often/) });
     await expect(failing(async () => answer({}, 503))).rejects.toMatchObject({ status: 503, message: 'USGS answered with an error (503). Try again in a little while.' });
     await expect(failing(async () => { throw new TypeError('Failed to fetch'); })).rejects.toMatchObject({ status: 0, message: 'Couldn\'t reach USGS. Check your connection and try again.' });
@@ -477,6 +515,32 @@ describe('against normal', () => {
     expect(summaryText({ reporting: 1, below: 0, normal: 0, above: 0, unrated: 1 }, 'New Jersey')).toBe('1 gauge reporting. USGS has no long-run record to say what is normal for it today.');
     expect(summaryText({ reporting: 2, below: 0, normal: 0, above: 0, unrated: 2 }, 'New Jersey')).toMatch(/^2 gauges reporting\. .* for them today\.$/);
     expect(summaryText({ reporting: 0, below: 0, normal: 0, above: 0, unrated: 0 }, 'New York')).toBe('No gauge in New York is reporting right now.');
+  });
+});
+
+describe('the average water temperature', () => {
+  const gauges = ['a', 'b', 'c', 'd'].map((site) => ({ site_no: site }));
+  const at = (v) => ({ t: NOW, v });
+
+  test('is the newest reading at each gauge that measures it, added up and divided by how many there are', () => {
+    const temps = new Map([['a', at(44.6)], ['c', at(41.0)], ['d', at(47.3)], ['z', at(90)]]);
+    expect(averageTemperature(gauges, temps)).toEqual({ mean: expect.closeTo(44.3, 5), gauges: 3, low: 41.0, high: 47.3 });
+    // Only the gauges being shown are in it: another state's, read earlier this visit, are not.
+    expect(averageTemperature(gauges.slice(0, 2), temps)).toEqual({ mean: 44.6, gauges: 1, low: 44.6, high: 44.6 });
+    expect(averageTemperature(gauges, new Map())).toBeNull();
+    expect(averageTemperature([], temps)).toBeNull();
+    // A reading that isn't a number is no reading.
+    expect(averageTemperature(gauges, new Map([['a', at(NaN)], ['b', at(40)]]))).toMatchObject({ mean: 40, gauges: 1 });
+  });
+
+  test('and is said as a sentence, the figure apart from the words round it', () => {
+    // A number and its unit are held together by a no-break space, so a line never ends between them.
+    const F = '\u00A0°F';
+    expect(temperatureText({ mean: 44.3, gauges: 20, low: 39.44, high: 47.82 })).toEqual(['Water is averaging ', `44.3${F}`, ` across the 20 gauges that measure it, from 39.4${F} to 47.8${F}.`]);
+    expect(temperatureText({ mean: 44.6, gauges: 1, low: 44.6, high: 44.6 }).join('')).toBe(`Water is 44.6${F} at the one gauge that measures it.`);
+    // Every gauge reading the same to a tenth of a degree: no "from 44.6 °F to 44.6 °F".
+    expect(temperatureText({ mean: 44.6, gauges: 2, low: 44.58, high: 44.62 }).join('')).toBe(`Water is averaging 44.6${F} across the 2 gauges that measure it.`);
+    expect(temperatureText(null)).toEqual(['None of these gauges is reporting water temperature right now.', '', '']);
   });
 });
 

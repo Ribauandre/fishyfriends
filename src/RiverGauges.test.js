@@ -7,7 +7,8 @@ import * as usgs from './utils/riverGauges';
 
 jest.mock('./context/AuthContext', () => ({ useAuth: jest.fn() }));
 // The page's arithmetic is the real thing; only the four questions it puts to USGS, and the
-// search, are answered here. (CRA resets mocks between tests, so each test gets its answers
+// search, are answered here. (The newest readings come as USGS sends them now: one answer
+// holding each gauge's flow and, where it has a thermometer, its water temperature.) (CRA resets mocks between tests, so each test gets its answers
 // from beforeEach.)
 jest.mock('./utils/riverGauges', () => ({
   ...jest.requireActual('./utils/riverGauges'),
@@ -17,6 +18,7 @@ jest.mock('./utils/riverGauges', () => ({
 const real = jest.requireActual('./utils/riverGauges');
 const FLOW = real.METRICS.flow;
 const TEMP = real.METRICS.temp;
+const BOTH = [FLOW, TEMP];
 // Half past ten in the morning wherever the tests run, so "today" is the 26th in any zone.
 const NOW = new Date(2026, 10, 26, 10, 30).getTime();
 const DAY = 24 * 60 * 60 * 1000;
@@ -37,17 +39,21 @@ const NJ = ['01396500', '01380450', '01379845', '01400500', '01443500'];
 // 140% of that. So: three New Jersey gauges below it, one inside it, one above.
 const RUNNING = { '01396500': 39.4, '01380450': 88.9, '01379845': 44.9, '01400500': 213, '01443500': 300, '01449000': 310 };
 const MEDIAN = { '01396500': 85, '01380450': 178, '01379845': 51.9, '01400500': 416, '01443500': 136, '01449000': 300 };
+// One New Jersey gauge has a thermometer, as it was when the page was first built.
 const WARMTH = { '01400500': 44.6 };
 
-function answers({ running = RUNNING, median = MEDIAN } = {}) {
-  usgs.fetchLatest.mockImplementation(async (sites, metric) => {
-    const values = metric.key === 'flow' ? running : WARMTH;
-    return new Map(sites.filter((site) => values[site] !== undefined).map((site) => [site, { t: NOW - 20 * 60 * 1000, v: values[site] }]));
-  });
+// The newest readings of some gauges, as fetchLatest hands them over: flow and, where there
+// is one, water temperature, read at `t`.
+const newest = (sites, { running = RUNNING, warmth = WARMTH, t = NOW - 20 * 60 * 1000 } = {}) => new Map(sites
+  .filter((site) => running[site] !== undefined || warmth[site] !== undefined)
+  .map((site) => [site, { ...(running[site] !== undefined ? { flow: { t, v: running[site] } } : {}), ...(warmth[site] !== undefined ? { temp: { t, v: warmth[site] } } : {}) }]));
+
+function answers({ running = RUNNING, median = MEDIAN, warmth = WARMTH } = {}) {
+  usgs.fetchLatest.mockImplementation(async (sites) => newest(sites, { running, warmth }));
   usgs.fetchNormals.mockImplementation(async (sites, metric, startDay, endDay) => new Map(sites.filter((site) => metric.key === 'flow' && median[site] !== undefined)
     .map((site) => [site, Object.fromEntries(real.daysBetween(startDay, endDay).map((day) => [real.dayOfYear(day), [median[site] * 0.7, median[site], median[site] * 1.4]]))])));
   usgs.fetchDaily.mockImplementation(async (sites, metric, startDay, endDay) => {
-    const values = metric.key === 'flow' ? running : WARMTH;
+    const values = metric.key === 'flow' ? running : warmth;
     // Daily means stop at yesterday.
     return new Map(sites.filter((site) => values[site] !== undefined).map((site) => [site, real.daysBetween(startDay, endDay).slice(0, -1).map((day, index) => ({ t: real.dayToMs(day), v: values[site] + index, day }))]));
   });
@@ -84,6 +90,7 @@ const card = (name) => screen.getByRole('article', { name });
 const kept = () => JSON.parse(window.localStorage.getItem('fishyfriends:gauges-view'));
 const asked = () => ({ latest: usgs.fetchLatest.mock.calls.length, daily: usgs.fetchDaily.mock.calls.length, measured: usgs.fetchContinuous.mock.calls.length, normals: usgs.fetchNormals.mock.calls.length });
 const settled = () => waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled());
+const water = () => document.querySelector('.gauge-water');
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -120,11 +127,40 @@ describe('the list of rivers', () => {
     expect(river('Paulins Kill')).toHaveAccessibleName('Paulins Kill at Blairstown 300 cfs 164 cfs above normal');
   });
 
+  test('under that sentence, the average water temperature of the gauges that measure it, from the coldest to the warmest', async () => {
+    answers({ warmth: { '01400500': 44.6, '01443500': 41.0, '01380450': 47.3, '01449000': 39.2 } });
+    await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    expect(water()).toHaveTextContent('Water is averaging 44.3 °F across the 3 gauges that measure it, from 41.0 °F to 47.3 °F.');
+    // The figure is set apart from the words round it.
+    expect(within(water()).getByText('44.3 °F').tagName).toBe('STRONG');
+    // Both lines are one announcement to a screen reader, and this one is read out whole.
+    expect(water().closest('[role="status"]')).toContainElement(screen.getByText(/^Of 5 gauges reporting/));
+    expect(water()).toHaveAttribute('aria-atomic', 'true');
+    // It came with the flows: still one question about the newest readings, and none for a chart.
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
+    expect(asked()).toMatchObject({ daily: 0, measured: 0 });
+    // Another state's gauges have an average of their own.
+    userEvent.selectOptions(screen.getByLabelText('State'), 'PA');
+    expect(water()).toBeNull();
+    await screen.findByText(/^Of 1 gauge reporting/);
+    expect(water()).toHaveTextContent('Water is 39.2 °F at the one gauge that measures it.');
+  });
+
+  test('where no gauge has a thermometer it says that instead of an average', async () => {
+    answers({ warmth: {} });
+    await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    expect(water()).toHaveTextContent('None of these gauges is reporting water temperature right now.');
+    expect(water().querySelector('strong')).toBeNull();
+  });
+
   test('that much takes two questions to USGS, about every gauge at once, and none for a chart', async () => {
     await open();
     await screen.findByText(/^Of 5 gauges reporting/);
     expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
-    expect(usgs.fetchLatest).toHaveBeenCalledWith(NJ, FLOW, expect.objectContaining({ fresh: false, now: NOW }));
+    // The newest flow and the newest water temperature are one question, not two.
+    expect(usgs.fetchLatest).toHaveBeenCalledWith(NJ, BOTH, expect.objectContaining({ fresh: false, now: NOW }));
     expect(usgs.fetchNormals).toHaveBeenCalledTimes(1);
     expect(usgs.fetchNormals).toHaveBeenCalledWith(NJ, FLOW, '2026-11-26', '2026-11-26', expect.objectContaining({ now: NOW, storage: window.localStorage }));
     expect(asked()).toMatchObject({ daily: 0, measured: 0 });
@@ -143,10 +179,12 @@ describe('the list of rivers', () => {
     usgs.fetchLatest.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
     await open();
     expect(screen.getByText('Reading the gauges...')).toBeInTheDocument();
+    expect(water()).toBeNull();
     expect(linesOf('South Branch Raritan')).toEqual([['near High Bridge', '…', '']]);
     expect(await screen.findByRole('button', { name: 'Reading...' })).toBeDisabled();
-    await act(async () => { answer(new Map([['01396500', { t: NOW, v: 39.4 }]])); });
+    await act(async () => { answer(newest(['01396500'], { t: NOW })); });
     await screen.findByText(/^Of 1 gauge reporting/);
+    expect(water()).toHaveTextContent('None of these gauges is reporting water temperature right now.');
     expect(linesOf('South Branch Raritan')).toEqual([['near High Bridge', '39.4 cfs', '▼46 cfs below normal']]);
   });
 
@@ -164,7 +202,7 @@ describe('the list of rivers', () => {
     userEvent.selectOptions(screen.getByLabelText('State'), 'PA');
     expect(await screen.findByText('Of 1 gauge reporting, 0 are running below normal flow for today, 1 near normal and 0 above.')).toBeInTheDocument();
     expect(linesOf('Lehigh River')).toEqual([['at Lehighton', '310 cfs', '●Near normal · 10 cfs over']]);
-    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(['01449000'], FLOW, expect.anything());
+    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(['01449000'], BOTH, expect.anything());
     expect(kept().state).toBe('PA');
     // Going back asks nothing: New Jersey was read a moment ago.
     userEvent.selectOptions(screen.getByLabelText('State'), 'NJ');
@@ -352,18 +390,36 @@ describe('what is charted', () => {
     expect(manville.getAttribute('aria-valuetext')).toMatch(/this period 44\.6 °F/);
     expect(screen.getAllByRole('slider')).toHaveLength(1);
     expect(screen.getAllByText('This gauge doesn\'t measure water temperature.')).toHaveLength(4);
-    expect(usgs.fetchLatest).toHaveBeenCalledWith(NJ, TEMP, expect.anything());
+    // The newest temperatures came with the newest flows when the page opened: no second question.
+    expect(usgs.fetchLatest).toHaveBeenCalledTimes(1);
     expect(usgs.fetchDaily).toHaveBeenCalledWith(NJ, TEMP, MONTH.startDay, MONTH.endDay, expect.anything());
     // A log axis says nothing useful about a temperature.
     expect(screen.getByRole('button', { name: 'Log' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Linear' })).toHaveAttribute('aria-pressed', 'true');
-    // The card still says what the river is running, and the top of the page is still about flow.
+    // The card still says what the river is running, and the top of the page says what it did before.
     const card = within(screen.getByRole('article', { name: 'Raritan River at Manville' }));
     expect(card.getByText('44.6')).toBeInTheDocument();
     expect(card.getByText('203 cfs below normal')).toBeInTheDocument();
     expect(card.getByText('213 cfs now')).toBeInTheDocument();
     expect(screen.getByText(/^Of 5 gauges reporting/)).toBeInTheDocument();
+    expect(water()).toHaveTextContent('Water is 44.6 °F at the one gauge that measures it.');
     expect(kept().metric).toBe('temp');
+  });
+
+  test('a temperature card says what the water is at once, from the reading the page opened with, while its chart is on the way', async () => {
+    const held = [];
+    usgs.fetchDaily.mockImplementation(() => new Promise((resolve) => { held.push(resolve); }));
+    await open();
+    await screen.findByText(/^Of 5 gauges reporting/);
+    userEvent.click(screen.getByRole('button', { name: 'Water temp' }));
+    userEvent.click(river('Raritan River'));
+    const manville = within(card('Raritan River at Manville'));
+    expect(manville.getByRole('status')).toHaveTextContent('Reading the gauge...');
+    expect(manville.getByText('44.6')).toBeInTheDocument();
+    expect(manville.getByText('20 min ago')).toBeInTheDocument();
+    await act(async () => { held.forEach((resolve) => resolve(new Map())); });
+    expect(await manville.findByRole('slider')).toBeInTheDocument();
+    expect(manville.getByText('44.6')).toBeInTheDocument();
   });
 
   test('a custom stretch wants its two dates first, then charts just those days', async () => {
@@ -402,12 +458,14 @@ describe('what is charted', () => {
     await withOneOpen();
     time = NOW + 45 * 60 * 1000;
     answers({ running: { ...RUNNING, '01396500': 52.0 } });
-    usgs.fetchLatest.mockImplementation(async (sites) => new Map(sites.map((site) => [site, { t: time - 5 * 60 * 1000, v: site === '01396500' ? 52 : RUNNING[site] }])));
+    usgs.fetchLatest.mockImplementation(async (sites) => newest(sites, { running: { ...RUNNING, '01396500': 52 }, warmth: { '01400500': 43.9 }, t: time - 5 * 60 * 1000 }));
     userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await within(card('South Branch Raritan near High Bridge')).findByText('52.0');
     expect(within(card('South Branch Raritan near High Bridge')).getByText('5 min ago')).toBeInTheDocument();
     expect(within(card('South Branch Raritan near High Bridge')).getByText('33 cfs below normal')).toBeInTheDocument();
-    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, FLOW, expect.objectContaining({ fresh: true, now: time }));
+    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, BOTH, expect.objectContaining({ fresh: true, now: time }));
+    // The top of the page is from the same new reading as the cards.
+    expect(water()).toHaveTextContent('Water is 43.9 °F at the one gauge that measures it.');
     // This period's record is read again, past the browser's copy...
     expect(usgs.fetchDaily).toHaveBeenCalledTimes(3);
     expect(usgs.fetchDaily.mock.calls[2].slice(2)).toEqual([MONTH.startDay, MONTH.endDay, expect.objectContaining({ fresh: true })]);
@@ -424,7 +482,7 @@ describe('what is charted', () => {
     userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(card('South Branch Raritan near High Bridge')).toHaveClass('is-stale');
     expect(screen.getByRole('slider')).toBeInTheDocument();
-    await act(async () => { answer(new Map(NJ.map((site) => [site, { t: NOW, v: RUNNING[site] }]))); });
+    await act(async () => { answer(newest(NJ, { t: NOW })); });
     await waitFor(() => expect(card('South Branch Raritan near High Bridge')).not.toHaveClass('is-stale'));
   });
 });
@@ -451,12 +509,16 @@ describe('new readings by themselves', () => {
     act(() => { jest.advanceTimersByTime(3 * MINUTE); });
     expect(usgs.fetchLatest).toHaveBeenCalledTimes(2);
     // Not a Refresh by hand: this period's daily means may come from the browser's own copy.
-    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, FLOW, expect.objectContaining({ fresh: false, now: time }));
-    // The chart that is up stays up, undimmed, while the new readings are on their way.
+    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(NJ, BOTH, expect.objectContaining({ fresh: false, now: time }));
+    // The chart that is up stays up, undimmed, while the new readings are on their way, and so
+    // does what the top of the page says.
     expect(card('South Branch Raritan near High Bridge')).not.toHaveClass('is-stale');
     expect(screen.getByRole('slider')).toBeInTheDocument();
-    await act(async () => { answer(new Map(NJ.map((site) => [site, { t: time - 4 * MINUTE, v: site === '01396500' ? 61.5 : RUNNING[site] }]))); });
+    expect(water()).toHaveTextContent('Water is 44.6 °F at the one gauge that measures it.');
+    await act(async () => { answer(newest(NJ, { running: { ...RUNNING, '01396500': 61.5 }, warmth: { '01400500': 45.1, '01443500': 42.3 }, t: time - 4 * MINUTE })); });
     expect(await within(card('South Branch Raritan near High Bridge')).findByText('61.5')).toBeInTheDocument();
+    // The average is of the new readings too: a second thermometer has come on since.
+    expect(water()).toHaveTextContent('Water is averaging 43.7 °F across the 2 gauges that measure it, from 42.3 °F to 45.1 °F.');
     expect(linesOf('Rockaway River')[0]).toEqual(['at Boonton', '88.9 cfs', '▼89 cfs below normal']);
     expect(screen.getByRole('button', { name: /^Sources/ })).toHaveTextContent('read at 10:45 AM');
     // Only what can have changed was asked for: one reading of the gauges and this period's record.
@@ -510,7 +572,7 @@ describe('sources', () => {
       'Latest USGS readings (24 h)', 'Historic daily medians', 'Daily means, this period and last year', '15-minute readings, this period and last year',
     ]);
     expect(within(workedOut).getAllByRole('listitem').map((item) => item.querySelector('strong').textContent)).toEqual([
-      'Latest reading per gauge', 'Flow compared with normal', 'Gauges below, near and above normal',
+      'Latest reading per gauge', 'Flow compared with normal', 'Gauges below, near and above normal', 'Average water temperature',
     ]);
     // Each source names the USGS service it is, and links to that service's own page.
     const links = sources.getAllByRole('link');
@@ -561,18 +623,22 @@ describe('when USGS can\'t be had', () => {
     await open();
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn\'t reach USGS. Check your connection and try again.');
     expect(screen.getByText('USGS isn\'t answering right now.')).toBeInTheDocument();
+    expect(water()).toBeNull();
     expect(linesOf('South Branch Raritan')).toEqual([['near High Bridge', '…', 'No answer from USGS']]);
     answers();
     userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     expect(await screen.findByText(/^Of 5 gauges reporting/)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(linesOf('South Branch Raritan')).toEqual([['near High Bridge', '39.4 cfs', '▼46 cfs below normal']]);
+    expect(water()).toHaveTextContent('Water is 44.6 °F at the one gauge that measures it.');
   });
 
   test('readings but no normals: the flows are shown and nothing is called normal or not', async () => {
     usgs.fetchNormals.mockRejectedValue(new real.GaugeDataError('USGS answered with an error (503). Try again in a little while.', 503));
     await open();
     expect(await screen.findByText('5 of 5 gauges reporting. Today\'s normals couldn\'t be had to hold them against.')).toBeInTheDocument();
+    // The water's temperature needs no normal to be said.
+    expect(water()).toHaveTextContent('Water is 44.6 °F at the one gauge that measures it.');
     expect(screen.getByRole('alert')).toHaveTextContent('USGS answered with an error (503)');
     expect(linesOf('South Branch Raritan')).toEqual([['near High Bridge', '39.4 cfs', 'Couldn\'t get today\'s normal']]);
   });
@@ -729,7 +795,7 @@ describe('the club\'s list', () => {
     expect(await screen.findByRole('slider', { name: /^Rockaway River below the reservoir, flow/ })).toBeInTheDocument();
     expect(screen.getAllByRole('slider')).toHaveLength(4);
     expect(within(river('Rockaway River')).getByText('3 gauges')).toBeInTheDocument();
-    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(['01381000'], FLOW, expect.anything());
+    expect(usgs.fetchLatest).toHaveBeenLastCalledWith(['01381000'], BOTH, expect.anything());
     expect(usgs.fetchDaily).toHaveBeenLastCalledWith(['01381000'], FLOW, expect.any(String), expect.any(String), expect.anything());
     expect(usgs.fetchNormals).toHaveBeenLastCalledWith(['01381000'], FLOW, expect.any(String), expect.any(String), expect.anything());
     expect(await screen.findByText(/^Of 6 gauges reporting/)).toBeInTheDocument();

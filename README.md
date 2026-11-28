@@ -17,7 +17,7 @@ The current product has six authenticated surfaces and one public entry surface:
 | `/anglers` | Authenticated | Angler directory: log a personal best, the species checklist, and search/browse the roster. |
 | `/tournaments` | Authenticated | Browse tournaments and start a new one. |
 | `/tournaments/:tournamentId` | Authenticated | One tournament's leaderboard, entry submission, and (creator only) delete. |
-| `/gauges` | Authenticated | River gauges: a drop-down per river saying how many cfs each of its USGS gauges is above or below normal for today, opening to charts of flow or water temperature against last year and the long-run median. Reads USGS again every 15 minutes while open, and says where each number comes from. |
+| `/gauges` | Authenticated | River gauges: a drop-down per river saying how many cfs each of its USGS gauges is above or below normal for today, opening to charts of flow or water temperature against last year and the long-run median. The top of the page counts the gauges below, near and above normal and gives the average water temperature of the ones that measure it. Reads USGS again every 15 minutes while open, and says where each number comes from. |
 
 `/` redirects to `/home`. `/fluke-tournament` — the old route for a single hardcoded tournament, before Tournaments became a general, user-creatable feature — redirects to `/tournaments`. Unauthenticated visits to protected routes redirect to `/account`.
 

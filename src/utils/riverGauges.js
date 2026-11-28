@@ -8,7 +8,8 @@
 //   * the Water Data API (api.waterdata.usgs.gov/ogcapi/v1) — a gauge's latest reading, its
 //     15-minute record, its daily means, and the catalogue of stations. One request takes
 //     many gauges at once (comma-separated ids), which matters: without a key USGS allows a
-//     connection only so many requests an hour, so the page asks for a whole state in four.
+//     connection only so many requests an hour, so every question is put about a whole state
+//     at once, and the newest flow and water temperature come back in one answer.
 //   * the Statistics API (api.waterdata.usgs.gov/statistics/v0, still labelled beta) — for
 //     each day of the year, the median and percentiles of that day's flow over every year
 //     on record. "Normal for today" is USGS's own convention: between the 25th and 75th
@@ -163,21 +164,35 @@ async function items(collection, siteNos, params, options) {
 const siteOf = (row) => String(row.monitoring_location_id || '').replace(/^USGS-/, '');
 const numberOf = (text) => { const value = Number(text); return text !== null && text !== '' && Number.isFinite(value) ? value : null; };
 
-// The most recent reading of each gauge: Map of site number -> { t, v }. A gauge with no
-// reading for the metric, or none in the last few days, is left out.
-export async function fetchLatest(siteNos, metric, { now = Date.now(), ...options } = {}) {
+// The most recent reading of each gauge, for every measurement asked about, in one question:
+// Map of site number -> { flow: { t, v }, temp: { t, v } }, holding only what the gauge has
+// reported in the last day (many gauges have no thermometer, and each measurement keeps its
+// own clock: a gauge whose thermometer went quiet years ago is still reporting flow). A gauge
+// with none of it is left out.
+export async function fetchLatest(siteNos, metrics, { now = Date.now(), ...options } = {}) {
   const latest = new Map();
-  if (siteNos.length === 0) return latest;
-  const rows = await items('latest-continuous', siteNos, { parameter_code: metric.parameter, properties: 'monitoring_location_id,time,value' }, options);
+  if (siteNos.length === 0 || metrics.length === 0) return latest;
+  const asked = new Map(metrics.map((metric) => [metric.parameter, metric]));
+  const rows = await items('latest-continuous', siteNos, { parameter_code: [...asked.keys()].join(','), properties: 'monitoring_location_id,parameter_code,time,value' }, options);
   for (const row of rows) {
+    const metric = asked.get(row.parameter_code);
     const t = Date.parse(row.time);
     const raw = numberOf(row.value);
-    if (!Number.isFinite(t) || raw === null || now - t > REPORTING_WITHIN_HOURS * HOUR) continue;
-    const v = metric.convert ? metric.convert(raw) : raw;
-    const known = latest.get(siteOf(row));
-    if (!known || t > known.t) latest.set(siteOf(row), { t, v });
+    if (!metric || !Number.isFinite(t) || raw === null || now - t > REPORTING_WITHIN_HOURS * HOUR) continue;
+    const site = siteOf(row);
+    const readings = latest.get(site) || {};
+    const known = readings[metric.key];
+    if (!known || t > known.t) latest.set(site, { ...readings, [metric.key]: { t, v: metric.convert ? metric.convert(raw) : raw } });
   }
   return latest;
+}
+
+// One measurement out of that answer: Map of site number -> { t, v }, for the gauges that
+// report it.
+export function readingsOf(latest, key) {
+  const readings = new Map();
+  latest.forEach((found, site) => { if (found[key]) readings.set(site, found[key]); });
+  return readings;
 }
 
 // A daily value carries its date as well as where it is drawn (`day`): the date is what it
@@ -390,6 +405,29 @@ export function summaryText(counts, where) {
   return `Of ${reporting} reporting, ${counts.below} ${counts.below === 1 ? 'is' : 'are'} running below normal flow for today, ${counts.normal} near normal and ${counts.above} above.${rest}`;
 }
 
+// The line under that sentence, the average water temperature: the newest reading at each
+// gauge that measures it, added up and divided by how many there are, with the coldest and
+// the warmest of them. By gauge, like the sentence above it, so every number in the line is
+// a number on a card. null where none of the gauges being shown has a reading; `temps` is
+// each gauge's newest one.
+export function averageTemperature(gauges, temps) {
+  const values = gauges.map((gauge) => temps.get(gauge.site_no)?.v).filter((value) => Number.isFinite(value));
+  if (values.length === 0) return null;
+  return { mean: values.reduce((sum, value) => sum + value, 0) / values.length, gauges: values.length, low: Math.min(...values), high: Math.max(...values) };
+}
+
+// That average in words — in three pieces, so the page can set the figure apart: what comes
+// before it, the figure, and what comes after. Read together they are one sentence. (The
+// space between a number and its unit is a no-break one: on a narrow phone the line never
+// ends between "44.4" and "°F".)
+export function temperatureText(average) {
+  if (!average) return ['None of these gauges is reporting water temperature right now.', '', ''];
+  const degrees = (value) => `${formatReading(value, METRICS.temp)}\u00A0${METRICS.temp.unit}`;
+  if (average.gauges === 1) return ['Water is ', degrees(average.mean), ' at the one gauge that measures it.'];
+  const [low, high] = [degrees(average.low), degrees(average.high)];
+  return ['Water is averaging ', degrees(average.mean), ` across the ${average.gauges} gauges that measure it${low === high ? '' : `, from ${low} to ${high}`}.`];
+}
+
 // Where a reading stands against the day's normals: which side of the usual range it is on
 // (compareToNormal) and how far it is from the median, in the reading's own unit. null
 // where there is nothing to hold it against.
@@ -488,7 +526,7 @@ export async function searchGauges({ state, term }, options = {}) {
   const found = (body.features || []).map((feature) => feature.properties || {})
     .filter((row) => /^\d{8,15}$/.test(row.monitoring_location_number || '') && row.site_type_code === 'ST');
   if (found.length === 0) return [];
-  const flowing = await fetchLatest(found.map((row) => row.monitoring_location_number), METRICS.flow, options);
+  const flowing = readingsOf(await fetchLatest(found.map((row) => row.monitoring_location_number), [METRICS.flow], options), 'flow');
   return found
     .filter((row) => flowing.has(row.monitoring_location_number))
     .map((row) => {
