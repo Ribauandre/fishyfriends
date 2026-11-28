@@ -73,6 +73,15 @@ test('signing out everywhere takes a second, deliberate tap, then leaves for the
   expect(auth.signOutEverywhere).toHaveBeenCalledTimes(1);
 });
 
+test('where the club has passkeys, the lost-phone advice says a passkey outlives a sign-out', () => {
+  const { unmount } = renderSection();
+  expect(screen.getByText(/This ends every session; other devices are out within the hour\.$/)).toBeInTheDocument();
+  expect(screen.queryByText(/A passkey on a lost phone/)).toBeNull();
+  unmount();
+  renderSection({ passkeysOn: true });
+  expect(screen.getByText(/This ends every session/)).toHaveTextContent('A passkey on a lost phone still works for whoever can unlock that phone, so remove it under Passkeys, above.');
+});
+
 test('a failure to sign out everywhere is shown and the page stays', async () => {
   renderSection({ signOutEverywhere: jest.fn().mockResolvedValue({ error: new Error('Network down') }) });
   await userEvent.click(screen.getByRole('button', { name: 'Sign out everywhere' }));

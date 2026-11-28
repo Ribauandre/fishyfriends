@@ -41,6 +41,15 @@ export function createSupabaseMock() {
     resetPasswordForEmail: jest.fn().mockResolvedValue({ data: {}, error: null }),
     updateUser: jest.fn().mockResolvedValue({ data: { user: {} }, error: null }),
     onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
+    // Passkeys (utils/passkeys.js). A sign-in with one works, a new one is registered, and the
+    // account holds none, unless a test scripts otherwise with mockResolvedValue.
+    signInWithPasskey: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'user-1' } }, user: { id: 'user-1' } }, error: null }),
+    registerPasskey: jest.fn().mockResolvedValue({ data: { id: 'passkey-new', friendly_name: 'iCloud Keychain', created_at: '2026-11-28T15:00:00Z' }, error: null }),
+    passkey: {
+      list: jest.fn().mockResolvedValue({ data: [], error: null }),
+      update: jest.fn(async ({ passkeyId, friendlyName }) => ({ data: { id: passkeyId, friendly_name: friendlyName, created_at: '2026-11-28T15:00:00Z' }, error: null })),
+      delete: jest.fn().mockResolvedValue({ data: null, error: null }),
+    },
   };
 
   const storageUpload = jest.fn().mockResolvedValue({ error: null });

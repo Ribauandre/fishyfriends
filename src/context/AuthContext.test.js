@@ -35,6 +35,21 @@ test('signIn fails closed with a clear message', async () => {
   expect(response.error.message).toMatch(/not configured/i);
 });
 
+test('passkeys fail closed: nothing is offered, nothing is asked, and a sign-in with one is refused', async () => {
+  window.localStorage.setItem('fishyfriends:passkeys-on', '1');
+  const result = await setup();
+  // Even a device that remembers them being on offers nothing on a deployment with no Supabase.
+  expect(result.current.passkeysOn).toBe(false);
+  expect(result.current.canUsePasskeys).toBe(false);
+  expect(await result.current.checkPasskeys()).toBe(false);
+  expect((await result.current.signInWithPasskey()).error.message).toMatch(/not configured/i);
+  expect(await result.current.listPasskeys()).toEqual({ passkeys: [], error: null });
+  expect((await result.current.addPasskey('a-password-1')).error.message).toBe('Sign in first.');
+  expect((await result.current.renamePasskey('pk-1', 'My iPhone')).error.message).toBe('Sign in first.');
+  expect((await result.current.removePasskey('pk-1')).error.message).toBe('Sign in first.');
+  window.localStorage.clear();
+});
+
 test('signUp fails closed with a clear message', async () => {
   const result = await setup();
   let response;

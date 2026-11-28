@@ -555,13 +555,37 @@ button { cursor: pointer; }
 @media (max-width: 800px) {
   .update-banner { bottom: calc(76px + env(safe-area-inset-bottom)); width: calc(100% - 24px); }
 }
-.fishing-licenses-panel, .payment-contacts-panel, .password-panel { margin-top: 22px; }
+.fishing-licenses-panel, .payment-contacts-panel, .password-panel, .passkey-panel { margin-top: 22px; }
 /* A field a password manager reads and nobody sees (the account's email beside a password
    form): the display rules for form fields would otherwise put it on the page. */
 .settings-card input[hidden], .auth-form input[hidden] { display: none; }
 .password-panel > p:not(.form-error) { color: var(--muted); font-size: 12px; margin: 14px 0 0; }
 .password-panel .text-button { background: none; border: 0; color: var(--teal); font: inherit; padding: 0; text-decoration: underline; }
 .password-panel form > .password-reset-sent { display: block; margin: 12px 0 0; }
+/* Passkeys (Profile, and the button under the sign-in form): a list in the licences' own
+   row style, each with its name and when it was added and last used. */
+.passkey-panel > p:not(.form-error):not(.month-empty) { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 14px 0 0; }
+.passkey-panel > p strong { color: var(--ink); }
+.passkey-list { display: flex; flex-direction: column; gap: 12px; list-style: none; margin: 18px 0 0; padding: 0; }
+.passkey-row { align-items: center; border: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; padding: 14px 16px; }
+.passkey-row-info { display: grid; gap: 4px; min-width: 0; }
+.passkey-row-info strong { overflow-wrap: anywhere; }
+.passkey-row-info span { color: var(--muted); font-size: 12px; }
+.passkey-row-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; }
+/* (Two classes deep, because `.settings-card .button`, further down, gives every button in a
+   settings card a top margin.) */
+.passkey-row .passkey-row-actions .button, .passkey-row .passkey-row-actions .button-quiet { margin-top: 0; width: auto; }
+.passkey-confirm > span { color: var(--coral); flex-basis: 100%; font-size: 13px; }
+.passkey-rename { align-items: flex-end; display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 12px; }
+.passkey-rename label { flex: 1 1 200px; margin-top: 0; }
+.passkey-add .form-actions { justify-content: flex-start; margin-top: 22px; }
+.passkey-panel .passkey-add .button { margin-top: 0; }
+.auth-passkey { margin-top: 22px; text-align: center; }
+.auth-or { align-items: center; color: var(--muted); display: flex; font-size: 11px; font-weight: 800; gap: 12px; letter-spacing: .12em; text-transform: uppercase; }
+.auth-or::before, .auth-or::after { background: var(--line); content: ''; flex: 1; height: 1px; }
+.auth-passkey .button-quiet { margin-top: 16px; }
+.auth-passkey-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 12px 0 0; }
+.auth-passkey .form-error { margin-top: 12px; }
 .password-devices { flex-wrap: wrap; gap: 10px 12px; justify-content: flex-start; margin-top: 28px; }
 .password-devices > span { color: var(--coral); flex-basis: 100%; font-size: 13px; }
 .password-devices .button, .password-devices .button-quiet { margin-top: 0; width: auto; }

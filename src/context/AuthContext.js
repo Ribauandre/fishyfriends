@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { isSupabaseConfigured, supabase, supabaseProjectUrl, arrivedBy } from '../lib/supabase';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { isSupabaseConfigured, supabase, supabaseProjectUrl, arrivedBy, fetchAuthSettings } from '../lib/supabase';
 import { SPECIES_OPTIONS } from '../utils/speciesOptions';
 import { canonicalSpecies } from '../utils/speciesNames';
 import compressImage, { readBytes } from '../utils/compressImage';
@@ -15,6 +15,7 @@ import { LURES, FLY_ROD } from '../utils/gameLures';
 import { WARDROBE, normalizeLook } from '../utils/anglerLook';
 import { createPhotoLinker, parseStoredPhoto, PHOTO_BUCKETS, PHOTO_LINK_SECONDS } from '../utils/photoLinks';
 import { passwordProblem, breachCount, breachMessage } from '../utils/passwordCheck';
+import { browserCanUsePasskeys, passkeyProblem, recallPasskeysOn, rememberPasskeysOn, rememberPasskeyHere, sortPasskeys, PASSKEY_NAME_MAX } from '../utils/passkeys';
 import { openLiveChannel, testLiveChannels, liveChannelVerdict, recallLiveVerdict, rememberLiveVerdict, DOCK_TOPIC, ACTIVITY_TOPIC } from '../utils/liveChannels';
 
 const AuthContext = createContext(null);
@@ -34,6 +35,8 @@ function rememberWarning(userId) {
   try { if (userId) window.localStorage.setItem(PASSWORD_WARNING_KEY, userId); else window.localStorage.removeItem(PASSWORD_WARNING_KEY); } catch (storageError) { /* nothing to keep */ }
 }
 const KNOWN_SPECIES = new Set(SPECIES_OPTIONS.map((option) => option.label.toLowerCase()));
+// How long a checked password stands for adding a passkey (see addPasskey).
+const PASSWORD_CHECK_LASTS_MS = 5 * 60 * 1000;
 
 const LIKE_TABLES = { personal_best: 'personal_best_likes', fish_year_catch: 'fish_year_catch_likes', tournament_entry: 'tournament_entry_likes' };
 const LIKE_COLUMNS = { personal_best: 'personal_best_id', fish_year_catch: 'catch_id', tournament_entry: 'tournament_entry_id' };
@@ -316,6 +319,109 @@ export function AuthProvider({ children }) {
     const check = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
     if (check.error) return { error: new Error('That isn\'t your current password.') };
     return applyNewPassword(nextPassword);
+  }
+
+  // --- Passkeys: Face ID, Touch ID, a screen lock or a security key instead of the password
+  // (utils/passkeys.js). They are offered only where the project's owner has switched them
+  // on — its public settings say so — and the browser can do it. `passkeysOn` starts from
+  // what this device last heard, so the sign-in page doesn't grow a button a moment late,
+  // and is asked for once a visit by the two places that offer them (checkPasskeys).
+  const [passkeysOn, setPasskeysOn] = useState(() => isSupabaseConfigured && recallPasskeysOn());
+  const passkeysAsked = useRef(null);
+  // The current password, checked a moment ago: adding a passkey asks for it once, and a
+  // second try (the device's prompt was closed, or the browser wouldn't show it without a
+  // fresh tap) doesn't ask again. Kept for the visit only, as whose it was and until when —
+  // never the password — so it is no use to the next account to sign in on this tab.
+  const passwordChecked = useRef({ userId: null, until: 0 });
+  const canUsePasskeys = passkeysOn && browserCanUsePasskeys();
+
+  function checkPasskeys() {
+    if (!isSupabaseConfigured) return Promise.resolve(false);
+    if (!passkeysAsked.current) {
+      passkeysAsked.current = fetchAuthSettings().then((settings) => {
+        // Settings that couldn't be read change nothing: what was last heard stands.
+        if (!settings) { passkeysAsked.current = null; return recallPasskeysOn(); }
+        const on = settings.passkeys_enabled === true;
+        rememberPasskeysOn(on);
+        setPasskeysOn(on);
+        return on;
+      });
+    }
+    return passkeysAsked.current;
+  }
+
+  // What a refusal means for the app, and the words for it.
+  function passkeyRefused(error, doing) {
+    const problem = passkeyProblem(error, doing);
+    if (problem.switchedOff) { rememberPasskeysOn(false); setPasskeysOn(false); }
+    if (problem.gone) rememberPasskeyHere(false);
+    return { error: new Error(problem.message), cancelled: problem.cancelled };
+  }
+
+  // The device asks for a face, a finger or its PIN, and Supabase checks the answer against
+  // the passkey it has on file. No email is typed: the passkey says whose account it is. On
+  // success the same SIGNED_IN that a password produces does the rest.
+  async function signInWithPasskey() {
+    if (!isSupabaseConfigured) return { error: new Error('Authentication is not configured for this deployment.') };
+    let result;
+    try { result = await supabase.auth.signInWithPasskey(); } catch (thrown) { result = { data: null, error: thrown }; }
+    if (result.error) return passkeyRefused(result.error, 'signin');
+    if (!result.data?.session) return passkeyRefused(null, 'signin');
+    rememberPasskeyHere(true);
+    return { error: null };
+  }
+
+  // The account's passkeys, newest first: { passkeys } or { error }.
+  async function listPasskeys() {
+    if (!isSupabaseConfigured || !user) return { passkeys: [], error: null };
+    let result;
+    try { result = await supabase.auth.passkey.list(); } catch (thrown) { result = { data: null, error: thrown }; }
+    if (result.error) return { passkeys: null, ...passkeyRefused(result.error, 'list') };
+    return { passkeys: sortPasskeys(result.data), error: null };
+  }
+
+  // Adds one for the device (or password manager) in hand. The current password is asked for
+  // and checked first, as it is to change the password: an unlocked phone, or a computer
+  // somebody walked away from, isn't enough to leave a way back in. A later try within a few
+  // minutes may come without it (see passwordChecked).
+  async function addPasskey(currentPassword) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    if (currentPassword) {
+      const check = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword });
+      if (check.error) return { error: new Error('That isn\'t your current password.') };
+      passwordChecked.current = { userId: user.id, until: Date.now() + PASSWORD_CHECK_LASTS_MS };
+    } else if (passwordChecked.current.userId !== user.id || Date.now() >= passwordChecked.current.until) {
+      return { error: new Error('Type your current password.'), needsPassword: true };
+    }
+    // From here on the password has been checked, whatever the device then says
+    // (`passwordOk`, so the form can stop asking for it).
+    let result;
+    try { result = await supabase.auth.registerPasskey(); } catch (thrown) { result = { data: null, error: thrown }; }
+    if (result.error) return { ...passkeyRefused(result.error, 'add'), passwordOk: true };
+    passwordChecked.current = { userId: null, until: 0 };
+    rememberPasskeyHere(true);
+    return { error: null, passkey: result.data || null, passwordOk: true };
+  }
+
+  async function renamePasskey(passkeyId, name) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    const friendlyName = String(name || '').replace(/\s+/g, ' ').trim().slice(0, PASSKEY_NAME_MAX);
+    if (!friendlyName) return { error: new Error('Give it a name you\'ll recognise, like "My iPhone".') };
+    let result;
+    try { result = await supabase.auth.passkey.update({ passkeyId, friendlyName }); } catch (thrown) { result = { data: null, error: thrown }; }
+    if (result.error) return passkeyRefused(result.error, 'rename');
+    return { error: null, passkey: result.data || { id: passkeyId, friendly_name: friendlyName } };
+  }
+
+  // Takes one off the account: the device that held it has to use the password, or another
+  // passkey, from then on. `last` is whether it was the account's only one.
+  async function removePasskey(passkeyId, { last = false } = {}) {
+    if (!isSupabaseConfigured || !user) return { error: new Error('Sign in first.') };
+    let result;
+    try { result = await supabase.auth.passkey.delete({ passkeyId }); } catch (thrown) { result = { data: null, error: thrown }; }
+    if (result.error) return passkeyRefused(result.error, 'remove');
+    if (last) rememberPasskeyHere(false);
+    return { error: null };
   }
 
   async function updateProfile(rawProfile) {
@@ -1896,6 +2002,7 @@ export function AuthProvider({ children }) {
     shouldShowTour, completeTour,
     signIn, signUp, signOut, updateProfile, uploadAvatar, getClubStats,
     passwordRecovery, passwordWarning, requestPasswordReset, setRecoveredPassword, changePassword, signOutEverywhere,
+    passkeysOn, canUsePasskeys, checkPasskeys, signInWithPasskey, listPasskeys, addPasskey, renamePasskey, removePasskey,
     uploadPersonalBest, deletePersonalBest, listAnglers,
     listComments, addComment, deleteComment,
     listFishYearCatches, logFishYearCatch, deleteFishYearCatch,

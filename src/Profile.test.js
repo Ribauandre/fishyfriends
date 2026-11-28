@@ -317,6 +317,29 @@ describe('Zelle & Apple Cash', () => {
   });
 });
 
+describe('passkeys', () => {
+  test('are not on Profile where the club hasn\'t switched them on', () => {
+    useAuth.mockReturnValue(makeBaseAuth());
+    render(<MemoryRouter><Profile /></MemoryRouter>);
+    expect(screen.queryByRole('heading', { name: 'Passkeys' })).toBeNull();
+    expect(screen.getByRole('heading', { name: /Password & devices/ })).toBeInTheDocument();
+  });
+
+  test('where they are on, they sit above the password, with the account\'s own listed', async () => {
+    useAuth.mockReturnValue(makeBaseAuth({
+      passkeysOn: true, canUsePasskeys: true, checkPasskeys: jest.fn().mockResolvedValue(true),
+      listPasskeys: jest.fn().mockResolvedValue({ passkeys: [{ id: 'pk-1', friendly_name: 'iCloud Keychain', created_at: '2026-11-20T12:00:00Z' }], error: null }),
+      addPasskey: jest.fn(), renamePasskey: jest.fn(), removePasskey: jest.fn(),
+    }));
+    render(<MemoryRouter><Profile /></MemoryRouter>);
+    expect(await screen.findByText('iCloud Keychain')).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+    expect(headings.indexOf('Passkeys')).toBeGreaterThan(-1);
+    expect(headings.indexOf('Passkeys')).toBeLessThan(headings.indexOf('Password & devices'));
+    expect(document.getElementById('passkeys')).toContainElement(screen.getByRole('button', { name: /Add a passkey/ }));
+  });
+});
+
 test('the club admin link is on Profile, for the admin only', () => {
   const { unmount } = renderProfile();
   expect(screen.queryByRole('link', { name: /club admin/i })).not.toBeInTheDocument();
