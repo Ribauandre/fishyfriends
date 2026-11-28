@@ -38,7 +38,7 @@ export const METRICS = {
 };
 
 // Three days is the stretch the page opens with: it is the record every gauge's line on the
-// board is already read from (RECENT_HOURS), so a chart of it asks USGS for nothing more.
+// list is already read from (RECENT_HOURS), so a chart of it asks USGS for nothing more.
 export const PERIODS = [
   { key: '3d', label: '3 days', days: 3 },
   { key: '7d', label: '7 days', days: 7 },
@@ -55,7 +55,7 @@ export const REPORTING_WITHIN_HOURS = 24;
 // How long a set of readings stands before the page loads new ones by itself. USGS gauges
 // send theirs every fifteen minutes to an hour.
 export const FRESH_FOR_MINUTES = 15;
-// How far back the record behind the board goes: enough to say which way a river is going,
+// How far back the record behind the list goes: enough to say which way a river is going,
 // where it peaked after the last rain, and how warm the water got yesterday afternoon.
 export const RECENT_HOURS = 72;
 // The longest stretch a custom range may cover, in days: the daily record of every gauge in
@@ -194,7 +194,7 @@ const numberOf = (text) => { const value = Number(text); return text !== null &&
 // reported in the last day (many gauges have no thermometer, and each measurement keeps its
 // own clock: a gauge whose thermometer went quiet years ago is still reporting flow). A gauge
 // with none of it is left out. This is what the add-a-gauge search goes by, to offer only
-// stations that are flowing; the board reads what its gauges are doing off the end of their
+// stations that are flowing; the list reads what its gauges are doing off the end of their
 // three-day record (fetchMeasured, newestOf), and asks nothing more for it.
 export async function fetchLatest(siteNos, metrics, { now = Date.now(), ...options } = {}) {
   const latest = new Map();
@@ -412,7 +412,7 @@ export function normalsFromFeature(feature, parameter) {
 // p50, p75, p90] }, in the metric's display unit. What the device already holds is not asked for
 // again; a short stretch asks for just those days, a long one (or one that crosses New
 // Year) for the whole year. `ahead` is how many days past the stretch to ask for while it is
-// asking anyway: the board wants today's normals every day, and with a fortnight in hand
+// asking anyway: the list wants today's normals every day, and with a fortnight in hand
 // tomorrow's visit finds tomorrow already on the device.
 export async function fetchNormals(siteNos, metric, startDay, endDay, { storage, now = Date.now(), ahead = 0, ...options } = {}) {
   const wanted = [...new Set(daysBetween(startDay, endDay).map(dayOfYear))];
@@ -499,7 +499,7 @@ export function shiftInstant(ms, years) {
 
 // The average water temperature at the top of the page: the newest reading at each gauge that
 // measures it, added up and divided by how many there are, with the coldest and the warmest
-// of them. By gauge, so every number in the line is a number on the board. null where none
+// of them. By gauge, so every number in the line is a number on a row of the list. null where none
 // of the gauges being shown has a reading; `temps` is each gauge's newest one.
 export function averageTemperature(gauges, temps) {
   const values = gauges.map((gauge) => temps.get(gauge.site_no)?.v).filter((value) => Number.isFinite(value));
@@ -516,7 +516,7 @@ export function temperatureText(average) {
   const degrees = (value) => `${formatReading(value, METRICS.temp)}\u00A0${METRICS.temp.unit}`;
   if (average.gauges === 1) return ['Water is ', degrees(average.mean), ' at the one gauge that measures it.'];
   const [low, high] = [degrees(average.low), degrees(average.high)];
-  return ['Water is averaging ', degrees(average.mean), ` across the ${average.gauges} gauges that measure it${low === high ? '' : `, from ${low} to ${high}`}.`];
+  return ['Water is averaging ', degrees(average.mean), `${low === high ? '' : `, from ${low} to ${high}`}.`];
 }
 
 // --- Rivers -------------------------------------------------------------------------------

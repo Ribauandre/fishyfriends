@@ -78,7 +78,8 @@ function App() {
       <Route path="/waypoints/:mapId" element={<ProtectedRoute><WaypointDetail /></ProtectedRoute>} />
       <Route path="/trips" element={<ProtectedRoute><Trips /></ProtectedRoute>} />
       <Route path="/trips/:tripId" element={<ProtectedRoute><TripDetail /></ProtectedRoute>} />
-      <Route path="/gauges" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Reading the gauges...</div>}><RiverGauges /></React.Suspense></ProtectedRoute>} />
+      {/* One route for the list and for a river's own page, so what was read from USGS for the one is still there for the other. */}
+      <Route path="/gauges/:siteNo?" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Reading the gauges...</div>}><RiverGauges /></React.Suspense></ProtectedRoute>} />
       <Route path="/fishing-game" element={<ProtectedRoute><React.Suspense fallback={<div className="loading-screen">Loading your dock...</div>}><FishingGame /></React.Suspense></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       <Route path="/admin/bugs" element={<Navigate to="/admin" replace />} />
