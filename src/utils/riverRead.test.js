@@ -1,5 +1,5 @@
 import {
-  LEVELS, TROUT_BANDS, bandOf, changeText, dayRange, fishingNotes, flowLevel, flowTrend, headline, levelOf, readGauge, readTitle, tally,
+  LEVELS, SCALE_TIMES, TROUT_BANDS, bandOf, changeText, dayRange, fishingNotes, flowLevel, flowTrend, headline, levelOf, meter, readGauge, readTitle, tally,
   timeOfYear, timesNormal, timesNormalText, trendLabel, trendNote, troutBand, waterNote, whenText,
 } from './riverRead';
 
@@ -60,6 +60,8 @@ describe('how much water', () => {
     expect([16.1, 20.7, 20.8, 41.2, 91].map(level)).toEqual(['high', 'high', 'very-high', 'very-high', 'very-high']);
     // 5.2 / 4 is 1.3.
     expect([1.7, 1.31, 1.3, 0.2, 0.05].map(level)).toEqual(['low', 'low', 'very-low', 'very-low', 'very-low']);
+    // (They are the ends of the scale drawn beside each gauge: off the scale is always "very".)
+    expect(SCALE_TIMES).toBe(4);
   });
 
   test('but inside the usual range a river is normal, however many times its median that is', () => {
@@ -86,6 +88,43 @@ describe('times normal', () => {
     expect([0.95, 1, 1.049].map(timesNormalText)).toEqual(['right at normal', 'right at normal', 'right at normal']);
     expect(timesNormalText(null)).toBe('');
     expect(timesNormalText(NaN)).toBe('');
+  });
+});
+
+describe('the scale beside each gauge', () => {
+  test('runs from a quarter of normal to four times it, with half and double the same distance either side', () => {
+    const at = (value) => meter(value, DAY_LINES).at;
+    expect(at(85)).toBe(0.5);
+    expect(at(170)).toBeCloseTo(0.75, 10);
+    expect(at(42.5)).toBeCloseTo(0.25, 10);
+    expect(at(340)).toBe(1);
+    expect(at(21.25)).toBe(0);
+    // Further than that sits at the end, and is said to be off it.
+    expect(meter(1000, DAY_LINES)).toMatchObject({ at: 1, off: 1 });
+    expect(meter(340, DAY_LINES).off).toBe(1);
+    expect(meter(339, DAY_LINES).off).toBe(0);
+    expect(meter(5, DAY_LINES)).toMatchObject({ at: 0, off: -1 });
+    expect(meter(0, DAY_LINES)).toMatchObject({ at: 0, off: -1 });
+  });
+
+  test('carries the usual range and the wider one round it, each as a stretch of the scale', () => {
+    const drawn = meter(100, DAY_LINES);
+    const place = (times) => 0.5 + Math.log(times) / (2 * Math.log(4));
+    expect(drawn.inner[0]).toBeCloseTo(place(60 / 85), 10);
+    expect(drawn.inner[1]).toBeCloseTo(place(120 / 85), 10);
+    expect(drawn.outer[0]).toBeCloseTo(place(30 / 85), 10);
+    expect(drawn.outer[1]).toBeCloseTo(place(200 / 85), 10);
+    // A range that runs off the scale stops at its end.
+    expect(meter(5, FLASHY).outer).toEqual([0, 1]);
+    // Too short a record for the wider range: only the usual one is drawn.
+    expect(meter(100, SHORT_RECORD).outer).toBeNull();
+    expect(meter(100, SHORT_RECORD).inner).toHaveLength(2);
+  });
+
+  test('with no median to count from there is no scale to draw', () => {
+    expect(meter(100, undefined)).toBeNull();
+    expect(meter(3, [0, 0, 0, 2, 9])).toBeNull();
+    expect(meter(NaN, DAY_LINES)).toBeNull();
   });
 });
 
@@ -249,6 +288,7 @@ describe('one gauge, read', () => {
     expect(read.level).toBe('very-high');
     expect(read.ratio).toBeCloseTo(2.694, 3);
     expect(read.normal).toEqual({ median: 85, low: 60, high: 120 });
+    expect(read.meter).toMatchObject({ off: 0, at: expect.closeTo(0.857, 3) });
     expect(read.trend).toMatchObject({ direction: 'dropping', fast: true, high: { v: 500, crest: true } });
     expect(read.band).toBe('cool');
     expect(read.tempDay).toEqual({ low: 44.1, high: 46.4 });
@@ -258,7 +298,7 @@ describe('one gauge, read', () => {
   test('a gauge whose newest reading is more than a day old is not reporting, each measurement on its own clock', () => {
     const quiet = { flow: record([[72, 50], [25, 60]]).map((point) => ({ ...point, t: point.t - 25 * HOUR })), temp: [{ t: NOW - HOUR, v: 45 }, { t: NOW, v: 45.2 }] };
     const read = readGauge({ record: quiet, normalsForDay: DAY_LINES, now: NOW });
-    expect(read).toMatchObject({ flow: null, level: null, ratio: null, trend: null, band: 'cool' });
+    expect(read).toMatchObject({ flow: null, level: null, ratio: null, meter: null, trend: null, band: 'cool' });
     expect(readTitle(read)).toBe('Not reporting');
     // Twenty-four hours to the minute is still reporting.
     expect(readGauge({ record: { flow: [{ t: NOW - 24 * HOUR, v: 60 }] }, normalsForDay: DAY_LINES, now: NOW }).flow).toEqual({ t: NOW - 24 * HOUR, v: 60 });
@@ -270,7 +310,7 @@ describe('one gauge, read', () => {
     expect(flowOnly).toMatchObject({ level: 'normal', temp: null, band: null, tempDay: null });
     expect(readTitle(flowOnly)).toBe('Normal and steady');
     const unrated = readGauge({ record: { flow: record([[72, 100], [24, 100], [0, 130]]) }, normalsForDay: undefined, now: NOW });
-    expect(unrated).toMatchObject({ level: null, ratio: null, normal: null, trend: { direction: 'rising' } });
+    expect(unrated).toMatchObject({ level: null, ratio: null, normal: null, meter: null, trend: { direction: 'rising' } });
     expect(readTitle(unrated)).toBe('Rising');
     expect(readTitle(readGauge({ record: { flow: [{ t: NOW, v: 100 }] }, normalsForDay: DAY_LINES, now: NOW }))).toBe('Normal');
     expect(readTitle(readGauge({ record: { flow: [{ t: NOW, v: 100 }] }, normalsForDay: undefined, now: NOW }))).toBe('Reporting');
@@ -340,7 +380,7 @@ describe('how to fish it', () => {
   });
 });
 
-describe('the whole board', () => {
+describe('all the gauges together', () => {
   const read = (level, direction, reporting = true) => ({ flow: reporting ? { t: NOW, v: 1 } : null, level, trend: direction ? { direction, fast: false } : null });
   const board = (...reads) => tally(reads);
 

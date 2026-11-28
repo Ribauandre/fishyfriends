@@ -37,15 +37,16 @@ export const levelOf = (key) => LEVEL[key] || null;
 // 10th about a third of it. And a flow four times the median or more is very high, a quarter
 // of it or less very low, whatever the percentiles say: on a flashy brook the 90th percentile
 // can be seventeen times the median, and eight times normal is not a river anybody would
-// call merely high.
+// call merely high. (Four times and a quarter are the ends of the scale drawn beside each
+// gauge, so a marker off the end of its scale always goes with "very".)
 const FAR_TIMES = 3;
-const ALWAYS_FAR_TIMES = 4;
+export const SCALE_TIMES = 4;
 
 export function flowLevel(value, normalsForDay) {
   if (!Number.isFinite(value) || !normalsForDay) return null;
   const median = normalsForDay[NORMAL.median];
-  if (value < normalsForDay[NORMAL.low]) return value < (normalsForDay[NORMAL.lowest] ?? median / FAR_TIMES) || value <= median / ALWAYS_FAR_TIMES ? 'very-low' : 'low';
-  if (value > normalsForDay[NORMAL.high]) return value > (normalsForDay[NORMAL.highest] ?? median * FAR_TIMES) || value >= median * ALWAYS_FAR_TIMES ? 'very-high' : 'high';
+  if (value < normalsForDay[NORMAL.low]) return value < (normalsForDay[NORMAL.lowest] ?? median / FAR_TIMES) || value <= median / SCALE_TIMES ? 'very-low' : 'low';
+  if (value > normalsForDay[NORMAL.high]) return value > (normalsForDay[NORMAL.highest] ?? median * FAR_TIMES) || value >= median * SCALE_TIMES ? 'very-high' : 'high';
   return 'normal';
 }
 
@@ -66,6 +67,26 @@ export function timesNormalText(ratio) {
   if (ratio >= 0.95 && ratio < 1.05) return 'right at normal';
   if (ratio < 0.95) return ratio < 0.005 ? '<1% of normal' : `${Math.max(1, Math.round(ratio * 100))}% of normal`;
   return `${times(ratio)}× normal`;
+}
+
+// Where all that sits on the little scale drawn beside each gauge: a quarter of normal at the
+// left end, four times normal at the right, normal in the middle — a log scale, so half and
+// double are the same distance either side. Positions run 0 to 1. `inner` is the usual range
+// (25th to 75th percentile), `outer` the wider one (10th to 90th; null where USGS doesn't
+// give it), and `off` says the flow is past an end of the scale (-1 or 1).
+const place = (ratio) => (ratio > 0 ? Math.min(1, Math.max(0, 0.5 + Math.log(ratio) / (2 * Math.log(SCALE_TIMES)))) : 0);
+
+export function meter(value, normalsForDay) {
+  const ratio = timesNormal(value, normalsForDay);
+  if (ratio === null) return null;
+  const median = normalsForDay[NORMAL.median];
+  const span = (from, to) => (Number.isFinite(from) && Number.isFinite(to) ? [place(from / median), place(to / median)] : null);
+  return {
+    at: place(ratio),
+    off: ratio >= SCALE_TIMES ? 1 : ratio <= 1 / SCALE_TIMES ? -1 : 0,
+    inner: span(normalsForDay[NORMAL.low], normalsForDay[NORMAL.high]),
+    outer: span(normalsForDay[NORMAL.lowest], normalsForDay[NORMAL.highest]),
+  };
 }
 
 // --- Which way it is going ----------------------------------------------------------------
@@ -217,6 +238,7 @@ export function readGauge({ record, normalsForDay, now = Date.now() }) {
     level: flow ? flowLevel(flow.v, normalsForDay) : null,
     ratio: flow ? timesNormal(flow.v, normalsForDay) : null,
     normal: normalsForDay ? { median: normalsForDay[NORMAL.median], low: normalsForDay[NORMAL.low], high: normalsForDay[NORMAL.high] } : null,
+    meter: flow ? meter(flow.v, normalsForDay) : null,
     trend: flow ? flowTrend(record.flow) : null,
     band: temp ? troutBand(temp.v) : null,
     tempDay: temp ? dayRange(record.temp, temp.t) : null,

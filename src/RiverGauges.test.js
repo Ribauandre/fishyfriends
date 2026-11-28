@@ -230,6 +230,30 @@ describe('the list', () => {
     expect(rowOf('South Branch Raritan').querySelector('.river-row-trend')).not.toHaveClass('is-fast');
   });
 
+  test('and shows where that sits against normal on the flow bar, the same on every row', async () => {
+    await open();
+    await screen.findByText(MIXED);
+    const bar = (name) => rowOf(name).querySelector('.flow-meter');
+    const at = (name) => parseFloat(bar(name).querySelector('.flow-meter-now').style.left);
+    // A quarter of normal at the left end, four times it at the right, normal in the middle.
+    const place = (times) => 50 + (Math.log(times) / (2 * Math.log(4))) * 100;
+    expect(at('South Branch Raritan')).toBeCloseTo(place(229 / 85), 0);
+    expect(at('Rockaway River at Dover')).toBeCloseTo(place(70 / 64.8), 0);
+    expect(at('Raritan River')).toBeCloseTo(place(200 / 466), 0);
+    // Five times normal is off the end: the marker sits at it, as an arrowhead.
+    expect(at('Rockaway River at Boonton')).toBe(100);
+    expect(bar('Rockaway River at Boonton')).toHaveClass('is-off', 'is-off-high', 'is-far');
+    expect(bar('South Branch Raritan')).not.toHaveClass('is-off');
+    // The usual range and the wider one round it are on every rated row; a gauge with no normal has an empty bar.
+    expect(bar('South Branch Raritan').querySelectorAll('.flow-meter-inner, .flow-meter-outer')).toHaveLength(2);
+    expect(bar('Paulins Kill')).toHaveClass('is-blank');
+    // Every row has one, so an eye can be run down them; it is for the eye, and the words beside it are what is read out.
+    expect(document.querySelectorAll('.river-row .flow-meter')).toHaveLength(5);
+    expect(bar('South Branch Raritan')).toHaveAttribute('aria-hidden', 'true');
+    // What its ends and its middle are heads the list.
+    expect(text(document.querySelector('.river-list-head .flow-meter-key'))).toBe('¼×normal4×');
+  });
+
   test('under the sentence, the average water temperature of the gauges that measure it, and what it means for trout', async () => {
     answers({ warmth: { '01400500': [[72, 44.6], [0, 44.6]], '01443500': [[72, 41], [0, 41]], '01380450': [[72, 47.3], [0, 47.3]], '01449000': [[72, 39.2], [0, 39.2]] } });
     await open();
@@ -425,6 +449,11 @@ describe('a river\'s page', () => {
     expect(fact('Last 6 hours')).toEqual(['Down 13%']);
     // No thermometer here, and no line pretending otherwise.
     expect(fact('Water')).toBeNull();
+    // Its row's flow bar is on the page too, with what its ends and its middle are written under it.
+    const scale = document.querySelector('.gauge-scale');
+    expect(parseFloat(scale.querySelector('.flow-meter-now').style.left)).toBeCloseTo(50 + (Math.log(229 / 85) / (2 * Math.log(4))) * 100, 0);
+    expect(scale.querySelectorAll('.flow-meter-inner, .flow-meter-outer')).toHaveLength(2);
+    expect(text(scale.querySelector('.flow-meter-key'))).toBe('¼×normal4×');
     // Opened by its address, with no list before it: the same two questions, and none for the chart.
     expect(asked()).toEqual({ record: 1, daily: 0, measured: 0, normals: 1 });
   });
@@ -447,6 +476,8 @@ describe('a river\'s page', () => {
     expect(verdict()).toBe('Very high and rising fast');
     expect(screen.getByText('Up from 100 cfs early this morning.')).toBeInTheDocument();
     expect(fact('Last 6 hours')).toEqual(['Up 45%']);
+    // Five times normal: off the end of its bar.
+    expect(document.querySelector('.gauge-scale .flow-meter')).toHaveClass('is-off-high', 'is-far');
     expect(notes()).toEqual([expect.stringMatching(/^A lot more water than is usual.*Fish it from the bank if at all/), expect.stringMatching(/^Rising fast\. It can be a different river in an hour/)]);
     page.unmount();
 
@@ -472,6 +503,8 @@ describe('a river\'s page', () => {
     expect(fact('Flow now')).toEqual(['345 cfs']);
     expect(fact('Normal today')).toEqual(['no long-run record']);
     expect(fact('Last 6 hours')).toEqual(['Unchanged']);
+    // Nothing to hold it against: no bar to place it on.
+    expect(document.querySelector('.gauge-scale')).toBeNull();
     expect(notes()).toEqual([]);
     expect(screen.queryByRole('heading', { name: 'How to fish it' })).toBeNull();
   });
@@ -932,7 +965,7 @@ describe('sources', () => {
     ]);
     // Every rule the page applies is written down beside its name.
     expect(within(workedOut).getByText(/under the 10th percentile, 10th to 25th, 25th to 75th \(normal\), 75th to 90th, and over the 90th/)).toHaveTextContent(/four times the median or more is always very high, a quarter or less always very low\.$/);
-    expect(within(workedOut).getByText(/^Normal is the median flow for today's date over every year a gauge has on record/)).toBeInTheDocument();
+    expect(within(workedOut).getByText(/^Normal is the median flow for today's date over every year a gauge has on record/)).toHaveTextContent(/The bar beside each gauge runs from a quarter of normal to four times it: the marker is the river now, the lighter band the usual range/);
     expect(within(workedOut).getByText(/changed by a tenth or more since this time yesterday and still going that way, or by 8% in the last six hours/)).toBeInTheDocument();
     expect(within(workedOut).getByText(/Under 40 °F cold, 40 to 50 cool, 50 to 65 right, 65 to 68 warm, 68 and over too warm/)).toBeInTheDocument();
     // Each source names the service or the agency it is, and links to that page.

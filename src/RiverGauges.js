@@ -20,9 +20,11 @@ import { LEVELS, bandOf, changeText, fishingNotes, headline, levelOf, readGauge,
 // in and "All rivers" the way back, as with a trip or a tournament, and the two pages share
 // everything that was read, so going in and coming back asks USGS for nothing.
 //
-// (It was a board first: every row also carried a scale, a ratio and a little three-day line,
-// five count boxes and a key sat over it, and a river opened in place, pushing the rest of the
-// list a screen or two down. The owner found that cluttered and hard to get around.)
+// (It was a board first: every row also carried a ratio, an arrow and a little three-day line,
+// five count boxes sat over it, and a river opened in place, pushing the rest of the list a
+// screen or two down. The owner found that cluttered and hard to get around — and missed one
+// thing of it when it went, the flow bar: the scale on each row that shows where the river
+// sits against normal. That is back, on every row and on a river's page.)
 //
 // The list of gauges is the club's (the river_gauges table: any member adds one). Every
 // reading comes from USGS when the page is opened — nothing is stored — a whole state at a
@@ -102,9 +104,31 @@ function LevelMark({ level }) {
   return <span className={`level-mark is-${level}`}><i aria-hidden="true">{known.shape}</i>{known.label}</span>;
 }
 
+const percent = (share) => `${(share * 100).toFixed(1)}%`;
+
+// The flow bar: a quarter of normal at the left, four times at the right, normal in the
+// middle. The lighter band is the usual range for the date, the fainter one round it the
+// wider range USGS calls above and below normal, and the marker is the river now; past an
+// end of the scale the marker becomes an arrowhead at that end. It says nothing the words
+// beside it don't: it is for running an eye down the list, which is why every one of them is
+// the same length with normal in the same place.
+function Meter({ meter, far }) {
+  if (!meter) return <span className="flow-meter is-blank" aria-hidden="true" />;
+  return <span className={`flow-meter${meter.off ? ` is-off is-off-${meter.off > 0 ? 'high' : 'low'}` : ''}${far ? ' is-far' : ''}`} aria-hidden="true">
+    {meter.outer && <i className="flow-meter-outer" style={{ left: percent(meter.outer[0]), width: percent(meter.outer[1] - meter.outer[0]) }} />}
+    {meter.inner && <i className="flow-meter-inner" style={{ left: percent(meter.inner[0]), width: percent(meter.inner[1] - meter.inner[0]) }} />}
+    <i className="flow-meter-normal" />
+    <i className="flow-meter-now" style={{ left: percent(meter.at) }} />
+  </span>;
+}
+
+// What the bar's ends and middle are.
+const MeterKey = () => <span className="flow-meter-key" aria-hidden="true"><span>¼×</span><span>normal</span><span>4×</span></span>;
+const farOff = (read) => read.level === 'very-high' || read.level === 'very-low';
+
 // One gauge's row in the list: which river (and where on it), how it is running and which
-// way it is going, its flow, and its water temperature if the gauge measures it. The whole
-// row is the way into that river's page.
+// way it is going, where that sits against normal on the flow bar, its flow, and its water
+// temperature if the gauge measures it. The whole row is the way into that river's page.
 function RiverRow({ gauge, read, head, shared, onOpen }) {
   const site = gauge.site_no;
   const heard = head.heard.has(site);
@@ -126,6 +150,7 @@ function RiverRow({ gauge, read, head, shared, onOpen }) {
       {/* (Where the gauge is always belongs to the row; on a narrow screen it is only shown where a river has more than one.) */}
       <span className="river-row-name">{gauge.river}{gauge.place && <> <small className={shared ? 'is-needed' : undefined}>{gauge.place}</small></>}</span>
       <span className="river-row-status">{status}</span>
+      <span className="river-row-meter"><Meter meter={flowing ? read.meter : null} far={flowing && farOff(read)} /></span>
       {/* (Two columns where there is room for columns; on a narrow screen, one small block at the row's top right, the water under the flow.) */}
       <span className="river-row-numbers">
         <span className="river-row-flow">{!heard ? '' : flowing ? <><strong>{formatReading(read.flow.v, METRICS.flow)}</strong> cfs</> : '—'}</span>
@@ -255,6 +280,8 @@ function RiverView({ gauge, siblings, read, heard, lost, unrated, problem, frame
         {heard && <h2 className={read.flow ? 'gauge-verdict' : 'gauge-verdict is-quiet'}>{read.flow && read.level && <i className={`is-${read.level}`} aria-hidden="true">{levelOf(read.level).shape}</i>}{readTitle(read)}</h2>}
         {story && <p className="gauge-story">{story}</p>}
         {heard && !read.flow && <p className="gauge-story">Nothing from this gauge in the last {REPORTING_WITHIN_HOURS} hours.</p>}
+        {/* The row's own flow bar, with what its ends and its middle are written under it. */}
+        {heard && read.flow && read.meter && <div className="gauge-scale"><Meter meter={read.meter} far={farOff(read)} /><MeterKey /></div>}
         {heard && read.flow && <Facts read={read} unrated={unrated} />}
         {notes.length > 0 && <div className="gauge-notes">
           <h2>How to fish it</h2>
@@ -384,7 +411,7 @@ const SOURCES = [
 ];
 const WORKED_OUT = [
   { name: 'Very low to very high', what: 'USGS\'s own five classes, by where the flow now falls among every year\'s flow on this date: under the 10th percentile, 10th to 25th, 25th to 75th (normal), 75th to 90th, and over the 90th. Where a record is too short for the outer two, a third of the median and three times it stand in, and four times the median or more is always very high, a quarter or less always very low.', service: 'USGS: how streamflow is classed', link: 'https://pubs.usgs.gov/publication/fs20233030/full' },
-  { name: 'Normal, and times normal', what: 'Normal is the median flow for today\'s date over every year a gauge has on record, and the usual range is where the middle half of those years fell. Times normal is the newest flow divided by that median.' },
+  { name: 'Normal, and times normal', what: 'Normal is the median flow for today\'s date over every year a gauge has on record, and the usual range is where the middle half of those years fell. Times normal is the newest flow divided by that median. The bar beside each gauge runs from a quarter of normal to four times it: the marker is the river now, the lighter band the usual range, and the fainter band round it the 10th to the 90th percentile.' },
   { name: 'Rising, dropping or steady', what: 'Rising or dropping: changed by a tenth or more since this time yesterday and still going that way, or by 8% in the last six hours. Fast: a quarter or more in six hours.' },
   { name: 'Water temperature for trout', what: 'Under 40 °F cold, 40 to 50 cool, 50 to 65 right, 65 to 68 warm, 68 and over too warm: the bands state fisheries agencies give for catching trout without killing them.', service: 'Maryland DNR: trout and water temperature', link: 'https://dnr.maryland.gov/fisheries/Pages/trout/advisory.aspx' },
   { name: 'Average water temperature', what: `The newest water temperature at each gauge that measures it, added up and divided by how many there are. A gauge with no thermometer, or with nothing from it in the last ${REPORTING_WITHIN_HOURS} hours, is left out.` },
@@ -736,8 +763,8 @@ export default function RiverGauges({ clock = Date.now }) {
       </div>}
 
       <div className="river-list">
-        {/* What each column is, where there is room for columns: on a narrow screen a row needs no key. */}
-        <div className="river-list-head" aria-hidden="true"><span>River</span><span>Running</span><span>Flow</span><span>Water</span><span /></div>
+        {/* What each column is, where there is room for columns; on a narrow screen only the key to the flow bar is left of it, over the bars. */}
+        <div className="river-list-head" aria-hidden="true"><span>River</span><span>Running</span><MeterKey /><span>Flow</span><span>Water</span><span /></div>
         <ul aria-label="Rivers">
           {listed.map((row) => <RiverRow key={row.gauge.id} gauge={row.gauge} read={reads.get(row.gauge.site_no)} head={head} shared={row.shared} onOpen={() => { listScroll.current = window.scrollY; }} />)}
         </ul>
