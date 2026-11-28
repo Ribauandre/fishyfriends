@@ -3,9 +3,9 @@ import { useAuth } from './context/AuthContext';
 import FishIllustration from './components/FishIllustration';
 import GaugeChart from './components/GaugeChart';
 import {
-  FRESH_FOR_MINUTES, METRICS, PERIODS, REPORTING_WITHIN_HOURS, US_STATES, USGS_API, againstNormal, dayOfYear, fetchContinuous, fetchDaily,
-  fetchLatest, fetchNormals, formatReading, gaugeLink, groupByRiver, localDay, normalSeries, overlayLastYear, periodRange, readingAge,
-  riverGroupKey, riverKey, searchGauges, standingText, stateName, summarize, summaryText, yearBefore, yearBeforeMs,
+  FRESH_FOR_MINUTES, METRICS, PERIODS, REPORTING_WITHIN_HOURS, US_STATES, USGS_API, againstNormal, averageTemperature, dayOfYear, fetchContinuous,
+  fetchDaily, fetchLatest, fetchNormals, formatReading, gaugeLink, groupByRiver, localDay, normalSeries, overlayLastYear, periodRange, readingAge,
+  readingsOf, riverGroupKey, riverKey, searchGauges, standingText, stateName, summarize, summaryText, temperatureText, yearBefore, yearBeforeMs,
 } from './utils/riverGauges';
 
 // River gauges (Plan > Gauges): what the club's rivers are doing right now, and how that
@@ -15,9 +15,12 @@ import {
 // says in a line a gauge how the river is running against normal for today; open, it shows
 // each gauge's chart. The list of gauges is the club's (the river_gauges table: any member
 // adds one). Every reading comes from USGS when the page is opened — nothing is stored — a
-// whole state at a time: two requests for the closed list, three more the first time a
-// river is opened (utils/riverGauges.js says why the count matters), and again by itself
-// once what is on screen is fifteen minutes old. What a viewer picked
+// whole state at a time: two requests for the closed list (every gauge's newest flow and
+// water temperature in one, flow's normals for today in the other), three more the first
+// time a river is opened (utils/riverGauges.js says why the count matters), and again by
+// itself once what is on screen is fifteen minutes old. The top of the page sums it up: how
+// many gauges are below, near and above normal flow, and the average water temperature of
+// the ones that measure it. What a viewer picked
 // (state, flow or temperature, how far back, log or straight axis, which rivers are open) is
 // kept on the device and nowhere else: it is how they like to look at it, not club data.
 
@@ -113,7 +116,7 @@ function GaugeCard({ gauge, frame, stale, waiting, wanted, scale, head, today, n
   // still the old one.
   const ready = Boolean(frame && frame.sites.has(site));
   const metric = METRICS[frame ? frame.metricKey : wanted];
-  const latest = ready ? frame.data.latest.get(site) || null : (metric.key === 'flow' ? head.latest.get(site) || null : null);
+  const latest = (ready ? frame.data.latest : metric.key === 'flow' ? head.latest : head.temps).get(site) || null;
   const { reading: flowNow, standing } = flowStanding(site, head, today);
 
   const series = useMemo(() => {
@@ -232,11 +235,15 @@ function AddGauge({ defaultState, taken, rivers, onAdded }) {
   </section>;
 }
 
-// What every river's closed line is made of: each gauge's flow right now and flow's normals
-// for today. `heard` and `rated` are the gauges each answer has come in for, so a gauge that
-// isn't reporting can be told from one that hasn't been asked about yet.
+// What the top of the page and every river's closed line are made of: each gauge's flow
+// right now and flow's normals for today, and (`temps`) the water temperature of the gauges
+// that measure it, which came in the same answer as the flows. `heard` and `rated` are the
+// gauges each answer has come in for, so a gauge that isn't reporting can be told from one
+// that hasn't been asked about yet.
 // `at` is when the readings on screen were read, `turn` which reading of them that was.
-const NO_HEAD = { latest: new Map(), normals: new Map(), heard: new Set(), rated: new Set(), lost: false, blind: false, at: 0, turn: -1 };
+const NO_HEAD = { latest: new Map(), temps: new Map(), normals: new Map(), heard: new Set(), rated: new Set(), lost: false, blind: false, at: 0, turn: -1 };
+// Everything a gauge's newest reading is asked for, in one question.
+const MEASURED = [METRICS.flow, METRICS.temp];
 // Where the numbers come from, in the words the owner's own dashboard used for them. Closed,
 // it says who they are from, when they were read and when they will be read again.
 const SOURCES = [
@@ -249,6 +256,7 @@ const WORKED_OUT = [
   { name: 'Latest reading per gauge', what: 'The newest of a gauge\'s readings, and how long ago it was taken.' },
   { name: 'Flow compared with normal', what: 'The newest flow less the median for today\'s date, in cfs.' },
   { name: 'Gauges below, near and above normal', what: 'Below the range the middle half of years fell in, inside it, or above it.' },
+  { name: 'Average water temperature', what: `The newest water temperature at each gauge that measures it, added up and divided by how many there are. A gauge with no thermometer, or with nothing from it in the last ${REPORTING_WITHIN_HOURS} hours, is left out.` },
 ];
 
 const clockTime = (ms) => new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -366,7 +374,11 @@ export default function RiverGauges({ clock = Date.now }) {
     };
 
     const flow = METRICS.flow;
-    const latestFlow = ask('now:latest|flow', (list) => fetchLatest(list, flow, newest));
+    // Every gauge's newest flow and water temperature come in one answer. The flows feed the
+    // sentence at the top and every closed line, the temperatures the average under that
+    // sentence, and whichever of the two is being charted its cards.
+    const readings = ask('now:latest', (list) => fetchLatest(list, MEASURED, newest));
+    const newestOf = (key) => ({ got: readings.got.then((found) => readingsOf(found, key)), sofar: () => readingsOf(readings.sofar(), key) });
     // The charts are only asked for once a river is open: the closed list needs none of it.
     let chart = null;
     if (anyOpen && !range.error) {
@@ -377,7 +389,7 @@ export default function RiverGauges({ clock = Date.now }) {
       // so it still reaches the edge of the chart after this one has been reloaded for hours.
       const week = view.period === '7d';
       chart = {
-        latest: metric.key === 'flow' ? latestFlow : ask(`now:latest|${metric.key}`, (list) => fetchLatest(list, metric, newest)),
+        latest: newestOf(metric.key),
         now: week
           ? ask(`now:measured|${metric.key}|${span}`, (list) => fetchContinuous(list, metric, range.startMs, range.endMs, newest))
           : ask(`now:daily|${metric.key}|${span}`, (list) => fetchDaily(list, metric, range.startDay, range.endDay, newest)),
@@ -394,10 +406,10 @@ export default function RiverGauges({ clock = Date.now }) {
 
     const also = (known, more) => new Set([...known, ...more]);
     const headIn = Promise.all([
-      latestFlow.got.then(
+      readings.got.then(
         // Which gauges have been heard from starts over with each reading of them: what
         // another state's gauges said last time was forgotten along with everything else.
-        (latest) => { if (active) setHead((previous) => ({ ...previous, latest, heard: previous.turn === turn ? also(previous.heard, sites) : new Set(sites), lost: false, at: loadedAt, turn })); },
+        (found) => { if (active) setHead((previous) => ({ ...previous, latest: readingsOf(found, 'flow'), temps: readingsOf(found, 'temp'), heard: previous.turn === turn ? also(previous.heard, sites) : new Set(sites), lost: false, at: loadedAt, turn })); },
         (error) => { trouble(error); if (active) setHead((previous) => ({ ...previous, lost: true })); },
       ),
       normalsFlow.got.then(
@@ -479,11 +491,16 @@ export default function RiverGauges({ clock = Date.now }) {
   const rivers = useMemo(() => new Map((gauges || []).slice().reverse().map((gauge) => [`${gauge.state}|${riverKey(gauge.river)}`, gauge.river])), [gauges]);
   const headIn = sites.length > 0 && sites.every((site) => head.heard.has(site) && head.rated.has(site));
   let summary = 'Reading the gauges...';
+  // The line under it: the average water temperature, once the readings it is made of are in.
+  let water = null;
   if (gauges === null) summary = 'Pulling the club\'s gauges...';
   else if (shown.length === 0) summary = 'No gauges on the club\'s list yet. Add the first one below.';
   else if (headIn) {
     const counts = summarize(shown, head.latest, head.normals, today);
     summary = head.blind && counts.reporting > 0 ? `${counts.reporting} of ${shown.length} gauges reporting. Today's normals couldn't be had to hold them against.` : summaryText(counts, stateName(state));
+    const average = averageTemperature(shown, head.temps);
+    // (With no gauge reporting anything, the sentence above has already said so.)
+    if (average || counts.reporting > 0) water = temperatureText(average);
   } else if (head.lost) summary = 'USGS isn\'t answering right now.';
 
   const stale = Boolean(frame) && (frame.key !== looking || refreshing);
@@ -495,7 +512,12 @@ export default function RiverGauges({ clock = Date.now }) {
       <div>
         <span className="eyebrow">STRAIGHT FROM USGS</span>
         <h1>River gauges</h1>
-        <p className="gauge-summary" role="status">{summary}</p>
+        {/* One live region for both lines, there from the start, so a screen reader is told when
+            the readings come in; the second is read out whole when its figure changes. */}
+        <div role="status">
+          <p className="gauge-summary">{summary}</p>
+          {water && <p className="gauge-water" aria-atomic="true">{water[0]}{water[1] && <strong>{water[1]}</strong>}{water[2]}</p>}
+        </div>
       </div>
       <FishIllustration species="trout" className="intro-sticker" />
     </div>
