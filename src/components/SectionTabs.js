@@ -5,7 +5,7 @@ import { SECTIONS } from '../utils/navSections';
 
 // Sub-tabs across the top of a section with more than one page (Compete: Fish Year and
 // Tournaments; Plan: Trips, Waypoints and Gauges). Shown on those pages themselves, not on a single
-// tournament or trip, which have their own way back.
+// tournament, trip or river, which have their own way back.
 export default function SectionTabs() {
   const { user, isMember, passwordRecovery } = useAuth();
   const { pathname } = useLocation();

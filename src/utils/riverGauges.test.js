@@ -89,7 +89,7 @@ describe('periodRange', () => {
     expect(PERIODS.map((period) => period.key)).toEqual(['3d', '7d', '30d', '1y', 'custom']);
   });
 
-  test('three days is the stretch the board itself is read from', () => {
+  test('three days is the stretch the list itself is read from', () => {
     expect(periodRange('3d', NOW)).toEqual({ startMs: NOW - 3 * DAY, endMs: NOW, startDay: '2026-11-23', endDay: '2026-11-26', days: 3, live: true });
     expect(RECENT_HOURS).toBe(72);
   });
@@ -665,10 +665,10 @@ describe('the average water temperature', () => {
   test('and is said as a sentence, the figure apart from the words round it', () => {
     // A number and its unit are held together by a no-break space, so a line never ends between them.
     const F = '\u00A0°F';
-    expect(temperatureText({ mean: 44.3, gauges: 20, low: 39.44, high: 47.82 })).toEqual(['Water is averaging ', `44.3${F}`, ` across the 20 gauges that measure it, from 39.4${F} to 47.8${F}.`]);
+    expect(temperatureText({ mean: 44.3, gauges: 20, low: 39.44, high: 47.82 })).toEqual(['Water is averaging ', `44.3${F}`, `, from 39.4${F} to 47.8${F}.`]);
     expect(temperatureText({ mean: 44.6, gauges: 1, low: 44.6, high: 44.6 }).join('')).toBe(`Water is 44.6${F} at the one gauge that measures it.`);
     // Every gauge reading the same to a tenth of a degree: no "from 44.6 °F to 44.6 °F".
-    expect(temperatureText({ mean: 44.6, gauges: 2, low: 44.58, high: 44.62 }).join('')).toBe(`Water is averaging 44.6${F} across the 2 gauges that measure it.`);
+    expect(temperatureText({ mean: 44.6, gauges: 2, low: 44.58, high: 44.62 }).join('')).toBe(`Water is averaging 44.6${F}.`);
     expect(temperatureText(null)).toEqual(['None of these gauges is reporting water temperature right now.', '', '']);
   });
 });
