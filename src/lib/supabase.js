@@ -29,5 +29,24 @@ export const supabase = isSupabaseConfigured ? createClient(supabaseUrl, supabas
 		persistSession: true,
 		autoRefreshToken: true,
 		detectSessionInUrl: true,
+		// Passkeys (utils/passkeys.js). Supabase still calls its passkey calls experimental and
+		// wants them asked for by name; without this every one of them throws.
+		experimental: { passkey: true },
 	},
 }) : null;
+
+// The project's public sign-in settings: which ways of signing in its owner has switched on
+// (`passkeys_enabled` is the one the app reads). Any visitor's browser may read them — it is
+// the address the sign-in calls themselves go to, with the same public key — and supabase-js
+// has no call of its own for it. Null when they can't be had.
+export async function fetchAuthSettings() {
+	if (!isSupabaseConfigured) return null;
+	try {
+		const response = await fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseAnonKey } });
+		if (!response.ok) return null;
+		const settings = await response.json();
+		return settings && typeof settings === 'object' ? settings : null;
+	} catch (readError) {
+		return null;
+	}
+}

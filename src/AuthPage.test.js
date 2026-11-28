@@ -148,3 +148,105 @@ test('a message from one form does not follow to the next', async () => {
   expect(screen.queryByText('Invalid login credentials')).not.toBeInTheDocument();
   expect(setNotice).toHaveBeenCalledWith('');
 });
+
+describe('signing in with a passkey (Face ID, Touch ID, a screen lock)', () => {
+  function auth(overrides = {}) {
+    const value = {
+      signIn: jest.fn().mockResolvedValue({ error: null }), signUp: jest.fn(), isSupabaseConfigured: true, notice: '', setNotice: jest.fn(),
+      canUsePasskeys: true, checkPasskeys: jest.fn().mockResolvedValue(true), signInWithPasskey: jest.fn().mockResolvedValue({ error: null }),
+      ...overrides,
+    };
+    useAuth.mockReturnValue(value);
+    return value;
+  }
+  const passkeyButton = () => screen.queryByRole('button', { name: 'Sign in with a passkey' });
+
+  test('is not offered where the club hasn\'t switched it on or the browser can\'t do it, though the page still asks', () => {
+    const value = auth({ canUsePasskeys: false });
+    renderAt('/account');
+    expect(passkeyButton()).toBeNull();
+    expect(screen.queryByText(/Face ID/)).toBeNull();
+    expect(value.checkPasskeys).toHaveBeenCalledTimes(1);
+  });
+
+  test('a page test with no passkey functions at all shows the page as it always was', () => {
+    renderAt('/account');
+    expect(passkeyButton()).toBeNull();
+    expect(screen.getByRole('button', { name: /enter the club/i })).toBeInTheDocument();
+  });
+
+  test('is offered under the password form, saying what it is and where to get one', () => {
+    auth();
+    renderAt('/account');
+    expect(passkeyButton()).toBeEnabled();
+    expect(screen.getByText('Face ID, Touch ID or your screen lock. No passkey yet? Sign in, then add one in your profile.')).toBeInTheDocument();
+    // The password form is still there, and still first.
+    const buttons = screen.getAllByRole('button').map((button) => button.textContent);
+    expect(buttons.findIndex((text) => /Enter the club/.test(text))).toBeLessThan(buttons.indexOf('Sign in with a passkey'));
+  });
+
+  test('a device that has used one before isn\'t told how to get one', () => {
+    window.localStorage.setItem('fishyfriends:passkey-here', '1');
+    auth();
+    renderAt('/account');
+    expect(screen.getByText('Face ID, Touch ID or your screen lock.')).toBeInTheDocument();
+    expect(screen.queryByText(/No passkey yet/)).toBeNull();
+  });
+
+  test('one tap, no email or password, and it lands where a password sign-in would', async () => {
+    const value = auth();
+    renderAt({ pathname: '/account', state: { from: '/trips/t1?x=1' } });
+    await userEvent.click(passkeyButton());
+    expect(await screen.findByTestId('where')).toHaveTextContent('/trips/t1?x=1');
+    expect(value.signInWithPasskey).toHaveBeenCalledTimes(1);
+    expect(value.signIn).not.toHaveBeenCalled();
+  });
+
+  test('with no link waiting it goes Home, and a link kept from before a sign-up is picked up', async () => {
+    auth();
+    rememberReturnTo('/tournaments/t9');
+    renderAt('/account');
+    await userEvent.click(passkeyButton());
+    expect(await screen.findByTestId('where')).toHaveTextContent('/tournaments/t9');
+  });
+
+  test('while the device is asking, both ways in wait', async () => {
+    let answer;
+    auth({ signInWithPasskey: jest.fn(() => new Promise((resolve) => { answer = resolve; })) });
+    renderAt('/account');
+    await userEvent.click(passkeyButton());
+    expect(screen.getByRole('button', { name: 'Waiting for your device...' })).toBeDisabled();
+    answer({ error: new Error('No passkey was used. Try again, or sign in with your password.'), cancelled: true });
+    expect(await screen.findByRole('button', { name: 'Sign in with a passkey' })).toBeEnabled();
+  });
+
+  test('a prompt that was closed is said quietly and the page stays put', async () => {
+    auth({ signInWithPasskey: jest.fn().mockResolvedValue({ error: new Error('No passkey was used. Try again, or sign in with your password.'), cancelled: true }) });
+    renderAt('/account');
+    await userEvent.click(passkeyButton());
+    expect(await screen.findByRole('status')).toHaveTextContent('No passkey was used. Try again, or sign in with your password.');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByTestId('where')).toBeNull();
+  });
+
+  test('a refusal is said as an error, and the password form is still there to use', async () => {
+    const value = auth({ signInWithPasskey: jest.fn().mockResolvedValue({ error: new Error('That passkey isn\'t on your account any more. Sign in with your password, then add it again in your profile.'), cancelled: false }) });
+    renderAt('/account');
+    await userEvent.click(passkeyButton());
+    expect(await screen.findByRole('alert')).toHaveTextContent('That passkey isn\'t on your account any more.');
+    await signIn();
+    expect(await screen.findByTestId('where')).toHaveTextContent('/home');
+    expect(value.signIn).toHaveBeenCalledWith('andre@example.com', 'hunter22');
+  });
+
+  test('it belongs to signing in: joining up and resetting a password don\'t offer it', async () => {
+    auth();
+    renderAt('/account');
+    await userEvent.click(screen.getByRole('button', { name: 'Join up' }));
+    expect(passkeyButton()).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(passkeyButton()).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot your password?' }));
+    expect(passkeyButton()).toBeNull();
+  });
+});

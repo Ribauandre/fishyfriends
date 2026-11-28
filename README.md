@@ -10,7 +10,7 @@ The current product has six authenticated surfaces and one public entry surface:
 
 | Route | Access | Purpose |
 | --- | --- | --- |
-| `/account` | Public | Sign in and account creation with Supabase Auth. |
+| `/account` | Public | Sign in (with a password, or a passkey where the club has them switched on) and account creation with Supabase Auth. |
 | `/home` | Authenticated | Dashboard: welcome banner and the crew activity feed. |
 | `/profile` | Authenticated | Edit profile details, upload avatar, sign out, and report a bug. |
 | `/fish-year` | Authenticated | Fish Year status board: crew-wide season recap, personal month board, catch logging, and the month-by-month participant board. |
@@ -209,6 +209,7 @@ Fishy Friends is a private club, and the database is what makes it one (migratio
 - **Photo metadata** (where a photo was taken, on what, when) is removed in the browser before upload. The admin page can strip it from photos stored before that.
 - **Names can't be borrowed.** The name and photo shown beside a catch, a comment, an expense or a notification are written by the database from the poster's own profile, whatever the request claimed.
 - **Passwords** have to be ten characters, not built from your name or email, and not one that appears in known data breaches (checked without the password leaving the browser: five characters of its hash go to Have I Been Pwned's range lookup). A forgotten one is reset by an emailed link; changing one signs the account out everywhere else, and Profile has a "sign out everywhere".
+- **Passkeys** (optional, off until the owner switches them on: see "Passkeys" under Supabase Configuration) let a member sign in with Face ID, Touch ID, a fingerprint or a screen lock instead of the password. The passkey stays on the member's device or in their password manager; Supabase keeps its public half and the club never sees a face or a fingerprint. One is added from Profile, after the current password has been typed once, and the password always goes on working. A passkey is not ended by changing the password or by "sign out everywhere", so Profile lists them with when each was added and last used, and says to remove any that isn't recognised.
 - **Live updates are for members.** The two live channels (who is on the dock in the game, and "just posted" on Home) are joined as members-only channels, and the database decides who may join. One step is the owner's and can't be done from code: until **"Allow public access to channels"** is turned off in the Supabase dashboard (Realtime, then Settings), the project also accepts open channels, which anyone holding the public key can join. The admin page ("Who can listen in live") tries both kinds from your device and says when it is safe to turn that off.
 - **One account can only add so much in a day.** The database counts what each account adds to each table and how many files it stores, and refuses past limits set far above normal use, so a runaway script or a stolen session can't fill the free plan.
 - **Nothing on a page calls a third party** to draw it: fonts are served from the site. The outside hosts the app can reach at all are listed in the Content-Security-Policy in `public/index.html`.
@@ -280,6 +281,19 @@ In Supabase Authentication URL Configuration:
 - Redirect URL: `https://www.fishyfriends.club/`
 
 Signup passes `emailRedirectTo: window.location.origin + '/'`. The root route then redirects into the application. The root is used instead of `/account` because this site is deployed as static GitHub Pages content and direct deep-link behavior can vary.
+
+### Passkeys
+
+Signing in with Face ID, Touch ID, a fingerprint or a screen lock is built into the site and stays hidden until the project has it switched on. To switch it on, in the Supabase dashboard go to Authentication -> Passkeys and:
+
+- turn on **Enable Passkey authentication**
+- Relying Party Display Name: `Fishy Friends`
+- Relying Party ID: `fishyfriends.club` (the bare domain: no `https://`, no `www`)
+- Relying Party Origins: `https://www.fishyfriends.club,https://fishyfriends.club`
+
+**Do not change the Relying Party ID afterwards.** Every passkey is tied to it, and changing it makes all of them stop working for good.
+
+Nothing needs deploying when the switch is turned on or off: the site reads the project's public settings and shows or hides the "Sign in with a passkey" button and Profile's Passkeys section accordingly. Supabase still labels its passkey support experimental, which is why the password remains a way in for every account. After switching it on, add a passkey to your own account (Profile -> Passkeys) and sign in with it once before telling the crew.
 
 ### Confirmation email
 

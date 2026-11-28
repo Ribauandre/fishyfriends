@@ -16,9 +16,17 @@ export const supabaseProjectUrl = 'https://project.example.test';
 export const supabase = new Proxy({}, {
   get(_target, prop) { return instance[prop]; },
 });
+// The project's public sign-in settings. Passkeys are off, as on a project whose owner hasn't
+// switched them on, until a test says __mock.setAuthSettings({ passkeys_enabled: true }) —
+// or null, for settings that couldn't be read. Every call is noted in __mock.authSettingsAsked.
+let authSettings = { passkeys_enabled: false };
+let authSettingsAsked = 0;
+export async function fetchAuthSettings() { authSettingsAsked += 1; return authSettings; }
 
 export const __mock = {
   get current() { return instance; },
-  reset() { instance = createSupabaseMock(); },
+  reset() { instance = createSupabaseMock(); authSettings = { passkeys_enabled: false }; authSettingsAsked = 0; },
+  setAuthSettings(next) { authSettings = next; },
+  get authSettingsAsked() { return authSettingsAsked; },
   setResponse(table, response) { instance.setResponse(table, response); },
 };

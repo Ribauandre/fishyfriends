@@ -2327,3 +2327,331 @@ describe('the club\'s river gauges', () => {
     expect(response.error.message).toBe('Only whoever added a gauge, or the admin, can remove it.');
   });
 });
+
+describe('passkeys: Face ID, Touch ID or a screen lock instead of the password', () => {
+  // The browser the tests run in has no passkey API. This gives it one for a test, and takes
+  // it away again.
+  function capableBrowser() {
+    const hadCredentials = Object.getOwnPropertyDescriptor(window.navigator, 'credentials');
+    window.PublicKeyCredential = function PublicKeyCredential() {};
+    Object.defineProperty(window.navigator, 'credentials', { configurable: true, value: { get: () => {}, create: () => {} } });
+    return () => {
+      delete window.PublicKeyCredential;
+      if (hadCredentials) Object.defineProperty(window.navigator, 'credentials', hadCredentials); else delete window.navigator.credentials;
+    };
+  }
+  const refusal = (code, more = {}) => ({ name: 'AuthApiError', code, message: `server said ${code}`, status: 422, ...more });
+  const closedPrompt = { name: 'NotAllowedError', code: 'ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY', message: 'The operation either timed out or was not allowed.' };
+  let restoreBrowser = () => {};
+
+  beforeEach(() => { window.localStorage.clear(); restoreBrowser = capableBrowser(); });
+  afterEach(() => { restoreBrowser(); jest.useRealTimers(); });
+
+  test('nothing is offered until the project has them switched on', async () => {
+    const result = await setupSignedIn();
+    expect(result.current.passkeysOn).toBe(false);
+    expect(result.current.canUsePasskeys).toBe(false);
+    // Nothing is asked of the project until a page that offers passkeys asks.
+    expect(__mock.authSettingsAsked).toBe(0);
+    let on;
+    await act(async () => { on = await result.current.checkPasskeys(); });
+    expect(on).toBe(false);
+    expect(result.current.passkeysOn).toBe(false);
+    expect(result.current.canUsePasskeys).toBe(false);
+  });
+
+  test('the switch is read from the project\'s public settings, once a visit, and remembered on the device', async () => {
+    const result = await setupSignedIn();
+    __mock.setAuthSettings({ passkeys_enabled: true });
+    let on;
+    await act(async () => { on = await result.current.checkPasskeys(); });
+    expect(on).toBe(true);
+    expect(result.current.passkeysOn).toBe(true);
+    expect(result.current.canUsePasskeys).toBe(true);
+    await act(async () => { await result.current.checkPasskeys(); await result.current.checkPasskeys(); });
+    expect(__mock.authSettingsAsked).toBe(1);
+    expect(window.localStorage.getItem('fishyfriends:passkeys-on')).toBe('1');
+  });
+
+  test('a device that heard them on last time offers them at once, and stops if they have been switched off since', async () => {
+    window.localStorage.setItem('fishyfriends:passkeys-on', '1');
+    const result = await setupSignedIn();
+    expect(result.current.passkeysOn).toBe(true);
+    expect(result.current.canUsePasskeys).toBe(true);
+    await act(async () => { await result.current.checkPasskeys(); });
+    expect(result.current.passkeysOn).toBe(false);
+    expect(window.localStorage.getItem('fishyfriends:passkeys-on')).toBeNull();
+  });
+
+  test('settings that couldn\'t be read change nothing, and are asked for again next time', async () => {
+    window.localStorage.setItem('fishyfriends:passkeys-on', '1');
+    const result = await setupSignedIn();
+    __mock.setAuthSettings(null);
+    let on;
+    await act(async () => { on = await result.current.checkPasskeys(); });
+    expect(on).toBe(true);
+    expect(result.current.passkeysOn).toBe(true);
+    __mock.setAuthSettings({ passkeys_enabled: true });
+    await act(async () => { await result.current.checkPasskeys(); });
+    expect(__mock.authSettingsAsked).toBe(2);
+  });
+
+  test('only exactly "true" switches them on', async () => {
+    const result = await setupSignedIn();
+    __mock.setAuthSettings({ passkeys_enabled: 'yes', external: { email: true } });
+    await act(async () => { await result.current.checkPasskeys(); });
+    expect(result.current.passkeysOn).toBe(false);
+  });
+
+  test('a browser that can\'t do passkeys isn\'t offered them where the club has them on', async () => {
+    restoreBrowser();
+    restoreBrowser = () => {};
+    const result = await setupSignedIn();
+    __mock.setAuthSettings({ passkeys_enabled: true });
+    await act(async () => { await result.current.checkPasskeys(); });
+    expect(result.current.passkeysOn).toBe(true);
+    expect(result.current.canUsePasskeys).toBe(false);
+  });
+
+  test('signing in with one asks Supabase, with no email typed, and notes that this device has one', async () => {
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response).toEqual({ error: null });
+    expect(__mock.current.auth.signInWithPasskey).toHaveBeenCalledWith();
+    expect(__mock.current.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBe('1');
+  });
+
+  test('a prompt the member closed is reported as that, quietly, and nothing is remembered', async () => {
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    __mock.current.auth.signInWithPasskey.mockResolvedValue({ data: null, error: closedPrompt });
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response.cancelled).toBe(true);
+    expect(response.error.message).toBe('No passkey was used. Try again, or sign in with your password.');
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('an answer with no session in it is a failure, not a sign-in', async () => {
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    __mock.current.auth.signInWithPasskey.mockResolvedValue({ data: { session: null, user: null }, error: null });
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response.error.message).toBe('That didn\'t work. Sign in with your password.');
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('a client that throws instead of answering is caught and worded like any other failure', async () => {
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    __mock.current.auth.signInWithPasskey.mockRejectedValue(new Error('Passkey support is experimental and must be enabled'));
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response.error.message).toBe('That didn\'t work. Sign in with your password.');
+  });
+
+  test('the project answering that passkeys are off stops them being offered, there and then', async () => {
+    window.localStorage.setItem('fishyfriends:passkeys-on', '1');
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.canUsePasskeys).toBe(true);
+    __mock.current.auth.signInWithPasskey.mockResolvedValue({ data: null, error: refusal('passkey_disabled') });
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response.error.message).toMatch(/isn't switched on for the club right now/);
+    expect(result.current.passkeysOn).toBe(false);
+    expect(result.current.canUsePasskeys).toBe(false);
+    expect(window.localStorage.getItem('fishyfriends:passkeys-on')).toBeNull();
+  });
+
+  test('a passkey that is no longer on the account: the device stops saying it has one', async () => {
+    window.localStorage.setItem('fishyfriends:passkey-here', '1');
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    __mock.current.auth.signInWithPasskey.mockResolvedValue({ data: null, error: refusal('webauthn_credential_not_found') });
+    let response;
+    await act(async () => { response = await result.current.signInWithPasskey(); });
+    expect(response.error.message).toMatch(/isn't on your account any more/);
+    expect(response.cancelled).toBe(false);
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('the account\'s passkeys come newest first', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.passkey.list.mockResolvedValue({ data: [
+      { id: 'pk-old', friendly_name: 'Laptop', created_at: '2026-01-05T12:00:00Z' },
+      { id: 'pk-new', friendly_name: 'iCloud Keychain', created_at: '2026-11-20T12:00:00Z', last_used_at: '2026-11-27T12:00:00Z' },
+    ], error: null });
+    const response = await result.current.listPasskeys();
+    expect(response.error).toBeNull();
+    expect(response.passkeys.map((passkey) => passkey.id)).toEqual(['pk-new', 'pk-old']);
+  });
+
+  test('a list that can\'t be read is an error, not an empty list', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.passkey.list.mockResolvedValue({ data: null, error: refusal('unexpected_failure', { status: 500 }) });
+    const response = await result.current.listPasskeys();
+    expect(response.passkeys).toBeNull();
+    expect(response.error.message).toBe('Your passkeys couldn\'t be read. Try again in a moment.');
+  });
+
+  test('adding one checks the current password first, then asks the device', async () => {
+    const result = await setupSignedIn();
+    let response;
+    await act(async () => { response = await result.current.addPasskey('old-password-1'); });
+    expect(__mock.current.auth.signInWithPassword).toHaveBeenCalledWith({ email: 'andre@example.com', password: 'old-password-1' });
+    expect(__mock.current.auth.registerPasskey).toHaveBeenCalledTimes(1);
+    // The password is checked before the device is asked for anything.
+    expect(__mock.current.auth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(__mock.current.auth.registerPasskey.mock.invocationCallOrder[0]);
+    expect(response).toEqual({ error: null, passwordOk: true, passkey: { id: 'passkey-new', friendly_name: 'iCloud Keychain', created_at: '2026-11-28T15:00:00Z' } });
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBe('1');
+  });
+
+  test('with the wrong password nothing is added and the device is never asked', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
+    let response;
+    await act(async () => { response = await result.current.addPasskey('not-it'); });
+    expect(response.error.message).toBe('That isn\'t your current password.');
+    expect(response.passwordOk).toBeUndefined();
+    expect(__mock.current.auth.registerPasskey).not.toHaveBeenCalled();
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('with no password, and none checked a moment ago, it asks for one', async () => {
+    const result = await setupSignedIn();
+    let response;
+    await act(async () => { response = await result.current.addPasskey(''); });
+    expect(response).toMatchObject({ needsPassword: true });
+    expect(response.error.message).toBe('Type your current password.');
+    expect(__mock.current.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(__mock.current.auth.registerPasskey).not.toHaveBeenCalled();
+  });
+
+  test('a second try within five minutes needs no password; after that, or after a passkey was added, it does', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-28T15:00:00Z'));
+    const result = await setupSignedIn();
+    __mock.current.auth.registerPasskey.mockResolvedValue({ data: null, error: closedPrompt });
+    let response;
+    await act(async () => { response = await result.current.addPasskey('old-password-1'); });
+    expect(response).toMatchObject({ cancelled: true, passwordOk: true });
+    expect(response.error.message).toBe('No passkey was added. Nothing has changed.');
+
+    // Four minutes on: straight to the device.
+    jest.setSystemTime(new Date('2026-11-28T15:04:00Z'));
+    await act(async () => { response = await result.current.addPasskey(''); });
+    expect(response).toMatchObject({ cancelled: true, passwordOk: true });
+    expect(__mock.current.auth.signInWithPassword).toHaveBeenCalledTimes(1);
+    expect(__mock.current.auth.registerPasskey).toHaveBeenCalledTimes(2);
+
+    // Six minutes on from the check: the password again.
+    jest.setSystemTime(new Date('2026-11-28T15:06:00Z'));
+    await act(async () => { response = await result.current.addPasskey(''); });
+    expect(response).toMatchObject({ needsPassword: true });
+    expect(__mock.current.auth.registerPasskey).toHaveBeenCalledTimes(2);
+
+    // And one check adds one passkey: after a success the next one asks afresh.
+    __mock.current.auth.registerPasskey.mockResolvedValue({ data: { id: 'pk-9', friendly_name: 'Laptop', created_at: '2026-11-28T15:07:00Z' }, error: null });
+    await act(async () => { response = await result.current.addPasskey('old-password-1'); });
+    expect(response.error).toBeNull();
+    await act(async () => { response = await result.current.addPasskey(''); });
+    expect(response).toMatchObject({ needsPassword: true });
+  });
+
+  test('a checked password is no use to the next account to sign in on the same tab', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.registerPasskey.mockResolvedValue({ data: null, error: closedPrompt });
+    await act(async () => { await result.current.addPasskey('old-password-1'); });
+    // Somebody else signs in here before the five minutes are up.
+    const listener = __mock.current.auth.onAuthStateChange.mock.calls[0][0];
+    await act(async () => { await listener('SIGNED_IN', { user: { id: 'user-2', email: 'marta@example.com' } }); });
+    await waitFor(() => expect(result.current.user.id).toBe('user-2'));
+    let response;
+    await act(async () => { response = await result.current.addPasskey(''); });
+    expect(response).toMatchObject({ needsPassword: true });
+    expect(__mock.current.auth.registerPasskey).toHaveBeenCalledTimes(1);
+    // Their own password opens it for them.
+    await act(async () => { response = await result.current.addPasskey('martas-password-1'); });
+    expect(__mock.current.auth.signInWithPassword).toHaveBeenLastCalledWith({ email: 'marta@example.com', password: 'martas-password-1' });
+    expect(response).toMatchObject({ passwordOk: true });
+  });
+
+  test('a refusal from the server after the password was right keeps the password checked', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.registerPasskey.mockResolvedValue({ data: null, error: refusal('too_many_passkeys') });
+    let response;
+    await act(async () => { response = await result.current.addPasskey('old-password-1'); });
+    expect(response).toMatchObject({ cancelled: false, passwordOk: true });
+    expect(response.error.message).toMatch(/as many passkeys as one account can have/);
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('a name is tidied and cut to what the form allows, and an empty one is refused before anything is sent', async () => {
+    const result = await setupSignedIn();
+    let response;
+    await act(async () => { response = await result.current.renamePasskey('pk-1', `  My   iPhone ${'x'.repeat(200)}`); });
+    const sent = __mock.current.auth.passkey.update.mock.calls[0][0];
+    expect(sent.passkeyId).toBe('pk-1');
+    expect(sent.friendlyName).toHaveLength(80);
+    expect(sent.friendlyName.startsWith('My iPhone x')).toBe(true);
+    expect(response.error).toBeNull();
+    expect(response.passkey).toMatchObject({ id: 'pk-1', friendly_name: sent.friendlyName });
+    await act(async () => { response = await result.current.renamePasskey('pk-1', '   '); });
+    expect(response.error.message).toMatch(/Give it a name/);
+    expect(__mock.current.auth.passkey.update).toHaveBeenCalledTimes(1);
+  });
+
+  test('a rename the server refuses says so', async () => {
+    const result = await setupSignedIn();
+    __mock.current.auth.passkey.update.mockResolvedValue({ data: null, error: refusal('unexpected_failure', { status: 500 }) });
+    let response;
+    await act(async () => { response = await result.current.renamePasskey('pk-1', 'My iPhone'); });
+    expect(response.error.message).toBe('The name couldn\'t be saved. Try again in a moment.');
+  });
+
+  test('removing one takes it off the account; the device forgets it has one only when it was the last', async () => {
+    window.localStorage.setItem('fishyfriends:passkey-here', '1');
+    const result = await setupSignedIn();
+    let response;
+    await act(async () => { response = await result.current.removePasskey('pk-1'); });
+    expect(response).toEqual({ error: null });
+    expect(__mock.current.auth.passkey.delete).toHaveBeenCalledWith({ passkeyId: 'pk-1' });
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBe('1');
+    await act(async () => { response = await result.current.removePasskey('pk-2', { last: true }); });
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBeNull();
+  });
+
+  test('a removal the server refuses changes nothing on the device', async () => {
+    window.localStorage.setItem('fishyfriends:passkey-here', '1');
+    const result = await setupSignedIn();
+    __mock.current.auth.passkey.delete.mockResolvedValue({ data: null, error: refusal('unexpected_failure', { status: 500 }) });
+    let response;
+    await act(async () => { response = await result.current.removePasskey('pk-1', { last: true }); });
+    expect(response.error.message).toBe('The passkey couldn\'t be removed. Try again in a moment.');
+    expect(window.localStorage.getItem('fishyfriends:passkey-here')).toBe('1');
+  });
+
+  test('signed out, there are no passkeys to list, add, rename or remove', async () => {
+    __mock.reset();
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(await result.current.listPasskeys()).toEqual({ passkeys: [], error: null });
+    expect((await result.current.addPasskey('old-password-1')).error.message).toBe('Sign in first.');
+    expect((await result.current.renamePasskey('pk-1', 'x')).error.message).toBe('Sign in first.');
+    expect((await result.current.removePasskey('pk-1')).error.message).toBe('Sign in first.');
+    expect(__mock.current.auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(__mock.current.auth.registerPasskey).not.toHaveBeenCalled();
+    expect(__mock.current.auth.passkey.list).not.toHaveBeenCalled();
+  });
+});

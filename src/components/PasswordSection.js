@@ -9,7 +9,7 @@ export const PASSWORD_ANCHOR = 'password';
 // (a phone left unlocked shouldn't be enough to lock you out) and signs the account out
 // everywhere else; "sign out everywhere" is for a lost phone or a borrowed computer.
 export default function PasswordSection() {
-  const { user, passwordWarning, changePassword, signOutEverywhere, requestPasswordReset } = useAuth();
+  const { user, passwordWarning, changePassword, signOutEverywhere, requestPasswordReset, passkeysOn } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ current: '', next: '', again: '' });
   const [error, setError] = useState('');
@@ -68,6 +68,8 @@ export default function PasswordSection() {
         </>
         : <button className="button button-quiet" type="button" onClick={() => setConfirmingSignOut(true)}>Sign out everywhere</button>}
     </div>
-    <p>Lost a phone, or signed in somewhere you shouldn't have? This ends every session; other devices are out within the hour.</p>
+    {/* Signing out ends sessions, not passkeys: one on a lost phone can start a new session for
+        whoever can unlock that phone, so where the club has passkeys the advice includes it. */}
+    <p>Lost a phone, or signed in somewhere you shouldn't have? This ends every session; other devices are out within the hour.{passkeysOn && ' A passkey on a lost phone still works for whoever can unlock that phone, so remove it under Passkeys, above.'}</p>
   </section>;
 }
