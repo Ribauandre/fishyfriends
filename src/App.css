@@ -277,58 +277,185 @@ button { cursor: pointer; }
   .backup-key-actions .button { flex: 1 1 100%; }
 }
 .waiting-room-note { color: var(--coral); }
-/* River gauges (Plan > Gauges): the controls, a drop-down per river, and each gauge's chart.
-   The chart's three lines are the page's whole vocabulary: this period in the site's mint,
-   the same dates last year in rust, the all-years median as a dashed grey. Where a river
-   stands against normal is said with a shape and in words, never in those line colours. */
-.gauges-page .page-intro .gauge-summary, .gauges-page .page-intro .gauge-water { color: var(--ink); font-size: 16px; line-height: 1.5; max-width: 52ch; }
+/* River gauges (Plan > Gauges): a board of rivers, each a row that opens.
+   Colour does two jobs here and no more. In a chart, this period is the site's mint, the
+   same dates last year rust, and normal a dashed grey over a band. On the board, how a river
+   is running is a shape and a word; the only colour is coral, for what is far off normal or
+   too warm, and the marker on each scale is the plain ink of a reading. */
+.gauges-page .page-intro { margin-bottom: 24px; }
+.gauges-page .page-intro .gauge-summary, .gauges-page .page-intro .gauge-water { color: var(--ink); font-size: 16px; line-height: 1.5; max-width: 60ch; }
 /* The average water temperature, under the sentence about flow: the same voice, its figure set apart. */
 .gauges-page .page-intro .gauge-water { margin-top: 10px; }
 .gauge-water strong { font-weight: 800; }
-.gauge-controls { align-items: flex-end; display: flex; flex-wrap: wrap; gap: 12px 14px; margin: 0 0 20px; }
+.gauges-page .gauge-problem { margin: 0 0 18px; }
+
+/* The counts: five cells from very low to very high, each a way of seeing just those rivers. */
+.gauge-glance { margin: 0 0 18px; }
+.level-tally { display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.level-cell { align-content: center; background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); color: var(--ink); display: grid; gap: 5px; min-height: 68px; min-width: 0; padding: 10px 14px; text-align: left; transition: border-color .15s ease-out; }
+.level-cell strong { font-family: var(--font-display); font-size: 30px; font-weight: 400; letter-spacing: .01em; line-height: 1; }
+.level-cell span { color: var(--muted); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .08em; line-height: 1.2; text-transform: uppercase; white-space: nowrap; }
+.level-cell i { color: var(--ink); font-size: 9px; font-style: normal; letter-spacing: -.08em; margin-right: 6px; }
+.level-cell.is-very-low i, .level-cell.is-very-high i { color: var(--coral); }
+.level-cell:hover:not(:disabled):not(.is-active) { border-color: var(--mint); }
+.level-cell:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.level-cell.is-active { background: var(--mint); border-color: var(--mint); color: var(--deep); }
+.level-cell.is-active span, .level-cell.is-active i { color: var(--deep); }
+.level-cell:disabled { cursor: default; opacity: .45; }
+.gauge-glance-foot { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: 12px; gap: 0 20px; justify-content: space-between; margin-top: 2px; }
+.gauge-glance-foot p { align-items: center; display: flex; flex-wrap: wrap; gap: 0 14px; margin: 0; min-height: 44px; }
+/* (Small words, but a thumb's height of them to press, and none of it over the line above or below.) */
+.gauge-glance-foot .text-link { background: transparent; border: 0; line-height: 16px; padding: 14px 0; text-transform: uppercase; }
+.gauge-glance-foot .text-link:disabled { color: var(--muted); cursor: default; }
 .gauge-state, .gauge-custom label, .gauge-add-form label, .gauge-add-draft label { color: var(--muted); display: grid; font-size: 10px; font-weight: 800; gap: 6px; letter-spacing: .12em; text-transform: uppercase; }
 .gauge-state select, .gauge-custom input, .gauge-add-form select, .gauge-add-form input, .gauge-add-draft input { background: rgba(3,8,11,.5); border: 1px solid var(--line); border-radius: 0; color: var(--ink); min-height: 44px; outline: none; padding: 10px 12px; }
 .gauge-state select:focus, .gauge-custom input:focus, .gauge-add-form select:focus, .gauge-add-form input:focus, .gauge-add-draft input:focus { border-color: var(--mint); }
+.gauge-glance-foot .gauge-state { flex-basis: 100%; margin-top: 8px; max-width: 280px; }
 .gauge-custom input { color-scheme: dark; }
+
+/* The board: one card, a row a river, and in each row a line a gauge. The row is one button.
+   The heading over it is laid out on the same grid as a row, so its words sit over their
+   columns. */
+.river-board, .gauge-sources { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); min-width: 0; }
+.river-group { min-width: 0; }
+.river-board .river-group { border-top: 1px solid var(--line); }
+.river-heading { font: inherit; margin: 0; text-transform: none; }
+.river-board-head, .river-head { align-items: center; display: grid; gap: 8px 24px; grid-template-columns: 220px minmax(0, 1fr) 20px; padding: 12px 18px; }
+.river-board-head { color: var(--muted); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .12em; padding-bottom: 9px; padding-top: 11px; text-transform: uppercase; }
+.river-head { background: transparent; border: 0; color: inherit; cursor: pointer; font: inherit; min-height: 54px; text-align: left; width: 100%; }
+.river-head:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.river-name { color: var(--ink); font-family: var(--font-display); font-size: 19px; font-weight: 400; letter-spacing: 0; line-height: 1.12; text-transform: uppercase; transition: color .15s ease-out; }
+/* (A river with one gauge says where it is beside its name on a narrow screen, and in the line's own column on a wide one.) */
+.river-name small { display: none; }
+.river-group.is-open > .river-heading .river-name { color: var(--mint); }
+@media (hover: hover) { .river-head:hover .river-name { color: var(--mint); } }
+.river-lines { display: grid; gap: 9px; min-width: 0; }
+.river-line { align-items: center; display: grid; font-size: 13px; gap: 2px 16px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.7fr) 72px minmax(0, 1.7fr) 6.2em 5.4em; line-height: 1.3; }
+.river-line-place { color: var(--muted); }
+.river-line-status { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; min-width: 0; }
+.level-mark { color: var(--ink); font-weight: 700; white-space: nowrap; }
+.level-mark i { display: inline-block; font-size: 9px; font-style: normal; letter-spacing: -.08em; margin-right: 6px; text-align: center; vertical-align: 1px; }
+.level-mark.is-very-low i, .level-mark.is-very-high i { color: var(--coral); }
+.level-mark.is-normal i { color: var(--muted); }
+.level-mark.is-unrated { color: var(--muted); font-weight: 400; white-space: normal; }
+.trend-mark { align-items: center; color: var(--muted); display: inline-flex; gap: 5px; white-space: nowrap; }
+.trend-mark svg { fill: none; flex-shrink: 0; stroke: currentColor; stroke-linecap: square; stroke-width: 1.7; }
+.trend-mark.is-rising { color: var(--ink); }
+.trend-mark.is-rising.is-fast { color: var(--coral); font-weight: 700; }
+.river-line-spark { display: flex; }
+.flow-spark { display: block; overflow: visible; }
+.flow-spark path { fill: none; stroke: var(--muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.river-line-meter { align-items: center; display: flex; gap: 12px; min-width: 0; }
+/* The scale. Its two bands are one hue in two steps (checked as a ramp against the card:
+   each a visible step from the next, the fainter still twice the card's own tone). */
+.flow-meter, .flow-meter-key { flex: 1 1 60px; min-width: 0; }
+.flow-meter { background: rgba(231,244,239,.07); display: block; height: 10px; position: relative; }
+.flow-meter i { bottom: 0; position: absolute; top: 0; }
+.flow-meter-outer { background: #2c545c; }
+.flow-meter-inner { background: #5a9aa5; }
+.flow-meter-normal { background: var(--cream); left: 50%; margin-left: -1px; width: 2px; }
+.flow-meter .flow-meter-now { background: var(--ink); bottom: -4px; box-shadow: 0 0 0 2px var(--cream); margin-left: -2px; top: -4px; width: 4px; }
+/* Past an end of the scale the marker is an arrowhead at that end. */
+.flow-meter.is-off .flow-meter-now { box-shadow: none; margin-left: -9px; width: 9px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.flow-meter.is-off.is-far .flow-meter-now { background: var(--coral); }
+.flow-meter.is-off-low .flow-meter-now { margin-left: 0; clip-path: polygon(100% 0, 0 50%, 100% 100%); }
+.flow-meter-key { display: flex; justify-content: space-between; }
+/* (A fixed width whatever it says, so the words beside a scale never change the scale's length.) */
+.river-line-ratio { color: var(--muted); flex: 0 0 7.5em; font-size: 12px; font-variant-numeric: tabular-nums; min-width: 0; white-space: nowrap; }
+.river-line-now { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.river-line-now strong { color: var(--ink); }
+.river-line-temp { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.river-line-temp.is-warm { color: var(--coral); font-weight: 700; }
+.river-line-temp i { font-style: normal; }
+/* (The heading's own line keeps a row's type size, which its columns are measured in; the words in it are the heading's size.) */
+.river-board-head .river-line > span, .river-board-head .flow-meter-key { font-size: 10px; }
+.river-board-head .river-line > .river-line-meter { font-size: 13px; }
+.river-board-head .river-line-now, .river-board-head .river-line-temp { color: inherit; }
+
+/* An open river: what the charts show, then a card a gauge. */
+.river-body { background: rgba(3,8,11,.3); border-top: 1px solid var(--line); padding: 0 18px 2px; }
+/* What the charts show, over each chart. */
+.chart-bar { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 10px; margin-bottom: 12px; }
 .segmented { border: 1px solid var(--line); display: inline-flex; }
-.segment { background: transparent; border: 0; color: var(--muted); font-family: var(--font-head); font-size: 12px; font-weight: 800; letter-spacing: .08em; min-height: 44px; padding: 0 16px; text-transform: uppercase; transition: color .15s ease-out; white-space: nowrap; }
+.segment { background: transparent; border: 0; color: var(--muted); font-family: var(--font-head); font-size: 12px; font-weight: 800; letter-spacing: .08em; min-height: 44px; padding: 0 14px; text-transform: uppercase; transition: color .15s ease-out; white-space: nowrap; }
 .segment + .segment { border-left: 1px solid var(--line); }
 .segment:hover:not(:disabled):not(.is-active) { color: var(--mint); }
 .segment.is-active { background: var(--mint); color: var(--deep); }
 .segment:disabled { cursor: not-allowed; opacity: .4; }
-.gauge-controls .gauge-refresh { margin-top: 0; min-height: 46px; padding-bottom: 0; padding-top: 0; width: auto; }
 .gauge-custom { align-items: flex-end; display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 12px 14px; }
+@media (min-width: 1001px) {
+  .level-cell { align-items: baseline; display: flex; gap: 12px; min-height: 58px; }
+  .chart-bar .segment { font-size: 11px; min-height: 36px; padding: 0 11px; }
+}
 .gauge-custom .field-hint { color: var(--coral); flex-basis: 100%; font-size: 12px; margin: 0; }
-.gauges-page .gauge-problem { margin: 0 0 18px; }
-.gauge-legend-row { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 8px 24px; justify-content: space-between; margin: 0 0 14px; padding: 10px 0 0; }
-.gauge-legend { color: var(--muted); display: flex; flex-wrap: wrap; font-size: 12px; gap: 6px 24px; list-style: none; margin: 0; padding: 0; }
-.gauge-swatch { border-top: 3px solid var(--mint); display: inline-block; height: 0; margin-right: 9px; vertical-align: middle; width: 26px; }
-.gauge-swatch.is-last { border-top-color: var(--rust); }
-.gauge-swatch.is-normal { border-top: 2px dashed var(--muted); }
-.gauge-open-all { background: transparent; border: 0; flex-shrink: 0; min-height: 44px; padding: 0 0 0 12px; text-transform: uppercase; white-space: nowrap; }
 
-/* A river: one button that is the whole closed row — its name, then a line a gauge. */
-.river-list { display: grid; gap: 14px; }
-.river-group { background-color: var(--cream); background-image: var(--tex-halftone-faint); background-size: 7px 7px; border: 2px solid var(--line); box-shadow: var(--sticker-shadow); min-width: 0; }
-.river-heading { font: inherit; margin: 0; text-transform: none; }
-.river-head { align-items: center; background: transparent; border: 0; color: inherit; cursor: pointer; display: grid; font: inherit; gap: 8px 28px; grid-template-columns: minmax(0, 4fr) minmax(0, 9fr) 20px; min-height: 64px; padding: 14px 20px; text-align: left; width: 100%; }
-.river-head:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
-.river-name { color: var(--ink); font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: 0; line-height: 1.12; text-transform: uppercase; transition: color .15s ease-out; }
-/* Only where there is a pointer to hover with: on a phone the colour would stick after a tap. */
-@media (hover: hover) { .river-head:hover .river-name { color: var(--mint); } }
-.river-count { color: var(--muted); font-size: 12px; }
-.river-lines { display: grid; gap: 7px; }
-.river-line { align-items: baseline; display: grid; font-size: 13px; gap: 2px 18px; grid-template-columns: minmax(0, 1fr) 6.5em 16em; line-height: 1.35; }
-.river-line-place { color: var(--muted); }
-.river-line-now { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-.river-line-now strong { color: var(--ink); }
-.river-line-standing { color: var(--muted); }
-.gauge-standing { color: var(--ink); font-weight: 700; }
-.gauge-standing i { color: var(--coral); display: inline-block; font-size: 10px; font-style: normal; margin-right: 7px; text-align: center; width: 11px; }
-.gauge-standing.is-normal { font-weight: 400; }
-.gauge-standing.is-normal i { color: var(--muted); }
-/* Sources: the same row as a river, saying where the numbers come from and when they were read. */
+/* A gauge, inside its river: the read on the left, the chart on the right. */
+.gauge-card { display: grid; gap: 0 40px; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); min-width: 0; padding: 18px 0 16px; }
+.gauge-card + .gauge-card { border-top: 1px solid var(--line); }
+.gauge-read, .gauge-card-chart { min-width: 0; }
+.gauge-card h3 { color: var(--ink); font-family: var(--font-head); font-size: 15px; font-weight: 800; letter-spacing: .06em; line-height: 1.25; margin: 0; text-transform: uppercase; }
+.gauge-card-name p { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 5px 0 0; }
+.gauge-card-name a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.gauge-card-name a:hover { color: var(--mint); }
+.gauge-read-title { color: var(--ink); font-family: var(--font-display); font-size: 28px; font-weight: 400; letter-spacing: .01em; line-height: 1.08; margin: 14px 0 0; text-transform: uppercase; }
+.gauge-read-title.is-quiet { color: var(--muted); }
+.gauge-read-story { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 6px 0 0; }
+.gauge-facts { border-left: 1px solid var(--line); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 14px 0 0; }
+.gauge-facts > div { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); min-width: 0; padding: 10px 12px 11px; }
+.gauge-facts dt { color: var(--muted); font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.gauge-facts dd { color: var(--muted); font-size: 12px; line-height: 1.35; margin: 5px 0 0; }
+.gauge-facts dd strong { color: var(--ink); font-family: var(--font-display); font-size: 22px; font-weight: 400; letter-spacing: .01em; line-height: 1; }
+.gauge-facts .gauge-fact-sub { margin-top: 4px; }
+.gauge-notes { margin-top: 16px; }
+.gauge-notes h4 { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; margin: 0 0 10px; text-transform: uppercase; }
+.gauge-notes ul { display: grid; gap: 9px; list-style: none; margin: 0; padding: 0; }
+.gauge-notes li { border-left: 2px solid var(--mint); color: var(--ink); font-size: 13px; line-height: 1.5; padding-left: 12px; }
+.gauge-card .gauge-note { margin-top: 14px; }
+/* (As tall as the chart and its readout, so the card doesn't change height when they arrive.) */
+.gauge-card .gauge-note.is-waiting { align-items: center; display: flex; justify-content: center; min-height: 247px; }
+.gauge-card.is-stale .gauge-chart { opacity: .42; }
+.gauge-chart { min-width: 0; }
+.gauge-chart-scrub { outline: none; }
+.gauge-chart-scrub:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.gauge-chart-plot { display: block; max-width: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.gauge-grid { stroke: var(--line); stroke-width: 1; }
+.gauge-axis { stroke: var(--muted); stroke-width: 1; }
+.gauge-tick { fill: var(--muted); font-size: 10px; }
+.gauge-band { fill: var(--muted); fill-opacity: .16; stroke: none; }
+.gauge-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.gauge-line-now { stroke: var(--mint); stroke-width: 2; }
+.gauge-line-last { stroke: var(--rust); stroke-width: 1.5; }
+.gauge-line-normal { stroke: var(--muted); stroke-dasharray: 5 4; stroke-linecap: butt; stroke-width: 1.5; }
+.gauge-chart.is-dense .gauge-line-now { stroke-width: 1.5; }
+.gauge-chart.is-dense .gauge-line-last { stroke-width: 1; }
+.gauge-mark { stroke: var(--coral); stroke-dasharray: 2 4; stroke-width: 1; }
+.gauge-mark-label { fill: var(--ink); font-size: 10px; paint-order: stroke; stroke: var(--cream); stroke-width: 3; }
+/* The newest reading, and the one being read: squares, like every other mark on the site. */
+.gauge-newest { fill: var(--mint); paint-order: stroke; stroke: var(--cream); stroke-width: 4; }
+.gauge-newest.is-read { fill: var(--ink); }
+.gauge-rule { stroke: var(--ink); stroke-opacity: .75; stroke-width: 1; }
+.gauge-none { fill: var(--muted); font-size: 12px; }
+/* The line under a chart: a date, then a column a line. It is the legend too. Fixed in shape, so pointing along the chart never moves anything. */
+.gauge-readout { color: var(--muted); display: grid; font-size: 11px; gap: 2px 14px; grid-template-columns: 8.5em repeat(3, minmax(0, 1fr)); line-height: 1.5; margin: 8px 0 0; min-height: 49px; }
+.gauge-readout.has-2 { grid-template-columns: 8.5em repeat(2, minmax(0, 1fr)); }
+.gauge-readout.has-1 { grid-template-columns: 8.5em minmax(0, 1fr); }
+.gauge-readout-date { color: var(--ink); font-weight: 800; }
+.gauge-readout-value { align-content: start; display: grid; gap: 1px; min-width: 0; }
+.gauge-readout-label { white-space: nowrap; }
+.gauge-readout-label i { border-top: 3px solid var(--mint); display: inline-block; margin-right: 6px; vertical-align: middle; width: 12px; }
+.gauge-readout-value.is-last i { border-top-color: var(--rust); }
+.gauge-readout-value.is-normal i { border-top: 2px dashed var(--muted); }
+.gauge-readout-value strong { color: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gauge-readout-usual { font-variant-numeric: tabular-nums; }
+.gauge-card-foot { align-items: baseline; border-top: 1px solid var(--line); color: var(--muted); display: flex; flex-wrap: wrap; font-size: 11px; gap: 6px 14px; grid-column: 1 / -1; justify-content: space-between; margin-top: 14px; padding-top: 10px; }
+.gauge-card-foot .text-link { background: transparent; border: 0; padding: 0; }
+.gauge-remove-confirm { color: var(--coral); }
+.gauge-remove-confirm .text-link { margin-left: 8px; }
+
+/* Where the numbers come from: a row that opens, under the board. */
+.gauges-page .gauge-footnote { margin: 22px 0 0; max-width: 78ch; }
 .gauge-sources { margin-top: 22px; }
+.gauge-sources .river-head { grid-template-columns: minmax(0, 4fr) minmax(0, 9fr) 20px; padding: 14px 20px; }
 .gauge-sources-line { color: var(--muted); font-size: 12px; line-height: 1.45; }
 .gauge-sources-body { border-top: 1px solid var(--line); display: grid; gap: 20px 36px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 18px 20px 20px; }
 .gauge-sources-body h3 { color: var(--coral); font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .12em; margin: 0 0 12px; text-transform: uppercase; }
@@ -339,60 +466,6 @@ button { cursor: pointer; }
 .gauge-sources-body li a { color: var(--muted); font-size: 11px; justify-self: start; text-decoration: underline; text-underline-offset: 2px; }
 .gauge-sources-body li a:hover { color: var(--mint); }
 .gauge-sources-body > p { grid-column: 1 / -1; max-width: 78ch; }
-/* (.month-empty, declared further down, zeroes margins: these have to out-rank it.) */
-.gauges-page .gauge-footnote { margin: 22px 0 0; max-width: 78ch; }
-.river-body { border-top: 1px solid var(--line); display: grid; gap: 0 36px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); padding: 0 20px 4px; }
-
-/* A gauge, inside its river. */
-.gauge-card { min-width: 0; padding: 18px 0 16px; }
-.gauge-card-head { align-items: flex-start; display: flex; gap: 14px; justify-content: space-between; }
-.gauge-card-name { min-width: 0; }
-.gauge-card h3 { color: var(--ink); font-family: var(--font-head); font-size: 15px; font-weight: 800; letter-spacing: .06em; line-height: 1.25; margin: 0; text-transform: uppercase; }
-.gauge-card-name p { color: var(--muted); font-size: 12px; line-height: 1.4; margin: 5px 0 0; }
-.gauge-card-name a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
-.gauge-card-name a:hover { color: var(--mint); }
-.gauge-now { flex-shrink: 0; text-align: right; }
-.gauge-now-value { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.gauge-now-value .gauge-swatch { width: 18px; }
-.gauge-now-value strong { color: var(--ink); font-family: var(--font-display); font-size: 30px; font-weight: 400; letter-spacing: .01em; line-height: 1; }
-.gauge-now-age { color: var(--muted); display: block; font-size: 10px; margin-top: 4px; }
-.gauge-verdict { display: flex; flex-wrap: wrap; font-size: 13px; gap: 2px 16px; line-height: 1.4; margin: 12px 0 0; }
-.gauge-verdict-flow { color: var(--muted); }
-.gauge-card .gauge-note { margin-top: 14px; }
-/* A chart on its way holds the room the chart will take, so the card doesn't jump when it lands. */
-.gauge-card .gauge-note.is-waiting { align-items: center; display: flex; justify-content: center; min-height: 233px; }
-.gauge-card.is-stale .gauge-chart, .gauge-card.is-stale .gauge-now { opacity: .42; }
-.gauge-chart { margin-top: 14px; min-width: 0; }
-.gauge-chart-scrub { outline: none; }
-.gauge-chart-scrub:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
-.gauge-chart-plot { display: block; max-width: 100%; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-.gauge-grid { stroke: var(--line); stroke-width: 1; }
-.gauge-axis { stroke: var(--muted); stroke-width: 1; }
-.gauge-tick { fill: var(--muted); font-size: 10px; }
-.gauge-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.gauge-line-now { stroke: var(--mint); stroke-width: 2; }
-.gauge-line-last { stroke: var(--rust); stroke-width: 1.5; }
-.gauge-line-normal { stroke: var(--muted); stroke-dasharray: 5 4; stroke-linecap: butt; stroke-width: 1.5; }
-.gauge-chart.is-dense .gauge-line-now { stroke-width: 1.5; }
-.gauge-chart.is-dense .gauge-line-last { stroke-width: 1; }
-/* The newest reading, ringed in the card's own colour so it reads where lines cross it. */
-.gauge-newest { fill: var(--mint); paint-order: stroke; stroke: var(--cream); stroke-width: 4; }
-.gauge-newest.is-read { fill: var(--ink); }
-.gauge-rule { stroke: var(--ink); stroke-opacity: .75; stroke-width: 1; }
-.gauge-none { fill: var(--muted); font-size: 12px; }
-/* The readout keeps one shape whatever the numbers are: a date, then a column a line. */
-.gauge-readout { color: var(--muted); display: grid; font-size: 11px; gap: 2px 14px; grid-template-columns: 7.5em repeat(3, minmax(0, 1fr)); line-height: 1.5; margin: 8px 0 0; min-height: 35px; }
-.gauge-readout-date { color: var(--ink); font-weight: 800; }
-.gauge-readout-value { display: grid; gap: 1px; min-width: 0; }
-.gauge-readout-label { white-space: nowrap; }
-.gauge-readout-label i { border-top: 3px solid var(--mint); display: inline-block; margin-right: 6px; vertical-align: middle; width: 12px; }
-.gauge-readout-value.is-last i { border-top-color: var(--rust); }
-.gauge-readout-value.is-normal i { border-top: 2px dashed var(--muted); }
-.gauge-readout-value strong { color: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.gauge-card-foot { align-items: baseline; border-top: 1px solid var(--line); color: var(--muted); display: flex; flex-wrap: wrap; font-size: 11px; gap: 6px 14px; justify-content: space-between; margin-top: 12px; padding-top: 10px; }
-.gauge-card-foot .text-link { background: transparent; border: 0; padding: 0; }
-.gauge-remove-confirm { color: var(--coral); }
-.gauge-remove-confirm .text-link { margin-left: 8px; }
 
 .gauge-add-closed { margin-top: 26px; }
 .gauge-add-closed .button { margin-top: 0; width: auto; }
@@ -408,36 +481,57 @@ button { cursor: pointer; }
 .gauge-found li span { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .gauge-found .button { flex-shrink: 0; margin-top: 0; width: auto; }
 .gauge-found-listed { color: var(--mint); flex-shrink: 0; font-family: var(--font-head); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+/* Narrower than a table has room for (a phone, a tablet, a small window): each line of the
+   board stacks. How a river is running and its flow on one row, the scale and the water
+   temperature under it, and where the gauge is beside the river's name when it has only one. */
+@media (max-width: 1000px) {
+  .river-board-head { padding: 7px 14px 6px; }
+  .river-board-head .river-board-river, .river-board-head .river-line-place, .river-board-head .river-line-status, .river-board-head .river-line-now, .river-board-head .river-line-temp { display: none; }
+  .river-head { gap: 6px 12px; grid-template-columns: minmax(0, 1fr) 20px; padding: 10px 14px 12px; }
+  .river-board-head { display: block; }
+  .river-name { font-size: 18px; }
+  .river-name small { color: var(--muted); display: inline-block; font-family: 'Avenir Next', Avenir, 'Helvetica Neue', sans-serif; font-size: 12px; letter-spacing: 0; line-height: 1.3; margin-left: 9px; text-transform: none; vertical-align: 1px; }
+  .river-head .expand-icon { grid-column: 2; grid-row: 1; }
+  .river-lines { gap: 10px; grid-column: 1 / -1; }
+  /* (The numbers' column is one width on every line, so every scale is the same length and normal is in the same place all the way down the board.) */
+  .river-line { gap: 4px 12px; grid-template-areas: "place place" "status now" "meter temp"; grid-template-columns: minmax(0, 1fr) 5.9em; }
+  .river-line-place { font-size: 12px; grid-area: place; }
+  .river-group.is-solo .river-line-place { display: none; }
+  .river-line-status { grid-area: status; }
+  .river-line-spark { display: none; }
+  .river-line-meter { grid-area: meter; }
+  .river-line-now { grid-area: now; }
+  .river-line-temp { font-size: 12px; grid-area: temp; }
+  .river-body { padding: 0 14px 2px; }
+  .gauge-card { gap: 18px; grid-template-columns: minmax(0, 1fr); padding: 16px 0 14px; }
+  .gauge-card-foot { margin-top: 0; }
+  .gauge-sources .river-head { gap: 10px 14px; grid-template-columns: minmax(0, 1fr) 20px; padding: 14px 16px; }
+  .gauge-sources-line { grid-column: 1 / -1; }
+  .gauge-sources-body { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+}
 @media (max-width: 800px) {
-  /* A phone gets the controls in three rows of thumb-sized targets: where and refresh,
-     what is charted and on which axis, how far back. */
-  .gauge-controls { align-items: end; display: grid; gap: 10px; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
-  .gauge-state { grid-column: 1; grid-row: 1; }
-  .gauge-state select { width: 100%; }
-  .gauge-controls .gauge-refresh { grid-column: 2; grid-row: 1; width: 100%; }
+  .level-tally { gap: 6px; }
+  .level-cell { gap: 4px; justify-items: center; min-height: 62px; padding: 9px 2px; text-align: center; }
+  .level-cell strong { font-size: 26px; }
+  .level-cell span { font-size: 9.5px; letter-spacing: .04em; }
+  .level-cell i { display: block; margin: 0 0 3px; }
+  .gauge-glance-foot { gap: 0 16px; }
+  .gauges-page .page-intro .gauge-summary { font-size: 15px; }
+  .gauges-page .page-intro .gauge-water { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .gauge-water strong { color: var(--ink); }
+  /* What the charts show, in thumb-sized rows: how far back across the top, then flow or temperature and the axis. */
+  .chart-bar { display: grid; gap: 6px; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .chart-bar .segment { font-size: 11px; }
   .segmented { display: flex; }
-  .segmented.is-reading { grid-column: 1; grid-row: 2; }
-  .segmented.is-axis { grid-column: 2; grid-row: 2; }
   .segmented.is-period, .gauge-custom { grid-column: 1 / -1; }
   .segment { flex: 1 1 0; padding: 0 4px; }
   .segmented.is-reading .segment:last-child { flex-grow: 1.7; }
   .gauge-custom label { flex: 1 1 140px; }
   .gauge-custom input { width: 100%; }
-  /* A closed river on a phone: the name, then for each gauge where it is and what it is
-     running on the left, and how that stands against normal on the right. */
-  .river-head { gap: 10px 14px; grid-template-columns: minmax(0, 1fr) 20px; padding: 14px 16px; }
-  .river-name { font-size: 20px; }
-  .river-head .expand-icon { grid-column: 2; grid-row: 1; }
-  .river-lines, .river-count, .gauge-sources-line { grid-column: 1 / -1; }
-  .gauge-sources-body { grid-template-columns: minmax(0, 1fr); padding: 16px; }
-  .river-line { gap: 1px 14px; grid-template-areas: "place standing" "now standing"; grid-template-columns: minmax(0, 1fr) auto; }
-  .river-line-place { grid-area: place; }
-  .river-line-now { font-size: 12px; grid-area: now; text-align: left; }
-  .river-line-standing { grid-area: standing; text-align: right; white-space: nowrap; }
-  .river-body { padding: 0 16px 2px; }
-  .gauge-card + .gauge-card { border-top: 1px solid var(--line); }
-  .gauge-card .gauge-note.is-waiting { min-height: 252px; }
-  .gauge-readout { grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: 54px; }
+  .gauge-card .gauge-note.is-waiting { min-height: 266px; }
+  .gauge-readout, .gauge-readout.has-2, .gauge-readout.has-1 { grid-template-columns: repeat(3, minmax(0, 1fr)); min-height: 68px; }
+  .gauge-readout.has-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gauge-readout.has-1 { grid-template-columns: minmax(0, 1fr); }
   .gauge-readout-date { grid-column: 1 / -1; }
   .gauge-add-form > * { flex: 1 1 100%; }
   .gauge-add-form select, .gauge-add-form input, .gauge-add-draft input { width: 100%; }

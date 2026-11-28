@@ -1,4 +1,4 @@
-import { axisLabel, extent, linePath, linearAxis, linearScale, logAxis, logScale, nearest, nearestIndex, segments, timeTicks } from './gaugeChart';
+import { axisLabel, bandPath, extent, linePath, linearAxis, linearScale, logAxis, logScale, nearest, nearestIndex, segments, timeTicks } from './gaugeChart';
 
 const DAY = 24 * 60 * 60 * 1000;
 const local = (year, month, date, hour = 0) => new Date(year, month, date, hour).getTime();
@@ -58,6 +58,9 @@ describe('axes', () => {
     expect(extent(lines)).toEqual([28, 211]);
     expect(extent([[{ t: 1, v: 0 }, { t: 2, v: -3 }, { t: 3, v: 12 }]], { positive: true })).toEqual([12, 12]);
     expect(extent([[{ t: 1, v: 0 }]], { positive: true })).toBeNull();
+    // A line that carries a band round it is as wide as the band.
+    expect(extent([[{ t: 1, v: 40 }], [{ t: 1, v: 85, low: 60, high: 120 }, { t: 2, v: 86, low: 12, high: 121 }]])).toEqual([12, 121]);
+    expect(extent([[{ t: 1, v: 85, low: 0, high: 120 }]], { positive: true })).toEqual([85, 120]);
     expect(extent([[], undefined])).toBeNull();
   });
 
@@ -122,6 +125,14 @@ describe('lines', () => {
     const y = (v) => v * 2;
     expect(linePath([point(1, 10), point(2, 11.26)], x, y)).toBe('M1 20L2 22.5');
     expect(linePath([point(4, 5)], x, y)).toBe('M2.5 10h3');
+  });
+
+  test('a band is the closed shape between its top and its bottom, and a lone point has none', () => {
+    const x = (t) => t * 10;
+    const y = (value) => 100 - value;
+    expect(bandPath([{ t: 1, low: 20, high: 60 }, { t: 2, low: 25, high: 70 }, { t: 3, low: 30, high: 65 }], x, y)).toBe('M10 40L20 30L30 35L30 70L20 75L10 80Z');
+    expect(bandPath([{ t: 1, low: 20, high: 60 }], x, y)).toBe('');
+    expect(bandPath([], x, y)).toBe('');
   });
 
   test('the nearest reading in time, if it is near enough', () => {

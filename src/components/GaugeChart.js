@@ -1,25 +1,29 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { axisLabel, extent, linearAxis, linearScale, linePath, logAxis, logScale, nearest, nearestIndex, segments, timeTicks } from '../utils/gaugeChart';
+import { axisLabel, bandPath, extent, linearAxis, linearScale, linePath, logAxis, logScale, nearest, nearestIndex, segments, timeTicks } from '../utils/gaugeChart';
 
-// One gauge's chart: this stretch of its record, the same dates a year ago, and the median
-// for each of those dates over every year on record. Plain SVG drawn to the width it is
-// given — no chart library, nothing animated — in the site's own line weights and colours.
+// One gauge's chart: this stretch of its record, the same dates a year ago, and what is
+// normal for each of those dates over every year on record — the median as a dashed line,
+// with the range the middle half of years fell in as a band behind it. Plain SVG drawn to
+// the width it is given — no chart library, nothing animated — in the site's own line weights
+// and colours.
 //
 // A value is read off by pointing: a finger or the mouse along the chart moves a rule to the
 // nearest reading, and the line under the chart says the date and each line's value there.
 // That line stands in for a floating tooltip, which a thumb covers and a phone's edge clips,
 // and it keeps its shape as the numbers change, so the card doesn't twitch under the finger.
-// With nothing pointed at it reads the newest values. Dragging up or down still scrolls the
-// page. From the keyboard the chart is a slider: the arrow keys walk the rule along the
-// readings and a screen reader is told the same line.
+// It is the chart's legend as well: each value sits under its line's swatch and name. With
+// nothing pointed at it reads the newest values. Dragging up or down still scrolls the page.
+// From the keyboard the chart is a slider: the arrow keys walk the rule along the readings
+// and a screen reader is told the same line.
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const HEIGHT = 190;
 const MARGIN = { top: 10, right: 10, bottom: 24, left: 46 };
 
+// Drawn in this order, so this period's line lies over the others.
 const LINES = [
-  { key: 'normal', label: 'Median' },
+  { key: 'normal', label: 'Normal' },
   { key: 'last', label: 'Last year' },
   { key: 'now', label: 'This period' },
 ];
@@ -28,11 +32,14 @@ const LABEL = Object.fromEntries(LINES.map((line) => [line.key, line.label]));
 
 // A reading is named by when it was taken, on the viewer's clock. A daily value is named by
 // its own date (it carries one, `day`), which is the same date everywhere.
-const dateText = (t, withTime) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(withTime ? { hour: 'numeric' } : {}) });
+const dateText = (t, withTime) => new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}) });
 const dayText = (day) => new Date(`${day}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 const stamp = (point, withTime) => (point.day ? dayText(point.day) : dateText(point.t, withTime));
 
-export default function GaugeChart({ title, unit, scale = 'log', floor, startMs, endMs, now = [], last = [], normal = [], format = axisLabel, hourly = false }) {
+// `lines` says which of the three are part of this chart at all (a three-day chart has no
+// last year): one left out has no place in the line under the chart either. `mark` is a
+// level worth a rule of its own ({ value, label }), drawn only where the axis reaches it.
+export default function GaugeChart({ title, unit, scale = 'log', floor, startMs, endMs, now = [], last = [], normal = [], lines = READ_ORDER, mark = null, format = axisLabel, hourly = false }) {
   const box = useRef(null);
   // React's ids carry punctuation that has no business inside a url(#...) reference.
   const clip = `gauge-clip-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -66,9 +73,11 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
   const x = linearScale(startMs, endMs, left, right);
   const y = axis ? (log ? logScale : linearScale)(axis.min, axis.max, bottom, MARGIN.top) : () => bottom;
   // A day's worth of daily means is a point a day; the measured record (`hourly`: this
-  // period and last year both, on the 7-day chart) is a point an hour. The median is daily.
+  // period and last year both, on the 3- and 7-day charts) is a point an hour or closer. The
+  // normals are daily.
   const gap = { now: hourly ? 6 * HOUR : 3.5 * DAY, last: hourly ? 6 * HOUR : 3.5 * DAY, normal: 3.5 * DAY };
   const inWindow = (point) => point.t >= startMs && point.t <= endMs;
+  const banded = drawn.normal.filter((point) => Number.isFinite(point.low) && Number.isFinite(point.high));
 
   // What the rule walks along: this period's readings, or failing those whichever line there is.
   const track = (drawn.now.some(inWindow) ? drawn.now : drawn.last.some(inWindow) ? drawn.last : drawn.normal).filter(inWindow);
@@ -84,8 +93,13 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
   const anchor = read.now || read.last || read.normal || null;
   const ruleAt = pointed === null ? null : Math.min(endMs, Math.max(startMs, anchor ? anchor.t : pointed));
   const when = at === null ? '' : anchor ? stamp(anchor, hourly && anchor !== read.normal) : dateText(at, false);
-  const said = READ_ORDER.filter((key) => read[key]).map((key) => `${LABEL[key].toLowerCase()} ${format(read[key].v)} ${unit}`);
+  // A line with nothing to draw in this stretch (a gauge with no long-run record, one that
+  // wasn't there last year) has no column under the chart. That is settled for as long as the
+  // chart shows this stretch, so pointing along it still never changes the shape.
+  const shown = READ_ORDER.filter((key) => lines.includes(key) && (key === 'now' || drawn[key].length > 0));
+  const said = shown.filter((key) => read[key]).map((key) => `${LABEL[key].toLowerCase()} ${format(read[key].v)} ${unit}`);
   const spoken = at === null || said.length === 0 ? 'Nothing recorded for this stretch' : `${when}: ${said.join(', ')}`;
+  const usual = read.normal && Number.isFinite(read.normal.low) && Number.isFinite(read.normal.high) ? `${format(read.normal.low)} to ${format(read.normal.high)}` : '';
 
   function point(event) {
     if (!Number.isFinite(event.clientX)) return;
@@ -118,11 +132,15 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
 
   // A year of daily values on a phone is more than a point a pixel: thinner lines keep it readable.
   const dense = drawn.now.length > (right - left) / 1.5;
+  const marked = axis && mark && mark.value >= axis.min && mark.value <= axis.max ? Math.round(y(mark.value)) + 0.5 : null;
 
   return <div className={dense ? 'gauge-chart is-dense' : 'gauge-chart'} ref={box}>
     <div className="gauge-chart-scrub" {...slider}>
       <svg className="gauge-chart-plot" aria-hidden="true" width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} onPointerMove={point} onPointerDown={point} onPointerLeave={() => setPointed(null)}>
         <defs><clipPath id={clip}><rect x={left} y="0" width={right - left} height={HEIGHT} /></clipPath></defs>
+        {axis && lines.includes('normal') && <g clipPath={`url(#${clip})`}>
+          {segments(banded, gap.normal).map((piece, index) => <path key={index} className="gauge-band" d={bandPath(piece, x, y)} />)}
+        </g>}
         {axis && axis.ticks.map((tick) => <g key={tick}>
           <line className="gauge-grid" x1={left} x2={right} y1={Math.round(y(tick)) + 0.5} y2={Math.round(y(tick)) + 0.5} />
           <text className="gauge-tick" x={left - 6} y={y(tick)} dy="0.32em" textAnchor="end">{axisLabel(tick)}</text>
@@ -130,10 +148,15 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
         <line className="gauge-axis" x1={left} x2={right} y1={bottom + 0.5} y2={bottom + 0.5} />
         {timeTicks(startMs, endMs, Math.max(2, Math.min(7, Math.floor((right - left) / 60)))).map((tick) => <g key={tick.t}>
           <line className="gauge-axis" x1={Math.round(x(tick.t)) + 0.5} x2={Math.round(x(tick.t)) + 0.5} y1={bottom} y2={bottom + 4} />
-          <text className="gauge-tick" x={x(tick.t)} y={bottom + 16} textAnchor="middle">{tick.label}</text>
+          {/* (A date at the very edge of the plot is set inside it rather than cut off.) */}
+          <text className="gauge-tick" x={x(tick.t)} y={bottom + 16} textAnchor={x(tick.t) > right - 20 ? 'end' : x(tick.t) < left + 20 ? 'start' : 'middle'}>{tick.label}</text>
         </g>)}
+        {marked !== null && <g>
+          <line className="gauge-mark" x1={left} x2={right} y1={marked} y2={marked} />
+          <text className="gauge-mark-label" x={right - 4} y={marked - 5} textAnchor="end">{mark.label}</text>
+        </g>}
         {axis && <g clipPath={`url(#${clip})`}>
-          {LINES.map((line) => segments(drawn[line.key], gap[line.key]).map((piece, index) => <path key={`${line.key}-${index}`} className={`gauge-line gauge-line-${line.key}`} d={linePath(piece, x, y)} />))}
+          {LINES.filter((line) => lines.includes(line.key)).map((line) => segments(drawn[line.key], gap[line.key]).map((piece, index) => <path key={`${line.key}-${index}`} className={`gauge-line gauge-line-${line.key}`} d={linePath(piece, x, y)} />))}
         </g>}
         {axis && ruleAt !== null && <line className="gauge-rule" x1={Math.round(x(ruleAt)) + 0.5} x2={Math.round(x(ruleAt)) + 0.5} y1={MARGIN.top} y2={bottom} />}
         {axis && newest && inWindow(newest) && <rect className="gauge-newest" x={x(newest.t) - 4} y={y(newest.v) - 4} width="8" height="8" />}
@@ -141,12 +164,13 @@ export default function GaugeChart({ title, unit, scale = 'log', floor, startMs,
         {!axis && <text className="gauge-none" x={(left + right) / 2} y={(MARGIN.top + bottom) / 2} textAnchor="middle">Nothing recorded for this stretch</text>}
       </svg>
     </div>
-    <p className="gauge-readout">
+    <p className={`gauge-readout has-${shown.length}`}>
       {at === null || !axis ? <span className="gauge-readout-date">&nbsp;</span> : <>
         <span className="gauge-readout-date">{when}</span>
-        {READ_ORDER.map((key) => <span key={key} className={`gauge-readout-value is-${key}`}>
+        {shown.map((key) => <span key={key} className={`gauge-readout-value is-${key}`}>
           <span className="gauge-readout-label"><i aria-hidden="true" />{LABEL[key]}</span>
           <strong>{read[key] ? `${format(read[key].v)} ${unit}` : '—'}</strong>
+          {key === 'normal' && <span className="gauge-readout-usual">{usual ? `usually ${usual}` : ' '}</span>}
         </span>)}
       </>}
     </p>

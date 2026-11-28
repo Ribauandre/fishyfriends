@@ -1,18 +1,27 @@
 import {
-  FRESH_FOR_MINUTES, GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, PERIODS, REPORTING_WITHIN_HOURS, USGS_API, againstNormal, averageTemperature,
-  compareToNormal, dayOf, dayOfYear, dayToMs, daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchNormals, formatDifference, formatReading,
-  gaugeLink, groupByRiver, hourly, localDay, normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readingAge, readingsOf,
-  riverGroupKey, riverKey, searchGauges, shiftInstant, shiftYear, siteId, standingText, stateCode, stateName, summarize, summaryText, temperatureText,
-  yearBefore, yearBeforeMs,
+  FRESH_FOR_MINUTES, GaugeDataError, LONGEST_CUSTOM_DAYS, METRICS, NORMAL, PERIODS, RECENT_HOURS, REPORTING_WITHIN_HOURS, USGS_API, averageTemperature,
+  dayOf, dayOfYear, dayToMs, daysBetween, fetchContinuous, fetchDaily, fetchLatest, fetchMeasured, fetchNormals, formatReading, gaugeLink, groupByRiver,
+  hourly, localDay, newestOf, normalSeries, normalsFromFeature, overlayLastYear, parseGaugeName, periodRange, readCsv, readingAge, readingsOf,
+  riverGroupKey, riverKey, searchGauges, seriesOf, shiftInstant, shiftYear, siteId, stateCode, stateName, temperatureText, thinned, yearBefore,
+  yearBeforeMs,
 } from './riverGauges';
 
 // The fetchers are handed answers shaped like the ones USGS really gives (copied from its
 // live replies in November 2026: every value a string, ids prefixed USGS-, daily values dated
 // by day, the statistics service's percentiles as two parallel lists; a reading says which
-// measurement it is of by its parameter code — 00060 flow, 00010 water temperature).
+// measurement it is of by its parameter code — 00060 flow, 00010 water temperature). The
+// record as measured is asked for as CSV, and comes the way USGS writes that: two empty
+// columns first, and an instant with a space where JSON has a T.
 const DAY = 24 * 60 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 10, 26, 15, 30);
 const answer = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
+const sheet = (text, status = 200) => ({ ok: status >= 200 && status < 300, status, text: async () => text });
+const CSV_HEAD = 'x,y,monitoring_location_id,parameter_code,time,value';
+const two = (value) => String(value).padStart(2, '0');
+const clock = (hour, minute, date = 26) => `2026-11-${two(date)} ${two(hour)}:${two(minute)}:00+00:00`;
+const line = (site, time, value, code = '00060') => `,,USGS-${site},${code},${time},${value}`;
+const csv = (...lines) => sheet([CSV_HEAD, ...lines].join('\n'));
 const feature = (properties) => ({ type: 'Feature', properties, id: 'x', geometry: null });
 const reading = (site, time, value, code = '00060') => feature({ monitoring_location_id: `USGS-${site}`, parameter_code: code, time, value });
 
@@ -77,11 +86,16 @@ describe('periodRange', () => {
     expect(periodRange('30d', NOW)).toEqual({ startMs: NOW - 30 * DAY, endMs: NOW, startDay: '2026-10-27', endDay: '2026-11-26', days: 30, live: true });
     expect(periodRange('7d', NOW)).toMatchObject({ startMs: NOW - 7 * DAY, startDay: '2026-11-19', days: 7, live: true });
     expect(periodRange('1y', NOW)).toMatchObject({ startDay: '2025-11-26', endDay: '2026-11-26', days: 365 });
-    expect(PERIODS.map((period) => period.key)).toEqual(['7d', '30d', '1y', 'custom']);
+    expect(PERIODS.map((period) => period.key)).toEqual(['3d', '7d', '30d', '1y', 'custom']);
   });
 
-  test('a stretch nobody defined is a month', () => {
-    expect(periodRange('fortnight', NOW)).toMatchObject({ days: 30, startDay: '2026-10-27' });
+  test('three days is the stretch the board itself is read from', () => {
+    expect(periodRange('3d', NOW)).toEqual({ startMs: NOW - 3 * DAY, endMs: NOW, startDay: '2026-11-23', endDay: '2026-11-26', days: 3, live: true });
+    expect(RECENT_HOURS).toBe(72);
+  });
+
+  test('a stretch nobody defined is those three days', () => {
+    expect(periodRange('fortnight', NOW)).toMatchObject({ days: 3, startDay: '2026-11-23' });
   });
 
   test('a custom stretch wants two real dates in order, and not too many of them', () => {
@@ -253,26 +267,153 @@ describe('fetchDaily', () => {
   });
 });
 
-describe('fetchContinuous', () => {
-  test('asks for the record as measured between two instants and thins it to a point an hour', async () => {
-    const at = (hour, minute) => `2026-11-26T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+00:00`;
-    const { fetchImpl, asked } = usgs(() => answer({ features: [
-      reading('01396500', at(13, 0), '40.0'), reading('01396500', at(13, 15), '40.1'), reading('01396500', at(13, 45), '40.3'),
-      reading('01396500', at(14, 0), '40.5'), reading('01396500', at(14, 30), '40.9'), reading('01396500', at(13, 30), '40.2'),
-    ] }));
-    const measured = await fetchContinuous(['01396500'], METRICS.flow, NOW - 7 * DAY, NOW, { fetchImpl });
-    expect(asked[0].path).toBe('/ogcapi/v1/collections/continuous/items');
-    expect(asked[0].url.searchParams.get('time')).toBe('2026-11-19T15:30:00Z/2026-11-26T15:30:00Z');
-    expect(asked[0].url.searchParams.get('limit')).toBe('50000');
-    // The last reading of each hour, so the newest point is always the newest reading.
-    // (A measured reading is an instant, and carries no date of its own.)
-    expect(measured.get('01396500')).toEqual([{ t: Date.UTC(2026, 10, 26, 13, 45), v: 40.3 }, { t: Date.UTC(2026, 10, 26, 14, 30), v: 40.9 }]);
+describe('the record as measured', () => {
+  const BOTH = [METRICS.flow, METRICS.temp];
+
+  test('USGS\'s CSV is read by its column names, whatever order they come in', () => {
+    expect(readCsv([CSV_HEAD, line('01396500', clock(13, 0), '40.0'), line('01400500', clock(13, 15), '7.0', '00010')].join('\n'))).toEqual([
+      { monitoring_location_id: 'USGS-01396500', parameter_code: '00060', time: '2026-11-26 13:00:00+00:00', value: '40.0' },
+      { monitoring_location_id: 'USGS-01400500', parameter_code: '00010', time: '2026-11-26 13:15:00+00:00', value: '7.0' },
+    ]);
+    // Another order, Windows line ends, quoted cells, a blank line at the end.
+    expect(readCsv('value,"time",monitoring_location_id,parameter_code\r\n"40.0",2026-11-26 13:00:00+00:00,USGS-01396500,00060\r\n\r\n')).toEqual([
+      { monitoring_location_id: 'USGS-01396500', parameter_code: '00060', time: '2026-11-26 13:00:00+00:00', value: '40.0' },
+    ]);
+    // Nothing recorded is an empty answer, not a broken one.
+    expect(readCsv('')).toEqual([]);
+    expect(readCsv(undefined)).toEqual([]);
+    expect(readCsv(CSV_HEAD)).toEqual([]);
+    // Something that isn't the table asked for is said to be unreadable rather than read as no gauges.
+    expect(() => readCsv('<html>Service unavailable</html>')).toThrow(GaugeDataError);
+    expect(() => readCsv('x,y,time,value\n,,2026-11-26 13:00:00+00:00,4')).toThrow(/couldn't be read/);
   });
 
-  test('hourly keeps one reading for each hour that has any', () => {
+  test('every gauge\'s flow and water temperature come in one answer, each gauge holding what it measures', async () => {
+    const { fetchImpl, asked } = usgs(() => csv(
+      line('01400500', clock(13, 15), '213'), line('01400500', clock(13, 0), '210'), line('01400500', clock(13, 0), '7.0', '00010'), line('01400500', clock(13, 15), '7.5', '00010'),
+      line('01396500', clock(13, 15), '39.4'),
+      // Nobody asked how high the water stands, and these aren't readings at all.
+      line('01396500', clock(13, 15), '2.31', '00065'), line('01396500', clock(13, 30), 'Ice'), line('01396500', 'not a time', '12'), line('01396500', clock(13, 45), ''),
+    ));
+    const measured = await fetchMeasured(['01400500', '01396500', '01380450'], BOTH, NOW - 3 * DAY, NOW, { fetchImpl });
+    expect(asked).toHaveLength(1);
+    expect(asked[0].url.origin).toBe(USGS_API);
+    expect(asked[0].path).toBe('/ogcapi/v1/collections/continuous/items');
+    // As CSV: the same rows as JSON, an eighth of the size on the wire.
+    expect(asked[0].url.searchParams.get('f')).toBe('csv');
+    expect(asked[0].sites).toEqual(['USGS-01400500', 'USGS-01396500', 'USGS-01380450']);
+    expect(asked[0].url.searchParams.get('parameter_code')).toBe('00060,00010');
+    expect(asked[0].url.searchParams.get('time')).toBe('2026-11-23T15:30:00Z/2026-11-26T15:30:00Z');
+    expect(asked[0].url.searchParams.get('limit')).toBe('50000');
+    expect(asked[0].url.searchParams.get('properties').split(',')).toEqual(['monitoring_location_id', 'parameter_code', 'time', 'value']);
+    // Oldest first, whatever order they came in; water temperature in Fahrenheit.
+    expect(measured.get('01400500')).toEqual({
+      flow: [{ t: Date.UTC(2026, 10, 26, 13, 0), v: 210 }, { t: Date.UTC(2026, 10, 26, 13, 15), v: 213 }],
+      temp: [{ t: Date.UTC(2026, 10, 26, 13, 0), v: expect.closeTo(44.6, 5) }, { t: Date.UTC(2026, 10, 26, 13, 15), v: expect.closeTo(45.5, 5) }],
+    });
+    // A gauge with no thermometer has no temperature record; one with nothing to say isn't there.
+    expect(measured.get('01396500')).toEqual({ flow: [{ t: Date.UTC(2026, 10, 26, 13, 15), v: 39.4 }] });
+    expect(measured.has('01380450')).toBe(false);
+  });
+
+  test('a record can be thinned to the last reading of each stretch', async () => {
+    const readings = [[13, 0, '40.0'], [13, 5, '40.1'], [13, 10, '40.2'], [13, 15, '40.3'], [13, 25, '40.4'], [14, 0, '40.9']].map(([hour, minute, value]) => line('01396500', clock(hour, minute), value));
+    const every = async (stretch) => (await fetchMeasured(['01396500'], [METRICS.flow], NOW - DAY, NOW, { fetchImpl: usgs(() => csv(...readings)).fetchImpl, every: stretch })).get('01396500').flow.map((point) => point.v);
+    expect(await every(0)).toEqual([40.0, 40.1, 40.2, 40.3, 40.4, 40.9]);
+    // A gauge that reports every five minutes, kept at a reading every fifteen.
+    expect(await every(15 * 60 * 1000)).toEqual([40.2, 40.4, 40.9]);
+    expect(await every(HOUR)).toEqual([40.4, 40.9]);
     const points = [0, 15, 30, 45, 60, 75, 180].map((minute) => ({ t: Date.UTC(2026, 10, 26, 0, minute), v: minute }));
+    expect(thinned(points, 30 * 60 * 1000).map((point) => point.v)).toEqual([15, 45, 75, 180]);
     expect(hourly(points).map((point) => point.v)).toEqual([45, 75, 180]);
     expect(hourly([])).toEqual([]);
+  });
+
+  test('one measurement out of the answer, and what each gauge is doing now', async () => {
+    const hoursAgo = (hours) => { const at = new Date(NOW - hours * HOUR); return `${at.toISOString().slice(0, 10)} ${at.toISOString().slice(11, 19)}+00:00`; };
+    const { fetchImpl } = usgs(() => csv(
+      line('01400500', hoursAgo(30), '200'), line('01400500', hoursAgo(1), '213'), line('01400500', hoursAgo(2), '7.0', '00010'),
+      // Flow still coming in; the thermometer went quiet more than a day ago.
+      line('01396500', hoursAgo(0.25), '39.4'), line('01396500', hoursAgo(25), '6.0', '00010'),
+      // Nothing at all since the day before yesterday.
+      line('01457000', hoursAgo(40), '175'),
+    ));
+    const measured = await fetchMeasured(['01400500', '01396500', '01457000'], BOTH, NOW - 3 * DAY, NOW, { fetchImpl });
+    expect([...seriesOf(measured, 'flow').keys()]).toEqual(['01400500', '01396500', '01457000']);
+    expect([...seriesOf(measured, 'temp').keys()]).toEqual(['01400500', '01396500']);
+    expect(seriesOf(measured, 'flow').get('01400500').map((point) => point.v)).toEqual([200, 213]);
+    // Reporting means a reading from the last 24 hours, for each measurement on its own clock.
+    expect([...newestOf(measured, 'flow', NOW)].map(([site, reading]) => [site, reading.v])).toEqual([['01400500', 213], ['01396500', 39.4]]);
+    expect([...newestOf(measured, 'temp', NOW).keys()]).toEqual(['01400500']);
+    expect(newestOf(new Map(), 'flow', NOW)).toEqual(new Map());
+    expect(REPORTING_WITHIN_HOURS).toBe(24);
+    expect(FRESH_FOR_MINUTES).toBe(15);
+  });
+
+  test('nothing recorded is no gauges, and nothing to ask about asks nothing', async () => {
+    const { fetchImpl } = usgs(() => sheet(''));
+    expect(await fetchMeasured(['01396500'], BOTH, NOW - DAY, NOW, { fetchImpl })).toEqual(new Map());
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await fetchMeasured([], BOTH, NOW - DAY, NOW, { fetchImpl })).toEqual(new Map());
+    expect(await fetchMeasured(['01396500'], [], NOW - DAY, NOW, { fetchImpl })).toEqual(new Map());
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  test('a long list is split so no address gets too long', async () => {
+    const sites = Array.from({ length: 45 }, (_, index) => String(1000000 + index).padStart(8, '0'));
+    const { fetchImpl, asked } = usgs((url) => csv(...(url.searchParams.get('monitoring_location_id') || '').split(',').map((id) => line(id.replace('USGS-', ''), clock(15, 0), '5'))));
+    const measured = await fetchMeasured(sites, [METRICS.flow], NOW - DAY, NOW, { fetchImpl });
+    expect(asked.map((request) => request.sites.length)).toEqual([40, 5]);
+    expect(measured.size).toBe(45);
+  });
+
+  test('a full answer is a cut-off one: the same gauges are asked about again, half at a time', async () => {
+    const sites = ['01396500', '01457000', '01380450', '01443500'];
+    // Fifty thousand rows is all USGS hands back at once, and a CSV answer has no next page.
+    const full = sheet([CSV_HEAD, ...Array.from({ length: 50000 }, () => line('01396500', clock(15, 0), '5'))].join('\n'));
+    const { fetchImpl, asked } = usgs((url, count) => (count === 1 ? full : csv(...(url.searchParams.get('monitoring_location_id') || '').split(',').map((id) => line(id.replace('USGS-', ''), clock(15, 0), '7')))));
+    const measured = await fetchMeasured(sites, [METRICS.flow], NOW - DAY, NOW, { fetchImpl });
+    expect(asked.map((request) => request.sites.map((id) => id.replace('USGS-', '')))).toEqual([sites, sites.slice(0, 2), sites.slice(2)]);
+    // What the cut-off answer held is not kept: every gauge is read from an answer that had room for it.
+    expect([...measured].map(([site, records]) => [site, records.flow.map((point) => point.v)])).toEqual(sites.map((site) => [site, [7]]));
+  });
+
+  test('Refresh asks past the browser\'s own copy, and what goes wrong is said in words a member can act on', async () => {
+    const { fetchImpl, asked } = usgs(() => sheet(''));
+    await fetchMeasured(['01396500'], BOTH, NOW - DAY, NOW, { fetchImpl });
+    await fetchMeasured(['01396500'], BOTH, NOW - DAY, NOW, { fetchImpl, fresh: true });
+    expect(asked[0].options.cache).toBeUndefined();
+    expect(asked[1].options.cache).toBe('reload');
+    const failing = (reply) => fetchMeasured(['01396500'], BOTH, NOW - DAY, NOW, { fetchImpl: jest.fn(reply) });
+    await expect(failing(async () => sheet('', 429))).rejects.toMatchObject({ name: 'GaugeDataError', status: 429, message: expect.stringMatching(/limiting how often/) });
+    await expect(failing(async () => sheet('', 503))).rejects.toMatchObject({ status: 503 });
+    await expect(failing(async () => { throw new TypeError('Failed to fetch'); })).rejects.toMatchObject({ status: 0, message: 'Couldn\'t reach USGS. Check your connection and try again.' });
+    await expect(failing(async () => ({ ok: true, status: 200, text: async () => { throw new Error('cut off'); } }))).rejects.toThrow(/couldn't be read/);
+    await expect(failing(async () => sheet('<html>An error page</html>'))).rejects.toThrow(/couldn't be read/);
+  });
+});
+
+describe('fetchContinuous', () => {
+  test('asks for one measurement\'s record between two instants and thins it to a point an hour', async () => {
+    const { fetchImpl, asked } = usgs(() => csv(
+      line('01396500', clock(13, 0), '40.0'), line('01396500', clock(13, 15), '40.1'), line('01396500', clock(13, 45), '40.3'),
+      line('01396500', clock(14, 0), '40.5'), line('01396500', clock(14, 30), '40.9'), line('01396500', clock(13, 30), '40.2'),
+    ));
+    const measured = await fetchContinuous(['01396500', '01457000'], METRICS.flow, NOW - 7 * DAY, NOW, { fetchImpl });
+    expect(asked[0].path).toBe('/ogcapi/v1/collections/continuous/items');
+    expect(asked[0].url.searchParams.get('f')).toBe('csv');
+    expect(asked[0].url.searchParams.get('parameter_code')).toBe('00060');
+    expect(asked[0].url.searchParams.get('time')).toBe('2026-11-19T15:30:00Z/2026-11-26T15:30:00Z');
+    // The last reading of each hour, so the newest point is always the newest reading.
+    // (A measured reading is an instant, and carries no date of its own.)
+    expect(measured).toEqual(new Map([['01396500', [{ t: Date.UTC(2026, 10, 26, 13, 45), v: 40.3 }, { t: Date.UTC(2026, 10, 26, 14, 30), v: 40.9 }]]]));
+  });
+
+  test('water temperature comes back in Fahrenheit, from the gauges that measure it', async () => {
+    const { fetchImpl, asked } = usgs(() => csv(line('01400500', clock(13, 0), '10', '00010')));
+    const measured = await fetchContinuous(['01400500', '01396500'], METRICS.temp, NOW - 7 * DAY, NOW, { fetchImpl });
+    expect(asked[0].url.searchParams.get('parameter_code')).toBe('00010');
+    expect(measured).toEqual(new Map([['01400500', [{ t: Date.UTC(2026, 10, 26, 13, 0), v: 50 }]]]));
   });
 });
 
@@ -282,10 +423,18 @@ const record = (values, { parameter = '00060', parent = '00003' } = {}) => ({ pa
 const station = (site, data) => ({ type: 'Feature', geometry: null, properties: { monitoring_location_id: `USGS-${site}`, monitoring_location_name: 'A gauge', data } });
 
 describe('normalsFromFeature', () => {
-  test('reads each day\'s 25th percentile, median and 75th out of the percentile lists', () => {
+  test('reads five lines for each day out of the percentile lists: the 10th, 25th, median, 75th and 90th', () => {
     const normals = normalsFromFeature(station('01396500', [record([median('11-25', 86), percentiles('11-25', [20, 30, 60, 86, 120, 200, 300]), percentiles('11-26', [21, 31, 61, 85, 121, 201, 301])])]), '00060');
-    expect(normals.days).toEqual({ '11-25': [60, 86, 120], '11-26': [61, 85, 121] });
+    expect(normals.days).toEqual({ '11-25': [30, 60, 86, 120, 200], '11-26': [31, 61, 85, 121, 201] });
     expect(normals.years).toBe(100);
+    // Where each line is in a day's five.
+    expect(NORMAL).toEqual({ lowest: 0, low: 1, median: 2, high: 3, highest: 4 });
+  });
+
+  test('a record too short for the outer lines keeps the middle three', () => {
+    // As USGS answers for a gauge with eight years behind it: "nan" where it won't say.
+    const short = station('01457500', [record([percentiles('11-26', ['nan', 'nan', 6587.5, 8705, 16750, 'nan', 'nan'], 8)])]);
+    expect(normalsFromFeature(short, '00060')).toEqual({ days: { '11-26': [null, 6587.5, 8705, 16750, null] }, years: 8 });
   });
 
   test('other measurements, other statistics and days it can\'t read are passed over', () => {
@@ -294,7 +443,7 @@ describe('normalsFromFeature', () => {
       record([percentiles('11-25', [1, 2, 3, 4, 5, 6, 7])], { parent: '00001' }),
       record([percentiles('11-25', [20, 30, 60, 86, 120, 200, 300]), { ...percentiles('11-26', [20, 30, null, 86, 120, 200, 300]) }, percentiles('week 47', [1, 2, 3, 4, 5, 6, 7]), { time_of_year: '11-27', computation: 'percentile' }]),
     ]);
-    expect(normalsFromFeature(feature, '00060').days).toEqual({ '11-25': [60, 86, 120] });
+    expect(normalsFromFeature(feature, '00060').days).toEqual({ '11-25': [30, 60, 86, 120, 200] });
     expect(normalsFromFeature(feature, '00095')).toBeNull();
     expect(normalsFromFeature(station('01396500', []), '00060')).toBeNull();
     expect(normalsFromFeature(undefined, '00060')).toBeNull();
@@ -302,11 +451,12 @@ describe('normalsFromFeature', () => {
 
   test('a gauge with two records of the same thing is read from the longer one', () => {
     const feature = station('01396500', [record([percentiles('11-25', [1, 2, 3, 4, 5, 6, 7], 12)]), record([percentiles('11-25', [20, 30, 60, 86, 120, 200, 300], 107)])]);
-    expect(normalsFromFeature(feature, '00060')).toEqual({ days: { '11-25': [60, 86, 120] }, years: 107 });
+    expect(normalsFromFeature(feature, '00060')).toEqual({ days: { '11-25': [30, 60, 86, 120, 200] }, years: 107 });
   });
 });
 
 describe('fetchNormals', () => {
+  const real_days = daysBetween;
   const week = (site, shift = 0) => station(site, [record(['11-20', '11-21', '11-22', '11-23', '11-24', '11-25', '11-26'].map((day, index) => percentiles(day, [10, 20, 60 + shift + index, 85 + shift + index, 120 + shift + index, 200, 300])))]);
 
   test('asks the statistics service for just the days of a short stretch, every gauge in one request', async () => {
@@ -318,8 +468,8 @@ describe('fetchNormals', () => {
     expect(asked[0].url.searchParams.get('computation_type')).toBe('percentile');
     expect(asked[0].url.searchParams.get('start_date')).toBe('11-20');
     expect(asked[0].url.searchParams.get('end_date')).toBe('11-26');
-    expect(normals.get('01396500')['11-26']).toEqual([66, 91, 126]);
-    expect(normals.get('01457000')['11-20']).toEqual([160, 185, 220]);
+    expect(normals.get('01396500')['11-26']).toEqual([20, 66, 91, 126, 200]);
+    expect(normals.get('01457000')['11-20']).toEqual([20, 160, 185, 220, 200]);
   });
 
   test('what the device already holds is not asked for again', async () => {
@@ -331,11 +481,33 @@ describe('fetchNormals', () => {
     const again = await fetchNormals(['01396500'], METRICS.flow, '2026-11-20', '2026-11-26', { fetchImpl, now: NOW + DAY, storage });
     await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW + DAY, storage });
     expect(asked).toHaveLength(1);
-    expect(again.get('01396500')['11-24']).toEqual([64, 89, 124]);
+    expect(again.get('01396500')['11-24']).toEqual([20, 64, 89, 124, 200]);
     // A gauge the device hasn't met is asked about alone.
     await fetchNormals(['01396500', '01457000'], METRICS.flow, '2026-11-20', '2026-11-26', { fetchImpl, now: NOW + DAY, storage });
     expect(asked).toHaveLength(2);
     expect(asked[1].url.searchParams.getAll('monitoring_location_id')).toEqual(['USGS-01457000']);
+  });
+
+  test('asked to, it asks some days past the stretch while it is asking, so tomorrow\'s visit asks nothing', async () => {
+    const storage = fakeStorage();
+    const days = (from, to) => real_days(from, to).map((day, index) => percentiles(day.slice(5), [10, 20, 60 + index, 85 + index, 120 + index, 200, 300]));
+    const { fetchImpl, asked } = usgs((url) => answer({ features: [station('01396500', [record(days(`2026-${url.searchParams.get('start_date')}`, `2026-${url.searchParams.get('end_date')}`))])] }));
+    const normals = await fetchNormals(['01396500'], METRICS.flow, '2026-11-22', '2026-11-27', { fetchImpl, now: NOW, storage, ahead: 14 });
+    expect(asked[0].url.searchParams.get('start_date')).toBe('11-22');
+    expect(asked[0].url.searchParams.get('end_date')).toBe('12-11');
+    expect(normals.get('01396500')['11-26']).toEqual([20, 64, 89, 124, 200]);
+    // The next day's stretch, and the one a week on, are already on the device.
+    await fetchNormals(['01396500'], METRICS.flow, '2026-11-23', '2026-11-28', { fetchImpl, now: NOW + DAY, storage, ahead: 14 });
+    await fetchNormals(['01396500'], METRICS.flow, '2026-11-30', '2026-12-05', { fetchImpl, now: NOW + 8 * DAY, storage, ahead: 14 });
+    expect(asked).toHaveLength(1);
+    // Past what was fetched, it asks again — and a fortnight on from there.
+    await fetchNormals(['01396500'], METRICS.flow, '2026-12-07', '2026-12-12', { fetchImpl, now: NOW + 15 * DAY, storage, ahead: 14 });
+    expect(asked).toHaveLength(2);
+    expect(asked[1].url.searchParams.get('end_date')).toBe('12-26');
+    // Not across New Year: days of the year don't run from December into January.
+    await fetchNormals(['01457000'], METRICS.flow, '2026-12-23', '2026-12-28', { fetchImpl, now: NOW, storage, ahead: 14 });
+    expect(asked[2].url.searchParams.get('start_date')).toBe('12-23');
+    expect(asked[2].url.searchParams.get('end_date')).toBe('12-28');
   });
 
   test('a day that was asked for and didn\'t come back is remembered as asked', async () => {
@@ -364,8 +536,8 @@ describe('fetchNormals', () => {
     await fetchNormals(['01396500'], METRICS.flow, '2026-11-20', '2026-11-26', { fetchImpl, now: NOW, storage });
     const normals = await fetchNormals(['01396500'], METRICS.flow, '2026-11-01', '2026-11-26', { fetchImpl, now: NOW, storage });
     expect(asked[1].url.searchParams.get('start_date')).toBe('11-01');
-    expect(normals.get('01396500')['11-01']).toEqual([30, 40, 50]);
-    expect(normals.get('01396500')['11-26']).toEqual([66, 91, 126]);
+    expect(normals.get('01396500')['11-01']).toEqual([2, 30, 40, 50, 60]);
+    expect(normals.get('01396500')['11-26']).toEqual([20, 66, 91, 126, 200]);
   });
 
   test('a long stretch, or one that crosses New Year, asks for the whole year once', async () => {
@@ -396,8 +568,14 @@ describe('fetchNormals', () => {
     const { fetchImpl, asked } = usgs(() => answer({ features: [station('01400500', [record([percentiles('11-26', [1, 2, 5, 10, 15, 18, 20])], { parameter: '00010' })])] }));
     const normals = await fetchNormals(['01400500'], METRICS.temp, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage });
     expect(asked[0].url.searchParams.get('parameter_code')).toBe('00010');
-    expect(normals.get('01400500')['11-26']).toEqual([41, 50, 59]);
-    expect(JSON.parse(storage.kept['fishyfriends:gauge-normals']).sites['01400500|00010'].days['11-26']).toEqual([5, 10, 15]);
+    expect(normals.get('01400500')['11-26']).toEqual([35.6, 41, 50, 59, expect.closeTo(64.4, 5)]);
+    expect(JSON.parse(storage.kept['fishyfriends:gauge-normals']).sites['01400500|00010'].days['11-26']).toEqual([2, 5, 10, 15, 18]);
+  });
+
+  test('a line USGS wouldn\'t give stays missing through the conversion', async () => {
+    const { fetchImpl } = usgs(() => answer({ features: [station('01400500', [record([percentiles('11-26', ['nan', 'nan', 5, 10, 15, 'nan', 'nan'], 8)], { parameter: '00010' })])] }));
+    const normals = await fetchNormals(['01400500'], METRICS.temp, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW });
+    expect(normals.get('01400500')['11-26']).toEqual([null, 41, 50, 59, null]);
   });
 
   test('an answer in pages is read to the end', async () => {
@@ -410,11 +588,13 @@ describe('fetchNormals', () => {
   test('storage that is full, broken or holding rubbish costs nothing but the saving', async () => {
     const { fetchImpl } = usgs(() => answer({ features: [week('01396500')] }));
     const full = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); } };
-    expect((await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage: full })).get('01396500')['11-26']).toEqual([66, 91, 126]);
+    expect((await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage: full })).get('01396500')['11-26']).toEqual([20, 66, 91, 126, 200]);
     const rubbish = fakeStorage({ 'fishyfriends:gauge-normals': '{not json' });
     expect((await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage: rubbish })).size).toBe(1);
-    const older = fakeStorage({ 'fishyfriends:gauge-normals': JSON.stringify({ version: 0, sites: { '01396500|00060': { at: NOW, days: { '11-26': [1, 2, 3] }, whole: true } } }) });
-    expect((await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage: older })).get('01396500')['11-26']).toEqual([66, 91, 126]);
+    // What a device kept when a day was three lines, not five, is not read as five: it is asked for again.
+    const older = fakeStorage({ 'fishyfriends:gauge-normals': JSON.stringify({ version: 1, sites: { '01396500|00060': { at: NOW, days: { '11-26': [1, 2, 3] }, whole: true } } }) });
+    expect((await fetchNormals(['01396500'], METRICS.flow, '2026-11-26', '2026-11-26', { fetchImpl, now: NOW, storage: older })).get('01396500')['11-26']).toEqual([20, 66, 91, 126, 200]);
+    expect(JSON.parse(older.kept['fishyfriends:gauge-normals']).version).toBe(2);
   });
 
   test('only so many gauges are kept on a device: the ones asked about longest ago go first', async () => {
@@ -431,9 +611,11 @@ describe('fetchNormals', () => {
 });
 
 describe('the lines on a chart', () => {
-  test('the median is drawn through each day of the stretch that has one', () => {
-    const normals = { '11-24': [60, 86, 120], '11-26': [61, 85, 121] };
-    expect(normalSeries(normals, '2026-11-24', '2026-11-26')).toEqual([{ t: dayToMs('2026-11-24'), v: 86, day: '2026-11-24' }, { t: dayToMs('2026-11-26'), v: 85, day: '2026-11-26' }]);
+  test('the median, and the usual range round it, are drawn through each day of the stretch that has them', () => {
+    const normals = { '11-24': [30, 60, 86, 120, 200], '11-26': [null, 61, 85, 121, null] };
+    expect(normalSeries(normals, '2026-11-24', '2026-11-26')).toEqual([
+      { t: dayToMs('2026-11-24'), v: 86, low: 60, high: 120, day: '2026-11-24' }, { t: dayToMs('2026-11-26'), v: 85, low: 61, high: 121, day: '2026-11-26' },
+    ]);
     expect(normalSeries(undefined, '2026-11-24', '2026-11-26')).toEqual([]);
   });
 
@@ -462,59 +644,6 @@ describe('the lines on a chart', () => {
     // A year back is 365 days, or 366 across a leap day — never an average.
     expect(NOW - yearBeforeMs(NOW)).toBe(365 * DAY);
     expect(Date.UTC(2025, 1, 1) - yearBeforeMs(Date.UTC(2025, 1, 1))).toBe(366 * DAY);
-  });
-});
-
-describe('against normal', () => {
-  const day = [60, 85, 120];
-
-  test('normal is the range USGS itself draws: the 25th to the 75th percentile for the day', () => {
-    expect(compareToNormal(39.4, day)).toBe('below');
-    expect(compareToNormal(60, day)).toBe('normal');
-    expect(compareToNormal(120, day)).toBe('normal');
-    expect(compareToNormal(120.1, day)).toBe('above');
-    expect(compareToNormal(39.4, undefined)).toBeNull();
-    expect(compareToNormal(NaN, day)).toBeNull();
-  });
-
-  test('how far off is counted from the median, in cubic feet a second', () => {
-    expect(againstNormal(39.4, day)).toEqual({ verdict: 'below', median: 85, off: expect.closeTo(-45.6, 5) });
-    expect(againstNormal(200, day)).toEqual({ verdict: 'above', median: 85, off: 115 });
-    expect(againstNormal(78, day)).toMatchObject({ verdict: 'normal', off: -7 });
-    expect(againstNormal(39.4, null)).toBeNull();
-  });
-
-  test('a difference is written as short as it honestly can be', () => {
-    expect([46.4, 7.04, 3.24, 0.45, 1234.5, -12.6, 9.96, 9.94, 0.999, 0.004].map(formatDifference)).toEqual(['46', '7', '3.2', '0.45', '1,235', '13', '10', '9.9', '1', '0.00']);
-  });
-
-  test('the standing is said in words that agree with the sentence at the top of the page', () => {
-    const say = (value) => standingText(againstNormal(value, day));
-    expect(say(39.4)).toBe('46 cfs below normal');
-    expect(say(200)).toBe('115 cfs above normal');
-    // Inside the usual range a river is near normal, however far it is from the median.
-    expect(say(78)).toBe('Near normal · 7 cfs under');
-    expect(say(90)).toBe('Near normal · 5 cfs over');
-    expect(say(60)).toBe('Near normal · 25 cfs under');
-    expect(say(85.001)).toBe('Right at normal');
-    expect(standingText(null)).toBe('');
-  });
-
-  test('the summary counts each gauge that is reporting once', () => {
-    const gauges = ['a', 'b', 'c', 'd', 'e'].map((site) => ({ site_no: site }));
-    const latest = new Map([['a', { t: NOW, v: 39.4 }], ['b', { t: NOW, v: 100 }], ['c', { t: NOW, v: 500 }], ['d', { t: NOW, v: 12 }]]);
-    const normals = new Map([['a', { '11-26': day }], ['b', { '11-26': day }], ['c', { '11-26': day }], ['d', { '11-25': day }], ['e', { '11-26': day }]]);
-    expect(summarize(gauges, latest, normals, '2026-11-26')).toEqual({ reporting: 4, below: 1, normal: 1, above: 1, unrated: 1 });
-    expect(summarize(gauges, new Map(), normals, '2026-11-26')).toEqual({ reporting: 0, below: 0, normal: 0, above: 0, unrated: 0 });
-  });
-
-  test('and says it as a sentence', () => {
-    expect(summaryText({ reporting: 13, below: 7, normal: 6, above: 0, unrated: 0 }, 'New Jersey')).toBe('Of 13 gauges reporting, 7 are running below normal flow for today, 6 near normal and 0 above.');
-    expect(summaryText({ reporting: 3, below: 1, normal: 1, above: 0, unrated: 1 }, 'New Jersey')).toBe('Of 3 gauges reporting, 1 is running below normal flow for today, 1 near normal and 0 above. 1 has too short a record to say.');
-    expect(summaryText({ reporting: 4, below: 0, normal: 2, above: 0, unrated: 2 }, 'New Jersey')).toMatch(/2 have too short a record to say\.$/);
-    expect(summaryText({ reporting: 1, below: 0, normal: 0, above: 0, unrated: 1 }, 'New Jersey')).toBe('1 gauge reporting. USGS has no long-run record to say what is normal for it today.');
-    expect(summaryText({ reporting: 2, below: 0, normal: 0, above: 0, unrated: 2 }, 'New Jersey')).toMatch(/^2 gauges reporting\. .* for them today\.$/);
-    expect(summaryText({ reporting: 0, below: 0, normal: 0, above: 0, unrated: 0 }, 'New York')).toBe('No gauge in New York is reporting right now.');
   });
 });
 
