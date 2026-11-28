@@ -67,16 +67,21 @@ export function logAxis(low, high) {
   return { min, max, ticks: marks };
 }
 
-// The lowest and highest value drawn, over every line on the chart. On a log axis only what
-// is above zero counts.
+// The lowest and highest value drawn, over every line on the chart and the band behind them.
+// On a log axis only what is above zero counts.
 export function extent(seriesList, { positive = false } = {}) {
   let low = Infinity;
   let high = -Infinity;
+  const take = (value) => {
+    if (!Number.isFinite(value) || (positive && value <= 0)) return;
+    if (value < low) low = value;
+    if (value > high) high = value;
+  };
   for (const points of seriesList) {
     for (const point of points || []) {
-      if (!Number.isFinite(point.v) || (positive && point.v <= 0)) continue;
-      if (point.v < low) low = point.v;
-      if (point.v > high) high = point.v;
+      take(point.v);
+      // A point that carries a band (the usual range round the median) is drawn that wide.
+      if (point.low !== undefined) { take(point.low); take(point.high); }
     }
   }
   return low === Infinity ? null : [low, high];
@@ -133,6 +138,15 @@ const round = (value) => Math.round(value * 10) / 10;
 export function linePath(piece, x, y) {
   if (piece.length === 1) return `M${round(x(piece[0].t) - 1.5)} ${round(y(piece[0].v))}h3`;
   return piece.map((point, index) => `${index ? 'L' : 'M'}${round(x(point.t))} ${round(y(point.v))}`).join('');
+}
+
+// The band behind a line: one piece of a record whose points carry a `low` and a `high`, as
+// the closed shape between them. A lone point has no width to fill.
+export function bandPath(piece, x, y) {
+  if (piece.length < 2) return '';
+  const along = piece.map((point, index) => `${index ? 'L' : 'M'}${round(x(point.t))} ${round(y(point.high))}`).join('');
+  const back = [...piece].reverse().map((point) => `L${round(x(point.t))} ${round(y(point.low))}`).join('');
+  return `${along}${back}Z`;
 }
 
 // Where in a record (oldest first) the reading closest in time to `t` is; -1 for an empty one.

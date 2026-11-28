@@ -5,15 +5,18 @@
 //
 // Two USGS services, both free, key-less and readable from a browser:
 //
-//   * the Water Data API (api.waterdata.usgs.gov/ogcapi/v1) — a gauge's latest reading, its
-//     15-minute record, its daily means, and the catalogue of stations. One request takes
-//     many gauges at once (comma-separated ids), which matters: without a key USGS allows a
-//     connection only so many requests an hour, so every question is put about a whole state
-//     at once, and the newest flow and water temperature come back in one answer.
+//   * the Water Data API (api.waterdata.usgs.gov/ogcapi/v1) — a gauge's 15-minute record,
+//     its daily means, and the catalogue of stations. One request takes many gauges at once
+//     (comma-separated ids), which matters: without a key USGS allows a connection only so
+//     many requests an hour, so every question is put about a whole state at once. The last
+//     three days of flow and water temperature come back in one answer, and its newest
+//     readings are what each gauge is doing now. That record is asked for as CSV: the same
+//     rows as JSON at an eighth of the size on the wire (three days of the club's thirty-two
+//     gauges is 55 KB instead of 450).
 //   * the Statistics API (api.waterdata.usgs.gov/statistics/v0, still labelled beta) — for
 //     each day of the year, the median and percentiles of that day's flow over every year
 //     on record. "Normal for today" is USGS's own convention: between the 25th and 75th
-//     percentile.
+//     percentile; below the 10th and above the 90th are its "much below" and "much above".
 //
 // This is the modern API on purpose. The older waterservices.usgs.gov, which every tutorial
 // still points at, is being switched off in early 2027.
@@ -34,7 +37,10 @@ export const METRICS = {
   temp: { key: 'temp', label: 'Water temp', parameter: '00010', unit: '°F', name: 'water temperature', convert: (celsius) => (celsius * 9) / 5 + 32 },
 };
 
+// Three days is the stretch the page opens with: it is the record every gauge's line on the
+// board is already read from (RECENT_HOURS), so a chart of it asks USGS for nothing more.
 export const PERIODS = [
+  { key: '3d', label: '3 days', days: 3 },
   { key: '7d', label: '7 days', days: 7 },
   { key: '30d', label: '30 days', days: 30 },
   { key: '1y', label: '1 year', days: 365 },
@@ -49,6 +55,9 @@ export const REPORTING_WITHIN_HOURS = 24;
 // How long a set of readings stands before the page loads new ones by itself. USGS gauges
 // send theirs every fifteen minutes to an hour.
 export const FRESH_FOR_MINUTES = 15;
+// How far back the record behind the board goes: enough to say which way a river is going,
+// where it peaked after the last rain, and how warm the water got yesterday afternoon.
+export const RECENT_HOURS = 72;
 // The longest stretch a custom range may cover, in days: the daily record of every gauge in
 // a state is fetched for it at once.
 export const LONGEST_CUSTOM_DAYS = 3 * 366;
@@ -103,7 +112,7 @@ export function periodRange(period, now = Date.now(), custom = {}) {
     const startMs = dayToMs(custom.start) - DAY / 2;
     return { startMs, endMs: Math.min(dayToMs(custom.end) + DAY / 2, Math.max(now, startMs + DAY)), startDay: custom.start, endDay: custom.end, days, live: custom.end >= dayOf(now) };
   }
-  const days = (PERIODS.find((candidate) => candidate.key === period) || PERIODS[1]).days;
+  const days = (PERIODS.find((candidate) => candidate.key === period) || PERIODS[0]).days;
   return { startMs: now - days * DAY, endMs: now, startDay: dayOf(now - days * DAY), endDay: dayOf(now), days, live: true };
 }
 
@@ -119,7 +128,7 @@ export class GaugeDataError extends Error {
   constructor(message, status) { super(message); this.name = 'GaugeDataError'; this.status = status || 0; }
 }
 
-async function getJson(url, { fetchImpl, fresh = false, timeout = 25000 } = {}) {
+async function answer(url, { fetchImpl, fresh = false, timeout = 25000 } = {}) {
   const request = fetchImpl || window.fetch.bind(window);
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), timeout) : null;
@@ -134,10 +143,26 @@ async function getJson(url, { fetchImpl, fresh = false, timeout = 25000 } = {}) 
   }
   if (response.status === 429) throw new GaugeDataError('USGS is limiting how often this connection can ask. Give it a few minutes and try again.', 429);
   if (!response.ok) throw new GaugeDataError(`USGS answered with an error (${response.status}). Try again in a little while.`, response.status);
+  return response;
+}
+
+const unreadable = (status) => new GaugeDataError('USGS sent back something that couldn\'t be read. Try again in a little while.', status);
+
+async function getJson(url, options) {
+  const response = await answer(url, options);
   try {
     return await response.json();
   } catch (problem) {
-    throw new GaugeDataError('USGS sent back something that couldn\'t be read. Try again in a little while.', response.status);
+    throw unreadable(response.status);
+  }
+}
+
+async function getText(url, options) {
+  const response = await answer(url, options);
+  try {
+    return await response.text();
+  } catch (problem) {
+    throw unreadable(response.status);
   }
 }
 
@@ -168,7 +193,9 @@ const numberOf = (text) => { const value = Number(text); return text !== null &&
 // Map of site number -> { flow: { t, v }, temp: { t, v } }, holding only what the gauge has
 // reported in the last day (many gauges have no thermometer, and each measurement keeps its
 // own clock: a gauge whose thermometer went quiet years ago is still reporting flow). A gauge
-// with none of it is left out.
+// with none of it is left out. This is what the add-a-gauge search goes by, to offer only
+// stations that are flowing; the board reads what its gauges are doing off the end of their
+// three-day record (fetchMeasured, newestOf), and asks nothing more for it.
 export async function fetchLatest(siteNos, metrics, { now = Date.now(), ...options } = {}) {
   const latest = new Map();
   if (siteNos.length === 0 || metrics.length === 0) return latest;
@@ -219,42 +246,132 @@ export async function fetchDaily(siteNos, metric, startDay, endDay, options) {
   return seriesBySite(rows, metric, (day) => (isDay(day) ? dayToMs(day) : NaN), true);
 }
 
-// The record as measured (every 15 minutes or so) between two instants, thinned to one
-// point an hour: a week of it is ten thousand readings for a dozen gauges, and a phone's
-// chart is three hundred pixels wide. The last reading of each hour is the one kept, so the
-// newest point is always the newest reading.
-export async function fetchContinuous(siteNos, metric, startMs, endMs, options) {
-  if (siteNos.length === 0) return new Map();
-  const time = `${new Date(startMs).toISOString().slice(0, 19)}Z/${new Date(endMs).toISOString().slice(0, 19)}Z`;
-  const rows = await items('continuous', siteNos, { parameter_code: metric.parameter, time, limit: 50000, properties: 'monitoring_location_id,time,value' }, options);
-  const series = seriesBySite(rows, metric, (text) => Date.parse(text));
-  for (const [site, points] of series) series.set(site, hourly(points));
-  return series;
+// --- The record as measured ---------------------------------------------------------------
+// The most rows USGS hands back in one answer.
+const MOST_ROWS = 50000;
+
+// USGS's answer as CSV: a line of column names, then a line a reading. The columns are found
+// by name, so their order (and the empty x and y that lead them) is USGS's business. An
+// answer with no readings in it is an empty one.
+export function readCsv(text) {
+  const lines = String(text || '').split(/\r?\n/).filter((line) => line.trim() !== '');
+  if (lines.length === 0) return [];
+  const cells = (line) => line.split(',').map((cell) => cell.trim().replace(/^"(.*)"$/, '$1'));
+  const names = cells(lines[0]);
+  const at = { site: names.indexOf('monitoring_location_id'), parameter: names.indexOf('parameter_code'), time: names.indexOf('time'), value: names.indexOf('value') };
+  if (at.site < 0 || at.time < 0 || at.value < 0) throw unreadable(200);
+  const rows = [];
+  for (let line = 1; line < lines.length; line += 1) {
+    const values = cells(lines[line]);
+    rows.push({ monitoring_location_id: values[at.site], parameter_code: at.parameter < 0 ? '' : values[at.parameter], time: values[at.time], value: values[at.value] });
+  }
+  return rows;
 }
 
-export function hourly(points) {
+// A record with at most one reading for each stretch `every` long: the last one, so the
+// newest point is always the newest reading.
+export function thinned(points, every) {
   const kept = [];
   for (const point of points) {
     const last = kept[kept.length - 1];
-    if (last && Math.floor(last.t / HOUR) === Math.floor(point.t / HOUR)) kept[kept.length - 1] = point;
+    if (last && Math.floor(last.t / every) === Math.floor(point.t / every)) kept[kept.length - 1] = point;
     else kept.push(point);
   }
   return kept;
 }
+export const hourly = (points) => thinned(points, HOUR);
+
+// The record as measured (every 15 minutes or so) between two instants, for several
+// measurements in one question: Map of site number -> { flow: [{ t, v }], temp: [...] },
+// oldest first, holding only what a gauge measures (most have no thermometer). `every` thins
+// each record to one reading a stretch that long.
+export async function fetchMeasured(siteNos, metrics, startMs, endMs, { every = 0, ...options } = {}) {
+  const found = new Map();
+  if (siteNos.length === 0 || metrics.length === 0) return found;
+  const asked = new Map(metrics.map((metric) => [metric.parameter, metric]));
+  const time = `${new Date(startMs).toISOString().slice(0, 19)}Z/${new Date(endMs).toISOString().slice(0, 19)}Z`;
+  const queue = chunks(siteNos, SITES_PER_REQUEST);
+  while (queue.length > 0) {
+    const part = queue.shift();
+    const url = `${OGC}/continuous/items?${query({ f: 'csv', monitoring_location_id: part.map(siteId).join(','), skipGeometry: 'true', limit: MOST_ROWS, parameter_code: [...asked.keys()].join(','), time, properties: 'monitoring_location_id,parameter_code,time,value' })}`;
+    // eslint-disable-next-line no-await-in-loop
+    const rows = readCsv(await getText(url, options));
+    // A full answer is a cut-off one, and CSV has no "next page" to follow: the same gauges
+    // are asked about again, half of them at a time.
+    if (rows.length >= MOST_ROWS && part.length > 1) {
+      const half = Math.ceil(part.length / 2);
+      queue.unshift(part.slice(0, half), part.slice(half));
+      continue;
+    }
+    for (const row of rows) {
+      const metric = asked.get(row.parameter_code) || (asked.size === 1 ? metrics[0] : null);
+      // (CSV writes an instant with a space where JSON has a T, which not every browser reads.)
+      const t = Date.parse(String(row.time || '').replace(' ', 'T'));
+      const raw = numberOf(row.value);
+      if (!metric || !Number.isFinite(t) || raw === null) continue;
+      const site = siteOf(row);
+      if (!found.has(site)) found.set(site, {});
+      const records = found.get(site);
+      if (!records[metric.key]) records[metric.key] = [];
+      records[metric.key].push({ t, v: metric.convert ? metric.convert(raw) : raw });
+    }
+  }
+  for (const records of found.values()) {
+    for (const key of Object.keys(records)) {
+      records[key].sort((a, b) => a.t - b.t);
+      if (every > 0) records[key] = thinned(records[key], every);
+    }
+  }
+  return found;
+}
+
+// One measurement out of that answer: Map of site number -> [{ t, v }], for the gauges that
+// have it.
+export function seriesOf(measured, key) {
+  const series = new Map();
+  measured.forEach((records, site) => { if (records[key] && records[key].length > 0) series.set(site, records[key]); });
+  return series;
+}
+
+// What each gauge is doing now, out of the same answer: Map of site number -> { t, v }, the
+// newest reading of one measurement, for the gauges that have reported it in the last day
+// (each measurement keeps its own clock: a gauge whose thermometer went quiet is still
+// reporting flow).
+export function newestOf(measured, key, now = Date.now()) {
+  const newest = new Map();
+  measured.forEach((records, site) => {
+    const points = records[key];
+    const last = points && points[points.length - 1];
+    if (last && now - last.t <= REPORTING_WITHIN_HOURS * HOUR) newest.set(site, last);
+  });
+  return newest;
+}
+
+// One measurement's record, thinned to a point an hour: a week of it is ten thousand readings
+// for a dozen gauges, and a phone's chart is three hundred pixels wide.
+export async function fetchContinuous(siteNos, metric, startMs, endMs, options) {
+  return seriesOf(await fetchMeasured(siteNos, [metric], startMs, endMs, { ...options, every: HOUR }), metric.key);
+}
 
 // --- Normals ------------------------------------------------------------------------------
-// For each gauge and day of the year: [25th percentile, median, 75th percentile] of the
-// daily means over every year on record.
+// For each gauge and day of the year, five lines through the daily means of every year on
+// record: the 10th, 25th, 50th (the median), 75th and 90th percentile. The middle three are
+// always there; the outer two are null for a gauge whose record is too short for USGS to
+// give them (it wants more years for the edges than for the middle).
+export const NORMAL = { lowest: 0, low: 1, median: 2, high: 3, highest: 4 };
 const NORMALS_KEY = 'fishyfriends:gauge-normals';
 const NORMALS_KEEP_MS = 30 * DAY;
 // (One entry a gauge and measurement: the club's list in one state is thirty-odd gauges, and
 // each is kept for flow and for temperature.)
 const NORMALS_KEEP_SITES = 160;
+// What is kept changed shape when the outer two lines were added: a copy from before is not
+// read, and is replaced the first time the page is opened.
+const NORMALS_VERSION = 2;
 
 function readNormals(storage) {
   try {
     const saved = JSON.parse(storage.getItem(NORMALS_KEY) || 'null');
-    return saved && saved.version === 1 && saved.sites && typeof saved.sites === 'object' ? saved.sites : {};
+    return saved && saved.version === NORMALS_VERSION && saved.sites && typeof saved.sites === 'object' ? saved.sites : {};
   } catch (problem) {
     return {};
   }
@@ -263,14 +380,15 @@ function readNormals(storage) {
 function writeNormals(storage, sites) {
   try {
     const newest = Object.entries(sites).sort((a, b) => b[1].at - a[1].at).slice(0, NORMALS_KEEP_SITES);
-    storage.setItem(NORMALS_KEY, JSON.stringify({ version: 1, sites: Object.fromEntries(newest) }));
+    storage.setItem(NORMALS_KEY, JSON.stringify({ version: NORMALS_VERSION, sites: Object.fromEntries(newest) }));
   } catch (problem) {
     // Storage that is full or switched off: the normals are just asked for again next time.
   }
 }
 
-// One gauge's part of the statistics answer -> { 'MM-DD': [p25, p50, p75] }. A gauge can have
-// more than one record of the same thing (a sensor that was moved); the longest is used.
+// One gauge's part of the statistics answer -> { 'MM-DD': [p10, p25, p50, p75, p90] }. A gauge
+// can have more than one record of the same thing (a sensor that was moved); the longest is
+// used.
 export function normalsFromFeature(feature, parameter) {
   let best = null;
   for (const record of feature?.properties?.data || []) {
@@ -280,9 +398,9 @@ export function normalsFromFeature(feature, parameter) {
     for (const entry of record.values || []) {
       if (entry.computation !== 'percentile' || !Array.isArray(entry.percentiles) || !Array.isArray(entry.values)) continue;
       const at = (percentile) => numberOf(entry.values[entry.percentiles.indexOf(percentile)] ?? null);
-      const [low, median, high] = [at('25'), at('50'), at('75')];
+      const [lowest, low, median, high, highest] = [at('10'), at('25'), at('50'), at('75'), at('90')];
       if (low === null || median === null || high === null || !/^\d{2}-\d{2}$/.test(entry.time_of_year || '')) continue;
-      days[entry.time_of_year] = [low, median, high];
+      days[entry.time_of_year] = [lowest, low, median, high, highest];
       years = Math.max(years, Number(entry.sample_count) || 0);
     }
     if (Object.keys(days).length && (!best || years > best.years)) best = { days, years };
@@ -290,11 +408,13 @@ export function normalsFromFeature(feature, parameter) {
   return best;
 }
 
-// Normals for the days from startDay to endDay: Map of site number -> { 'MM-DD': [p25, p50,
-// p75] }, in the metric's display unit. What the device already holds is not asked for
+// Normals for the days from startDay to endDay: Map of site number -> { 'MM-DD': [p10, p25,
+// p50, p75, p90] }, in the metric's display unit. What the device already holds is not asked for
 // again; a short stretch asks for just those days, a long one (or one that crosses New
-// Year) for the whole year.
-export async function fetchNormals(siteNos, metric, startDay, endDay, { storage, now = Date.now(), ...options } = {}) {
+// Year) for the whole year. `ahead` is how many days past the stretch to ask for while it is
+// asking anyway: the board wants today's normals every day, and with a fortnight in hand
+// tomorrow's visit finds tomorrow already on the device.
+export async function fetchNormals(siteNos, metric, startDay, endDay, { storage, now = Date.now(), ahead = 0, ...options } = {}) {
   const wanted = [...new Set(daysBetween(startDay, endDay).map(dayOfYear))];
   const kept = storage ? readNormals(storage) : {};
   const keyOf = (site) => `${site}|${metric.parameter}`;
@@ -307,11 +427,14 @@ export async function fetchNormals(siteNos, metric, startDay, endDay, { storage,
     const first = dayOfYear(startDay);
     const last = dayOfYear(endDay);
     const whole = wanted.length > 120 || first > last;
+    // (Not across New Year: a stretch of days of the year can't run from December into January.)
+    const beyond = ahead > 0 ? dayOfYear(dayOf(dayToMs(endDay) + ahead * DAY)) : last;
+    const until = beyond > last ? beyond : last;
     for (const part of chunks(missing, SITES_PER_REQUEST)) {
       const found = new Map();
       let token = '';
       for (let page = 0; page < 8; page += 1) {
-        const url = `${STATISTICS}?${query({ parameter_code: metric.parameter, computation_type: 'percentile', normal_type: 'DOY', page_size: 1000, ...(whole ? {} : { start_date: first, end_date: last }), ...(token ? { next_token: token } : {}) })}&${part.map((site) => `monitoring_location_id=${siteId(site)}`).join('&')}`;
+        const url = `${STATISTICS}?${query({ parameter_code: metric.parameter, computation_type: 'percentile', normal_type: 'DOY', page_size: 1000, ...(whole ? {} : { start_date: first, end_date: until }), ...(token ? { next_token: token } : {}) })}&${part.map((site) => `monitoring_location_id=${siteId(site)}`).join('&')}`;
         // eslint-disable-next-line no-await-in-loop
         const body = await getJson(url, options);
         for (const feature of body.features || []) {
@@ -340,16 +463,20 @@ export async function fetchNormals(siteNos, metric, startDay, endDay, { storage,
     const entry = kept[keyOf(site)];
     if (!entry || entry.none) continue;
     const days = {};
-    for (const [day, values] of Object.entries(entry.days)) if (values) days[day] = metric.convert ? values.map(metric.convert) : values;
+    for (const [day, values] of Object.entries(entry.days)) if (values) days[day] = metric.convert ? values.map((value) => (value === null ? null : metric.convert(value))) : values;
     result.set(site, days);
   }
   return result;
 }
 
-// The dashed line: the median for each date in a stretch, drawn through the days.
+// The dashed line and the band behind it: for each date in a stretch, the median (`v`) and
+// the range the middle half of years fell in (`low` to `high`), drawn through the days.
 export function normalSeries(normals, startDay, endDay) {
   if (!normals) return [];
-  return daysBetween(startDay, endDay).filter((day) => normals[dayOfYear(day)]).map((day) => ({ t: dayToMs(day), v: normals[dayOfYear(day)][1], day }));
+  return daysBetween(startDay, endDay).filter((day) => normals[dayOfYear(day)]).map((day) => {
+    const lines = normals[dayOfYear(day)];
+    return { t: dayToMs(day), v: lines[NORMAL.median], low: lines[NORMAL.low], high: lines[NORMAL.high], day };
+  });
 }
 
 // Last year's record laid over this year's dates.
@@ -370,46 +497,10 @@ export function shiftInstant(ms, years) {
   return new Date(moved).getUTCDate() === from.getUTCDate() ? moved : null;
 }
 
-// Below, near or above normal, the way USGS draws its own maps: against the 25th and 75th
-// percentile for the day. null where either side is missing.
-export function compareToNormal(value, normalsForDay) {
-  if (!Number.isFinite(value) || !normalsForDay) return null;
-  if (value < normalsForDay[0]) return 'below';
-  if (value > normalsForDay[2]) return 'above';
-  return 'normal';
-}
-
-// The line at the top of the page. `gauges` are the ones being shown; `latest` and `normals`
-// are flow's, whatever the charts are showing.
-export function summarize(gauges, latest, normals, today) {
-  const counts = { reporting: 0, below: 0, normal: 0, above: 0, unrated: 0 };
-  for (const gauge of gauges) {
-    const reading = latest.get(gauge.site_no);
-    if (!reading) continue;
-    counts.reporting += 1;
-    const verdict = compareToNormal(reading.v, normals.get(gauge.site_no)?.[dayOfYear(today)]);
-    counts[verdict || 'unrated'] += 1;
-  }
-  return counts;
-}
-
-const counted = (count, one, many) => `${count} ${count === 1 ? one : many}`;
-
-// The summary in words. `where` is the state's name, for when nothing is reporting.
-export function summaryText(counts, where) {
-  if (counts.reporting === 0) return `No gauge in ${where} is reporting right now.`;
-  const rated = counts.below + counts.normal + counts.above;
-  const reporting = counted(counts.reporting, 'gauge', 'gauges');
-  if (rated === 0) return `${reporting} reporting. USGS has no long-run record to say what is normal for ${counts.reporting === 1 ? 'it' : 'them'} today.`;
-  const rest = counts.unrated ? ` ${counted(counts.unrated, 'has', 'have')} too short a record to say.` : '';
-  return `Of ${reporting} reporting, ${counts.below} ${counts.below === 1 ? 'is' : 'are'} running below normal flow for today, ${counts.normal} near normal and ${counts.above} above.${rest}`;
-}
-
-// The line under that sentence, the average water temperature: the newest reading at each
-// gauge that measures it, added up and divided by how many there are, with the coldest and
-// the warmest of them. By gauge, like the sentence above it, so every number in the line is
-// a number on a card. null where none of the gauges being shown has a reading; `temps` is
-// each gauge's newest one.
+// The average water temperature at the top of the page: the newest reading at each gauge that
+// measures it, added up and divided by how many there are, with the coldest and the warmest
+// of them. By gauge, so every number in the line is a number on the board. null where none
+// of the gauges being shown has a reading; `temps` is each gauge's newest one.
 export function averageTemperature(gauges, temps) {
   const values = gauges.map((gauge) => temps.get(gauge.site_no)?.v).filter((value) => Number.isFinite(value));
   if (values.length === 0) return null;
@@ -426,36 +517,6 @@ export function temperatureText(average) {
   if (average.gauges === 1) return ['Water is ', degrees(average.mean), ' at the one gauge that measures it.'];
   const [low, high] = [degrees(average.low), degrees(average.high)];
   return ['Water is averaging ', degrees(average.mean), ` across the ${average.gauges} gauges that measure it${low === high ? '' : `, from ${low} to ${high}`}.`];
-}
-
-// Where a reading stands against the day's normals: which side of the usual range it is on
-// (compareToNormal) and how far it is from the median, in the reading's own unit. null
-// where there is nothing to hold it against.
-export function againstNormal(value, normalsForDay) {
-  const verdict = compareToNormal(value, normalsForDay);
-  if (!verdict) return null;
-  return { verdict, median: normalsForDay[1], off: value - normalsForDay[1] };
-}
-
-// A difference in flow, as short as it can honestly be: 46, 7, 3.2, 0.45.
-export function formatDifference(amount) {
-  const size = Math.abs(amount);
-  if (size >= 9.95) return Math.round(size).toLocaleString('en-US');
-  if (size >= 0.995) return size.toFixed(1).replace(/\.0$/, '');
-  return size.toFixed(2);
-}
-
-// That standing in words. The count of cubic feet is always against the median; whether it
-// is called below or above normal follows the usual range, so these lines add up to the
-// sentence at the top of the page — a river 12 cfs under its median but inside the range is
-// near normal in both.
-export function standingText(standing) {
-  if (!standing) return '';
-  const amount = formatDifference(standing.off);
-  if (standing.verdict === 'below') return `${amount} cfs below normal`;
-  if (standing.verdict === 'above') return `${amount} cfs above normal`;
-  if (Number(amount.replace(/,/g, '')) === 0) return 'Right at normal';
-  return `Near normal · ${amount} cfs ${standing.off < 0 ? 'under' : 'over'}`;
 }
 
 // --- Rivers -------------------------------------------------------------------------------
